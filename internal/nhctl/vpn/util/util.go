@@ -502,8 +502,14 @@ func GetMacAddress() net.HardwareAddr {
 			return name.HardwareAddr
 		}
 	}
-	index, _ := net.InterfaceByIndex(0)
-	return index.HardwareAddr
+	if index, err := net.Interfaces(); err == nil && len(index) != 0 {
+		for _, i := range index {
+			if len(i.HardwareAddr) != 0 {
+				return i.HardwareAddr
+			}
+		}
+	}
+	return net.HardwareAddr{0x00, 0x00, 0x5e, 0x00, 0x53, 0x01}
 }
 
 func MergeOrReplaceAnnotation(c rest.Interface, namespace, resource, name, k, v string) error {

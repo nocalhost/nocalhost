@@ -61,6 +61,9 @@ var connectCmd = &cobra.Command{
 			if line, _, err := stream.ReadLine(); errors.Is(err, io.EOF) {
 				return
 			} else {
+				if len(line) == 0 {
+					continue
+				}
 				fmt.Println(string(line))
 				if strings.Contains(string(line), util.EndSignOK) {
 					readClose.Close()

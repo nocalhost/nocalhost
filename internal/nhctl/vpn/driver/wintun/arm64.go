@@ -12,7 +12,6 @@ import (
 	"embed"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 )
 
 //go:embed bin/arm64/wintun.dll
@@ -27,7 +26,11 @@ func InstallWintunDriver() error {
 	if err != nil {
 		return err
 	}
-	filename := filepath.Join(wd, "wintun.dll")
+	currentFile, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	filename := filepath.Join(filepath.Dir(currentFile), "wintun.dll")
 	_ = os.Remove(filename)
 	err = ioutil.WriteFile(filename, bytes, 644)
 	return err
