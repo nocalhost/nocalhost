@@ -354,6 +354,8 @@ func ApplySleepConfig(c *clientgo.GoClient, id uint64, ns string, conf model.Sle
 			"annotations": map[string]string{
 				kConfig: ternary(len(conf.ByWeek) == 0, "" , stringify(conf)).(string),
 				kStatus: "",
+				kForceSleep: "",
+				kForceWakeup: "",
 			},
 		},
 	})
