@@ -83,32 +83,63 @@ func (r *ResourceEventHandlerFuncs) timeUp(f func()) {
 	r.nextTime = time.Now().Add(time.Second * 5)
 }
 
-func (r *ResourceEventHandlerFuncs) handle() {
-	var m sync.Map
-	for _, i := range r.informer.Informer().GetStore().List() {
+func (r *ResourceEventHandlerFuncs) handleAddOrUpdate() {
+	// namespace --> appName
+	var namespaceToApp = sync.Map{}
+	list := r.informer.Informer().GetStore().List()
+	// sort by namespace
+	for _, i := range list {
+		object := i.(metav1.Object)
+		if len(object.GetNamespace()) != 0 {
+			v, _ := namespaceToApp.LoadOrStore(object.GetNamespace(), sets.NewString())
+			v.(sets.String).Insert(getAppName(i))
+		}
+	}
+
+	for _, i := range list {
 		object := i.(metav1.Object)
 		if len(object.GetNamespace()) != 0 {
 			kindToAppMap, _ := maps.LoadOrStore(r.toKey(object.GetNamespace()), &sync.Map{})
 			kindApp, _ := kindToAppMap.(*sync.Map).LoadOrStore(r.Gvr.Resource, newAppSet())
 			set := kindApp.(*appSet)
-			set.lock.Lock()
-			if _, loaded := m.LoadOrStore(object.GetNamespace(), true); !loaded {
-				set.set = sets.NewString()
+			if value, loaded := namespaceToApp.LoadAndDelete(object.GetNamespace()); loaded {
+				set.lock.Lock()
+				set.set, _ = value.(sets.String)
+				set.lock.Unlock()
 			}
-			set.set.Insert(getAppName(i))
-			set.lock.Unlock()
 		}
 	}
 }
 
 func (r *ResourceEventHandlerFuncs) OnAdd(interface{}) {
-	r.timeUp(r.handle)
+	r.timeUp(r.handleAddOrUpdate)
 }
 
 func (r *ResourceEventHandlerFuncs) OnUpdate(_, _ interface{}) {
-	r.timeUp(r.handle)
+	r.timeUp(r.handleAddOrUpdate)
 }
 
 func (r *ResourceEventHandlerFuncs) OnDelete(interface{}) {
-	r.timeUp(r.handle)
+	// kubeconfig+namespace --> appName
+	var namespaceToApp = sync.Map{}
+	for _, i := range r.informer.Informer().GetStore().List() {
+		object := i.(metav1.Object)
+		if len(object.GetNamespace()) != 0 {
+			v, _ := namespaceToApp.LoadOrStore(r.toKey(object.GetNamespace()), sets.NewString())
+			v.(sets.String).Insert(getAppName(i))
+		}
+	}
+	maps.Range(func(uniqueKey, resourcesMap interface{}) bool {
+		// resource --> appName
+		resourcesMap.(*sync.Map).Range(func(resource, apps interface{}) bool {
+			if r.Gvr.Resource == resource.(string) {
+				v, _ := namespaceToApp.LoadOrStore(uniqueKey, sets.NewString())
+				apps.(*appSet).lock.Lock()
+				apps.(*appSet).set = sets.NewString(v.(sets.String).List()...)
+				apps.(*appSet).lock.Unlock()
+			}
+			return true
+		})
+		return true
+	})
 }

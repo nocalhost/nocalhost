@@ -12,7 +12,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/cache"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/appmeta_manager"
@@ -281,7 +280,7 @@ func getNamespace(namespace string, kubeconfigBytes []byte) (ns string) {
 
 func getApplicationByNs(namespace, kubeconfigPath string, search *resouce_cache.Searcher, label map[string]string, showHidden bool) item.Result {
 	result := item.Result{Namespace: namespace}
-	nameAndNidList, _ := GetAllApplicationWithDefaultApp(namespace, kubeconfigPath)
+	nameAndNidList := GetAllApplicationWithDefaultApp(namespace, kubeconfigPath)
 	okChan := make(chan struct{}, 2)
 	go func() {
 		time.Sleep(time.Second * 10)
@@ -399,29 +398,47 @@ func GetAllValidApplicationWithDefaultApp(ns string, KubeConfigBytes []byte) []*
 	// then get apps from annotations
 	// merge then
 	// and remove all apps invalid(uninstalled)
-	app, appSets := GetAllApplicationWithDefaultApp(ns, k8sutil.GetOrGenKubeConfigPath(string(KubeConfigBytes)))
-
-	appList := resouce_cache.GetAllAppNameByNamespace(KubeConfigBytes, ns).UnsortedList()
-	sort.Strings(appList)
-
-	for _, s := range appList {
-		if !appSets.Has(s) {
-			app = append(app, &appmeta.ApplicationMeta{ApplicationType: appmeta.ManifestLocal, Application: s})
-		}
+	appFromMeta := GetAllApplicationWithDefaultApp(ns, k8sutil.GetOrGenKubeConfigPath(string(KubeConfigBytes)))
+	appFromMetaMapping := make(map[string]*appmeta.ApplicationMeta, 0)
+	for _, meta := range appFromMeta {
+		appFromMetaMapping[meta.Application] = meta
 	}
+
+	appFromAnno := resouce_cache.GetAllAppNameByNamespace(KubeConfigBytes, ns).UnsortedList()
 
 	result := make([]*appmeta.ApplicationMeta, 0)
-	for _, meta := range app {
-		if appmeta_manager.VALID_APPLICATION(meta) {
-			result = append(result, meta)
+	for _, s := range appFromAnno {
+
+		// if has appmeta secret but without appFromAnno
+		// we should filter that do installed
+		//
+		// else if application is found from annotations
+		// and is not protected by a.UninstallBackOff
+		// we should recommend it as installed
+		if meta, ok := appFromMetaMapping[s]; ok {
+			if meta.ProtectedFromReInstall() {
+				continue
+			}
+
+			result = append(result, &appmeta.ApplicationMeta{ApplicationType: appmeta.ManifestLocal, Application: s})
+		} else {
+			if meta.IsNotInstall() {
+				continue
+			}
+
+			result = append(result, &appmeta.ApplicationMeta{ApplicationType: appmeta.ManifestLocal, Application: s})
 		}
 	}
+
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Application>result[j].Application
+	})
 	return result
 }
 
 // GetAllApplicationWithDefaultApp will not to create default application if default application not found
 // note: this func will return all app meta, includes invalid application(uninstalled)
-func GetAllApplicationWithDefaultApp(namespace, kubeconfigPath string) ([]*appmeta.ApplicationMeta, sets.String) {
+func GetAllApplicationWithDefaultApp(namespace, kubeconfigPath string) []*appmeta.ApplicationMeta {
 	kubeconfigBytes, _ := ioutil.ReadFile(kubeconfigPath)
 	applicationMetaList := appmeta_manager.GetApplicationMetas(
 		namespace, kubeconfigBytes,
@@ -429,20 +446,18 @@ func GetAllApplicationWithDefaultApp(namespace, kubeconfigPath string) ([]*appme
 			return true
 		},
 	)
-	appSet := sets.NewString()
+
 	var foundDefaultApp bool
 	for _, meta := range applicationMetaList {
-		appSet.Insert(meta.Application)
 		if meta.Application == _const.DefaultNocalhostApplication {
 			foundDefaultApp = true
 		}
 	}
 	if !foundDefaultApp {
-		appSet.Insert(_const.DefaultNocalhostApplication)
 		applicationMetaList = append(
 			applicationMetaList, appmeta.FakeAppMeta(namespace, _const.DefaultNocalhostApplication),
 		)
 	}
 	SortApplication(applicationMetaList)
-	return applicationMetaList, appSet
+	return applicationMetaList
 }
