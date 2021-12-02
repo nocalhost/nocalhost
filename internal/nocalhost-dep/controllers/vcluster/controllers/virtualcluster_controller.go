@@ -13,13 +13,13 @@ import (
 	"helm.sh/helm/v3/pkg/storage/driver"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
-	"nocalhost/internal/nocalhost-dep/controllers/vcluster/helm"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	helmv1alpha1 "nocalhost/internal/nocalhost-dep/controllers/vcluster/api/v1alpha1"
+	"nocalhost/internal/nocalhost-dep/controllers/vcluster/helper"
 )
 
 // VirtualClusterReconciler reconciles a VirtualCluster object
@@ -44,7 +44,7 @@ func (r *VirtualClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	hc, err := helm.NewClient(r.Config, vc.GetNamespace())
+	hc, err := helper.NewClient(r.Config, vc.GetNamespace())
 	if err != nil {
 		return ctrl.Result{}, err
 	}

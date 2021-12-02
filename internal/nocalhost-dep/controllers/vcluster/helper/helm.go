@@ -3,10 +3,9 @@
 * This source code is licensed under the Apache License Version 2.0.
  */
 
-package helm
+package helper
 
 import (
-	"fmt"
 	"os"
 	"strings"
 
@@ -155,7 +154,3 @@ func NewClient(config *rest.Config, ns string) (*Client, error) {
 	}, nil
 }
 
-func helmLog(format string, v ...interface{}) {
-	log := log.Log.WithName("helm")
-	log.Info(fmt.Sprintf(format, v...))
-}

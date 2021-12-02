@@ -3,7 +3,7 @@
 * This source code is licensed under the Apache License Version 2.0.
  */
 
-package helm
+package helper
 
 import (
 	"testing"
