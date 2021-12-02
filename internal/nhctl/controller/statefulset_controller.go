@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	OriginSpecJson = "nocalhost.origin.spec.json"
+	OriginSpecJson = "nocalhost.origin.spec.json" // deprecated
 )
 
 type StatefulSetController struct {
@@ -130,8 +130,13 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 	//}
 
 	ps := genDevContainerPatches(&dep.Spec.Template.Spec, StatefulSetDevModeAction.PodSpecPath, string(originalSpecJson))
-	if err := s.Client.Patch(s.Type.String(), dep.Name, ps, "json"); err != nil {
-		return err
+	//if err := s.Client.Patch(s.Type.String(), dep.Name, ps, "json"); err != nil {
+	//	return err
+	//}
+	for _, p := range ps {
+		if err = s.Client.Patch(s.Type.String(), dep.Name, p.Patch, p.Type); err != nil {
+			return err
+		}
 	}
 
 	s.patchAfterDevContainerReplaced(ops.Container, dep.Kind, dep.Name)

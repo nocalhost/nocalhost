@@ -112,30 +112,36 @@ func CheckIfControllerTypeSupport(t string) bool {
 }
 
 func (c *Controller) CheckIfExist() (bool, error) {
-	var err error
-	switch c.Type {
-	case base.Deployment:
-		_, err = c.Client.GetDeployment(c.Name)
-	case base.StatefulSet:
-		_, err = c.Client.GetStatefulSet(c.Name)
-	case base.DaemonSet:
-		_, err = c.Client.GetDaemonSet(c.Name)
-	case base.Job:
-		_, err = c.Client.GetJobs(c.Name)
-	case base.CronJob:
-		_, err = c.Client.GetCronJobs(c.Name)
-	case base.Pod:
-		_, err = c.Client.GetPod(c.Name)
-	default:
-		return false, errors.New("unsupported controller type")
-	}
+	_, err := c.GetUnstructuredMap()
 	if err != nil {
 		return false, err
 	}
 	return true, nil
+	//var err error
+	//switch c.Type {
+	//case base.Deployment:
+	//	_, err = c.Client.GetDeployment(c.Name)
+	//case base.StatefulSet:
+	//	_, err = c.Client.GetStatefulSet(c.Name)
+	//case base.DaemonSet:
+	//	_, err = c.Client.GetDaemonSet(c.Name)
+	//case base.Job:
+	//	_, err = c.Client.GetJobs(c.Name)
+	//case base.CronJob:
+	//	_, err = c.Client.GetCronJobs(c.Name)
+	//case base.Pod:
+	//	_, err = c.Client.GetPod(c.Name)
+	//default:
+	//	return false, errors.New("unsupported controller type")
+	//}
+	//if err != nil {
+	//	return false, err
+	//}
+	//return true, nil
 }
 
 func (c *Controller) GetOriginalContainers() ([]v1.Container, error) {
+	c.GetUnstructuredMap()
 	return GetOriginalContainers(c.Client, c.Type, c.Name)
 }
 
@@ -232,66 +238,89 @@ func GetOriginalContainers(client *clientgoutils.ClientGoUtils, workloadType bas
 }
 
 func (c *Controller) GetTypeMeta() (metav1.TypeMeta, error) {
-	switch c.Type {
-	case base.Deployment:
-		return appsv1.Deployment{}.TypeMeta, nil
-	case base.StatefulSet:
-		return appsv1.StatefulSet{}.TypeMeta, nil
-	case base.DaemonSet:
-		return appsv1.DaemonSet{}.TypeMeta, nil
-	case base.Job:
-		return batchv1.Job{}.TypeMeta, nil
-	case base.CronJob:
-		return batchv1beta1.CronJob{}.TypeMeta, nil
-	case base.Pod:
-		return v1.Pod{}.TypeMeta, nil
-	default:
-		return metav1.TypeMeta{}, errors.New("unsupported controller type")
+	um, err := c.GetUnstructuredMap()
+	if err != nil {
+		return metav1.TypeMeta{}, err
 	}
+
+	result := metav1.TypeMeta{}
+
+	k, ok := um["kind"]
+	if !ok {
+		return result, errors.New("Can not find kind")
+	}
+	result.Kind = k.(string)
+
+	a, ok := um["apiVersion"]
+	if !ok {
+		return result, errors.New("Can not find apiVersion")
+	}
+	result.APIVersion = a.(string)
+	return result, nil
+	//switch c.Type {
+	//case base.Deployment:
+	//	return appsv1.Deployment{}.TypeMeta, nil
+	//case base.StatefulSet:
+	//	return appsv1.StatefulSet{}.TypeMeta, nil
+	//case base.DaemonSet:
+	//	return appsv1.DaemonSet{}.TypeMeta, nil
+	//case base.Job:
+	//	return batchv1.Job{}.TypeMeta, nil
+	//case base.CronJob:
+	//	return batchv1beta1.CronJob{}.TypeMeta, nil
+	//case base.Pod:
+	//	return v1.Pod{}.TypeMeta, nil
+	//default:
+	//	return metav1.TypeMeta{}, errors.New("unsupported controller type")
+	//}
 }
 
 func (c *Controller) GetContainerImage(container string) (string, error) {
-	var podSpec v1.PodSpec
-	switch c.Type {
-	case base.Deployment:
-		d, err := c.Client.GetDeployment(c.Name)
-		if err != nil {
-			return "", err
-		}
-		podSpec = d.Spec.Template.Spec
-	case base.StatefulSet:
-		s, err := c.Client.GetStatefulSet(c.Name)
-		if err != nil {
-			return "", err
-		}
-		podSpec = s.Spec.Template.Spec
-	case base.DaemonSet:
-		d, err := c.Client.GetDaemonSet(c.Name)
-		if err != nil {
-			return "", err
-		}
-		podSpec = d.Spec.Template.Spec
-	case base.Job:
-		j, err := c.Client.GetJobs(c.Name)
-		if err != nil {
-			return "", err
-		}
-		podSpec = j.Spec.Template.Spec
-	case base.CronJob:
-		j, err := c.Client.GetCronJobs(c.Name)
-		if err != nil {
-			return "", err
-		}
-		podSpec = j.Spec.JobTemplate.Spec.Template.Spec
-	case base.Pod:
-		p, err := c.Client.GetPod(c.Name)
-		if err != nil {
-			return "", err
-		}
-		podSpec = p.Spec
+	//var podSpec v1.PodSpec
+	//switch c.Type {
+	//case base.Deployment:
+	//	d, err := c.Client.GetDeployment(c.Name)
+	//	if err != nil {
+	//		return "", err
+	//	}
+	//	podSpec = d.Spec.Template.Spec
+	//case base.StatefulSet:
+	//	s, err := c.Client.GetStatefulSet(c.Name)
+	//	if err != nil {
+	//		return "", err
+	//	}
+	//	podSpec = s.Spec.Template.Spec
+	//case base.DaemonSet:
+	//	d, err := c.Client.GetDaemonSet(c.Name)
+	//	if err != nil {
+	//		return "", err
+	//	}
+	//	podSpec = d.Spec.Template.Spec
+	//case base.Job:
+	//	j, err := c.Client.GetJobs(c.Name)
+	//	if err != nil {
+	//		return "", err
+	//	}
+	//	podSpec = j.Spec.Template.Spec
+	//case base.CronJob:
+	//	j, err := c.Client.GetCronJobs(c.Name)
+	//	if err != nil {
+	//		return "", err
+	//	}
+	//	podSpec = j.Spec.JobTemplate.Spec.Template.Spec
+	//case base.Pod:
+	//	p, err := c.Client.GetPod(c.Name)
+	//	if err != nil {
+	//		return "", err
+	//	}
+	//	podSpec = p.Spec
+	//}
+	cs, err := c.GetContainers()
+	if err != nil {
+		return "", err
 	}
 
-	for _, c := range podSpec.Containers {
+	for _, c := range cs {
 		if c.Name == container {
 			return c.Image, nil
 		}
@@ -301,44 +330,54 @@ func (c *Controller) GetContainerImage(container string) (string, error) {
 
 func (c *Controller) GetContainers() ([]v1.Container, error) {
 	var podSpec v1.PodSpec
-	switch c.Type {
-	case base.Deployment:
-		d, err := c.Client.GetDeployment(c.Name)
-		if err != nil {
-			return nil, err
-		}
-		podSpec = d.Spec.Template.Spec
-	case base.StatefulSet:
-		s, err := c.Client.GetStatefulSet(c.Name)
-		if err != nil {
-			return nil, err
-		}
-		podSpec = s.Spec.Template.Spec
-	case base.DaemonSet:
-		d, err := c.Client.GetDaemonSet(c.Name)
-		if err != nil {
-			return nil, err
-		}
-		podSpec = d.Spec.Template.Spec
-	case base.Job:
-		j, err := c.Client.GetJobs(c.Name)
-		if err != nil {
-			return nil, err
-		}
-		podSpec = j.Spec.Template.Spec
-	case base.CronJob:
-		j, err := c.Client.GetCronJobs(c.Name)
-		if err != nil {
-			return nil, err
-		}
-		podSpec = j.Spec.JobTemplate.Spec.Template.Spec
-	case base.Pod:
-		p, err := c.Client.GetPod(c.Name)
-		if err != nil {
-			return nil, err
-		}
-		podSpec = p.Spec
+	um, err := c.GetUnstructuredMap()
+	if err != nil {
+		return nil, err
 	}
+	pt, err := GetPodTemplateFromSpecPath(c.DevModeAction.PodSpecPath, um)
+	if err != nil {
+		return nil, err
+	}
+
+	podSpec = pt.Spec
+	//switch c.Type {
+	//case base.Deployment:
+	//	d, err := c.Client.GetDeployment(c.Name)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	podSpec = d.Spec.Template.Spec
+	//case base.StatefulSet:
+	//	s, err := c.Client.GetStatefulSet(c.Name)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	podSpec = s.Spec.Template.Spec
+	//case base.DaemonSet:
+	//	d, err := c.Client.GetDaemonSet(c.Name)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	podSpec = d.Spec.Template.Spec
+	//case base.Job:
+	//	j, err := c.Client.GetJobs(c.Name)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	podSpec = j.Spec.Template.Spec
+	//case base.CronJob:
+	//	j, err := c.Client.GetCronJobs(c.Name)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	podSpec = j.Spec.JobTemplate.Spec.Template.Spec
+	//case base.Pod:
+	//	p, err := c.Client.GetPod(c.Name)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	podSpec = p.Spec
+	//}
 
 	return podSpec.Containers, nil
 }
@@ -399,61 +438,51 @@ func (c *Controller) patchAfterDevContainerReplaced(containerName, resourceType,
 	<-time.Tick(time.Second)
 }
 
-func genDevContainerPatches(podSpec *v1.PodSpec, path, originalSpecJson string) string {
+func genDevContainerPatches(podSpec *v1.PodSpec, path, originalSpecJson string) []profile.PatchItem {
 
 	jsonPatches := make([]jsonPatch, 0)
 	jsonPatches = append(jsonPatches, jsonPatch{
 		Op:    "replace",
 		Path:  path,
-		Value: &podSpec,
+		Value: podSpec,
 	})
 
-	jsonPatches = append(jsonPatches, jsonPatch{
-		Op:    "add",
-		Path:  fmt.Sprintf("/metadata/annotations/%s", OriginSpecJson),
-		Value: originalSpecJson,
-	})
+	//jsonPatches = append(jsonPatches, jsonPatch{
+	//	Op:    "add",
+	//	Path:  fmt.Sprintf("/metadata/annotations/%s", _const.OriginWorkloadDefinition),
+	//	Value: originalSpecJson,
+	//})
+	m := map[string]interface{}{"metadata": map[string]interface{}{"annotations": map[string]string{_const.OriginWorkloadDefinition: originalSpecJson}}}
 
+	mBytes, _ := json.Marshal(m)
 	bys, _ := json.Marshal(jsonPatches)
+	result := make([]profile.PatchItem, 0)
+	result = append(result, profile.PatchItem{Patch: string(mBytes), Type: "strategic"})
+	result = append(result, profile.PatchItem{Patch: string(bys), Type: "json"})
 
-	return string(bys)
+	return result
 }
 
 func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevStartOptions) error {
 	c.Client.Context(ctx)
 
-	if c.DevModeAction.Kind == "" {
-		return errors.New("Resource Kind can not nil")
-	}
-
-	resourceType := c.DevModeAction.Kind
-	if c.DevModeAction.Version != "" {
-		resourceType += "." + c.DevModeAction.Version
-		if c.DevModeAction.Group != "" {
-			resourceType += "." + c.DevModeAction.Group
-		}
-	}
-
-	var unstructuredObj map[string]interface{}
-	var err error
-	if unstructuredObj, err = c.Client.GetUnstructuredObj(resourceType, c.Name); err != nil {
-		return errors.WithStack(err)
+	unstructuredObj, err := c.GetUnstructuredMap()
+	if err != nil {
+		return err
 	}
 
 	var originalSpecJson []byte
-	if spec, ok := unstructuredObj["spec"]; ok {
-		if originalSpecJson, err = json.Marshal(spec); err != nil {
-			return errors.WithStack(err)
-		}
-	} else {
-		return errors.New("Workload's spec not found")
+	if originalSpecJson, err = json.Marshal(unstructuredObj); err != nil {
+		return errors.WithStack(err)
 	}
 
+	log.Infof("Scale %s(%s) to 1", c.Name, c.Type.String())
 	for _, item := range c.DevModeAction.ScaleAction {
-		if err := c.Client.Patch(resourceType, c.Name, item.Patch, item.Type); err != nil {
+		if err := c.Client.Patch(c.Type.String(), c.Name, item.Patch, item.Type); err != nil {
 			return err
 		}
 	}
+	log.Info("Scale success")
 
 	podTemplate, err := GetPodTemplateFromSpecPath(c.DevModeAction.PodSpecPath, unstructuredObj)
 	if err != nil {
@@ -474,26 +503,22 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 
 	specPath := c.DevModeAction.PodSpecPath + "/spec"
 	ps := genDevContainerPatches(podSpec, specPath, string(originalSpecJson))
-	if err = c.Client.Patch(resourceType, c.Name, ps, "json"); err != nil {
-		return err
+	for _, p := range ps {
+		if err = c.Client.Patch(c.Type.String(), c.Name, p.Patch, p.Type); err != nil {
+			return err
+		}
 	}
 
-	c.patchAfterDevContainerReplaced(ops.Container, resourceType, c.Name)
+	c.patchAfterDevContainerReplaced(ops.Container, c.Type.String(), c.Name)
 
-	//if unstructuredObj, err = c.Client.GetUnstructuredObj(resourceType, c.Name); err != nil {
-	//	return errors.WithStack(err)
-	//}
-	//if podTemplate, err = GetPodTemplateFromSpecPath(c.DevModeAction.PodSpecPath, unstructuredObj); err != nil {
-	//	return err
-	//}
 	delete(podTemplate.Labels, "pod-template-hash")
-	// debug this
+
 	c.devModePodLabels = podTemplate.Labels
 	return waitingPodToBeReady(c.CheckDevModePodIsRunning)
 }
 
 func (c *Controller) CheckDevModePodIsRunning() (string, error) {
-	pods, err := c.Client.Labels(c.devModePodLabels).ListPods()
+	pods, err := c.Client.FieldSelector("").Labels(c.devModePodLabels).ListPods()
 	if err != nil {
 		return "", err
 	}

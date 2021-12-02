@@ -48,7 +48,7 @@ var devContainersCmd = &cobra.Command{
 			containers = append(containers, item.Name)
 		}
 		if len(containers) == 0 {
-			log.Fatal("Container num is not 0??")
+			log.Fatal("Container num is 0??")
 		}
 		c, err := json.Marshal(containers)
 		if err != nil {

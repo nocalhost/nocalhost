@@ -6,7 +6,7 @@
 package _const
 
 const (
-	UintEnable = uint64(1)
+	UintEnable  = uint64(1)
 	UintDisable = uint64(0)
 
 	DefaultEmailSuffix = "@nocalhost.dev"
@@ -22,6 +22,7 @@ const (
 
 	NocalhostApplicationName      = "dev.nocalhost/application-name"
 	NocalhostApplicationNamespace = "dev.nocalhost/application-namespace"
+	OriginWorkloadDefinition      = "dev.nocalhost/origin-workload-definition"
 	AppManagedByLabel             = "app.kubernetes.io/managed-by"
 	AppManagedByNocalhost         = "nocalhost"
 	DefaultNocalhostSideCarName   = "nocalhost-sidecar"

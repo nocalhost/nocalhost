@@ -42,7 +42,7 @@ func (c *ClientGoUtils) Get(resourceType string, resourceName string) (*runtime.
 	return &objs[0], nil
 }
 
-func (c *ClientGoUtils) GetUnstructuredObj(resourceType string, resourceName string) (map[string]interface{}, error) {
+func (c *ClientGoUtils) GetUnstructuredMap(resourceType string, resourceName string) (map[string]interface{}, error) {
 	obj, err := c.Get(resourceType, resourceName)
 	if err != nil {
 		return nil, err

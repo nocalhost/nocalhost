@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/pod_controller"
@@ -36,37 +37,15 @@ func (d *DeploymentController) GetNocalhostDevContainerPod() (string, error) {
 // ReplaceImage In DevMode, nhctl will replace the container of your workload with two containers:
 // one is called devContainer, the other is called sideCarContainer
 func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error {
-
-	d.DevModeAction = DeploymentDevModeAction
 	return d.PatchDevModeManifest(ctx, ops)
 }
 
-func GetPodTemplateFromSpecPath(path string, unstructuredObj map[string]interface{}) (*corev1.PodTemplateSpec, error) {
-	pathItems := strings.Split(path, "/")
-	currentPathMap := unstructuredObj
-	for _, item := range pathItems {
-		if item != "" {
-			if m, ok := currentPathMap[item]; ok {
-				currentPathMap = m.(map[string]interface{})
-			} else {
-				return nil, errors.New(fmt.Sprintf("Invalid path: %s", item))
-			}
-		}
-	}
-
-	jsonBytes, err := json.Marshal(currentPathMap)
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-	p := &corev1.PodTemplateSpec{}
-	if err = json.Unmarshal(jsonBytes, p); err != nil {
-		return nil, errors.WithStack(err)
-	} else {
-		return p, nil
-	}
-}
-
 func (d *DeploymentController) RollBack(reset bool) error {
+	unstructuredMap, err := d.GetUnstructuredMap()
+	if err != nil {
+		return err
+	}
+
 	clientUtils := d.Client
 
 	dep, err := clientUtils.GetDeployment(d.GetName())
@@ -74,19 +53,40 @@ func (d *DeploymentController) RollBack(reset bool) error {
 		return err
 	}
 
-	osj, ok := dep.Annotations[OriginSpecJson]
-	if ok {
-		log.Info("Annotation nocalhost.origin.spec.json found, use it")
-		dep.Spec = v1.DeploymentSpec{}
-		if err = json.Unmarshal([]byte(osj), &dep.Spec); err != nil {
-			return errors.Wrap(err, "")
+	osj, err := GetAnnotationFromUnstructuredMap(unstructuredMap, _const.OriginWorkloadDefinition)
+	if err == nil {
+		log.Infof("Annotation %s found, use it", _const.OriginWorkloadDefinition)
+
+		infos, err := d.Client.GetResourceInfoFromString(osj, true)
+		if err != nil {
+			return err
 		}
 
-		if len(dep.Annotations) == 0 {
-			dep.Annotations = make(map[string]string, 0)
+		if len(infos) != 1 {
+			return errors.New(fmt.Sprintf("%d infos read from annotations, not 1?", len(infos)))
 		}
-		dep.Annotations[OriginSpecJson] = osj
+
+		var originUnstructuredMap map[string]interface{}
+		if originUnstructuredMap, err = runtime.DefaultUnstructuredConverter.ToUnstructured(infos[0].Object); err != nil {
+			return errors.WithStack(err)
+		}
+
+		specMap, ok := originUnstructuredMap["spec"]
+		if !ok {
+			return errors.New("spec not found in annotation")
+		}
+
+		jsonPatches := make([]jsonPatch, 0)
+		jsonPatches = append(jsonPatches, jsonPatch{
+			Op:    "replace",
+			Path:  "/spec",
+			Value: specMap,
+		})
+
+		bys, _ := json.Marshal(jsonPatches)
+		return d.Client.Patch(d.Type.String(), d.Name, string(bys), "json")
 	} else {
+		log.Warn(err.Error())
 		log.Info("Annotation nocalhost.origin.spec.json not found, try to find it from rs")
 		rss, _ := clientUtils.GetSortedReplicaSetsByDeployment(d.GetName())
 		if len(rss) >= 1 {
