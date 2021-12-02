@@ -79,8 +79,8 @@ func Inspect(ns *v1.Namespace) (ToBe, error) {
 		}
 	}
 	// 7. there are no matching rules, then dev space need to be woken up.
-	if ns.Annotations[KStatus] == KActive {
-		return ToBeIgnore, nil
+	if ns.Annotations[KStatus] == KAsleep {
+		return ToBeWakeup, nil
 	}
-	return ToBeWakeup, nil
+	return ToBeIgnore, nil
 }

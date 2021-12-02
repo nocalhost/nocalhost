@@ -16,7 +16,6 @@ func Update(c *clientgo.GoClient, id uint64, ns string, conf model.SleepConfig) 
 		"metadata": map[string]interface{}{
 			"annotations": map[string]string{
 				KConfig:      Ternary(len(conf.ByWeek) == 0, "" , Stringify(conf)).(string),
-				KStatus:      "",
 				KForceSleep:  "",
 				KForceWakeup: "",
 			},
