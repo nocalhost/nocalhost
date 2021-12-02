@@ -29,7 +29,7 @@ func (s *ByWeek) Minute(hm string) int {
 	return cast.ToInt(strings.Split(hm, ":")[1])
 }
 
-func (s *ByWeek) ToInt(day time.Weekday, hm string) int {
+func (s *ByWeek) ToIndex(day time.Weekday, hm string) int {
 	h := cast.ToInt(strings.Split(hm, ":")[0])
 	m := cast.ToInt(strings.Split(hm, ":")[1])
 	return int(day) * 24 * 60 + h * 60 + m

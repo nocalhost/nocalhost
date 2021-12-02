@@ -39,7 +39,7 @@ func Asleep(c *clientgo.GoClient, ns string, force bool) error {
 			return err
 		}
 	}
-	// 4. purging CronJob
+	// 4. suspend CronJob
 	jobs, err := c.Clientset().
 		BatchV1beta1().
 		CronJobs(ns).
