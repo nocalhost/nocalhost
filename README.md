@@ -3,6 +3,7 @@
 ![nhctl](https://github.com/nocalhost/nocalhost/workflows/nhctl/badge.svg?branch=main)
 [![Go Report Card](https://goreportcard.com/badge/github.com/nocalhost/nocalhost)](https://goreportcard.com/report/github.com/nocalhost/nocalhost)
 [![LICENSE](https://img.shields.io/github/license/nocalhost/nocalhost)](https://github.com/nocalhost/nocalhost/blob/main/LICENSE)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fnocalhost%2Fnocalhost.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fnocalhost%2Fnocalhost?ref=badge_shield)
 
 <p align="center">
     <a href="https://nocalhost.dev">
@@ -78,6 +79,9 @@ Nocalhost adopts [CNCF Code of Conduct](https://github.com/cncf/foundation/blob/
 ## License
 
 Nocalhost is [Apache 2.0 licensed](./LICENSE)
+
+
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fnocalhost%2Fnocalhost.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fnocalhost%2Fnocalhost?ref=badge_large)
 
 ## Roadmap
 
