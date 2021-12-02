@@ -74,7 +74,7 @@ func Asleep(c *clientgo.GoClient, ns string, force bool) error {
 			count = *dp.Spec.Replicas
 		}
 		if count > 0 {
-			replicas[KDeployment+":"+dp.Name] = count
+			replicas[KDeployment + ":" + dp.Name] = count
 			dp.Spec.Replicas = &zero
 			_, err = c.Clientset().
 				AppsV1().

@@ -26,12 +26,12 @@ func Ternary(a bool, b, c interface{}) interface{} {
 func Calc(items *[]model.ByWeek) float32 {
 	var week [10080]uint8
 	for _, it := range *items {
-		a := it.ToInt(*it.SleepDay, it.SleepTime)
-		b := it.ToInt(*it.WakeupDay, it.WakeupTime)
+		a := it.ToInt(it.SleepDay, it.SleepTime)
+		b := it.ToInt(it.WakeupDay, it.WakeupTime)
 		// extend into next week
 		if b < a {
 			for i := a; i < 10080; i++ {
-				week[i] =1
+				week[i] = 1
 			}
 			for i := 0; i < b; i++ {
 				week[i] = 1

@@ -56,11 +56,11 @@ func Inspect(ns *v1.Namespace) (ToBe, error) {
 	// 6. match sleep config
 	for _, f := range conf.ByWeek {
 		now := time.Now().In(f.TimeZone())
-		d1 := time.Duration(*f.SleepDay - now.Weekday())
-		d2 := time.Duration(*f.WakeupDay - now.Weekday())
+		d1 := time.Duration(f.SleepDay - now.Weekday())
+		d2 := time.Duration(f.WakeupDay - now.Weekday())
 
-		if *f.WakeupDay < *f.SleepDay {
-			d2 = time.Duration(time.Saturday - *f.SleepDay + *f.WakeupDay + 1)
+		if f.WakeupDay < f.SleepDay {
+			d2 = time.Duration(time.Saturday - f.SleepDay + f.WakeupDay + 1)
 		}
 		// sleep time
 		t1 := now.Add(d1 * 24 * time.Hour)
