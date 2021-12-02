@@ -130,10 +130,7 @@ func newApplication(name string, ns string, kubeconfig string, meta *appmeta.App
 	// load from secret
 	profileV2, err := nocalhost.GetProfileV2(app.NameSpace, app.Name, app.appMeta.NamespaceId)
 	if err != nil {
-		profileV2 = &profile.AppProfileV2{}
-		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, app.appMeta.NamespaceId, profileV2); err != nil {
-			return nil, err
-		}
+		return nil, err
 	}
 	// Migrate config to meta
 	if app.appMeta.Config == nil || !app.appMeta.Config.Migrated {
@@ -152,16 +149,17 @@ func newApplication(name string, ns string, kubeconfig string, meta *appmeta.App
 			if err = app.appMeta.Update(); err != nil {
 				return nil, err
 			}
-			if err = nocalhost.UpdateProfileV2(
-				app.NameSpace, app.Name, app.appMeta.NamespaceId, profileV2,
-			); err != nil {
-				return nil, err
-			}
 		}
 	}
 
 	if profileV2.Identifier == "" {
-		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, app.appMeta.NamespaceId, profileV2); err != nil {
+		if err = app.UpdateProfile(func(v2 *profile.AppProfileV2) error {
+			v2.GenerateIdentifierIfNeeded()
+			return nil
+		}); err != nil {
+			return nil, err
+		}
+		if profileV2, err = app.GetProfile(); err != nil {
 			return nil, err
 		}
 	}
@@ -186,9 +184,6 @@ func newApplication(name string, ns string, kubeconfig string, meta *appmeta.App
 		}
 	}
 
-	// can not successful migrate because we are not record
-	// the kubeconfig before
-	//migrateAssociate(profileV2, app)
 	return app, nil
 }
 
@@ -495,13 +490,11 @@ func (a *Application) newConfigFromProfile() *profile.NocalHostAppConfigV2 {
 			Version: "v2",
 		},
 		ApplicationConfig: profile.ApplicationConfig{
-			Name:         a.Name,
-			Type:         profileV2.AppType,
-			ResourcePath: profileV2.ResourcePath,
-			IgnoredPath:  profileV2.IgnoredPath,
-			PreInstall:   profileV2.PreInstall,
-			//Env:            profileV2.Env,
-			//EnvFrom:        profileV2.EnvFrom,
+			Name:           a.Name,
+			Type:           profileV2.AppType,
+			ResourcePath:   profileV2.ResourcePath,
+			IgnoredPath:    profileV2.IgnoredPath,
+			PreInstall:     profileV2.PreInstall,
 			ServiceConfigs: loadServiceConfigsFromProfile(profileV2.SvcProfile),
 		},
 	}
@@ -518,9 +511,6 @@ func loadServiceConfigsFromProfile(profiles []*profile.SvcProfileV2) []*profile.
 				configs, &profile.ServiceConfigV2{
 					Name: p.GetName(),
 					Type: p.GetType(),
-					//PriorityClass:       p.PriorityClass,
-					//DependLabelSelector: p.DependLabelSelector,
-					//ContainerConfigs:    p.ContainerConfigs,
 				},
 			)
 		}
@@ -531,9 +521,15 @@ func loadServiceConfigsFromProfile(profiles []*profile.SvcProfileV2) []*profile.
 
 func (a *Application) createLevelDbIfNotExists() (err error) {
 	if db, err := nocalhostDb.OpenApplicationLevelDB(a.NameSpace, a.Name, a.appMeta.NamespaceId, true); err != nil {
-		return nocalhostDb.CreateApplicationLevelDB(
-			a.NameSpace, a.Name, a.appMeta.NamespaceId, true,
-		)
+		if errors.Is(err, os.ErrNotExist) {
+			p := profile.AppProfileV2{}
+			p.GenerateIdentifierIfNeeded()
+			pBytes, _ := yaml.Marshal(&p)
+			return nocalhostDb.CreateApplicationLevelDBWithProfile(
+				a.NameSpace, a.Name, a.appMeta.NamespaceId, profile.ProfileV2Key(a.NameSpace, a.Name), pBytes, true,
+			)
+		}
+		return err
 	} else {
 		_ = db.Close()
 	}
