@@ -10,7 +10,7 @@ on:
 jobs:
 
   build-nhctl-windows-linux:
-    needs: [ build-syncthing-linux-amd64, build-syncthing-macos-windows ]
+    needs: [ build-syncthing-linux, build-syncthing-macos-windows ]
     name: Build nhctl
     runs-on: ubuntu-latest
     steps:
@@ -40,16 +40,19 @@ jobs:
           export GITHUB_ACTION=true
           make nhctl-linux
           make nhctl-windows
+          make nhctl-linux-arm64
 
       - name: Push to Coding Artifacts
         if: ${{ github.repository == 'nocalhost/nocalhost' }}
         env:
           WINDOWS_BINARY: 'nhctl-windows-amd64.exe'
           LINUX_BINARY: 'nhctl-linux-amd64'
+          LINUX_ARM64_BINARY: 'nhctl-linux-arm64'
         run: |
           cd build
           curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=${GITHUB_SHA}" --retry 5
           curl -T ${LINUX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_BINARY}?version=${GITHUB_SHA}" --retry 5
+          curl -T ${LINUX_ARM64_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_ARM64_BINARY}?version=${GITHUB_SHA}" --retry 5
 
       - name: Push to Coding Artifacts
         if: ${{ github.ref == 'refs/heads/main' && github.repository == 'nocalhost/nocalhost' }}
@@ -60,6 +63,7 @@ jobs:
           cd build
           curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=main" --retry 5
           curl -T ${LINUX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_BINARY}?version=main" --retry 5
+          curl -T ${LINUX_ARM64_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_ARM64_BINARY}?version=main" --retry 5
 
       - name: Push to Coding Artifacts
         if: ${{ github.ref == 'refs/heads/dev' && github.repository == 'nocalhost/nocalhost' }}
@@ -70,6 +74,7 @@ jobs:
           cd build
           curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=dev" --retry 5
           curl -T ${LINUX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_BINARY}?version=dev" --retry 5
+          curl -T ${LINUX_ARM64_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_ARM64_BINARY}?version=dev" --retry 5
 
   build-nhctl-macos:
     needs: build-syncthing-macos-windows
@@ -127,8 +132,8 @@ jobs:
           curl -T ${OSX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${OSX_BINARY}?version=dev" --retry 5
           curl -T ${OSX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${OSX_ARM64_BINARY}?version=dev" --retry 5
 
-  build-syncthing-linux-amd64:
-    name: Build syncthing amd64
+  build-syncthing-linux:
+    name: Build syncthing amd64&arm64
     runs-on: ubuntu-latest
     steps:
 
@@ -146,17 +151,22 @@ jobs:
 
       - name: Build syncthing-amd64
         working-directory: ./syncthing-source
-        run: go run build.go -nocalhostVersion=dev -nocalhostCommitId="${GITHUB_SHA}" -goarch amd64 tar
+        run: |
+          go run build.go -nocalhostVersion=dev -nocalhostCommitId="${GITHUB_SHA}" -goarch amd64 tar
+          go run build.go -nocalhostVersion=dev -nocalhostCommitId="${GITHUB_SHA}" -goarch arm64 tar
 
       - name: Push to Coding Articact
         working-directory: ./syncthing-source
         run: |
           curl -T syncthing-linux-amd64.tar.gz -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/syncthing/syncthing-linux-amd64.tar.gz?version=${GITHUB_SHA}" --retry 5
+          curl -T syncthing-linux-arm64.tar.gz -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/syncthing/syncthing-linux-arm64.tar.gz?version=${GITHUB_SHA}" --retry 5
 
       - name: Upload linux syncthing to artifact
         uses: actions/upload-artifact@v2
         with:
-          path: ./syncthing-source/syncthing-linux-amd64.tar.gz
+          path: |
+            ./syncthing-source/syncthing-linux-amd64.tar.gz
+            ./syncthing-source/syncthing-linux-arm64.tar.gz
           name: synchthing-linux-cache-${GITHUB_SHA}
 
   build-syncthing-macos-windows:
@@ -180,8 +190,8 @@ jobs:
         working-directory: ./syncthing-source
         run: |
           go run build.go -nocalhostVersion=dev -nocalhostCommitId="${GITHUB_SHA}" -goarch amd64 zip
-          go run build.go -nocalhostVersion=dev -nocalhostCommitId="${GITHUB_SHA}" -goos=windows -goarch amd64 zip
           go run build.go -nocalhostVersion=dev -nocalhostCommitId="${GITHUB_SHA}" -goarch arm64 zip
+          go run build.go -nocalhostVersion=dev -nocalhostCommitId="${GITHUB_SHA}" -goos=windows -goarch amd64 zip
 
       - name: Push to Coding Articact
         working-directory: ./syncthing-source
