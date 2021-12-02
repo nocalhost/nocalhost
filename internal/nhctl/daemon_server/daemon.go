@@ -129,12 +129,17 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 			},
 		)
 		appmeta_manager.Start()
+
+		dev_dir.Initial()
+		// update nocalhost-hub
+		go cronJobForUpdatingHub()
+		// Listen http
+		go startHttpServer()
+
+		go checkClusterStatusCronJob()
+
+		go reconnectSyncthingIfNeededWithPeriod(time.Second * 30)
 	}
-
-	dev_dir.Initial()
-
-	// update nocalhost-hub
-	go cronJobForUpdatingHub()
 
 	go func() {
 		defer func() {
@@ -202,17 +207,10 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 		}
 	}()
 
-	// Listen http
-	go startHttpServer()
-
-	go checkClusterStatusCronJob()
-
 	// recover
 	go func() {
 
 	}()
-
-	go reconnectSyncthingIfNeededWithPeriod(time.Second * 30)
 
 	go func() {
 		select {

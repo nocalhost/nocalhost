@@ -17,18 +17,22 @@ import (
 )
 
 type HealthEnum string
+type ModeEnum string
 
 const (
-	DisConnected     HealthEnum = "DisConnected"
-	ConnectHealth    HealthEnum = "ConnectHealth"
-	ConnectUnHealth  HealthEnum = "ConnectUnHealth"
-	NotReversed      HealthEnum = "NotReversed"
-	ReversedHealth   HealthEnum = "ReversedHealth"
-	ReversedUnHealth HealthEnum = "ReversedUnHealth"
+	Unknown     HealthEnum = "unknown"
+	UnHealthy   HealthEnum = "unHealthy"
+	Healthy     HealthEnum = "healthy"
+	ReverseMode ModeEnum   = "reverse"
+	ConnectMode ModeEnum   = "connect"
 )
 
 func (e HealthEnum) String() string {
 	return string(e)
+}
+
+func (m ModeEnum) String() string {
+	return string(m)
 }
 
 //var status *VPNStatus
@@ -75,51 +79,20 @@ func (c *ConnectTotal) IsConnected() bool {
 	return c.list.Has(util.GetMacAddress().String())
 }
 
-var defaultStatus = HealthStatus{ConnectStatus: DisConnected, ReserveStatus: NotReversed}
-
-func HandleVPNStatus(cmd *command.VPNOperateCommand) (HealthStatus, error) {
+// todo
+func HandleVPNStatus(cmd *command.VPNOperateCommand) (interface{}, error) {
 	kubeconfigBytes, _ := ioutil.ReadFile(cmd.KubeConfig)
 	config, err := clientcmd.RESTConfigFromKubeConfig(kubeconfigBytes)
 	if err != nil {
-		return defaultStatus, err
+		return nil, err
 	}
 	clientset, err1 := kubernetes.NewForConfig(config)
 	if err1 != nil {
-		return defaultStatus, err1
 	}
 	GetOrGenerateConfigMapWatcher(kubeconfigBytes, cmd.Namespace, clientset.CoreV1().RESTClient())
 	if connectInfo.IsEmpty() {
-		return defaultStatus, nil
 	}
-	var reverseStatus, connectStatus HealthEnum
-	if Reverse(kubeconfigBytes, cmd.Namespace, cmd.Resource) {
-		if v, found := reverseHeathStatus.Load(cmd.Resource); found && v != nil {
-			f := v.(*Func)
-			reverseStatus = f.health
-		} else {
-			reverseStatus = ReversedUnHealth
-		}
-	} else {
-		reverseStatus = NotReversed
-	}
-	if !connectInfo.IsEmpty() &&
-		(string(connectInfo.kubeconfigBytes) == string(kubeconfigBytes)) &&
-		connectInfo.namespace == cmd.Namespace {
-		if connectHealthStatus != nil {
-			connectStatus = connectHealthStatus.health
-		} else {
-			connectStatus = ConnectUnHealth
-		}
-	} else {
-		connectStatus = DisConnected
-	}
-
-	return HealthStatus{ConnectStatus: connectStatus, ReserveStatus: reverseStatus}, nil
-}
-
-type HealthStatus struct {
-	ConnectStatus HealthEnum `json:"connectStatus" yaml:"connectStatus"`
-	ReserveStatus HealthEnum `json:"reserveStatus" yaml:"reserveStatus"`
+	return nil, nil
 }
 
 func FromStrToConnectTotal(string2 string) *ConnectTotal {

@@ -10,17 +10,27 @@ import (
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/util/cache"
 	"strings"
+	"time"
 )
 
 type server struct {
 	// todo using cache to speed up dns resolve process
 	dnsCache   *cache.LRUExpireCache
 	forwardDNS *miekgdns.ClientConfig
+	client     *miekgdns.Client
 }
 
 func NewDNSServer(network, address string, forwardDNS *miekgdns.ClientConfig) error {
 	return miekgdns.ListenAndServe(address, network, &server{
-		dnsCache: cache.NewLRUExpireCache(1000), forwardDNS: forwardDNS,
+		dnsCache:   cache.NewLRUExpireCache(1000),
+		forwardDNS: forwardDNS,
+		client: &miekgdns.Client{
+			Net:          "udp",
+			Timeout:      time.Second * 1,
+			DialTimeout:  time.Second * 1,
+			ReadTimeout:  time.Second * 1,
+			WriteTimeout: time.Second * 1,
+		},
 	})
 }
 
@@ -47,9 +57,12 @@ func (s *server) ServeDNS(w miekgdns.ResponseWriter, r *miekgdns.Msg) {
 	case 4:
 		question.Name = question.Name + strings.Split(s.forwardDNS.Search[2], ".")[1] + "."
 	case 5:
+	default:
+		w.Close()
+		return
 	}
 	r.Question = []miekgdns.Question{question}
-	answer, err := miekgdns.Exchange(r, s.forwardDNS.Servers[0]+":53")
+	answer, _, err := s.client.Exchange(r, s.forwardDNS.Servers[0]+":53")
 	if err != nil {
 		log.Warnln(err)
 		err = w.WriteMsg(r)

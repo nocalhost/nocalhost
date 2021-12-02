@@ -17,11 +17,9 @@ import (
 	"io/fs"
 	"io/ioutil"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"nocalhost/internal/nhctl/vpn/util"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -60,7 +58,7 @@ func usingResolver(clientConfig *miekgdns.ClientConfig) {
 	_ = ioutil.WriteFile(filename, []byte(toString(config)), 0644)
 
 	// for support like: service.namespace:port, service.namespace.svc:port, service.namespace.svc.cluster:port
-	port := util.GetAvailableUDPPortOrDie()
+	/*port := util.GetAvailableUDPPortOrDie()
 	go func(port int, clientConfig *miekgdns.ClientConfig) {
 		if err = NewDNSServer("udp", "127.0.0.1:"+strconv.Itoa(port), clientConfig); err != nil {
 			log.Warnln(err)
@@ -76,7 +74,7 @@ func usingResolver(clientConfig *miekgdns.ClientConfig) {
 	for _, s := range strings.Split(clientConfig.Search[0], ".") {
 		filename = filepath.Join("/", "etc", "resolver", s)
 		_ = ioutil.WriteFile(filename, []byte(toString(config)), 0644)
-	}
+	}*/
 }
 
 func usingNetworkSetup(ip string, namespace string) {

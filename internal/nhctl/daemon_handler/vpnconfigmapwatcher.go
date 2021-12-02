@@ -36,6 +36,13 @@ func GetOrGenerateConfigMapWatcher(kubeconfigBytes []byte, namespace string, get
 		watchersLock.Unlock()
 		return v
 	} else {
+		if getter == nil {
+			clientset, err := util.GetClientSetByKubeconfigBytes(kubeconfigBytes)
+			if err != nil {
+				return nil
+			}
+			getter = clientset.CoreV1().RESTClient()
+		}
 		watcher := NewConfigMapWatcher(kubeconfigBytes, namespace, getter)
 		watchers[k] = watcher
 		watchersLock.Unlock()
@@ -57,6 +64,40 @@ type name struct {
 	resources *ReverseTotal
 }
 
+func (n *name) getMacByResource(resource string) string {
+	reverseInfoLock.Lock()
+	defer reverseInfoLock.Unlock()
+	if load, ok := reverseInfo.Load(generateKey(n.kubeconfigBytes, n.namespace)); ok {
+		for k, v := range load.(name).resources.ele {
+			if v.Has(resource) {
+				return k
+			}
+		}
+	}
+	return ""
+}
+
+func (n *name) isReversingByMe(resource string) bool {
+	if a := n.getMacByResource(resource); len(a) != 0 {
+		if util.GetMacAddress().String() == a {
+			return true
+		}
+	}
+	return false
+}
+
+func (n *name) isReversingByOther(resource string) bool {
+	if n.isReversingByMe(resource) {
+		return false
+	}
+	if a := n.getMacByResource(resource); len(a) != 0 {
+		if util.GetMacAddress().String() != a {
+			return true
+		}
+	}
+	return false
+}
+
 func GetReverseInfo() *sync.Map {
 	return reverseInfo
 }
@@ -71,18 +112,6 @@ func (c *ConnectInfo) cleanup() {
 	c.namespace = ""
 	c.kubeconfigBytes = []byte{}
 	c.ip = ""
-}
-
-func Reverse(kubeconfigBytes []byte, namespace string, resource string) bool {
-	reverseInfoLock.Lock()
-	defer reverseInfoLock.Unlock()
-	if connectInfo.IsSame(kubeconfigBytes, namespace) {
-		if load, ok := reverseInfo.Load(generateKey(kubeconfigBytes, namespace)); ok &&
-			load.(*name).resources.GetBelongToMeResources().Has(resource) {
-			return true
-		}
-	}
-	return false
 }
 
 func (c *ConnectInfo) IsEmpty() bool {

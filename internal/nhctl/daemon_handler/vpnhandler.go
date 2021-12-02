@@ -3,6 +3,7 @@ package daemon_handler
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -45,10 +46,21 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) err
 	client, _ := daemon_client.GetDaemonClient(true)
 	switch cmd.Action {
 	case command.Connect:
+		// pre-check if resource already in reversing mode
+		if load, ok := GetReverseInfo().Load(generateKey(connect.KubeconfigBytes, connect.Namespace)); ok {
+			if load.(*name).resources.ReversedResource().Has(cmd.Resource) {
+				logger.Errorln(errors.New("already in reversing mode"))
+				logger.Errorln(util.EndSignFailed)
+				writer.Close()
+				return errors.New("already in reversing mode")
+			}
+		}
+
 		// change to another cluster or namespace, clean all reverse
 		if !connectInfo.IsEmpty() && !connectInfo.IsSame(connect.KubeconfigBytes, cmd.Namespace) {
 			clientset, err := util.GetClientSetByKubeconfigBytes(connectInfo.kubeconfigBytes)
 			if err != nil {
+				logger.Error(util.EndSignFailed)
 				writer.Close()
 				return err
 			}
@@ -98,6 +110,8 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) err
 			list.Insert(address)
 		}); err != nil {
 			logger.Errorln(err)
+			logger.Error(util.EndSignFailed)
+			writer.Close()
 			return err
 		}
 		if r, err := client.SendSudoVPNOperateCommand(cmd.KubeConfig, cmd.Namespace, command.Connect, cmd.Resource); err == nil {
@@ -124,9 +138,17 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) err
 		//err = client.SendSudoVPNOperateCommand(cmd.KubeConfig, cmd.Namespace, command.Connect, cmd.Resource)
 		return nil
 	case command.DisConnect:
+		defer writer.Close()
 		if len(cmd.Resource) != 0 {
+			load, ok := GetReverseInfo().Load(generateKey(connect.KubeconfigBytes, connect.Namespace))
+			if !ok {
+				logger.Infoln(util.EndSignOK)
+				return nil
+			}
+			address := load.(*name).getMacByResource(cmd.Resource)
 			_ = UpdateReverseConfigMap(connect.GetClientSet(), cmd.Namespace, cmd.Resource,
 				func(r *ReverseTotal, record ReverseRecord) {
+					record.MacAddress = address
 					r.RemoveRecord(record)
 				},
 			)

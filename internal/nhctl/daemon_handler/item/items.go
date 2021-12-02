@@ -34,7 +34,16 @@ type Item struct {
 }
 
 type VPNInfo struct {
-	BelongsToMe bool   `json:"belongsToMe" yaml:"belongsToMe"`
+	Mode        string `json:"mode" yaml:"mode"`
 	Status      string `json:"status" yaml:"status"`
+	BelongsToMe bool   `json:"belongsToMe" yaml:"belongsToMe"`
 	IP          string `json:"ip" yaml:"ip"`
+}
+
+func IfTure(predicate bool, trueValue, falseValue string) string {
+	if predicate {
+		return trueValue
+	} else {
+		return falseValue
+	}
 }

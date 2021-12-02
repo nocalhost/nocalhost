@@ -186,7 +186,9 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 
 	case "app", "application":
 		// init searcher for cache async
-		go func() { _, _ = resouce_cache.GetSearcherWithLRU(KubeConfigBytes, ns) }()
+		go func() {
+			_, _ = resouce_cache.GetSearcherWithLRU(KubeConfigBytes, ns)
+		}()
 		if request.ResourceName == "" {
 			return ParseApplicationsResult(ns, GetAllApplicationWithDefaultApp(ns, request.KubeConfig))
 		} else {
@@ -229,6 +231,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 		if err != nil {
 			return nil
 		}
+		GetOrGenerateConfigMapWatcher(KubeConfigBytes, ns, nil)
 		serviceMap := make(map[string]*profile.SvcProfileV2)
 		appNameList := make([]string, 0, 0)
 		if len(request.AppName) != 0 {
@@ -268,10 +271,11 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 				if mapping, err := s.GetResourceInfo(request.Resource); err == nil {
 					n := mapping.Gvr.Resource + "/" + i.(metav1.Object).GetName()
 					tempItem.Description = serviceMap[n]
-					if belongsToMe.Has(n) || reverseReversed.Has(n) {
+					if revering := belongsToMe.Has(n) || reverseReversed.Has(n); revering {
 						tempItem.VPN = &item.VPNInfo{
+							Status:      Healthy.String(),
+							Mode:        ReverseMode.String(),
 							BelongsToMe: belongsToMe.Has(n),
-							Status:      ReversedHealth.String(),
 							IP:          connectInfo.getIPIfIsMe(KubeConfigBytes, ns),
 						}
 					}
@@ -289,10 +293,12 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			if mapping, err := s.GetResourceInfo(request.Resource); err == nil {
 				n := mapping.Gvr.Resource + "/" + one.(metav1.Object).GetName()
 				i.Description = serviceMap[n]
-				if belongsToMe.Has(n) {
+				if revering := belongsToMe.Has(n) || reverseReversed.Has(n); revering ||
+					connectInfo.IsSame(KubeConfigBytes, ns) {
 					i.VPN = &item.VPNInfo{
-						BelongsToMe: true,
-						Status:      ReversedHealth.String(),
+						Status:      Healthy.String(),
+						Mode:        item.IfTure(revering, ReverseMode.String(), ConnectMode.String()),
+						BelongsToMe: belongsToMe.Has(n),
 						IP:          connectInfo.getIPIfIsMe(KubeConfigBytes, ns),
 					}
 				}

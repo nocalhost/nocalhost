@@ -28,10 +28,12 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser)
 	}
 	if err := connect.InitClient(logCtx); err != nil {
 		log.Error(util.EndSignFailed)
+		writer.Close()
 		return err
 	}
 	if err := connect.Prepare(logCtx); err != nil {
 		log.Error(util.EndSignFailed)
+		writer.Close()
 		return err
 	}
 	switch cmd.Action {
@@ -41,6 +43,7 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser)
 		if connected != nil {
 			logger.Errorln("already connected")
 			logger.Infoln(util.EndSignFailed)
+			writer.Close()
 			return nil
 		}
 		connected = connect
@@ -63,6 +66,7 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser)
 					errChan, err := connect.DoConnect(ctx)
 					if err != nil {
 						log.Warn(err)
+						c.Logger.Infoln(util.EndSignFailed)
 						continue
 					}
 					c.Logger.Infoln(util.EndSignOK)
@@ -95,7 +99,6 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser)
 		connected = nil
 		logger.Info(util.EndSignOK)
 	case command.Reconnect:
-	case command.Reset:
 	}
 	return nil
 }
