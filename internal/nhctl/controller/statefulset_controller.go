@@ -70,7 +70,7 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 	devModeMounts = append(devModeMounts, syncthingVolumeMounts...)
 
 	workDirAndPersistVolumes, workDirAndPersistVolumeMounts, err := s.genWorkDirAndPVAndMounts(
-		ops.Container, ops.StorageClass, false)
+		ops.Container, ops.StorageClass, false, false)
 	if err != nil {
 		return err
 	}
