@@ -25,7 +25,7 @@ func (r *DuplicateRawPodController) GetNocalhostDevContainerPod() (string, error
 	if err != nil {
 		return "", err
 	}
-	return findDevPod(pods)
+	return findDevPodName(pods)
 }
 
 func (r *DuplicateRawPodController) ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error {

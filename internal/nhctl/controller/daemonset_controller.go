@@ -30,7 +30,7 @@ func (d *DaemonSetController) GetNocalhostDevContainerPod() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return findDevPod(checkPodsList.Items)
+	return findDevPodName(checkPodsList.Items)
 }
 
 func scaleDaemonSetReplicasToZero(name string, client *clientgoutils.ClientGoUtils) error {

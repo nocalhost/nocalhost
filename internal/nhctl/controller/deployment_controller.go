@@ -30,48 +30,40 @@ func (d *DeploymentController) GetNocalhostDevContainerPod() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return findDevPod(checkPodsList.Items)
+	return findDevPodName(checkPodsList.Items)
 }
 
 // ReplaceImage In DevMode, nhctl will replace the container of your workload with two containers:
 // one is called devContainer, the other is called sideCarContainer
 func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error {
 
-	var err error
-	d.Client.Context(ctx)
+	d.DevModeAction = DeploymentDevModeAction
+	return d.PatchDevModeManifest(ctx, ops)
+}
 
-	dep, err := d.Client.GetDeployment(d.GetName())
+func GetPodTemplateFromSpecPath(path string, unstructuredObj map[string]interface{}) (*corev1.PodTemplateSpec, error) {
+	pathItems := strings.Split(path, "/")
+	currentPathMap := unstructuredObj
+	for _, item := range pathItems {
+		if item != "" {
+			if m, ok := currentPathMap[item]; ok {
+				currentPathMap = m.(map[string]interface{})
+			} else {
+				return nil, errors.New(fmt.Sprintf("Invalid path: %s", item))
+			}
+		}
+	}
+
+	jsonBytes, err := json.Marshal(currentPathMap)
 	if err != nil {
-		return err
+		return nil, errors.WithStack(err)
 	}
-
-	originalSpecJson, err := json.Marshal(&dep.Spec)
-	if err != nil {
-		return errors.Wrap(err, "")
+	p := &corev1.PodTemplateSpec{}
+	if err = json.Unmarshal(jsonBytes, p); err != nil {
+		return nil, errors.WithStack(err)
+	} else {
+		return p, nil
 	}
-
-	if err = d.Client.ScaleDeploymentReplicasToOne(d.GetName()); err != nil {
-		return err
-	}
-
-	devContainer, sideCarContainer, devModeVolumes, err :=
-		d.genContainersAndVolumes(&dep.Spec.Template.Spec, ops.Container, ops.DevImage, ops.StorageClass, false)
-	if err != nil {
-		return err
-	}
-
-	patchDevContainerToPodSpec(&dep.Spec.Template.Spec, ops.Container, devContainer, sideCarContainer, devModeVolumes)
-
-	log.Info("Patching development container...")
-
-	ps := genDevContainerPatches(&dep.Spec.Template.Spec, string(originalSpecJson))
-	if err := d.Client.Patch(d.Type.String(), dep.Name, ps, "json"); err != nil {
-		return err
-	}
-
-	d.patchAfterDevContainerReplaced(ops.Container, d.Type.String(), dep.Name)
-
-	return waitingPodToBeReady(d.GetNocalhostDevContainerPod)
 }
 
 func (d *DeploymentController) RollBack(reset bool) error {

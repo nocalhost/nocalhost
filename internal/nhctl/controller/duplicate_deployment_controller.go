@@ -33,7 +33,7 @@ func (d *DuplicateDeploymentController) GetNocalhostDevContainerPod() (string, e
 	if err != nil {
 		return "", err
 	}
-	return findDevPod(pods)
+	return findDevPodName(pods)
 }
 
 // ReplaceImage Create a duplicate deployment instead of replacing image

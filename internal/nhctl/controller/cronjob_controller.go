@@ -32,7 +32,7 @@ func (j *CronJobController) GetNocalhostDevContainerPod() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return findDevPod(checkPodsList.Items)
+	return findDevPodName(checkPodsList.Items)
 }
 
 func (j *CronJobController) getGeneratedJobName() string {

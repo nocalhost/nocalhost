@@ -25,7 +25,7 @@ func (d *DuplicateDaemonSetController) GetNocalhostDevContainerPod() (string, er
 	if err != nil {
 		return "", err
 	}
-	return findDevPod(checkPodsList)
+	return findDevPodName(checkPodsList)
 }
 
 // ReplaceImage For DaemonSet, we don't replace the DaemonSet' image

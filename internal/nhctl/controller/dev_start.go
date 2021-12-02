@@ -503,7 +503,8 @@ func isContainerReadyAndRunning(containerName string, pod *corev1.Pod) bool {
 	return false
 }
 
-func findDevPod(podList []corev1.Pod) (string, error) {
+// Find Ready Dev Pod's name
+func findDevPodName(podList []corev1.Pod) (string, error) {
 	resultPodList := make([]corev1.Pod, 0)
 	for _, pod := range podList {
 		//if pod.Status.Phase == "Running" && pod.DeletionTimestamp == nil {

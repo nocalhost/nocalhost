@@ -6,6 +6,7 @@
 package controller
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
@@ -17,6 +18,7 @@ import (
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/common/base"
 	_const "nocalhost/internal/nhctl/const"
+	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
@@ -28,15 +30,23 @@ import (
 // Controller presents a k8s controller
 // https://kubernetes.io/docs/concepts/architecture/controller
 type Controller struct {
-	NameSpace   string
-	AppName     string
-	Name        string
-	Identifier  string
-	DevModeType profile.DevModeType
-	Type        base.SvcType
-	Client      *clientgoutils.ClientGoUtils
-	AppMeta     *appmeta.ApplicationMeta
-	config      *profile.ServiceConfigV2
+	NameSpace        string
+	AppName          string
+	Name             string
+	Identifier       string
+	DevModeType      profile.DevModeType
+	Type             base.SvcType
+	Client           *clientgoutils.ClientGoUtils
+	AppMeta          *appmeta.ApplicationMeta
+	config           *profile.ServiceConfigV2
+	DevModeAction    DevModeAction
+	devModePodLabels map[string]string
+}
+
+type jsonPatch struct {
+	Op    string      `json:"op"`
+	Path  string      `json:"path"`
+	Value interface{} `json:"value"`
 }
 
 func NewController(ns, name, appName, identifier string, svcType base.SvcType,
@@ -389,14 +399,7 @@ func (c *Controller) patchAfterDevContainerReplaced(containerName, resourceType,
 	<-time.Tick(time.Second)
 }
 
-func genDevContainerPatches(podSpec *v1.PodSpec, originalSpecJson string) string {
-	path := "/spec/template/spec"
-
-	type jsonPatch struct {
-		Op    string      `json:"op"`
-		Path  string      `json:"path"`
-		Value interface{} `json:"value"`
-	}
+func genDevContainerPatches(podSpec *v1.PodSpec, path, originalSpecJson string) string {
 
 	jsonPatches := make([]jsonPatch, 0)
 	jsonPatches = append(jsonPatches, jsonPatch{
@@ -414,4 +417,85 @@ func genDevContainerPatches(podSpec *v1.PodSpec, originalSpecJson string) string
 	bys, _ := json.Marshal(jsonPatches)
 
 	return string(bys)
+}
+
+func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevStartOptions) error {
+	c.Client.Context(ctx)
+
+	if c.DevModeAction.Kind == "" {
+		return errors.New("Resource Kind can not nil")
+	}
+
+	resourceType := c.DevModeAction.Kind
+	if c.DevModeAction.Version != "" {
+		resourceType += "." + c.DevModeAction.Version
+		if c.DevModeAction.Group != "" {
+			resourceType += "." + c.DevModeAction.Group
+		}
+	}
+
+	var unstructuredObj map[string]interface{}
+	var err error
+	if unstructuredObj, err = c.Client.GetUnstructuredObj(resourceType, c.Name); err != nil {
+		return errors.WithStack(err)
+	}
+
+	var originalSpecJson []byte
+	if spec, ok := unstructuredObj["spec"]; ok {
+		if originalSpecJson, err = json.Marshal(spec); err != nil {
+			return errors.WithStack(err)
+		}
+	} else {
+		return errors.New("Workload's spec not found")
+	}
+
+	for _, item := range c.DevModeAction.ScaleAction {
+		if err := c.Client.Patch(resourceType, c.Name, item.Patch, item.Type); err != nil {
+			return err
+		}
+	}
+
+	podTemplate, err := GetPodTemplateFromSpecPath(c.DevModeAction.PodSpecPath, unstructuredObj)
+	if err != nil {
+		return err
+	}
+
+	podSpec := &podTemplate.Spec
+
+	devContainer, sideCarContainer, devModeVolumes, err :=
+		c.genContainersAndVolumes(podSpec, ops.Container, ops.DevImage, ops.StorageClass, false)
+	if err != nil {
+		return err
+	}
+
+	patchDevContainerToPodSpec(podSpec, ops.Container, devContainer, sideCarContainer, devModeVolumes)
+
+	log.Info("Patching development container...")
+
+	specPath := c.DevModeAction.PodSpecPath + "/spec"
+	ps := genDevContainerPatches(podSpec, specPath, string(originalSpecJson))
+	if err = c.Client.Patch(resourceType, c.Name, ps, "json"); err != nil {
+		return err
+	}
+
+	c.patchAfterDevContainerReplaced(ops.Container, resourceType, c.Name)
+
+	//if unstructuredObj, err = c.Client.GetUnstructuredObj(resourceType, c.Name); err != nil {
+	//	return errors.WithStack(err)
+	//}
+	//if podTemplate, err = GetPodTemplateFromSpecPath(c.DevModeAction.PodSpecPath, unstructuredObj); err != nil {
+	//	return err
+	//}
+	delete(podTemplate.Labels, "pod-template-hash")
+	// debug this
+	c.devModePodLabels = podTemplate.Labels
+	return waitingPodToBeReady(c.CheckDevModePodIsRunning)
+}
+
+func (c *Controller) CheckDevModePodIsRunning() (string, error) {
+	pods, err := c.Client.Labels(c.devModePodLabels).ListPods()
+	if err != nil {
+		return "", err
+	}
+	return findDevPodName(pods)
 }

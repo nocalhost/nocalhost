@@ -27,7 +27,7 @@ func (s *DuplicateStatefulSetController) GetNocalhostDevContainerPod() (string, 
 		return "", err
 	}
 
-	return findDevPod(pods)
+	return findDevPodName(pods)
 }
 
 func (s *DuplicateStatefulSetController) ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error {

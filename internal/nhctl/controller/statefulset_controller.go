@@ -31,7 +31,7 @@ func (s *StatefulSetController) GetNocalhostDevContainerPod() (string, error) {
 		return "", err
 	}
 
-	return findDevPod(checkPodsList.Items)
+	return findDevPodName(checkPodsList.Items)
 }
 
 func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error {
@@ -48,8 +48,11 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 		return errors.Wrap(err, "")
 	}
 
-	if err = s.Client.ScaleStatefulSetReplicasToOne(s.GetName()); err != nil {
-		return err
+	log.Info("Executing ScaleAction...")
+	for _, item := range DeploymentDevModeAction.ScaleAction {
+		if err := s.Client.Patch(s.Type.String(), s.Name, item.Patch, item.Type); err != nil {
+			return err
+		}
 	}
 
 	devContainer, sideCarContainer, devModeVolumes, err :=
@@ -126,7 +129,7 @@ func (s *StatefulSetController) ReplaceImage(ctx context.Context, ops *model.Dev
 	//	break
 	//}
 
-	ps := genDevContainerPatches(&dep.Spec.Template.Spec, string(originalSpecJson))
+	ps := genDevContainerPatches(&dep.Spec.Template.Spec, StatefulSetDevModeAction.PodSpecPath, string(originalSpecJson))
 	if err := s.Client.Patch(s.Type.String(), dep.Name, ps, "json"); err != nil {
 		return err
 	}
