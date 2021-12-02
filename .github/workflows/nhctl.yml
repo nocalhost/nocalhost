@@ -190,8 +190,8 @@ jobs:
         working-directory: ./syncthing-source
         run: |
           go run build.go -nocalhostVersion=dev -nocalhostCommitId="${GITHUB_SHA}" -goarch amd64 zip
-          go run build.go -nocalhostVersion=dev -nocalhostCommitId="${GITHUB_SHA}" -goos=windows -goarch amd64 zip
           go run build.go -nocalhostVersion=dev -nocalhostCommitId="${GITHUB_SHA}" -goarch arm64 zip
+          go run build.go -nocalhostVersion=dev -nocalhostCommitId="${GITHUB_SHA}" -goos=windows -goarch amd64 zip
 
       - name: Push to Coding Articact
         working-directory: ./syncthing-source
