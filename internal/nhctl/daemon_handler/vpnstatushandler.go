@@ -4,10 +4,8 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/vpn/remote"
@@ -191,17 +189,4 @@ func (t *ReverseTotal) GetBelongToMeResources() sets.String {
 		return s
 	}
 	return sets.NewString()
-}
-
-func IsBelongToMe(configMapInterface v1.ConfigMapInterface, resources string) (bool, error) {
-	get, err := configMapInterface.Get(context.TODO(), util.TrafficManager, v12.GetOptions{})
-	if err != nil {
-		return false, err
-	}
-	s := get.Data[util.REVERSE]
-	if len(s) == 0 {
-		return false, nil
-	}
-	t := FromStringToReverseTotal(get.Data[util.REVERSE])
-	return t.GetBelongToMeResources().Has(resources), nil
 }

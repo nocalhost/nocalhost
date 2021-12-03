@@ -68,7 +68,7 @@ func (n *name) getMacByResource(resource string) string {
 	reverseInfoLock.Lock()
 	defer reverseInfoLock.Unlock()
 	if load, ok := reverseInfo.Load(generateKey(n.kubeconfigBytes, n.namespace)); ok {
-		for k, v := range load.(name).resources.ele {
+		for k, v := range load.(*name).resources.ele {
 			if v.Has(resource) {
 				return k
 			}
