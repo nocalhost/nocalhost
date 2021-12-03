@@ -7,6 +7,7 @@ package profile
 
 import (
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 	"gopkg.in/yaml.v3"
@@ -19,6 +20,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type DevModeType string
@@ -176,7 +178,15 @@ func (a *AppProfileV2) SvcProfileV2(svcName string, svcType string) *SvcProfileV
 // make sure it will be saving while use
 func (a *AppProfileV2) GenerateIdentifierIfNeeded() string {
 	if a != nil && a.Identifier == "" {
-		a.Identifier = "i" + strings.ReplaceAll(getMacAddress().String(), ":", "")
+		var s string
+		if address := getMacAddress(); address != nil {
+			s = address.String()
+		} else if random, err := uuid.NewUUID(); err == nil {
+			s = random.String()
+		} else {
+			s = strconv.Itoa(time.Now().Nanosecond())
+		}
+		a.Identifier = "i" + strings.ReplaceAll(s, ":", "-")
 	}
 	return a.Identifier
 }
@@ -199,7 +209,7 @@ func getMacAddress() net.HardwareAddr {
 			return v
 		}
 	}
-	return net.HardwareAddr{0x00, 0x00, 0x5e, 0x00, 0x53, 0x01}
+	return nil
 }
 
 func (a *AppProfileV2) Save() error {
