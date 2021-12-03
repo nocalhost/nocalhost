@@ -7,11 +7,11 @@ package profile
 
 import (
 	"fmt"
-	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
+	"net"
 	"nocalhost/internal/nhctl/dbutils"
 	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/syncthing/ports"
@@ -176,10 +176,30 @@ func (a *AppProfileV2) SvcProfileV2(svcName string, svcType string) *SvcProfileV
 // make sure it will be saving while use
 func (a *AppProfileV2) GenerateIdentifierIfNeeded() string {
 	if a != nil && a.Identifier == "" {
-		u, _ := uuid.NewRandom()
-		a.Identifier = u.String()
+		a.Identifier = "i" + strings.ReplaceAll(getMacAddress().String(), ":", "")
 	}
 	return a.Identifier
+}
+
+func getMacAddress() net.HardwareAddr {
+	index, err := net.Interfaces()
+	if err == nil {
+		maps := make(map[string]net.HardwareAddr, len(index))
+		for _, i := range index {
+			if i.HardwareAddr != nil && len(i.HardwareAddr) != 0 {
+				maps[i.Name] = i.HardwareAddr
+			}
+		}
+		for i := 0; i < len(maps); i++ {
+			if addr, ok := maps[fmt.Sprintf("en%v", i)]; ok {
+				return addr
+			}
+		}
+		for _, v := range maps {
+			return v
+		}
+	}
+	return net.HardwareAddr{0x00, 0x00, 0x5e, 0x00, 0x53, 0x01}
 }
 
 func (a *AppProfileV2) Save() error {
