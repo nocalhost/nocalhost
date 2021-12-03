@@ -7,13 +7,20 @@ package helper
 
 import (
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/pkg/errors"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
+	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/chartutil"
 	"helm.sh/helm/v3/pkg/cli"
+	"helm.sh/helm/v3/pkg/downloader"
+	"helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/release"
+	"helm.sh/helm/v3/pkg/repo"
+	"helm.sh/helm/v3/pkg/storage/driver"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -25,6 +32,15 @@ type GetOption func(*action.Get) error
 type InstallOption func(*action.Install) error
 type UpgradeOption func(*action.Upgrade) error
 type UninstallOption func(*action.Uninstall) error
+
+type ActionState string
+
+const (
+	ActionInstall ActionState = "install"
+	ActionUpgrade ActionState = "upgrade"
+	ActionDelete  ActionState = "delete"
+	ActionError   ActionState = "error"
+)
 
 type actions struct {
 	cpo     action.ChartPathOptions
@@ -92,6 +108,67 @@ func (a *actions) Uninstall(name string, opts ...UninstallOption) (*release.Unin
 	return rel, nil
 }
 
+func (a *actions) GetChart(chartRef string) (*chart.Chart, error) {
+	return a.loadChart(chartRef)
+}
+
+func (a actions) GetState(name string) ActionState {
+	_, err := a.Get(name)
+	if err != nil {
+		if errors.Cause(err) == driver.ErrReleaseNotFound {
+			return ActionInstall
+		}
+		return ActionError
+	}
+
+	return ActionUpgrade
+}
+
+func (a *actions) loadChart(chartRef string) (*chart.Chart, error) {
+	var out strings.Builder
+	var chrt *chart.Chart
+	dl := downloader.ChartDownloader{
+		Out:     &out,
+		Keyring: "",
+		Verify:  downloader.VerifyNever,
+		Getters: getter.All(a.setting),
+		Options: []getter.Option{
+			getter.WithBasicAuth(a.cpo.Username, a.cpo.Password),
+			getter.WithTLSClientConfig(a.cpo.CertFile, a.cpo.KeyFile, a.cpo.CaFile),
+			getter.WithInsecureSkipVerifyTLS(a.cpo.InsecureSkipTLSverify),
+		},
+		RepositoryConfig: a.setting.RepositoryConfig,
+		RepositoryCache:  a.setting.RepositoryCache,
+	}
+
+	if a.cpo.RepoURL != "" {
+		chartURL, err := repo.FindChartInAuthAndTLSRepoURL(
+			a.cpo.RepoURL, a.cpo.Username, a.cpo.Password, chartRef, a.cpo.Version, a.cpo.CertFile,
+			a.cpo.KeyFile, a.cpo.CaFile, a.cpo.InsecureSkipTLSverify, getter.All(a.setting))
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+		chartRef = chartURL
+	}
+
+	dest, err := os.MkdirTemp("", "vc")
+	defer os.RemoveAll(dest)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	saved, _, err := dl.DownloadTo(chartRef, a.cpo.Version, dest)
+	if err != nil {
+		log.Log.Error(err, out.String())
+		return nil, errors.Wrap(err, "can not download chart")
+	}
+	a.cfg.Log("save chart to: %s", saved)
+
+	if chrt, err = loader.Load(saved); err != nil {
+		return nil, errors.Wrap(err, "can not load chart")
+	}
+	return chrt, nil
+}
+
 func newGet(a *actions) *action.Get {
 	return action.NewGet(a.cfg)
 }
@@ -122,9 +199,13 @@ func helmLog(format string, v ...interface{}) {
 	log.Info(fmt.Sprintf(format, v...))
 }
 
-func NewActions(vc *helmv1alpha1.VirtualCluster, config *rest.Config, ns string) (Actions, error) {
+func NewActions(vc *helmv1alpha1.VirtualCluster, config *rest.Config) (Actions, error) {
 	cfg := new(action.Configuration)
-	if err := cfg.Init(newRESTClientGetter(config, ns), ns, "secret", helmLog); err != nil {
+	if err := cfg.Init(
+		newRESTClientGetter(config, vc.GetNamespace()),
+		vc.GetNamespace(),
+		"secret",
+		helmLog); err != nil {
 		return nil, errors.Wrap(err, "can not init helm client")
 	}
 	vals, err := chartutil.ReadValues([]byte(vc.GetValues()))

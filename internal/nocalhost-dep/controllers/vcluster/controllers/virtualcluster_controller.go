@@ -36,15 +36,15 @@ type VirtualClusterReconciler struct {
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *VirtualClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := log.FromContext(ctx)
+	lg := log.FromContext(ctx)
 
 	vc := &helmv1alpha1.VirtualCluster{}
 	if err := r.Get(ctx, req.NamespacedName, vc); err != nil {
-		log.Error(err, "unable to fetch VirtualCluster")
+		lg.Error(err, "unable to fetch VirtualCluster")
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	hc, err := helper.NewClient(r.Config, vc.GetNamespace())
+	ac, err := helper.NewActions(vc, r.Config)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -58,11 +58,8 @@ func (r *VirtualClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 	} else {
 		if controllerutil.ContainsFinalizer(vc, helmv1alpha1.Finalizer) {
-			if err := hc.UnInstall(vc); err != nil {
-				if errors.Cause(err) != driver.ErrReleaseNotFound {
-					return ctrl.Result{}, err
-				}
-				log.Error(errors.Cause(err), "skip uninstall")
+			if err := r.delete(ctx, vc, ac); err != nil {
+				return ctrl.Result{}, err
 			}
 
 			controllerutil.RemoveFinalizer(vc, helmv1alpha1.Finalizer)
@@ -74,25 +71,54 @@ func (r *VirtualClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, nil
 	}
 
-	if err := hc.SetValues(vc); err != nil {
+	if err := r.reconcile(ctx, vc, ac); err != nil {
 		return ctrl.Result{}, err
 	}
 
-	chrt, err := hc.LoadChart(vc)
+	return ctrl.Result{}, nil
+}
+
+func (r *VirtualClusterReconciler) reconcile(ctx context.Context, vc *helmv1alpha1.VirtualCluster, ac helper.Actions) error {
+	lg := log.FromContext(ctx)
+
+	chrt, err := ac.GetChart(vc.GetChartName())
 	if err != nil {
-		return ctrl.Result{}, err
+		return err
 	}
 
-	if hc.IsInstalled(vc) {
-		log.Info(fmt.Sprintf("upgrade release: %s", vc.GetReleaseName()))
-		_, err := hc.Upgrade(vc, chrt)
-		return ctrl.Result{}, err
+	state := ac.GetState(vc.GetReleaseName())
+	switch state {
+	case helper.ActionInstall:
+		var opts []helper.InstallOption
+		_, err := ac.Install(vc.GetReleaseName(), vc.GetNamespace(), chrt, opts...)
+		if err != nil {
+			return err
+		}
+	case helper.ActionUpgrade:
+		var opts []helper.UpgradeOption
+		_, err := ac.Upgrade(vc.GetReleaseName(), vc.GetNamespace(), chrt, opts...)
+		if err != nil {
+			return err
+		}
+	case helper.ActionError:
+		lg.Error(errors.New(fmt.Sprintf("release %s is in error state", vc.GetReleaseName())), "")
+		return errors.New(fmt.Sprintf("release %s is in error state", vc.GetReleaseName()))
+	default:
+		return errors.New("unexpected action state")
 	}
 
-	log.Info(fmt.Sprintf("install release: %s", vc.GetReleaseName()))
-	_, err = hc.Install(vc, chrt)
+	return nil
+}
 
-	return ctrl.Result{}, err
+func (r VirtualClusterReconciler) delete(ctx context.Context, vc *helmv1alpha1.VirtualCluster, ac helper.Actions) error {
+	lg := log.FromContext(ctx)
+	var opts []helper.UninstallOption
+	_, err := ac.Uninstall(vc.GetReleaseName(), opts...)
+	if errors.Cause(err) == driver.ErrReleaseNotFound {
+		lg.Info(fmt.Sprintf("skip uninstall release: %s", vc.GetReleaseName()))
+		return nil
+	}
+	return err
 }
 
 // SetupWithManager sets up the controller with the Manager.
