@@ -122,6 +122,10 @@ func (c *ConnectInfo) IsSame(kubeconfigBytes []byte, namespace string) bool {
 	return string(kubeconfigBytes) == string(c.kubeconfigBytes) && namespace == c.namespace
 }
 
+func (c *ConnectInfo) IsSameCluster(kubeconfigBytes []byte) bool {
+	return string(kubeconfigBytes) == string(c.kubeconfigBytes)
+}
+
 func (c *ConnectInfo) getIPIfIsMe(kubeconfigBytes []byte, namespace string) (ip string) {
 	if c.IsSame(kubeconfigBytes, namespace) {
 		ip = c.ip

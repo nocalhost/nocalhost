@@ -186,9 +186,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 
 	case "app", "application":
 		// init searcher for cache async
-		go func() {
-			_, _ = resouce_cache.GetSearcherWithLRU(KubeConfigBytes, ns)
-		}()
+		go func() { _, _ = resouce_cache.GetSearcherWithLRU(KubeConfigBytes, ns) }()
 		if request.ResourceName == "" {
 			return ParseApplicationsResult(ns, GetAllApplicationWithDefaultApp(ns, request.KubeConfig))
 		} else {
@@ -213,17 +211,26 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 				availableData = append(availableData, datum)
 			}
 		}
-		if err != nil || len(availableData) == 0 {
-			return nil
+		// add default namespace if can't list namespace
+		if len(availableData) == 0 {
+			availableData = append(availableData, &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: ns}})
+		}
+		result := make([]item.Item, 0, len(availableData))
+		for _, datum := range availableData {
+			i := item.Item{Metadata: datum}
+			if connectInfo.IsSameCluster(KubeConfigBytes) {
+				i.VPN = &item.VPNInfo{
+					Mode:   ConnectMode.String(),
+					Status: Healthy.String(),
+					IP:     connectInfo.getIPIfIsMe(KubeConfigBytes, ns),
+				}
+			}
+			result = append(result, i)
 		}
 		if len(request.ResourceName) == 0 {
-			result := make([]item.Item, 0, len(availableData))
-			for _, datum := range availableData {
-				result = append(result, item.Item{Metadata: datum})
-			}
-			return result[0:]
+			return result
 		} else {
-			return item.Item{Metadata: availableData[0]}
+			return result[0]
 		}
 
 	default:
@@ -252,73 +259,55 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			reverseReversed.Insert(load.(*name).resources.ReversedResource().List()...)
 		}
 
-		c := s.Criteria().
+		items, err := s.Criteria().
 			ResourceType(request.Resource).
 			ResourceName(request.ResourceName).
 			AppName(request.AppName).
 			AppNameNotIn(appNameList...).
 			Namespace(ns).
-			Label(request.Label)
-		// get all resource in namespace
-		if len(request.ResourceName) == 0 {
-			items, err := c.Query()
-			if err != nil || len(items) == 0 {
-				return nil
-			}
-			result := make([]item.Item, 0, len(items))
-			for _, i := range items {
-				tempItem := item.Item{Metadata: i}
-				if mapping, err := s.GetResourceInfo(request.Resource); err == nil {
-					n := mapping.Gvr.Resource + "/" + i.(metav1.Object).GetName()
-					tempItem.Description = serviceMap[n]
-					if revering := belongsToMe.Has(n) || reverseReversed.Has(n); revering {
-						tempItem.VPN = &item.VPNInfo{
-							Status:      Healthy.String(),
-							Mode:        ReverseMode.String(),
-							BelongsToMe: belongsToMe.Has(n),
-							IP:          connectInfo.getIPIfIsMe(KubeConfigBytes, ns),
-						}
-					}
-				}
-				result = append(result, tempItem)
-			}
-			return result
-		} else {
-			// get specify resource name in namespace
-			one, err := c.QueryOne()
-			if err != nil || one == nil {
-				return nil
-			}
-			i := item.Item{Metadata: one}
-			if mapping, err := s.GetResourceInfo(request.Resource); err == nil {
-				n := mapping.Gvr.Resource + "/" + one.(metav1.Object).GetName()
-				i.Description = serviceMap[n]
-				if revering := belongsToMe.Has(n) || reverseReversed.Has(n); revering ||
-					connectInfo.IsSame(KubeConfigBytes, ns) {
-					i.VPN = &item.VPNInfo{
+			Label(request.Label).
+			Query()
+
+		if err != nil || len(items) == 0 {
+			return nil
+		}
+		mapping, err := s.GetResourceInfo(request.Resource)
+		result := make([]item.Item, 0, len(items))
+		for _, i := range items {
+			tempItem := item.Item{Metadata: i}
+			if err == nil {
+				n := fmt.Sprintf("%s/%s", mapping.Gvr.Resource, i.(metav1.Object).GetName())
+				tempItem.Description = serviceMap[n]
+				if revering := belongsToMe.Has(n) || reverseReversed.Has(n); revering {
+					tempItem.VPN = &item.VPNInfo{
 						Status:      Healthy.String(),
-						Mode:        item.IfTure(revering, ReverseMode.String(), ConnectMode.String()),
+						Mode:        ReverseMode.String(),
 						BelongsToMe: belongsToMe.Has(n),
 						IP:          connectInfo.getIPIfIsMe(KubeConfigBytes, ns),
 					}
 				}
 			}
-			return i
+			result = append(result, tempItem)
+		}
+		// get all resource in namespace
+		if len(request.ResourceName) == 0 {
+			return result
+		} else {
+			return result[0]
 		}
 	}
 }
 
 func getNamespace(namespace string, kubeconfigBytes []byte) (ns string) {
-	if namespace != "" {
+	if len(namespace) != 0 {
 		ns = namespace
 		return
 	}
-	config, err := clientcmd.NewClientConfigFromBytes(kubeconfigBytes)
-	if err == nil && config != nil {
+	if config, err := clientcmd.NewClientConfigFromBytes(kubeconfigBytes); err == nil {
 		ns, _, _ = config.Namespace()
-		return ns
+		return
 	}
-	return ""
+	return
 }
 
 func getApplicationByNs(namespace, kubeconfigPath string, search *resouce_cache.Searcher, label map[string]string) item.Result {
