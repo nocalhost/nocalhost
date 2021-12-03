@@ -43,7 +43,9 @@ func getServiceProfile(ns, appName, nid string, kubeconfigBytes []byte) map[stri
 		appMeta := appmeta_manager.GetApplicationMeta(ns, appName, kubeconfigBytes)
 		for _, svcProfileV2 := range description.SvcProfile {
 			if svcProfileV2 != nil {
-				svcProfileV2.DevModeType = appMeta.GetCurrentDevModeTypeOfWorkload(svcProfileV2.Name, base.SvcTypeOf(svcProfileV2.Type), description.Identifier)
+				svcProfileV2.DevModeType = appMeta.GetCurrentDevModeTypeOfWorkload(
+					svcProfileV2.Name, base.SvcTypeOf(svcProfileV2.Type), description.Identifier,
+				)
 				name := strings.ToLower(svcProfileV2.GetType()) + "s"
 				serviceMap[name+"/"+svcProfileV2.GetName()] = svcProfileV2
 			}
@@ -159,7 +161,9 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 				for _, nsObject := range nsObjectList {
 					wg.Add(1)
 					go func(finalNs metav1.Object) {
-						app := getApplicationByNs(finalNs.GetName(), request.KubeConfig, s, request.Label, request.ShowHidden)
+						app := getApplicationByNs(
+							finalNs.GetName(), request.KubeConfig, s, request.Label, request.ShowHidden,
+						)
 						lock.Lock()
 						result = append(result, app)
 						lock.Unlock()
@@ -394,10 +398,14 @@ func getNidByAppName(namespace, kubeconfig, appName string) string {
 }
 
 func GetAllValidApplicationWithDefaultApp(ns string, KubeConfigBytes []byte) []*appmeta.ApplicationMeta {
+	result := make(map[string]*appmeta.ApplicationMeta, 0)
+
 	// first get apps from secret
 	// then get apps from annotations
 	// merge then
-	// and remove all apps invalid(uninstalled)
+	//
+	// the result should contains all meta from secret except 'uninstall'
+	// the result from annotations should escape the meta is 'protected'
 	appFromMeta := GetAllApplicationWithDefaultApp(ns, k8sutil.GetOrGenKubeConfigPath(string(KubeConfigBytes)))
 	appFromMetaMapping := make(map[string]*appmeta.ApplicationMeta, 0)
 	for _, meta := range appFromMeta {
@@ -406,32 +414,34 @@ func GetAllValidApplicationWithDefaultApp(ns string, KubeConfigBytes []byte) []*
 
 	appFromAnno := resouce_cache.GetAllAppNameByNamespace(KubeConfigBytes, ns).UnsortedList()
 
-	result := make([]*appmeta.ApplicationMeta, 0)
+	// first add all meta from anno,
+	// but if meta from annotations is protected, escape it
 	for _, s := range appFromAnno {
+		if meta, ok := appFromMetaMapping[s]; ok && meta.ProtectedFromReInstall() {
+			continue
+		}
 
-		// if has appmeta secret but without appFromAnno
-		// we should filter that do installed
-		//
-		// else if application is found from annotations
-		// and is not protected by a.UninstallBackOff
-		// we should recommend it as installed
-		if meta, ok := appFromMetaMapping[s]; ok {
-			if meta.ProtectedFromReInstall() {
-				continue
-			}
-			if meta.IsInstalling() {
-				continue
-			}
-			result = append(result, &appmeta.ApplicationMeta{ApplicationType: appmeta.ManifestLocal, Application: s})
-		} else {
-			result = append(result, &appmeta.ApplicationMeta{ApplicationType: appmeta.ManifestLocal, Application: s})
+		result[s] = &appmeta.ApplicationMeta{ApplicationType: appmeta.ManifestLocal, Application: s}
+	}
+
+	// then if meta from secret is installed, put it into result
+	for _, meta := range appFromMeta {
+		if meta.IsInstalled() {
+			result[meta.Application] = meta
 		}
 	}
 
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Application > result[j].Application
-	})
-	return result
+	displayedMeta := make([]*appmeta.ApplicationMeta, 0)
+	for _, meta := range result {
+		displayedMeta = append(displayedMeta, meta)
+	}
+
+	sort.Slice(
+		displayedMeta, func(i, j int) bool {
+			return displayedMeta[i].Application > displayedMeta[j].Application
+		},
+	)
+	return displayedMeta
 }
 
 // GetAllApplicationWithDefaultApp will not to create default application if default application not found
