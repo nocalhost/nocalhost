@@ -419,7 +419,7 @@ func GetAllValidApplicationWithDefaultApp(ns string, KubeConfigBytes []byte) []*
 			if meta.ProtectedFromReInstall() {
 				continue
 			}
-			if meta.IsNotInstall() {
+			if meta.IsInstalling() {
 				continue
 			}
 			result = append(result, &appmeta.ApplicationMeta{ApplicationType: appmeta.ManifestLocal, Application: s})
