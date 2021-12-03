@@ -10,9 +10,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
-	appsv1 "k8s.io/api/apps/v1"
-	batchv1 "k8s.io/api/batch/v1"
-	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nhctl/appmeta"
@@ -61,6 +58,10 @@ func NewController(ns, name, appName, identifier string, svcType base.SvcType,
 		Identifier: identifier,
 	}
 	c.DevModeType = c.GetCurrentDevModeType()
+	da, err := GetDevModeActionBySvcType(svcType)
+	if err == nil {
+		c.DevModeAction = da
+	}
 
 	a := c.GetAppConfig().GetSvcConfigS(c.Name, c.Type)
 	c.config = &a
@@ -141,100 +142,118 @@ func (c *Controller) CheckIfExist() (bool, error) {
 }
 
 func (c *Controller) GetOriginalContainers() ([]v1.Container, error) {
-	c.GetUnstructuredMap()
-	return GetOriginalContainers(c.Client, c.Type, c.Name)
+	return GetOriginalContainers(c.Client, c.Type, c.Name, c.DevModeAction.PodTemplatePath)
 }
 
-func GetOriginalContainers(client *clientgoutils.ClientGoUtils, workloadType base.SvcType, workloadName string) ([]v1.Container, error) {
-	var podSpec v1.PodSpec
-	switch workloadType {
-	case base.Deployment:
-		d, err := client.GetDeployment(workloadName)
-		if err != nil {
-			return nil, err
-		}
-		if len(d.Annotations) > 0 {
-			if osj, ok := d.Annotations[OriginSpecJson]; ok {
-				d.Spec = appsv1.DeploymentSpec{}
-				if err = json.Unmarshal([]byte(osj), &d.Spec); err != nil {
-					return nil, errors.Wrap(err, "")
-				}
-			}
-		}
-		podSpec = d.Spec.Template.Spec
-	case base.StatefulSet:
-		s, err := client.GetStatefulSet(workloadName)
-		if err != nil {
-			return nil, err
-		}
-		if len(s.Annotations) > 0 {
-			if osj, ok := s.Annotations[OriginSpecJson]; ok {
-				s.Spec = appsv1.StatefulSetSpec{}
-				if err = json.Unmarshal([]byte(osj), &s.Spec); err != nil {
-					return nil, errors.Wrap(err, "")
-				}
-			}
-		}
-		podSpec = s.Spec.Template.Spec
-	case base.DaemonSet:
-		d, err := client.GetDaemonSet(workloadName)
-		if err != nil {
-			return nil, err
-		}
-		if len(d.Annotations) > 0 {
-			if osj, ok := d.Annotations[OriginSpecJson]; ok {
-				d.Spec = appsv1.DaemonSetSpec{}
-				if err = json.Unmarshal([]byte(osj), &d.Spec); err != nil {
-					return nil, errors.Wrap(err, "")
-				}
-			}
-		}
-		podSpec = d.Spec.Template.Spec
-	case base.Job:
-		j, err := client.GetJobs(workloadName)
-		if err != nil {
-			return nil, err
-		}
-		if len(j.Annotations) > 0 {
-			if osj, ok := j.Annotations[OriginSpecJson]; ok {
-				j.Spec = batchv1.JobSpec{}
-				if err = json.Unmarshal([]byte(osj), &j.Spec); err != nil {
-					return nil, errors.Wrap(err, "")
-				}
-			}
-		}
-		podSpec = j.Spec.Template.Spec
-	case base.CronJob:
-		j, err := client.GetCronJobs(workloadName)
-		if err != nil {
-			return nil, err
-		}
-		if len(j.Annotations) > 0 {
-			if osj, ok := j.Annotations[OriginSpecJson]; ok {
-				j.Spec = batchv1beta1.CronJobSpec{}
-				if err = json.Unmarshal([]byte(osj), &j.Spec); err != nil {
-					return nil, errors.Wrap(err, "")
-				}
-			}
-		}
-		podSpec = j.Spec.JobTemplate.Spec.Template.Spec
-	case base.Pod:
-		p, err := client.GetPod(workloadName)
-		if err != nil {
-			return nil, err
-		}
-		if len(p.Annotations) > 0 {
-			if osj, ok := p.Annotations[originalPodDefine]; ok {
-				p.Spec = v1.PodSpec{}
-				if err = json.Unmarshal([]byte(osj), p); err != nil {
-					return nil, errors.Wrap(err, "")
-				}
-			}
-		}
-		podSpec = p.Spec
+func GetOriginalContainers(client *clientgoutils.ClientGoUtils, workloadType base.SvcType, workloadName, path string) ([]v1.Container, error) {
+	//var podSpec v1.PodSpec
+	um, err := client.GetUnstructuredMap(string(workloadType), workloadName)
+	if err != nil {
+		return nil, err
 	}
 
-	return podSpec.Containers, nil
+	var originalUm map[string]interface{}
+	od, err := GetAnnotationFromUnstructuredMap(um, _const.OriginWorkloadDefinition)
+	if err == nil {
+		originalUm, _ = client.GetUnstructuredMapFromString(od)
+	}
+	if len(originalUm) > 0 {
+		um = originalUm
+	}
+
+	pt, err := GetPodTemplateFromSpecPath(path, um)
+	if err != nil {
+		return nil, err
+	}
+
+	//switch workloadType {
+	//case base.Deployment:
+	//	d, err := client.GetDeployment(workloadName)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	if len(d.Annotations) > 0 {
+	//		if osj, ok := d.Annotations[OriginSpecJson]; ok {
+	//			d.Spec = appsv1.DeploymentSpec{}
+	//			if err = json.Unmarshal([]byte(osj), &d.Spec); err != nil {
+	//				return nil, errors.Wrap(err, "")
+	//			}
+	//		}
+	//	}
+	//	podSpec = d.Spec.Template.Spec
+	//case base.StatefulSet:
+	//	s, err := client.GetStatefulSet(workloadName)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	if len(s.Annotations) > 0 {
+	//		if osj, ok := s.Annotations[OriginSpecJson]; ok {
+	//			s.Spec = appsv1.StatefulSetSpec{}
+	//			if err = json.Unmarshal([]byte(osj), &s.Spec); err != nil {
+	//				return nil, errors.Wrap(err, "")
+	//			}
+	//		}
+	//	}
+	//	podSpec = s.Spec.Template.Spec
+	//case base.DaemonSet:
+	//	d, err := client.GetDaemonSet(workloadName)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	if len(d.Annotations) > 0 {
+	//		if osj, ok := d.Annotations[OriginSpecJson]; ok {
+	//			d.Spec = appsv1.DaemonSetSpec{}
+	//			if err = json.Unmarshal([]byte(osj), &d.Spec); err != nil {
+	//				return nil, errors.Wrap(err, "")
+	//			}
+	//		}
+	//	}
+	//	podSpec = d.Spec.Template.Spec
+	//case base.Job:
+	//	j, err := client.GetJobs(workloadName)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	if len(j.Annotations) > 0 {
+	//		if osj, ok := j.Annotations[OriginSpecJson]; ok {
+	//			j.Spec = batchv1.JobSpec{}
+	//			if err = json.Unmarshal([]byte(osj), &j.Spec); err != nil {
+	//				return nil, errors.Wrap(err, "")
+	//			}
+	//		}
+	//	}
+	//	podSpec = j.Spec.Template.Spec
+	//case base.CronJob:
+	//	j, err := client.GetCronJobs(workloadName)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	if len(j.Annotations) > 0 {
+	//		if osj, ok := j.Annotations[OriginSpecJson]; ok {
+	//			j.Spec = batchv1beta1.CronJobSpec{}
+	//			if err = json.Unmarshal([]byte(osj), &j.Spec); err != nil {
+	//				return nil, errors.Wrap(err, "")
+	//			}
+	//		}
+	//	}
+	//	podSpec = j.Spec.JobTemplate.Spec.Template.Spec
+	//case base.Pod:
+	//	p, err := client.GetPod(workloadName)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	if len(p.Annotations) > 0 {
+	//		if osj, ok := p.Annotations[originalPodDefine]; ok {
+	//			p.Spec = v1.PodSpec{}
+	//			if err = json.Unmarshal([]byte(osj), p); err != nil {
+	//				return nil, errors.Wrap(err, "")
+	//			}
+	//		}
+	//	}
+	//	podSpec = p.Spec
+	//}
+
+	return pt.Spec.Containers, nil
 }
 
 func (c *Controller) GetTypeMeta() (metav1.TypeMeta, error) {
@@ -334,7 +353,7 @@ func (c *Controller) GetContainers() ([]v1.Container, error) {
 	if err != nil {
 		return nil, err
 	}
-	pt, err := GetPodTemplateFromSpecPath(c.DevModeAction.PodSpecPath, um)
+	pt, err := GetPodTemplateFromSpecPath(c.DevModeAction.PodTemplatePath, um)
 	if err != nil {
 		return nil, err
 	}
@@ -484,7 +503,7 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 	}
 	log.Info("Scale success")
 
-	podTemplate, err := GetPodTemplateFromSpecPath(c.DevModeAction.PodSpecPath, unstructuredObj)
+	podTemplate, err := GetPodTemplateFromSpecPath(c.DevModeAction.PodTemplatePath, unstructuredObj)
 	if err != nil {
 		return err
 	}
@@ -501,7 +520,7 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 
 	log.Info("Patching development container...")
 
-	specPath := c.DevModeAction.PodSpecPath + "/spec"
+	specPath := c.DevModeAction.PodTemplatePath + "/spec"
 	ps := genDevContainerPatches(podSpec, specPath, string(originalSpecJson))
 	for _, p := range ps {
 		if err = c.Client.Patch(c.Type.String(), c.Name, p.Patch, p.Type); err != nil {
@@ -518,7 +537,7 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 }
 
 func (c *Controller) CheckDevModePodIsRunning() (string, error) {
-	pods, err := c.Client.FieldSelector("").Labels(c.devModePodLabels).ListPods()
+	pods, err := c.Client.Labels(c.devModePodLabels).ListPods()
 	if err != nil {
 		return "", err
 	}

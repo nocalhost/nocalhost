@@ -168,8 +168,7 @@ func (d *DuplicateDeploymentController) RollBack(reset bool) error {
 	if err != nil {
 		return err
 	}
-	d.Client.Labels(lmap)
-	deploys, err := d.Client.ListDeployments()
+	deploys, err := d.Client.Labels(lmap).ListDeployments()
 	if err != nil {
 		return err
 	}
@@ -186,7 +185,7 @@ func (d *DuplicateDeploymentController) RollBack(reset bool) error {
 	return d.Client.DeleteDeployment(deploys[0].Name, false)
 }
 
-// GetPodList todo: Do not list pods already deleted - by hxx
+// GetPodList
 func (d *DuplicateDeploymentController) GetPodList() ([]corev1.Pod, error) {
 	labelsMap, err := d.getDuplicateLabelsMap()
 	if err != nil {

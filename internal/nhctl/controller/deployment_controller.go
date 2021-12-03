@@ -7,12 +7,10 @@ package controller
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/pod_controller"
@@ -27,11 +25,11 @@ type DeploymentController struct {
 }
 
 func (d *DeploymentController) GetNocalhostDevContainerPod() (string, error) {
-	checkPodsList, err := d.Client.ListPodsByDeployment(d.GetName())
+	ps, err := d.GetPodList()
 	if err != nil {
 		return "", err
 	}
-	return findDevPodName(checkPodsList.Items)
+	return findDevPodName(ps)
 }
 
 // ReplaceImage In DevMode, nhctl will replace the container of your workload with two containers:
@@ -41,87 +39,52 @@ func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevS
 }
 
 func (d *DeploymentController) RollBack(reset bool) error {
-	unstructuredMap, err := d.GetUnstructuredMap()
-	if err != nil {
-		return err
-	}
 
 	clientUtils := d.Client
-
-	dep, err := clientUtils.GetDeployment(d.GetName())
+	dep, err := d.Client.GetDeployment(d.GetName())
 	if err != nil {
 		return err
 	}
 
-	osj, err := GetAnnotationFromUnstructuredMap(unstructuredMap, _const.OriginWorkloadDefinition)
-	if err == nil {
-		log.Infof("Annotation %s found, use it", _const.OriginWorkloadDefinition)
+	if err = d.RollbackFromAnnotation(); err == nil {
+		return err
+	}
 
-		infos, err := d.Client.GetResourceInfoFromString(osj, true)
-		if err != nil {
-			return err
-		}
-
-		if len(infos) != 1 {
-			return errors.New(fmt.Sprintf("%d infos read from annotations, not 1?", len(infos)))
-		}
-
-		var originUnstructuredMap map[string]interface{}
-		if originUnstructuredMap, err = runtime.DefaultUnstructuredConverter.ToUnstructured(infos[0].Object); err != nil {
-			return errors.WithStack(err)
-		}
-
-		specMap, ok := originUnstructuredMap["spec"]
-		if !ok {
-			return errors.New("spec not found in annotation")
-		}
-
-		jsonPatches := make([]jsonPatch, 0)
-		jsonPatches = append(jsonPatches, jsonPatch{
-			Op:    "replace",
-			Path:  "/spec",
-			Value: specMap,
-		})
-
-		bys, _ := json.Marshal(jsonPatches)
-		return d.Client.Patch(d.Type.String(), d.Name, string(bys), "json")
-	} else {
-		log.Warn(err.Error())
-		log.Info("Annotation nocalhost.origin.spec.json not found, try to find it from rs")
-		rss, _ := clientUtils.GetSortedReplicaSetsByDeployment(d.GetName())
-		if len(rss) >= 1 {
-			var r *v1.ReplicaSet
-			var originalPodReplicas *int32
-			for _, rs := range rss {
-				if rs.Annotations == nil {
-					continue
-				}
-				// Mark the original revision
-				if rs.Annotations[_const.DevImageRevisionAnnotationKey] == _const.DevImageRevisionAnnotationValue {
-					r = rs
-					if rs.Annotations[_const.DevImageOriginalPodReplicasAnnotationKey] != "" {
-						podReplicas, _ := strconv.Atoi(rs.Annotations[_const.DevImageOriginalPodReplicasAnnotationKey])
-						podReplicas32 := int32(podReplicas)
-						originalPodReplicas = &podReplicas32
-					}
+	log.Warn(err.Error())
+	log.Info("Annotation nocalhost.origin.spec.json not found, try to find it from rs")
+	rss, _ := clientUtils.GetSortedReplicaSetsByDeployment(d.GetName())
+	if len(rss) >= 1 {
+		var r *v1.ReplicaSet
+		var originalPodReplicas *int32
+		for _, rs := range rss {
+			if rs.Annotations == nil {
+				continue
+			}
+			// Mark the original revision
+			if rs.Annotations[_const.DevImageRevisionAnnotationKey] == _const.DevImageRevisionAnnotationValue {
+				r = rs
+				if rs.Annotations[_const.DevImageOriginalPodReplicasAnnotationKey] != "" {
+					podReplicas, _ := strconv.Atoi(rs.Annotations[_const.DevImageOriginalPodReplicasAnnotationKey])
+					podReplicas32 := int32(podReplicas)
+					originalPodReplicas = &podReplicas32
 				}
 			}
+		}
 
-			if r == nil && reset {
-				r = rss[0]
-			}
+		if r == nil && reset {
+			r = rss[0]
+		}
 
-			if r != nil {
-				dep.Spec.Template = r.Spec.Template
-				if originalPodReplicas != nil {
-					dep.Spec.Replicas = originalPodReplicas
-				}
-			} else {
-				return errors.New("Failed to find revision to rollout")
+		if r != nil {
+			dep.Spec.Template = r.Spec.Template
+			if originalPodReplicas != nil {
+				dep.Spec.Replicas = originalPodReplicas
 			}
 		} else {
-			return errors.New("Failed to find revision to rollout(no rs found)")
+			return errors.New("Failed to find revision to rollout")
 		}
+	} else {
+		return errors.New("Failed to find revision to rollout(no rs found)")
 	}
 
 	log.Info(" Deleting current revision...")

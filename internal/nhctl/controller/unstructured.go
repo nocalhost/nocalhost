@@ -10,11 +10,63 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	_const "nocalhost/internal/nhctl/const"
+	"nocalhost/pkg/nhctl/log"
 	"strings"
 )
 
 func (c *Controller) GetUnstructuredMap() (unstructuredMap map[string]interface{}, err error) {
 	return c.Client.GetUnstructuredMap(string(c.Type), c.Name)
+}
+
+func (c *Controller) GetPodTemplate() (*corev1.PodTemplateSpec, error) {
+	um, err := c.GetUnstructuredMap()
+	if err != nil {
+		return nil, err
+	}
+	return GetPodTemplateFromSpecPath(c.DevModeAction.PodTemplatePath, um)
+}
+
+func (c *Controller) GetPodList() ([]corev1.Pod, error) {
+	pt, err := c.GetPodTemplate()
+	if err != nil {
+		return nil, err
+	}
+	delete(pt.Labels, "pod-template-hash")
+	return c.Client.Labels(pt.Labels).ListPods()
+}
+
+func (c *Controller) RollbackFromAnnotation() error {
+	unstructuredMap, err := c.GetUnstructuredMap()
+	if err != nil {
+		return err
+	}
+
+	osj, err := GetAnnotationFromUnstructuredMap(unstructuredMap, _const.OriginWorkloadDefinition)
+	if err != nil {
+		return err
+	}
+	log.Infof("Annotation %s found, use it", _const.OriginWorkloadDefinition)
+
+	originUnstructuredMap, err := c.Client.GetUnstructuredMapFromString(osj)
+	if err != nil {
+		return err
+	}
+
+	specMap, ok := originUnstructuredMap["spec"]
+	if !ok {
+		return errors.New("spec not found in annotation")
+	}
+
+	jsonPatches := make([]jsonPatch, 0)
+	jsonPatches = append(jsonPatches, jsonPatch{
+		Op:    "replace",
+		Path:  "/spec",
+		Value: specMap,
+	})
+
+	bys, _ := json.Marshal(jsonPatches)
+	return c.Client.Patch(c.Type.String(), c.Name, string(bys), "json")
 }
 
 func GetPodTemplateFromSpecPath(path string, unstructuredObj map[string]interface{}) (*corev1.PodTemplateSpec, error) {

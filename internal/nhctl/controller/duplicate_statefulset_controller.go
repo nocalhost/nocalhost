@@ -120,8 +120,8 @@ func (s *DuplicateStatefulSetController) RollBack(reset bool) error {
 	if err != nil {
 		return err
 	}
-	s.Client.Labels(lmap)
-	ss, err := s.Client.ListStatefulSets()
+
+	ss, err := s.Client.Labels(lmap).ListStatefulSets()
 	if err != nil {
 		return err
 	}
@@ -143,6 +143,5 @@ func (s *DuplicateStatefulSetController) GetPodList() ([]corev1.Pod, error) {
 	if err != nil {
 		return nil, err
 	}
-	s.Client.Labels(labelsMap)
-	return s.Client.ListPods()
+	return s.Client.Labels(labelsMap).ListPods()
 }

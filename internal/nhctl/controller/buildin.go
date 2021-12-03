@@ -6,12 +6,14 @@
 package controller
 
 import (
+	"errors"
+	"nocalhost/internal/nhctl/common/base"
 	profile2 "nocalhost/internal/nhctl/profile"
 )
 
 type DevModeAction struct {
-	ScaleAction []profile2.PatchItem
-	PodSpecPath string
+	ScaleAction     []profile2.PatchItem
+	PodTemplatePath string
 	//Group       string
 	//Version     string
 	//Kind        string
@@ -23,7 +25,7 @@ var (
 			Patch: `[{"op":"replace","path":"/spec/replicas","value":1}]`,
 			Type:  "json",
 		}},
-		PodSpecPath: "/spec/template",
+		PodTemplatePath: "/spec/template",
 		//Kind:        "Deployment",
 	}
 
@@ -32,10 +34,28 @@ var (
 			Patch: `[{"op":"replace","path":"/spec/replicas","value":1}]`,
 			Type:  "json",
 		}},
-		PodSpecPath: "/spec/template",
+		PodTemplatePath: "/spec/template",
 		//Kind:        "StatefulSet",
 	}
 )
+
+func GetDevModeActionBySvcType(svcType base.SvcType) (DevModeAction, error) {
+	switch svcType {
+	case base.Deployment:
+		return DeploymentDevModeAction, nil
+	case base.StatefulSet:
+		return StatefulSetDevModeAction, nil
+		//case base.DaemonSet:
+		//	return DeploymentDevModeAction,nil
+		//case base.Job:
+		//	return DeploymentDevModeAction
+		//case base.CronJob:
+		//	return DeploymentDevModeAction
+		//case base.Pod:
+		//	return DeploymentDevModeAction
+	}
+	return DeploymentDevModeAction, errors.New("un supported workload")
+}
 
 //func (d *DevModeAction) GetResourceType() (string, error) {
 //	if d.Kind == "" {

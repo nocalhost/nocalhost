@@ -54,3 +54,17 @@ func (c *ClientGoUtils) GetUnstructuredMap(resourceType string, resourceName str
 	}
 	return unstructuredObj, nil
 }
+
+func (c *ClientGoUtils) GetUnstructuredMapFromString(str string) (map[string]interface{}, error) {
+	infos, err := c.GetResourceInfoFromString(str, true)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(infos) != 1 {
+		return nil, errors.New(fmt.Sprintf("%d infos found, not 1?", len(infos)))
+	}
+
+	originUnstructuredMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(infos[0].Object)
+	return originUnstructuredMap, errors.WithStack(err)
+}

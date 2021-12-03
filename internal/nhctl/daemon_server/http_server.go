@@ -147,7 +147,9 @@ func handlingConfigSave(w http.ResponseWriter, r *http.Request) {
 		fail(w, err.Error())
 		return
 	}
-	containers, err := controller.GetOriginalContainers(client, base.SvcType(csp.Type), csp.Name)
+	// todo: by hxx
+	devAction, _ := controller.GetDevModeActionBySvcType(base.SvcTypeOf(csp.Type))
+	containers, err := controller.GetOriginalContainers(client, base.SvcType(csp.Type), csp.Name, devAction.PodTemplatePath)
 	if err != nil {
 		fail(w, err.Error())
 		return

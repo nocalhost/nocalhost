@@ -160,13 +160,24 @@ func (c *ClientGoUtils) Context(ctx context.Context) *ClientGoUtils {
 }
 
 func (c *ClientGoUtils) Labels(labels map[string]string) *ClientGoUtils {
-	c.labels = labels
-	return c
+	cc := c.GetCopy()
+	cc.labels = labels
+	return cc
+}
+
+func (c *ClientGoUtils) GetCopy() *ClientGoUtils {
+	cc := *c
+	cc.labels = map[string]string{}
+	for s, s2 := range c.labels {
+		cc.labels[s] = s2
+	}
+	return &cc
 }
 
 func (c *ClientGoUtils) FieldSelector(f string) *ClientGoUtils {
-	c.fieldSelector = f
-	return c
+	cc := c.GetCopy()
+	cc.fieldSelector = f
+	return cc
 }
 
 func (c *ClientGoUtils) IncludeDeletedResources(i bool) *ClientGoUtils {
