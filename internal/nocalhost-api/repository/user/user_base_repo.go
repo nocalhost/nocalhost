@@ -18,15 +18,25 @@ import (
 // BaseRepo
 type BaseRepo interface {
 	Create(ctx context.Context, user model.UserBaseModel) (model.UserBaseModel, error)
+	Creates(ctx context.Context, users []*model.UserBaseModel) error
+
 	Update(ctx context.Context, id uint64, userMap *model.UserBaseModel) (*model.UserBaseModel, error)
 	Delete(ctx context.Context, id uint64) error
 	GetUserByID(ctx context.Context, id uint64) (*model.UserBaseModel, error)
 	GetUserByPhone(ctx context.Context, phone int64) (*model.UserBaseModel, error)
 	GetUserBySa(ctx context.Context, sa string) (*model.UserBaseModel, error)
 	GetUserByEmail(ctx context.Context, email string) (*model.UserBaseModel, error)
-	GetUserList(ctx context.Context) ([]*model.UserList, error)
 	UpdateServiceAccountName(ctx context.Context, id uint64, saName string) error
+	ListStartById(ctx context.Context, idStart uint64, limit uint64) ([]*model.UserBaseModel, error)
+	GetUserPageable(ctx context.Context, page, limit int) ([]*model.UserBaseModel, error)
+	GetUserHasNotSa(ctx context.Context) ([]*model.UserBaseModel, error)
 	Close()
+
+	DeleteOutOfSyncLdapUser(ldapGen uint64) (int64, error)
+	UpdateUsersLdapGen(list []*model.UserBaseModel, gen uint64) bool
+
+	// deprecated
+	GetUserList(ctx context.Context) ([]*model.UserList, error)
 }
 
 // userBaseRepo
@@ -41,7 +51,28 @@ func NewUserRepo(db *gorm.DB) BaseRepo {
 	}
 }
 
-// GetUserList
+func (repo *userBaseRepo) UpdateUsersLdapGen(list []*model.UserBaseModel, gen uint64) bool {
+	if len(list) == 0 {
+		return true
+	}
+
+	sql := "UPDATE users SET ldap_gen=? WHERE id in ("
+	args := []interface{}{gen}
+	for _, baseModel := range list {
+		sql += "?,"
+		args = append(args, baseModel.ID)
+	}
+	sql = sql[:len(sql)-1]
+	sql += ")"
+	return repo.db.Exec(sql, args...).RowsAffected > 0
+}
+
+func (repo *userBaseRepo) DeleteOutOfSyncLdapUser(ldapGen uint64) (int64, error) {
+	exec := repo.db.Exec("UPDATE users SET status=0 WHERE ldap_gen < ? and ldap_dn is not null", ldapGen)
+	return exec.RowsAffected, exec.Error
+}
+
+// deprecated
 func (repo *userBaseRepo) GetUserList(ctx context.Context) ([]*model.UserList, error) {
 	var result []*model.UserList
 	repo.db.Raw(
@@ -51,6 +82,33 @@ func (repo *userBaseRepo) GetUserList(ctx context.Context) ([]*model.UserList, e
 			"where u.deleted_at is null and cu.deleted_at is null group by u.id",
 	).
 		Scan(&result)
+	return result, nil
+}
+
+func (repo *userBaseRepo) GetUserHasNotSa(ctx context.Context) ([]*model.UserBaseModel, error) {
+	var result []*model.UserBaseModel
+	repo.db.
+		Raw("select * from users where sa_name is null").
+		Scan(&result)
+	return result, nil
+}
+
+func (repo *userBaseRepo) GetUserPageable(ctx context.Context, page, limit int) ([]*model.UserBaseModel, error) {
+	var result []*model.UserBaseModel
+	repo.db.
+		Raw("select * from users where deleted_at is null").
+		Offset((page - 1) * limit).
+		Limit(limit).
+		Scan(&result)
+	return result, nil
+}
+
+func (repo *userBaseRepo) ListStartById(ctx context.Context, idStart uint64, limit uint64) ([]*model.UserBaseModel, error) {
+	var result []*model.UserBaseModel
+	repo.db.Raw(
+		"SELECT * FROM users "+
+			"WHERE id > ? ORDER BY id LIMIT ?", idStart, limit,
+	).Scan(&result)
 	return result, nil
 }
 
@@ -73,6 +131,40 @@ func (repo *userBaseRepo) Create(ctx context.Context, user model.UserBaseModel) 
 	}
 
 	return user, nil
+}
+
+// Creates
+func (repo *userBaseRepo) Creates(ctx context.Context, users []*model.UserBaseModel) error {
+	if len(users) == 0 {
+		return nil
+	}
+	sql := "INSERT INTO users (uuid,username,name,password,avatar,phone,email,is_admin,status,deleted_at," +
+		"created_at,updated_at,sa_name,cluster_admin,ldap_dn,ldap_gen) VALUES"
+
+	args := make([]interface{}, 0)
+	for _, user := range users {
+		sql += "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?),"
+		args = append(args, user.Uuid)
+		args = append(args, user.Username)
+		args = append(args, user.Name)
+		args = append(args, user.Password)
+		args = append(args, user.Avatar)
+		args = append(args, user.Phone)
+		args = append(args, user.Email)
+		args = append(args, user.IsAdmin)
+		args = append(args, user.Status)
+		args = append(args, user.DeletedAt)
+		args = append(args, user.CreatedAt)
+		args = append(args, user.UpdatedAt)
+		args = append(args, user.SaName)
+		args = append(args, user.ClusterAdmin)
+		args = append(args, user.LdapDN)
+		args = append(args, user.LdapGen)
+	}
+
+	sql = sql[:len(sql)-1]
+
+	return repo.db.Exec(sql, args...).Error
 }
 
 // Update

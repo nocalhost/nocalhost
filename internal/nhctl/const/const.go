@@ -6,7 +6,7 @@
 package _const
 
 const (
-	UintEnable = uint64(1)
+	UintEnable  = uint64(1)
 	UintDisable = uint64(0)
 
 	DefaultEmailSuffix = "@nocalhost.dev"
@@ -82,5 +82,19 @@ const (
 	GitIgnoreMode = "gitIgnore"
 	PatternMode   = "pattern"
 )
+
+func BoolToUint64Pointer(bool bool) *uint64 {
+	var result uint64
+	if bool {
+		result = UintEnable
+	} else {
+		result = UintDisable
+	}
+	return &result
+}
+
+func Uint64PointerToBool(value *uint64) bool {
+	return value != nil && *value != UintDisable
+}
 
 var IsDaemon = false

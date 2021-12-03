@@ -16,6 +16,7 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/gin-contrib/pprof v1.3.0
 	github.com/gin-gonic/gin v1.7.0
+	github.com/go-ldap/ldap/v3 v3.4.1
 	github.com/go-playground/validator/v10 v10.9.0
 	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/golang-jwt/jwt/v4 v4.1.0

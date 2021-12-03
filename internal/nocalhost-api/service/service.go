@@ -18,6 +18,7 @@ import (
 	"nocalhost/internal/nocalhost-api/service/application_user"
 	"nocalhost/internal/nocalhost-api/service/cluster"
 	"nocalhost/internal/nocalhost-api/service/cluster_user"
+	"nocalhost/internal/nocalhost-api/service/ldap"
 	"nocalhost/internal/nocalhost-api/service/pre_pull"
 	"nocalhost/internal/nocalhost-api/service/user"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
@@ -42,6 +43,7 @@ type Service struct {
 	clusterUserSvc        cluster_user.ClusterUserService
 	prePullSvc            pre_pull.PrePullService
 	applicationUserSvc    application_user.ApplicationUserService
+	ldapSvc               ldap.LdapService
 }
 
 // New init service
@@ -54,6 +56,7 @@ func New() (s *Service) {
 		clusterUserSvc:        cluster_user.NewClusterUserService(),
 		prePullSvc:            pre_pull.NewPrePullService(),
 		applicationUserSvc:    application_user.NewApplicationUserService(),
+		ldapSvc:               ldap.NewLdapService(),
 	}
 
 	if global.ServiceInitial == "true" {
@@ -69,6 +72,10 @@ func New() (s *Service) {
 // UserSvc return user service
 func (s *Service) UserSvc() user.UserService {
 	return s.userSvc
+}
+
+func (s *Service) LdapSvc() ldap.LdapService {
+	return s.ldapSvc
 }
 
 func (s *Service) ClusterSvc() cluster.ClusterService {
@@ -119,7 +126,7 @@ func (s *Service) dataMigrate() {
 }
 
 func (s *Service) generateServiceAccountNameForUser() {
-	list, err := s.userSvc.GetUserList(context.TODO())
+	list, err := s.userSvc.GetUserHasNotSa(context.TODO())
 	if err != nil {
 		log.Infof("Error while generate user sa: %+v", err)
 	}
@@ -197,6 +204,7 @@ func (s *Service) init() {
 	if err := s.updateAllRoleBinding(); err != nil {
 		log.Errorf("Error while updating role binding: %s", err)
 	}
+
 }
 
 // Upgrade all cluster's versions of nocalhost-dep according to nocalhost-api's versions.
@@ -594,3 +602,4 @@ func RemoveClusterRoleBindingIfPresent(client *clientgo.GoClient, saName, saNs, 
 	defer client.RefreshServiceAccount(saName, saNs)
 	return client.RemoveClusterRoleBinding(crb, saName, saNs)
 }
+
