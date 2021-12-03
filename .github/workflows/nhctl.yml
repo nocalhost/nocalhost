@@ -59,6 +59,7 @@ jobs:
         env:
           WINDOWS_BINARY: 'nhctl-windows-amd64.exe'
           LINUX_BINARY: 'nhctl-linux-amd64'
+          LINUX_ARM64_BINARY: 'nhctl-linux-arm64'
         run: |
           cd build
           curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=main" --retry 5
@@ -70,6 +71,7 @@ jobs:
         env:
           WINDOWS_BINARY: 'nhctl-windows-amd64.exe'
           LINUX_BINARY: 'nhctl-linux-amd64'
+          LINUX_ARM64_BINARY: 'nhctl-linux-arm64'
         run: |
           cd build
           curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=dev" --retry 5
