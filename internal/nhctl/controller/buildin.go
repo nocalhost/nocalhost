@@ -15,9 +15,6 @@ type DevModeAction struct {
 	ScaleAction     []profile2.PatchItem
 	PodTemplatePath string
 	Create          bool
-	//Group       string
-	//Version     string
-	//Kind        string
 }
 
 var (
@@ -45,6 +42,20 @@ var (
 		PodTemplatePath: "/spec/template",
 		Create:          true,
 	}
+
+	JobDevModeAction = DevModeAction{
+		PodTemplatePath: "/spec/template",
+		Create:          true,
+	}
+
+	CronJobDevModeAction = DevModeAction{
+		ScaleAction: []profile2.PatchItem{{
+			Patch: `{"spec":{"suspend": true}}`,
+			Type:  "strategic",
+		}},
+		PodTemplatePath: "/spec/jobTemplate/spec/template",
+		Create:          true,
+	}
 )
 
 func GetDevModeActionBySvcType(svcType base.SvcType) (DevModeAction, error) {
@@ -55,10 +66,10 @@ func GetDevModeActionBySvcType(svcType base.SvcType) (DevModeAction, error) {
 		return StatefulSetDevModeAction, nil
 	case base.DaemonSet:
 		return DaemonSetDevModeAction, nil
-		//case base.Job:
-		//	return DeploymentDevModeAction
-		//case base.CronJob:
-		//	return DeploymentDevModeAction
+	case base.Job:
+		return JobDevModeAction, nil
+	case base.CronJob:
+		return CronJobDevModeAction, nil
 		//case base.Pod:
 		//	return DeploymentDevModeAction
 	}

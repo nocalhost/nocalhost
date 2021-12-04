@@ -46,6 +46,7 @@ func (d *DuplicateDeploymentController) ReplaceImage(ctx context.Context, ops *m
 		return err
 	}
 
+	GetAnnotationFromUnstructuredMap()
 	if d.IsInReplaceDevMode() {
 		osj, ok := dep.Annotations[OriginSpecJson]
 		if ok {

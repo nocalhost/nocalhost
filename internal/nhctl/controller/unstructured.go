@@ -130,17 +130,54 @@ func GetPodTemplateFromSpecPath(path string, unstructuredObj map[string]interfac
 func GetAnnotationFromUnstructuredMap(u map[string]interface{}, key string) (string, error) {
 	meta, ok := u["metadata"]
 	if !ok {
-		return "", errors.New("origin spec json not fount(metadata)")
+		return "", errors.New("metadata not found in unstructured map")
 	}
-	metaMap := meta.(map[string]interface{})
+	metaMap, ok := meta.(map[string]interface{})
+	if !ok {
+		return "", errors.New("metadata in unstructured map assert failed")
+	}
+
 	annotations, ok := metaMap["annotations"]
 	if !ok {
-		return "", errors.New("origin spec json not fount(annotations)")
+		return "", errors.New("annotation in unstructured map not found")
 	}
-	annotationsMap := annotations.(map[string]interface{})
+	annotationsMap, ok := annotations.(map[string]interface{})
+	if !ok {
+		return "", errors.New("annotation in unstructured map assert failed")
+	}
+
 	originJson, ok := annotationsMap[key]
 	if !ok {
-		return "", errors.New("origin spec json not fount")
+		return "", errors.New(fmt.Sprintf("annotation %s not found", key))
 	}
 	return originJson.(string), nil
+}
+
+func RemoveUselessInfo(u map[string]interface{}) {
+	if u == nil {
+		return
+	}
+	delete(u, "status")
+	metaM, ok := u["metadata"]
+	if !ok {
+		return
+	}
+	mm, ok := metaM.(map[string]interface{})
+	if !ok {
+		return
+	}
+	delete(mm, "resourceVersion")
+	delete(mm, "creationTimestamp")
+	delete(mm, "managedFields")
+	aM, ok := mm["annotations"]
+	if !ok {
+		return
+	}
+	aa, ok := aM.(map[string]interface{})
+	if !ok {
+		return
+	}
+	delete(aa, _const.OriginWorkloadDefinition)
+	delete(aa, "kubectl.kubernetes.io/last-applied-configuration")
+	delete(aa, OriginSpecJson) // remove deprecated annotation
 }
