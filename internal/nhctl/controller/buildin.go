@@ -14,6 +14,7 @@ import (
 type DevModeAction struct {
 	ScaleAction     []profile2.PatchItem
 	PodTemplatePath string
+	Create          bool
 	//Group       string
 	//Version     string
 	//Kind        string
@@ -26,7 +27,6 @@ var (
 			Type:  "json",
 		}},
 		PodTemplatePath: "/spec/template",
-		//Kind:        "Deployment",
 	}
 
 	StatefulSetDevModeAction = DevModeAction{
@@ -35,7 +35,15 @@ var (
 			Type:  "json",
 		}},
 		PodTemplatePath: "/spec/template",
-		//Kind:        "StatefulSet",
+	}
+
+	DaemonSetDevModeAction = DevModeAction{
+		ScaleAction: []profile2.PatchItem{{
+			Patch: `{"spec":{"template": {"spec": {"nodeName": "nocalhost.unreachable"}}}}`,
+			Type:  "strategic",
+		}},
+		PodTemplatePath: "/spec/template",
+		Create:          true,
 	}
 )
 
@@ -45,8 +53,8 @@ func GetDevModeActionBySvcType(svcType base.SvcType) (DevModeAction, error) {
 		return DeploymentDevModeAction, nil
 	case base.StatefulSet:
 		return StatefulSetDevModeAction, nil
-		//case base.DaemonSet:
-		//	return DeploymentDevModeAction,nil
+	case base.DaemonSet:
+		return DaemonSetDevModeAction, nil
 		//case base.Job:
 		//	return DeploymentDevModeAction
 		//case base.CronJob:

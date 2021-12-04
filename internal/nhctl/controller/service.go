@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nhctl/appmeta"
@@ -17,6 +18,7 @@ import (
 	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/profile"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"strconv"
@@ -457,29 +459,43 @@ func (c *Controller) patchAfterDevContainerReplaced(containerName, resourceType,
 	<-time.Tick(time.Second)
 }
 
-func genDevContainerPatches(podSpec *v1.PodSpec, path, originalSpecJson string) []profile.PatchItem {
+//func genDevContainerPatches(podSpec *v1.PodSpec, path, originalSpecJson string) []profile.PatchItem {
+//
+//	jsonPatches := make([]jsonPatch, 0)
+//	jsonPatches = append(jsonPatches, jsonPatch{
+//		Op:    "replace",
+//		Path:  path,
+//		Value: podSpec,
+//	})
+//
+//	//jsonPatches = append(jsonPatches, jsonPatch{
+//	//	Op:    "add",
+//	//	Path:  fmt.Sprintf("/metadata/annotations/%s", _const.OriginWorkloadDefinition),
+//	//	Value: originalSpecJson,
+//	//})
+//	m := map[string]interface{}{"metadata": map[string]interface{}{"annotations": map[string]string{_const.OriginWorkloadDefinition: originalSpecJson}}}
+//
+//	mBytes, _ := json.Marshal(m)
+//	bys, _ := json.Marshal(jsonPatches)
+//	result := make([]profile.PatchItem, 0)
+//	result = append(result, profile.PatchItem{Patch: string(mBytes), Type: "strategic"})
+//	result = append(result, profile.PatchItem{Patch: string(bys), Type: "json"})
+//
+//	return result
+//}
 
-	jsonPatches := make([]jsonPatch, 0)
-	jsonPatches = append(jsonPatches, jsonPatch{
-		Op:    "replace",
-		Path:  path,
-		Value: podSpec,
-	})
+func (c *Controller) getGeneratedDeploymentName() string {
+	t := strings.ToLower(strings.Split(string(c.Type), ".")[0])
+	id, _ := utils.GetShortUuid()
+	return fmt.Sprintf("%s-%s-devmode-%s", c.GetName(), t, id)
+}
 
-	//jsonPatches = append(jsonPatches, jsonPatch{
-	//	Op:    "add",
-	//	Path:  fmt.Sprintf("/metadata/annotations/%s", _const.OriginWorkloadDefinition),
-	//	Value: originalSpecJson,
-	//})
-	m := map[string]interface{}{"metadata": map[string]interface{}{"annotations": map[string]string{_const.OriginWorkloadDefinition: originalSpecJson}}}
-
-	mBytes, _ := json.Marshal(m)
-	bys, _ := json.Marshal(jsonPatches)
-	result := make([]profile.PatchItem, 0)
-	result = append(result, profile.PatchItem{Patch: string(mBytes), Type: "strategic"})
-	result = append(result, profile.PatchItem{Patch: string(bys), Type: "json"})
-
-	return result
+func (c *Controller) getGeneratedDeploymentLabels() map[string]string {
+	return map[string]string{
+		_const.DevWorkloadIgnored:     "true",
+		"dev.nocalhost/workload-type": string(c.Type),
+		"dev.nocalhost/workload-name": c.Name,
+	}
 }
 
 func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevStartOptions) error {
@@ -497,6 +513,7 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 
 	log.Infof("Scale %s(%s) to 1", c.Name, c.Type.String())
 	for _, item := range c.DevModeAction.ScaleAction {
+		log.Infof("Patching %s", item.Patch)
 		if err := c.Client.Patch(c.Type.String(), c.Name, item.Patch, item.Type); err != nil {
 			return err
 		}
@@ -518,17 +535,47 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 
 	patchDevContainerToPodSpec(podSpec, ops.Container, devContainer, sideCarContainer, devModeVolumes)
 
-	log.Info("Patching development container...")
+	m := map[string]interface{}{"metadata": map[string]interface{}{"annotations": map[string]string{_const.OriginWorkloadDefinition: string(originalSpecJson)}}}
+	mBytes, _ := json.Marshal(m)
+	if err = c.Client.Patch(c.Type.String(), c.Name, string(mBytes), "strategic"); err != nil {
+		return err
+	}
+	log.Info("Original manifest recorded")
 
-	specPath := c.DevModeAction.PodTemplatePath + "/spec"
-	ps := genDevContainerPatches(podSpec, specPath, string(originalSpecJson))
-	for _, p := range ps {
-		if err = c.Client.Patch(c.Type.String(), c.Name, p.Patch, p.Type); err != nil {
+	if !c.DevModeAction.Create {
+		log.Info("Patching development container...")
+
+		specPath := c.DevModeAction.PodTemplatePath + "/spec"
+		jsonPatches := make([]jsonPatch, 0)
+		jsonPatches = append(jsonPatches, jsonPatch{
+			Op:    "replace",
+			Path:  specPath,
+			Value: podSpec,
+		})
+		bys, _ := json.Marshal(jsonPatches)
+
+		if err = c.Client.Patch(c.Type.String(), c.Name, string(bys), "json"); err != nil {
 			return err
 		}
+		c.patchAfterDevContainerReplaced(ops.Container, c.Type.String(), c.Name)
+	} else {
+		generatedDeployment := &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   c.getGeneratedDeploymentName(),
+				Labels: c.getGeneratedDeploymentLabels(),
+			},
+			Spec: appsv1.DeploymentSpec{
+				Selector: &metav1.LabelSelector{
+					MatchLabels: podTemplate.Labels,
+				},
+				Template: *podTemplate,
+			},
+		}
+		if _, err = c.Client.CreateDeployment(generatedDeployment); err != nil {
+			return err
+		}
+		c.patchAfterDevContainerReplaced(ops.Container, "deployment", generatedDeployment.Name)
 	}
-
-	c.patchAfterDevContainerReplaced(ops.Container, c.Type.String(), c.Name)
 
 	delete(podTemplate.Labels, "pod-template-hash")
 

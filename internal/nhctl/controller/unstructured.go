@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
+	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/pkg/nhctl/log"
@@ -36,7 +37,38 @@ func (c *Controller) GetPodList() ([]corev1.Pod, error) {
 	return c.Client.Labels(pt.Labels).ListPods()
 }
 
+func (c *Controller) getGeneratedDeployment() (*v1.Deployment, error) {
+	ds, err := c.Client.Labels(c.getGeneratedDeploymentLabels()).ListDeployments()
+	if err != nil {
+		return nil, err
+	}
+	if len(ds) != 1 {
+		return nil, errors.New(fmt.Sprintf("Generated deployment is %d(not 1?)", len(ds)))
+	}
+	return &ds[0], nil
+}
+
+func (c *Controller) ListPodOfGeneratedDeployment() ([]corev1.Pod, error) {
+	ds, err := c.getGeneratedDeployment()
+	if err != nil {
+		return nil, err
+	}
+	return c.Client.ListPodsOfDeployment(ds.Name)
+}
+
 func (c *Controller) RollbackFromAnnotation() error {
+
+	if c.DevModeAction.Create {
+		log.Info("Destroying generated deployment")
+		ds, err := c.getGeneratedDeployment()
+		if err != nil {
+			return err
+		}
+		if err = c.Client.DeleteDeployment(ds.Name, false); err != nil {
+			return err
+		}
+	}
+
 	unstructuredMap, err := c.GetUnstructuredMap()
 	if err != nil {
 		return err

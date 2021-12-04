@@ -47,7 +47,7 @@ func (d *DeploymentController) RollBack(reset bool) error {
 	}
 
 	if err = d.RollbackFromAnnotation(); err == nil {
-		return err
+		return nil
 	}
 
 	log.Warn(err.Error())
