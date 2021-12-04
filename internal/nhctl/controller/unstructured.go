@@ -144,3 +144,31 @@ func GetAnnotationFromUnstructuredMap(u map[string]interface{}, key string) (str
 	}
 	return originJson.(string), nil
 }
+
+func RemoveUselessInfo(u map[string]interface{}) {
+	if u == nil {
+		return
+	}
+	delete(u, "status")
+	metaM, ok := u["metadata"]
+	if !ok {
+		return
+	}
+	mm, ok := metaM.(map[string]interface{})
+	if !ok {
+		return
+	}
+	delete(mm, "resourceVersion")
+	delete(mm, "creationTimestamp")
+	delete(mm, "managedFields")
+	aM, ok := mm["annotations"]
+	if !ok {
+		return
+	}
+	aa, ok := aM.(map[string]interface{})
+	if !ok {
+		return
+	}
+	delete(aa, _const.OriginWorkloadDefinition)
+	delete(aa, "kubectl.kubernetes.io/last-applied-configuration")
+}

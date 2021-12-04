@@ -120,27 +120,6 @@ func (c *Controller) CheckIfExist() (bool, error) {
 		return false, err
 	}
 	return true, nil
-	//var err error
-	//switch c.Type {
-	//case base.Deployment:
-	//	_, err = c.Client.GetDeployment(c.Name)
-	//case base.StatefulSet:
-	//	_, err = c.Client.GetStatefulSet(c.Name)
-	//case base.DaemonSet:
-	//	_, err = c.Client.GetDaemonSet(c.Name)
-	//case base.Job:
-	//	_, err = c.Client.GetJobs(c.Name)
-	//case base.CronJob:
-	//	_, err = c.Client.GetCronJobs(c.Name)
-	//case base.Pod:
-	//	_, err = c.Client.GetPod(c.Name)
-	//default:
-	//	return false, errors.New("unsupported controller type")
-	//}
-	//if err != nil {
-	//	return false, err
-	//}
-	//return true, nil
 }
 
 func (c *Controller) GetOriginalContainers() ([]v1.Container, error) {
@@ -270,30 +249,18 @@ func (c *Controller) GetTypeMeta() (metav1.TypeMeta, error) {
 	if !ok {
 		return result, errors.New("Can not find kind")
 	}
-	result.Kind = k.(string)
+	if result.Kind, ok = k.(string); !ok {
+		return result, errors.New("Kind is not a string ?")
+	}
 
 	a, ok := um["apiVersion"]
 	if !ok {
 		return result, errors.New("Can not find apiVersion")
 	}
-	result.APIVersion = a.(string)
+	if result.APIVersion, ok = a.(string); !ok {
+		return result, errors.New("ApiVersion is not a string ?")
+	}
 	return result, nil
-	//switch c.Type {
-	//case base.Deployment:
-	//	return appsv1.Deployment{}.TypeMeta, nil
-	//case base.StatefulSet:
-	//	return appsv1.StatefulSet{}.TypeMeta, nil
-	//case base.DaemonSet:
-	//	return appsv1.DaemonSet{}.TypeMeta, nil
-	//case base.Job:
-	//	return batchv1.Job{}.TypeMeta, nil
-	//case base.CronJob:
-	//	return batchv1beta1.CronJob{}.TypeMeta, nil
-	//case base.Pod:
-	//	return v1.Pod{}.TypeMeta, nil
-	//default:
-	//	return metav1.TypeMeta{}, errors.New("unsupported controller type")
-	//}
 }
 
 func (c *Controller) GetContainerImage(container string) (string, error) {
@@ -506,6 +473,8 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 		return err
 	}
 
+	RemoveUselessInfo(unstructuredObj)
+
 	var originalSpecJson []byte
 	if originalSpecJson, err = json.Marshal(unstructuredObj); err != nil {
 		return errors.WithStack(err)
@@ -559,6 +528,10 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 		}
 		c.patchAfterDevContainerReplaced(ops.Container, c.Type.String(), c.Name)
 	} else {
+		// Some workload's pod may not have labels, such as cronjob, we need to give it one
+		if len(podTemplate.Labels) == 0 {
+			podTemplate.Labels = c.getGeneratedDeploymentLabels()
+		}
 		generatedDeployment := &appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:   c.getGeneratedDeploymentName(),
@@ -571,6 +544,7 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 				Template: *podTemplate,
 			},
 		}
+		generatedDeployment.Spec.Template.Spec.RestartPolicy = v1.RestartPolicyAlways
 		if _, err = c.Client.CreateDeployment(generatedDeployment); err != nil {
 			return err
 		}

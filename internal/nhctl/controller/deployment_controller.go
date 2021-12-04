@@ -138,5 +138,6 @@ func GetDefaultPodName(ctx context.Context, p pod_controller.PodController) (str
 }
 
 func (d *DeploymentController) GetPodList() ([]corev1.Pod, error) {
-	return d.Client.ListLatestRevisionPodsByDeployment(d.GetName())
+	//return d.Client.ListLatestRevisionPodsByDeployment(d.GetName())
+	return d.Controller.GetPodList()
 }
