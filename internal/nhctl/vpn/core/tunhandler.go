@@ -15,6 +15,7 @@ import (
 	"net"
 	"nocalhost/internal/nhctl/vpn/remote"
 	"nocalhost/internal/nhctl/vpn/util"
+	"runtime"
 	"sync"
 )
 
@@ -101,6 +102,7 @@ func (h *tunHandler) Handle(conn net.Conn) {
 			h.chExit <- struct{}{}
 		default:
 			log.Infoln("next loop")
+			runtime.GC()
 		}
 	}
 }
@@ -121,7 +123,16 @@ func (h *tunHandler) findRouteFor(dst net.IP) net.Addr {
 
 func (h *tunHandler) transportTun(tun net.Conn, conn net.PacketConn, raddr net.Addr) error {
 	errChan := make(chan error, 2)
-	defer conn.Close()
+	defer func() {
+		if c, ok := conn.(interface{ CloseRead() error }); ok {
+			_ = c.CloseRead()
+		}
+		if c, ok := conn.(interface{ CloseWrite() error }); ok {
+			_ = c.CloseWrite()
+		}
+		_ = conn.Close()
+	}()
+
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	remote.CancelFunctions = append(remote.CancelFunctions, cancelFunc)
 	go func() {

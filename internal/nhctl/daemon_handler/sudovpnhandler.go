@@ -2,6 +2,7 @@ package daemon_handler
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/vpn/dns"
@@ -10,6 +11,7 @@ import (
 	"nocalhost/internal/nhctl/vpn/util"
 	"nocalhost/pkg/nhctl/log"
 	"sync"
+	"time"
 )
 
 // keep it in memory
@@ -67,11 +69,15 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser)
 					if err != nil {
 						log.Warn(err)
 						c.Logger.Infoln(util.EndSignFailed)
+						time.Sleep(time.Second * 2)
 						continue
 					}
 					c.Logger.Infoln(util.EndSignOK)
 					// wait for exit
-					<-errChan
+					if err = <-errChan; err != nil {
+						fmt.Println(err)
+						time.Sleep(time.Second * 2)
+					}
 				}
 			}
 		}(cmd.Namespace, connect)

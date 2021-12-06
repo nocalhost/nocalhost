@@ -41,9 +41,6 @@ func (addr *DatagramPacket) String() string {
 }
 
 func NewDatagramPacket(addr net.Addr, data []byte) (r *DatagramPacket) {
-	defer func() {
-		log.Infof("addr: %s, dataLength: %v, result: %s", addr.String(), len(data), r.String())
-	}()
 	s := addr.String()
 	var t uint8
 	if strings.Count(s, ":") >= 2 {
@@ -73,9 +70,6 @@ func (addr *DatagramPacket) Addr() string {
 }
 
 func ReadDatagramPacket(r io.Reader) (rr *DatagramPacket, errsss error) {
-	defer func() {
-		log.Infof("result: %s", rr.String())
-	}()
 	b := util.LPool.Get().([]byte)
 	defer util.LPool.Put(b)
 	_, err := io.ReadFull(r, b[:1])

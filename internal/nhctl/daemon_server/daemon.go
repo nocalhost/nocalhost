@@ -455,21 +455,14 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 }
 
 func ProcessStream(conn net.Conn, fun func(conn net.Conn) (io.ReadCloser, error)) error {
+	defer conn.Close()
 	n, err := fun(conn)
 	if err != nil {
-		if conn != nil {
-			conn.Close()
-		}
 		return err
 	}
 	defer n.Close()
-	c := make(chan error, 2)
-	go func() {
-		if _, err = io.Copy(conn, n); err != nil {
-			c <- err
-		}
-	}()
-	return <-c
+	_, err = io.Copy(conn, n)
+	return err
 }
 func Process(conn net.Conn, fun func(conn net.Conn) (interface{}, error)) error {
 	defer conn.Close()

@@ -238,3 +238,21 @@ func (c *fakeUDPTunnelConn) WriteTo(b []byte, addr net.Addr) (n int, err error) 
 	}
 	return len(b), nil
 }
+
+func (c *fakeUDPTunnelConn) Close() error {
+	return c.Conn.Close()
+}
+
+func (c *fakeUDPTunnelConn) CloseWrite() error {
+	if cc, ok := c.Conn.(interface{ CloseWrite() error }); ok {
+		return cc.CloseWrite()
+	}
+	return nil
+}
+
+func (c *fakeUDPTunnelConn) CloseRead() error {
+	if cc, ok := c.Conn.(interface{ CloseRead() error }); ok {
+		return cc.CloseRead()
+	}
+	return nil
+}
