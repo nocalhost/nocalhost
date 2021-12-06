@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/pkg/errors"
 	"helm.sh/helm/v3/pkg/action"
@@ -38,11 +39,11 @@ type ActionState string
 const (
 	ActionInstall ActionState = "install"
 	ActionUpgrade ActionState = "upgrade"
-	ActionDelete  ActionState = "delete"
 	ActionError   ActionState = "error"
 )
 
 type actions struct {
+	mu      sync.Mutex
 	cpo     action.ChartPathOptions
 	cfg     *action.Configuration
 	setting *cli.EnvSettings
@@ -109,10 +110,26 @@ func (a *actions) Uninstall(name string, opts ...UninstallOption) (*release.Unin
 }
 
 func (a *actions) GetChart(chartRef string) (*chart.Chart, error) {
-	return a.loadChart(chartRef)
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	key := fmt.Sprintf("%s/%s/%s", a.cpo.RepoURL, chartRef, a.cpo.Version)
+	var err error
+	chrt, ok := ChartCache.Get(key)
+	if ok {
+		a.cfg.Log("found chart in cache")
+		return chrt, nil
+	}
+	chrt, err = a.loadChart(chartRef)
+	if err != nil {
+		return nil, err
+	}
+	a.cfg.Log("add chart to cache")
+	ChartCache.Add(key, chrt)
+	return chrt, nil
 }
 
-func (a actions) GetState(name string) ActionState {
+func (a *actions) GetState(name string) ActionState {
 	_, err := a.Get(name)
 	if err != nil {
 		if errors.Cause(err) == driver.ErrReleaseNotFound {
@@ -152,7 +169,13 @@ func (a *actions) loadChart(chartRef string) (*chart.Chart, error) {
 	}
 
 	dest, err := os.MkdirTemp("", "vc")
-	defer os.RemoveAll(dest)
+	defer func() {
+		a.cfg.Log("remove temp dir: %s", dest)
+		if err := os.RemoveAll(dest); err != nil {
+			a.cfg.Log("can not remove temp dir: %s", err)
+		}
+	}()
+
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -195,8 +218,8 @@ func newRESTClientGetter(config *rest.Config, ns string) genericclioptions.RESTC
 }
 
 func helmLog(format string, v ...interface{}) {
-	log := log.Log.WithName("helm")
-	log.Info(fmt.Sprintf(format, v...))
+	lg := log.Log.WithName("helm")
+	lg.Info(fmt.Sprintf(format, v...))
 }
 
 func NewActions(vc *helmv1alpha1.VirtualCluster, config *rest.Config) (Actions, error) {
