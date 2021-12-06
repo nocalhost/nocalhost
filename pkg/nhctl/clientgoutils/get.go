@@ -9,11 +9,19 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/cli-runtime/pkg/resource"
+	"strings"
 )
 
-func (c *ClientGoUtils) Get(resourceType string, resourceName string) (*runtime.Object, error) {
+func (c *ClientGoUtils) GetResourceInfo(resourceType string, resourceName string) (*resource.Info, error) {
+	ls := ""
+	for s, s2 := range c.labels {
+		ls += s + "=" + s2 + ","
+	}
+	ls = strings.TrimRight(ls, ",")
 	r := c.NewFactory().NewBuilder().
 		Unstructured().
+		LabelSelector(ls).
 		NamespaceParam(c.namespace).DefaultNamespace().
 		ResourceTypeOrNameArgs(true, []string{resourceType, resourceName}...).
 		ContinueOnError().
@@ -22,24 +30,50 @@ func (c *ClientGoUtils) Get(resourceType string, resourceName string) (*runtime.
 		Do()
 
 	if err := r.Err(); err != nil {
-		return nil, errors.Wrap(err, "")
+		return nil, errors.WithStack(err)
 	}
 
 	infos, err := r.Infos()
 	if err != nil {
-		return nil, errors.Wrap(err, "")
+		return nil, errors.WithStack(err)
 	}
 
-	objs := make([]runtime.Object, len(infos))
-	for ix := range infos {
-		objs[ix] = infos[ix].Object
+	if len(infos) > 1 {
+		return nil, errors.New(fmt.Sprintf("ResouceInfo is not 1(but %d)?", len(infos)))
+	}
+	return infos[0], nil
+}
+
+func (c *ClientGoUtils) Get(resourceType string, resourceName string) (*runtime.Object, error) {
+	info, err := c.GetResourceInfo(resourceType, resourceName)
+	if err != nil {
+		return nil, err
+	}
+	return &info.Object, nil
+}
+
+func (c *ClientGoUtils) ListResourceInfo(resourceType string) ([]*resource.Info, error) {
+	ls := ""
+	for s, s2 := range c.labels {
+		ls += s + "=" + s2 + ","
+	}
+	ls = strings.TrimRight(ls, ",")
+	r := c.NewFactory().NewBuilder().
+		Unstructured().
+		LabelSelector(ls).
+		NamespaceParam(c.namespace).DefaultNamespace().
+		ResourceTypeOrNameArgs(true, []string{resourceType}...).
+		ContinueOnError().
+		Latest().
+		Flatten().
+		Do()
+
+	if err := r.Err(); err != nil {
+		return nil, errors.WithStack(err)
 	}
 
-	if len(objs) == 0 {
-		return nil, errors.New(fmt.Sprintf("Resource %s(%s) not found", resourceName, resourceType))
-	}
-
-	return &objs[0], nil
+	infos, err := r.Infos()
+	return infos, errors.WithStack(err)
 }
 
 func (c *ClientGoUtils) GetUnstructuredMap(resourceType string, resourceName string) (map[string]interface{}, error) {
@@ -47,7 +81,6 @@ func (c *ClientGoUtils) GetUnstructuredMap(resourceType string, resourceName str
 	if err != nil {
 		return nil, err
 	}
-
 	var unstructuredObj map[string]interface{}
 	if unstructuredObj, err = runtime.DefaultUnstructuredConverter.ToUnstructured(obj); err != nil {
 		return nil, errors.WithStack(err)

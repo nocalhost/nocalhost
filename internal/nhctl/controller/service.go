@@ -413,7 +413,7 @@ func (c *Controller) getDuplicateLabelsMap() (map[string]string, error) {
 }
 
 func (c *Controller) getDuplicateResourceName() string {
-	return strings.Join([]string{c.Name, string(c.Type), c.Identifier[0:5], strconv.Itoa(int(time.Now().Unix()))}, "-")
+	return strings.Join([]string{c.Name, c.Identifier[0:5], strconv.Itoa(int(time.Now().Unix()))}, "-")
 }
 
 func (c *Controller) patchAfterDevContainerReplaced(containerName, resourceType, resourceName string) {
@@ -563,4 +563,123 @@ func (c *Controller) CheckDevModePodIsRunning() (string, error) {
 		return "", err
 	}
 	return findDevPodName(pods)
+}
+
+// ReplaceDuplicateModeImage Create a duplicate deployment instead of replacing image
+func (c *Controller) ReplaceDuplicateModeImage(ctx context.Context, ops *model.DevStartOptions) error {
+	c.Client.Context(ctx)
+
+	um, err := c.GetUnstructuredMap()
+	if err != nil {
+		return err
+	}
+
+	RemoveUselessInfo(um)
+
+	if c.IsInReplaceDevMode() {
+		od, err := GetAnnotationFromUnstructuredMap(um, _const.OriginWorkloadDefinition)
+		if err != nil {
+			return err
+		}
+
+		if um, err = c.Client.GetUnstructuredMapFromString(od); err != nil {
+			return err
+		}
+	}
+	if err = c.PatchDuplicateInfo(um); err != nil {
+		return err
+	}
+	ps, err := GetPodTemplateFromSpecPath(c.DevModeAction.PodTemplatePath, um)
+	if err != nil {
+		return err
+	}
+
+	devContainer, sideCarContainer, devModeVolumes, err :=
+		c.genContainersAndVolumes(&ps.Spec, ops.Container, ops.DevImage, ops.StorageClass, true)
+	if err != nil {
+		return err
+	}
+
+	patchDevContainerToPodSpec(&ps.Spec, ops.Container, devContainer, sideCarContainer, devModeVolumes)
+
+	// Set podTemplate
+	ptm, err := GetUnstructuredMapBySpecificPath(c.DevModeAction.PodTemplatePath, um)
+	if err != nil {
+		return err
+	}
+
+	ptm["spec"] = &ps.Spec
+
+	jsonObj, err := json.Marshal(um)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	infos, err := c.Client.GetResourceInfoFromString(string(jsonObj), true)
+	if err != nil {
+		return err
+	}
+
+	if len(infos) != 1 {
+		return errors.New(fmt.Sprintf("ResourceInfo' num is %d(not 1?)", len(infos)))
+	}
+
+	log.Infof("Creating %s(%v)", infos[0].Name, infos[0].Object.GetObjectKind().GroupVersionKind())
+	err = c.Client.ApplyResourceInfo(infos[0], nil)
+	if err != nil {
+		return err
+	}
+
+	gvk := infos[0].Object.GetObjectKind().GroupVersionKind()
+	kind := gvk.Kind
+	if gvk.Version != "" {
+		kind += "." + gvk.Version
+	}
+	if gvk.Group != "" {
+		kind += "." + gvk.Group
+	}
+
+	for _, item := range c.DevModeAction.ScaleAction {
+		log.Infof("Patching %s", item.Patch)
+		if err = c.Client.Patch(kind, infos[0].Name, item.Patch, item.Type); err != nil {
+			return err
+		}
+	}
+
+	c.patchAfterDevContainerReplaced(ops.Container, kind, infos[0].Name)
+
+	return waitingPodToBeReady(c.GetDuplicateModeDevContainerPodName)
+}
+
+func (c *Controller) GetDuplicateModePodList() ([]v1.Pod, error) {
+	labelsMap, err := c.getDuplicateLabelsMap()
+	if err != nil {
+		return nil, err
+	}
+	return c.Client.Labels(labelsMap).ListPods()
+}
+
+func (c *Controller) GetDuplicateModeDevContainerPodName() (string, error) {
+	pods, err := c.GetDuplicateModePodList()
+	if err != nil {
+		return "", err
+	}
+	return findDevPodName(pods)
+}
+
+func (c *Controller) DuplicateModeRollBack() error {
+	lmap, err := c.getDuplicateLabelsMap()
+	if err != nil {
+		return err
+	}
+	infos, err := c.Client.Labels(lmap).ListResourceInfo(string(c.Type))
+	if err != nil {
+		return err
+	}
+
+	if len(infos) != 1 {
+		return errors.New(fmt.Sprintf("%d duplicate %s found?", len(infos), c.Type))
+	}
+
+	return clientgoutils.DeleteResourceInfo(infos[0])
 }

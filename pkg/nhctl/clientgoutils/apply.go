@@ -80,6 +80,9 @@ func DeleteResourceInfo(info *resource.Info) error {
 
 // Similar to `kubectl apply`, but apply a resourceInfo instead a file
 func (c *ClientGoUtils) ApplyResourceInfo(info *resource.Info, af *ApplyFlags) error {
+	if af == nil {
+		af = &ApplyFlags{}
+	}
 	o, err := c.generateCompletedApplyOption(af)
 	if err != nil {
 		return err

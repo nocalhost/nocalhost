@@ -101,17 +101,39 @@ func (c *Controller) RollbackFromAnnotation() error {
 	return c.Client.Patch(c.Type.String(), c.Name, string(bys), "json")
 }
 
-func GetPodTemplateFromSpecPath(path string, unstructuredObj map[string]interface{}) (*corev1.PodTemplateSpec, error) {
+func GetUnstructuredMapBySpecificPath(path string, u map[string]interface{}) (map[string]interface{}, error) {
 	pathItems := strings.Split(path, "/")
-	currentPathMap := unstructuredObj
+	currentPathMap := u
 	for _, item := range pathItems {
 		if item != "" {
 			if m, ok := currentPathMap[item]; ok {
-				currentPathMap = m.(map[string]interface{})
+				currentPathMap, ok = m.(map[string]interface{})
+				if !ok {
+					return nil, errors.New(fmt.Sprintf("Invalid path: %s", item))
+				}
 			} else {
 				return nil, errors.New(fmt.Sprintf("Invalid path: %s", item))
 			}
 		}
+	}
+	return currentPathMap, nil
+}
+
+func GetPodTemplateFromSpecPath(path string, unstructuredObj map[string]interface{}) (*corev1.PodTemplateSpec, error) {
+	//pathItems := strings.Split(path, "/")
+	//currentPathMap := unstructuredObj
+	//for _, item := range pathItems {
+	//	if item != "" {
+	//		if m, ok := currentPathMap[item]; ok {
+	//			currentPathMap = m.(map[string]interface{})
+	//		} else {
+	//			return nil, errors.New(fmt.Sprintf("Invalid path: %s", item))
+	//		}
+	//	}
+	//}
+	currentPathMap, err := GetUnstructuredMapBySpecificPath(path, unstructuredObj)
+	if err != nil {
+		return nil, err
 	}
 
 	jsonBytes, err := json.Marshal(currentPathMap)
@@ -124,6 +146,27 @@ func GetPodTemplateFromSpecPath(path string, unstructuredObj map[string]interfac
 	} else {
 		return p, nil
 	}
+}
+
+func UnmarshalFromUnstructuredMapBySpecPath(path string, unstructuredObj map[string]interface{}, obj interface{}) error {
+	pathItems := strings.Split(path, "/")
+	currentPathMap := unstructuredObj
+	for _, item := range pathItems {
+		if item != "" {
+			if m, ok := currentPathMap[item]; ok {
+				currentPathMap = m.(map[string]interface{})
+			} else {
+				return errors.New(fmt.Sprintf("Invalid path: %s", item))
+			}
+		}
+	}
+
+	jsonBytes, err := json.Marshal(currentPathMap)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	return errors.WithStack(json.Unmarshal(jsonBytes, obj))
 }
 
 // GetAnnotationFromUnstructuredMap todo: check map if nil
@@ -180,4 +223,77 @@ func RemoveUselessInfo(u map[string]interface{}) {
 	delete(aa, _const.OriginWorkloadDefinition)
 	delete(aa, "kubectl.kubernetes.io/last-applied-configuration")
 	delete(aa, OriginSpecJson) // remove deprecated annotation
+}
+
+func AddItemToUnstructuredMap(path string, u map[string]interface{}, key string, item map[string]interface{}) error {
+	ps := strings.Split(path, "/")
+	currentMap := u
+	for _, p := range ps {
+		if p == "" {
+			continue
+		}
+		tM, ok := currentMap[p]
+		if !ok {
+			return errors.New(fmt.Sprintf("Add item to UnstructuredMap failed in %s", p))
+		}
+
+		tm, ok := tM.(map[string]interface{})
+		if !ok {
+			return errors.New(fmt.Sprintf("Add item to UnstructuredMap failed in %s", p))
+		}
+		currentMap = tm
+	}
+	currentMap[key] = item
+	return nil
+}
+
+func (c *Controller) PatchDuplicateInfo(u map[string]interface{}) error {
+	labelsMap, err := c.getDuplicateLabelsMap()
+	if err != nil {
+		return err
+	}
+
+	metaM, ok := u["metadata"]
+	if !ok {
+		return errors.New("metadata not found")
+	}
+
+	mm, ok := metaM.(map[string]interface{})
+	if !ok {
+		return errors.New("metadata invalid")
+	}
+
+	//dep.Name = d.getDuplicateResourceName()
+	mm["name"] = c.getDuplicateResourceName()
+
+	//dep.Labels = labelsMap
+	mm["labels"] = labelsMap
+
+	//dep.ResourceVersion = ""
+	delete(mm, "resourceVersion")
+
+	//dep.Status = appsv1.DeploymentStatus{}
+	delete(u, "status")
+
+	// todo
+	//dep.Spec.Selector = &metav1.LabelSelector{MatchLabels: labelsMap}
+	pathItems := strings.Split(c.DevModeAction.PodTemplatePath, "/")
+	path := strings.Join(pathItems[:len(pathItems)-1], "/")
+	lm := map[string]interface{}{"matchLabels": labelsMap}
+	err = AddItemToUnstructuredMap(path, u, "selector", lm)
+	if err != nil {
+		return err
+	}
+
+	li := map[string]interface{}{}
+	for s, s2 := range labelsMap {
+		li[s] = s2
+	}
+
+	//dep.Spec.Template.Labels = labelsMap
+	err = AddItemToUnstructuredMap(c.DevModeAction.PodTemplatePath+"/"+"metadata", u, "labels", li)
+	if err != nil {
+		return err
+	}
+	return nil
 }
