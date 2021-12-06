@@ -62,7 +62,7 @@ var disconnectCmd = &cobra.Command{
 		}
 	},
 	PostRun: func(_ *cobra.Command, _ []string) {
-		if util.IsWindows() {
+		if util.IsWindows() && len(workloads) == 0 {
 			if err := retry.OnError(retry.DefaultRetry, func(err error) bool {
 				return err != nil
 			}, func() error {
