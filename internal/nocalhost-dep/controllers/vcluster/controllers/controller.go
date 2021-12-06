@@ -22,8 +22,8 @@ import (
 	"nocalhost/internal/nocalhost-dep/controllers/vcluster/helper"
 )
 
-// VirtualClusterReconciler reconciles a VirtualCluster object
-type VirtualClusterReconciler struct {
+// Reconciler reconciles a VirtualCluster object
+type Reconciler struct {
 	client.Client
 	Config *rest.Config
 	Scheme *runtime.Scheme
@@ -35,7 +35,7 @@ type VirtualClusterReconciler struct {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-func (r *VirtualClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	lg := log.FromContext(ctx)
 
 	vc := &helmv1alpha1.VirtualCluster{}
@@ -78,7 +78,7 @@ func (r *VirtualClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	return ctrl.Result{}, nil
 }
 
-func (r *VirtualClusterReconciler) reconcile(ctx context.Context, vc *helmv1alpha1.VirtualCluster, ac helper.Actions) error {
+func (r *Reconciler) reconcile(ctx context.Context, vc *helmv1alpha1.VirtualCluster, ac helper.Actions) error {
 	lg := log.FromContext(ctx)
 
 	chrt, err := ac.GetChart(vc.GetChartName())
@@ -110,7 +110,7 @@ func (r *VirtualClusterReconciler) reconcile(ctx context.Context, vc *helmv1alph
 	return nil
 }
 
-func (r VirtualClusterReconciler) delete(ctx context.Context, vc *helmv1alpha1.VirtualCluster, ac helper.Actions) error {
+func (r Reconciler) delete(ctx context.Context, vc *helmv1alpha1.VirtualCluster, ac helper.Actions) error {
 	lg := log.FromContext(ctx)
 	var opts []helper.UninstallOption
 	_, err := ac.Uninstall(vc.GetReleaseName(), opts...)
@@ -122,7 +122,7 @@ func (r VirtualClusterReconciler) delete(ctx context.Context, vc *helmv1alpha1.V
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *VirtualClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&helmv1alpha1.VirtualCluster{}).
 		Complete(r)

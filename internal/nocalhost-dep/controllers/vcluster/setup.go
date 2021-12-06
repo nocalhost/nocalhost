@@ -13,7 +13,7 @@ import (
 
 // Setup create VirtualCluster controller
 func Setup(mgr ctrl.Manager) error {
-	return (&controllers.VirtualClusterReconciler{
+	return (&controllers.Reconciler{
 		Client: mgr.GetClient(),
 		Config: mgr.GetConfig(),
 		Scheme: mgr.GetScheme(),
