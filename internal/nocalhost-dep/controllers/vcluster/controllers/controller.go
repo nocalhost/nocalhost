@@ -55,9 +55,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			if err := r.Update(ctx, vc); err != nil {
 				return ctrl.Result{}, err
 			}
+			return ctrl.Result{}, nil
 		}
 	} else {
 		if controllerutil.ContainsFinalizer(vc, helmv1alpha1.Finalizer) {
+			lg.Info(fmt.Sprintf("deleting release: %s/%s", vc.GetNamespace(), vc.GetReleaseName()))
 			if err := r.delete(ctx, vc, ac); err != nil {
 				return ctrl.Result{}, err
 			}
@@ -67,7 +69,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				return ctrl.Result{}, err
 			}
 		}
-
 		return ctrl.Result{}, nil
 	}
 
@@ -90,19 +91,21 @@ func (r *Reconciler) reconcile(ctx context.Context, vc *helmv1alpha1.VirtualClus
 	switch state {
 	case helper.ActionInstall:
 		var opts []helper.InstallOption
+		lg.Info(fmt.Sprintf("installing release: %s/%s", vc.GetNamespace(), vc.GetReleaseName()))
 		_, err := ac.Install(vc.GetReleaseName(), vc.GetNamespace(), chrt, opts...)
 		if err != nil {
 			return err
 		}
 	case helper.ActionUpgrade:
 		var opts []helper.UpgradeOption
+		lg.Info(fmt.Sprintf("upgrading release: %s/%s", vc.GetNamespace(), vc.GetReleaseName()))
 		_, err := ac.Upgrade(vc.GetReleaseName(), vc.GetNamespace(), chrt, opts...)
 		if err != nil {
 			return err
 		}
 	case helper.ActionError:
-		lg.Error(errors.New(fmt.Sprintf("release %s is in error state", vc.GetReleaseName())), "")
-		return errors.New(fmt.Sprintf("release %s is in error state", vc.GetReleaseName()))
+		lg.Error(errors.New(fmt.Sprintf("release %s/%s is in error state", vc.GetNamespace(), vc.GetReleaseName())), "")
+		return errors.New(fmt.Sprintf("release %s/%s is in error state", vc.GetNamespace(), vc.GetReleaseName()))
 	default:
 		return errors.New("unexpected action state")
 	}

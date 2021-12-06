@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	Finalizer = "nocalhost.dev/finalizer"
+	Finalizer = "virtualcluster.helm.nocalhost.dev/finalizer"
 )
 
 // VirtualClusterSpec defines the desired state of VirtualCluster
