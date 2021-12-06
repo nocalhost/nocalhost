@@ -95,14 +95,16 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser)
 		//	time.Sleep(time.Second * 2)
 		//	logger.Info("wait for disconnect")
 		//}
-		logger.Info("prepare to exit, cleaning up")
-		dns.CancelDNS()
-		if err := connected.ReleaseIP(); err != nil {
-			logger.Errorf("failed to release ip to dhcp, err: %v", err)
+		if connected != nil {
+			logger.Info("prepare to exit, cleaning up")
+			dns.CancelDNS()
+			if err := connected.ReleaseIP(); err != nil {
+				logger.Errorf("failed to release ip to dhcp, err: %v", err)
+			}
+			remote.CleanUpTrafficManagerIfRefCountIsZero(connected.GetClientSet(), connected.Namespace)
+			logger.Info("clean up successful")
+			connected = nil
 		}
-		remote.CleanUpTrafficManagerIfRefCountIsZero(connected.GetClientSet(), connected.Namespace)
-		logger.Info("clean up successful")
-		connected = nil
 		logger.Info(util.EndSignOK)
 	case command.Reconnect:
 	}

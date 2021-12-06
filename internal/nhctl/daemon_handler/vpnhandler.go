@@ -21,25 +21,29 @@ import (
 )
 
 // HandleVPNOperate not sudo daemon, vpn controller
-func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) error {
-	defer writer.Close()
+func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (err error) {
 	logCtx := util.GetContextWithLogger(writer)
 	logger := util.GetLoggerFromContext(logCtx)
+	defer func() {
+		if err != nil {
+			logger.Errorln(err)
+			logger.Errorln(util.EndSignFailed)
+		} else {
+			logger.Infoln(util.EndSignOK)
+		}
+		writer.Close()
+	}()
 	connect := &pkg.ConnectOptions{
 		Logger:         logger,
 		KubeconfigPath: cmd.KubeConfig,
 		Namespace:      cmd.Namespace,
 		Workloads:      []string{cmd.Resource},
 	}
-	if err := connect.InitClient(logCtx); err != nil {
-		logger.Error(util.EndSignFailed)
-		writer.Close()
-		return err
+	if err = connect.InitClient(logCtx); err != nil {
+		return
 	}
-	if err := connect.Prepare(logCtx); err != nil {
-		logger.Error(util.EndSignFailed)
-		writer.Close()
-		return err
+	if err = connect.Prepare(logCtx); err != nil {
+		return
 	}
 	_ = remote.NewDHCPManager(connect.GetClientSet(), cmd.Namespace, &util.RouterIP).InitDHCPIfNecessary(logCtx)
 	GetOrGenerateConfigMapWatcher(connect.KubeconfigBytes, cmd.Namespace, connect.GetClientSet().CoreV1().RESTClient())
@@ -49,10 +53,8 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) err
 		// pre-check if resource already in reversing mode
 		if load, ok := GetReverseInfo().Load(generateKey(connect.KubeconfigBytes, connect.Namespace)); ok {
 			if load.(*name).resources.ReversedResource().Has(cmd.Resource) {
-				logger.Errorln(errors.New("already in reversing mode"))
-				logger.Errorln(util.EndSignFailed)
-				writer.Close()
-				return errors.New("already in reversing mode")
+				err = errors.New("already in reversing mode")
+				return
 			}
 		}
 
@@ -60,8 +62,6 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) err
 		if !connectInfo.IsEmpty() && !connectInfo.IsSame(connect.KubeconfigBytes, cmd.Namespace) {
 			clientset, err := util.GetClientSetByKubeconfigBytes(connectInfo.kubeconfigBytes)
 			if err != nil {
-				logger.Error(util.EndSignFailed)
-				writer.Close()
 				return err
 			}
 			// cleanup all reverse
@@ -97,7 +97,8 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) err
 			}); err != nil {
 				logger.Infof("error while remove connection info of %s\n", connectInfo.namespace)
 			}
-			if r, err := client.SendSudoVPNOperateCommand(path, connectInfo.namespace, command.DisConnect, cmd.Resource); err == nil {
+			if r, err := client.SendSudoVPNOperateCommand(
+				path, connectInfo.namespace, command.DisConnect, cmd.Resource); err == nil {
 				transStreamToWriter(writer, r)
 			}
 			// let informer notify daemon to take effect
@@ -106,16 +107,14 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) err
 		}
 		// connect to new cluster or namespace
 		//if connectInfo.IsEmpty() {
-		if err := UpdateConnect(connect.GetClientSet(), cmd.Namespace, func(list sets.String, address string) {
+		if err = UpdateConnect(connect.GetClientSet(), cmd.Namespace, func(list sets.String, address string) {
 			list.Insert(address)
 		}); err != nil {
-			logger.Errorln(err)
-			logger.Error(util.EndSignFailed)
-			writer.Close()
-			return err
+			return
 		}
-		if r, err := client.SendSudoVPNOperateCommand(cmd.KubeConfig, cmd.Namespace, command.Connect, cmd.Resource); err == nil {
-			transStreamToWriter(writer, r)
+		if r, err := client.SendSudoVPNOperateCommand(
+			cmd.KubeConfig, cmd.Namespace, command.Connect, cmd.Resource); err == nil {
+			transStreamToWriterWithoutExit(writer, r)
 		}
 		//}
 
@@ -124,25 +123,28 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) err
 			_ = UpdateReverseConfigMap(connect.GetClientSet(), cmd.Namespace, cmd.Resource, func(r *ReverseTotal, record ReverseRecord) {
 				r.AddRecord(record)
 			})
-			if err := connect.DoReverse(context.TODO()); err != nil {
-				logger.Errorln(err)
-				logger.Infoln(util.EndSignFailed)
-				return err
+			if err = connect.DoReverse(context.TODO()); err != nil {
+				return
 			}
 		}
-		logger.Infoln(util.EndSignOK)
-		writer.Close()
-		return nil
+		return
 	case command.Reconnect:
+		if len(cmd.Resource) != 0 {
+			return connect.DoReverse(context.TODO())
+		}
 		//err = client.SendSudoVPNOperateCommand(cmd.KubeConfig, cmd.Namespace, command.DisConnect, cmd.Resource)
-		//err = client.SendSudoVPNOperateCommand(cmd.KubeConfig, cmd.Namespace, command.Connect, cmd.Resource)
-		return nil
+		r, err := client.SendSudoVPNOperateCommand(cmd.KubeConfig, cmd.Namespace, command.Connect, cmd.Resource)
+		if err != nil {
+			return err
+		} else {
+			transStreamToWriter(writer, r)
+			return nil
+		}
 	case command.DisConnect:
 		defer writer.Close()
 		if len(cmd.Resource) != 0 {
 			load, ok := GetReverseInfo().Load(generateKey(connect.KubeconfigBytes, connect.Namespace))
 			if !ok {
-				logger.Infoln(util.EndSignOK)
 				return nil
 			}
 			address := load.(*name).getMacByResource(cmd.Resource)
@@ -152,16 +154,14 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) err
 					r.RemoveRecord(record)
 				},
 			)
-			if err := connect.RemoveInboundPod(); err != nil {
+			if err = connect.RemoveInboundPod(); err != nil {
 				logger.Errorf("error while delete reverse, info: %s-%s, err: %v",
 					connect.Namespace, cmd.Resource, err)
-				logger.Infoln(util.EndSignFailed)
-				return err
+				return
 			} else {
 				logger.Infof("delete reverse, info: %s-%s secusefully",
 					connect.Namespace, cmd.Resource)
-				logger.Infoln(util.EndSignOK)
-				return nil
+				return
 			}
 		} else {
 			ReleaseWatcher(connect.KubeconfigBytes, cmd.Namespace)
@@ -172,33 +172,45 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) err
 				if value == nil {
 					return true
 				}
-				bytes, err := util.GetClientSetByKubeconfigBytes(value.(*name).kubeconfigBytes)
+				clientset, err := util.GetClientSetByKubeconfigBytes(value.(*name).kubeconfigBytes)
 				if err != nil {
 					return true
 				}
-				for _, d := range value.(*name).resources.GetBelongToMeResources().List() {
-					_ = UpdateReverseConfigMap(bytes, value.(*name).namespace, d, func(r *ReverseTotal, record ReverseRecord) {
-						r.RemoveRecord(record)
-					})
-					if r, err := client.SendSudoVPNOperateCommand(
-						string(value.(*name).kubeconfigBytes), value.(*name).namespace, command.ReverseDisConnect, d,
-					); err == nil {
-						transStreamToWriter(writer, r)
+				path := nocalhost.GetOrGenKubeConfigPath(string(value.(*name).kubeconfigBytes))
+				for _, resource := range value.(*name).resources.GetBelongToMeResources().List() {
+					_ = UpdateReverseConfigMap(clientset,
+						value.(*name).namespace,
+						resource,
+						func(r *ReverseTotal, record ReverseRecord) {
+							r.RemoveRecord(record)
+						})
+					temp := &pkg.ConnectOptions{
+						Logger:         logger,
+						KubeconfigPath: path,
+						Namespace:      value.(*name).namespace,
+						Workloads:      []string{resource},
 					}
+					_ = temp.RemoveInboundPod()
 				}
 				return true
 			})
-			if r, err := client.SendSudoVPNOperateCommand(cmd.KubeConfig, cmd.Namespace, command.DisConnect, cmd.Resource); err == nil {
-				io.Copy(writer, r)
+			if r, err := client.SendSudoVPNOperateCommand(
+				cmd.KubeConfig, cmd.Namespace, command.DisConnect, cmd.Resource); err == nil {
+				transStreamToWriter(writer, r)
 			}
-			return nil
+			return
 		}
 	default:
-		return nil
+		return errors.New("Unsupported operation: %s" + string(cmd.Action))
 	}
 }
 
-func UpdateReverseConfigMap(clientSet *kubernetes.Clientset, namespace, resource string, f func(r *ReverseTotal, record ReverseRecord)) error {
+func UpdateReverseConfigMap(
+	clientSet *kubernetes.Clientset,
+	namespace,
+	resource string,
+	f func(r *ReverseTotal, record ReverseRecord),
+) error {
 	get, err := clientSet.CoreV1().ConfigMaps(namespace).Get(context.TODO(), util.TrafficManager, v1.GetOptions{})
 	if err != nil {
 		log.Warn(err)
@@ -251,5 +263,24 @@ func transStreamToWriter(writer io.Writer, r io.ReadCloser) {
 		if strings.Contains(string(line), util.EndSignOK) || strings.Contains(string(line), util.EndSignFailed) {
 			return
 		}
+	}
+}
+
+func transStreamToWriterWithoutExit(writer io.Writer, r io.ReadCloser) {
+	if r == nil {
+		return
+	}
+	defer r.Close()
+	reader := bufio.NewReader(r)
+	for {
+		line, _, err := reader.ReadLine()
+		if err != nil {
+			return
+		}
+		if strings.Contains(string(line), util.EndSignOK) || strings.Contains(string(line), util.EndSignFailed) {
+			return
+		}
+		writer.Write(line)
+		writer.Write([]byte("\n"))
 	}
 }
