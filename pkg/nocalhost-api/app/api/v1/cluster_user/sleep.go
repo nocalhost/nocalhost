@@ -20,7 +20,7 @@ import (
 // @Produce  json
 // @param Authorization header string true "Authorization"
 // @Param id path string true "dev space id"
-// @Success 200
+// @Success 200 {object} api.Response "{"code":0,"message":"OK","data":null}"
 // @Router /v2/dev_space/{id}/sleep [post]
 func Sleep(c *gin.Context) {
 	// 1. obtain dev space
@@ -63,7 +63,7 @@ func Sleep(c *gin.Context) {
 // @Produce  json
 // @param Authorization header string true "Authorization"
 // @Param id path string true "dev space id"
-// @Success 200
+// @Success 200 {object} api.Response "{"code":0,"message":"OK","data":null}"
 // @Router /v2/dev_space/{id}/wakeup [post]
 func Wakeup(c *gin.Context) {
 	// 1. obtain dev space
@@ -107,7 +107,7 @@ func Wakeup(c *gin.Context) {
 // @param Authorization header string true "Authorization"
 // @Param id path string true "dev space id"
 // @Param sleep_config body model.SleepConfig true "Sleep Config"
-// @Success 200 {object} model.ClusterUserModel
+// @Success 200 {object} api.Response "{"code":0,"message":"OK","data":null}"
 // @Router /v2/dev_space/{id}/sleep_config [put]
 func ApplySleepConfig(c *gin.Context) {
 	// 1. binding

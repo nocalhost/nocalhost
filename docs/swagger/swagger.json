@@ -1873,11 +1873,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "$ref": "#/definitions/model.ClusterUserModel"
-                        }
+                        "description": ""
                     }
                 }
             }

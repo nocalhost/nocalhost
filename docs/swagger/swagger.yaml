@@ -1846,10 +1846,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/model.ClusterUserModel'
-            type: object
+          description: ""
       summary: UpdateSleepConfig
       tags:
       - DevSpace
