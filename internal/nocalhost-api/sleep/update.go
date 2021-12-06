@@ -15,7 +15,7 @@ func Update(c *clientgo.GoClient, id uint64, ns string, conf model.SleepConfig) 
 	patch, _ := json.Marshal(map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"annotations": map[string]string{
-				KConfig:      Ternary(len(conf.ByWeek) == 0, "" , Stringify(conf)).(string),
+				KConfig:      Ternary(len(conf.ByWeek) == 0, "", Stringify(conf)).(string),
 				KForceSleep:  "",
 				KForceWakeup: "",
 			},
@@ -27,10 +27,11 @@ func Update(c *clientgo.GoClient, id uint64, ns string, conf model.SleepConfig) 
 		Patch(context.TODO(), ns, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
 
 	// 2. write to database
+	saving := Calc(&conf.ByWeek)
 	result, err := service.Svc.ClusterUser().Update(context.TODO(), &model.ClusterUserModel{
-		ID: id,
+		ID:          id,
 		SleepConfig: &conf,
-		SleepSaving: Calc(&conf.ByWeek),
+		SleepSaving: &saving,
 	})
 	if err != nil {
 		return nil, err

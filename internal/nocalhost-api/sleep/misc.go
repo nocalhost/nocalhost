@@ -23,7 +23,7 @@ func Ternary(a bool, b, c interface{}) interface{} {
 	return c
 }
 
-// Calculate the percentage of sleep time in a week,
+// Calc Calculate the percentage of sleep time in a week,
 // need to pay attention to the intersection of time
 func Calc(items *[]model.ByWeek) float32 {
 	var week [10080]uint8
