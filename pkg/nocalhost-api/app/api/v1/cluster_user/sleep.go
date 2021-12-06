@@ -98,7 +98,7 @@ func Wakeup(c *gin.Context) {
 	api.SendResponse(c, errno.OK, nil)
 }
 
-// UpdateSleepConfig
+// ApplySleepConfig
 // @Summary UpdateSleepConfig
 // @Description update sleep config in dev space
 // @Tags DevSpace
@@ -139,12 +139,12 @@ func ApplySleepConfig(c *gin.Context) {
 		return
 	}
 	// 5. update annotations
-	result, err := sleep.Update(client, space.ID, space.Namespace, payload)
+	err = sleep.Update(client, space.ID, space.Namespace, payload)
 	if err != nil {
 		log.Error(err)
 		api.SendResponse(c, errno.ErrUpdateSleepConfig, nil)
 		return
 	}
 	// 6. response to HTTP
-	api.SendResponse(c, errno.OK, result)
+	api.SendResponse(c, errno.OK, nil)
 }

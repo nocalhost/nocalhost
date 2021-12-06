@@ -2235,6 +2235,9 @@
                 "info": {
                     "type": "string"
                 },
+                "inspect_at": {
+                    "type": "string"
+                },
                 "is_ready": {
                     "type": "boolean"
                 },
@@ -2274,6 +2277,9 @@
                     "type": "integer"
                 },
                 "info": {
+                    "type": "string"
+                },
+                "inspect_at": {
                     "type": "string"
                 },
                 "is_ready": {
@@ -2322,6 +2328,9 @@
                     "type": "integer"
                 },
                 "info": {
+                    "type": "string"
+                },
+                "inspect_at": {
                     "type": "string"
                 },
                 "kubeconfig": {
@@ -2428,6 +2437,9 @@
                 "sleep_config": {
                     "type": "object",
                     "$ref": "#/definitions/model.SleepConfig"
+                },
+                "sleep_saving": {
+                    "type": "number"
                 },
                 "space_name": {
                     "type": "string"

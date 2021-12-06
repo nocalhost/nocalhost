@@ -10,7 +10,7 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 )
 
-func Update(c *clientgo.GoClient, id uint64, ns string, conf model.SleepConfig) (*model.ClusterUserModel, error) {
+func Update(c *clientgo.GoClient, id uint64, ns string, conf model.SleepConfig) error {
 	// 1. update annotations
 	patch, _ := json.Marshal(map[string]interface{}{
 		"metadata": map[string]interface{}{
@@ -25,16 +25,17 @@ func Update(c *clientgo.GoClient, id uint64, ns string, conf model.SleepConfig) 
 		CoreV1().
 		Namespaces().
 		Patch(context.TODO(), ns, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
+	if err != nil {
+		return err
+	}
 
 	// 2. write to database
-	saving := Calc(&conf.ByWeek)
-	result, err := service.Svc.ClusterUser().Update(context.TODO(), &model.ClusterUserModel{
-		ID:          id,
-		SleepConfig: &conf,
-		SleepSaving: &saving,
+	err = service.Svc.ClusterUser().Modify(context.TODO(), id, map[string]interface{}{
+		"SleepConfig": &conf,
+		"SleepSaving": Calc(&conf.ByWeek),
 	})
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return result, nil
+	return nil
 }

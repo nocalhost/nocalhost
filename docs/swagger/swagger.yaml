@@ -215,6 +215,8 @@ definitions:
         type: integer
       info:
         type: string
+      inspect_at:
+        type: string
       is_ready:
         type: boolean
       modifiable:
@@ -241,6 +243,8 @@ definitions:
       id:
         type: integer
       info:
+        type: string
+      inspect_at:
         type: string
       is_ready:
         type: boolean
@@ -270,6 +274,8 @@ definitions:
       id:
         type: integer
       info:
+        type: string
+      inspect_at:
         type: string
       kubeconfig:
         type: string
@@ -344,6 +350,8 @@ definitions:
       sleep_config:
         $ref: '#/definitions/model.SleepConfig'
         type: object
+      sleep_saving:
+        type: number
       space_name:
         type: string
       space_resource_limit:
