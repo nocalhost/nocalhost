@@ -12,6 +12,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"net"
 	"nocalhost/internal/nhctl/vpn/util"
+	"time"
 )
 
 type fakeUDPTunConnector struct {
@@ -27,8 +28,7 @@ func (c *fakeUDPTunConnector) ConnectContext(_ context.Context, conn net.Conn, n
 	case "tcp", "tcp4", "tcp6":
 		return nil, fmt.Errorf("%s unsupported", network)
 	}
-	//_ = conn.SetDeadline(time.Now().Add(util.ConnectTimeout))
-
+	_ = conn.SetDeadline(time.Time{})
 	targetAddr, _ := net.ResolveUDPAddr("udp", address)
 	return newFakeUDPTunnelConnOverTCP(conn, targetAddr)
 }
