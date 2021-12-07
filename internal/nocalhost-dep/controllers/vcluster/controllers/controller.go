@@ -7,11 +7,13 @@ package controllers
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 
 	"github.com/pkg/errors"
 	"helm.sh/helm/v3/pkg/storage/driver"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -112,12 +114,22 @@ func (r *Reconciler) reconcile(ctx context.Context, vc *helmv1alpha1.VirtualClus
 	}
 
 	config, err := helper.NewAuthConfig(r.Config).Get(vc.GetReleaseName(), vc.GetNamespace())
-
 	if err != nil {
 		return err
 	}
-	fmt.Println(config)
 
+	last := &helmv1alpha1.VirtualCluster{}
+	if err := r.Get(ctx, types.NamespacedName{
+		Namespace: vc.GetNamespace(),
+		Name:      vc.GetName(),
+	}, last); err != nil {
+		return err
+	}
+	last.Status.AuthConfig = base64.StdEncoding.EncodeToString([]byte(config))
+	lg.Info("update status")
+	if err := r.Status().Update(ctx, last); err != nil {
+		return err
+	}
 	return nil
 }
 

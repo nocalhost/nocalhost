@@ -42,6 +42,7 @@ func (a *authConfig) Get(name, namespace string) (string, error) {
 
 	options := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=vcluster,release=%s", name)}
 	var pod corev1.Pod
+	var stdout, stderr bytes.Buffer
 	if err = wait.PollImmediate(5*time.Second, 2*time.Minute, func() (bool, error) {
 		pods, err := clientSet.CoreV1().Pods(namespace).List(context.TODO(), options)
 		if err != nil {
@@ -66,40 +67,39 @@ func (a *authConfig) Get(name, namespace string) (string, error) {
 		if pod.Status.Phase != corev1.PodRunning {
 			return false, nil
 		}
+
+		req := clientSet.CoreV1().RESTClient().Post().
+			Resource("pods").
+			Name(pod.Name).
+			Namespace(pod.Namespace).
+			SubResource("exec")
+		req.VersionedParams(&corev1.PodExecOptions{
+			Container: "syncer",
+			Command:   []string{"cat", "/root/.kube/config"},
+			Stdin:     false,
+			Stdout:    true,
+			Stderr:    true,
+			TTY:       false,
+		}, scheme.ParameterCodec)
+
+		exec, err := remotecommand.NewSPDYExecutor(a.hostConfig, "POST", req.URL())
+		if err != nil {
+			return false, nil
+		}
+		if err := exec.Stream(remotecommand.StreamOptions{
+			Stdin:  nil,
+			Stdout: &stdout,
+			Stderr: &stderr,
+			Tty:    false,
+		}); err != nil {
+			return false, nil
+		}
 		return true, nil
 	}); err != nil {
 		return "", errors.Errorf(
 			"cannot exec into a container in a pod until that pod is running; current phase is %s", pod.Status.Phase)
 	}
 
-	var stdout, stderr bytes.Buffer
-
-	req := clientSet.CoreV1().RESTClient().Post().
-		Resource("pods").
-		Name(pod.Name).
-		Namespace(pod.Namespace).
-		SubResource("exec")
-	req.VersionedParams(&corev1.PodExecOptions{
-		Container: "syncer",
-		Command:   []string{"cat", "/root/.kube/config"},
-		Stdin:     false,
-		Stdout:    true,
-		Stderr:    true,
-		TTY:       false,
-	}, scheme.ParameterCodec)
-
-	exec, err := remotecommand.NewSPDYExecutor(a.hostConfig, "POST", req.URL())
-	if err != nil {
-		return "", err
-	}
-	if err := exec.Stream(remotecommand.StreamOptions{
-		Stdin:  nil,
-		Stdout: &stdout,
-		Stderr: &stderr,
-		Tty:    false,
-	}); err != nil {
-		return "", err
-	}
 	kubeConfig, err := clientcmd.Load(stdout.Bytes())
 	if err != nil {
 		return "", errors.WithStack(err)
