@@ -161,8 +161,7 @@ var devStartCmd = &cobra.Command{
 			log.FatalE(err, "")
 		}
 
-		devPodName, err := nocalhostSvc.BuildPodController().
-			GetNocalhostDevContainerPod()
+		devPodName, err := nocalhostSvc.BuildPodController().GetNocalhostDevContainerPod()
 		must(err)
 
 		startPortForwardAfterDevStart(devPodName)

@@ -326,19 +326,23 @@ func (c *ClientGoUtils) CheckDeploymentReady(name string) (bool, error) {
 	return false, nil
 }
 
-// Notice: This may not list pods whose deployment is already deleted
 func (c *ClientGoUtils) ListPodsOfDeployment(deployName string) ([]corev1.Pod, error) {
 	podClient := c.GetPodClient()
 
 	podList, err := podClient.List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		return nil, errors.Wrap(err, "")
+		return nil, errors.WithStack(err)
 	}
 
 	result := make([]corev1.Pod, 0)
 
 OuterLoop:
 	for _, pod := range podList.Items {
+		if !c.includeDeletedResources {
+			if pod.DeletionTimestamp != nil {
+				continue
+			}
+		}
 		for _, ref := range pod.OwnerReferences {
 			if ref.Kind != "ReplicaSet" {
 				continue

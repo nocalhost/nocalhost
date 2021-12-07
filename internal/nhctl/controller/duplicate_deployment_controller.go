@@ -17,23 +17,23 @@ const (
 	OriginWorkloadTypeKey = "origin-workload-type"
 )
 
-type DuplicateDeploymentController struct {
+type DuplicateDevModeController struct {
 	*Controller
 }
 
-func (d *DuplicateDeploymentController) GetNocalhostDevContainerPod() (string, error) {
-	return d.GetDuplicateModeDevContainerPodName()
+func (d *DuplicateDevModeController) GetNocalhostDevContainerPod() (string, error) {
+	return d.GetDuplicateDevModePodName()
 }
 
 // ReplaceImage Create a duplicate deployment instead of replacing image
-func (d *DuplicateDeploymentController) ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error {
+func (d *DuplicateDevModeController) ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error {
 	return d.ReplaceDuplicateModeImage(ctx, ops)
 }
 
-func (d *DuplicateDeploymentController) RollBack(reset bool) error {
+func (d *DuplicateDevModeController) RollBack(reset bool) error {
 	return d.DuplicateModeRollBack()
 }
 
-func (d *DuplicateDeploymentController) GetPodList() ([]corev1.Pod, error) {
+func (d *DuplicateDevModeController) GetPodList() ([]corev1.Pod, error) {
 	return d.GetDuplicateModePodList()
 }

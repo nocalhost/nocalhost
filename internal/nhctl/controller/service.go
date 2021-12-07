@@ -687,7 +687,7 @@ func (c *Controller) ReplaceDuplicateModeImage(ctx context.Context, ops *model.D
 		c.patchAfterDevContainerReplaced(ops.Container, generatedDeployment.Kind, generatedDeployment.Name)
 	}
 
-	return waitingPodToBeReady(c.GetDuplicateModeDevContainerPodName)
+	return waitingPodToBeReady(c.GetDuplicateDevModePodName)
 }
 
 func (c *Controller) GetDuplicateModePodList() ([]v1.Pod, error) {
@@ -698,7 +698,15 @@ func (c *Controller) GetDuplicateModePodList() ([]v1.Pod, error) {
 	return c.Client.Labels(labelsMap).ListPods()
 }
 
-func (c *Controller) GetDuplicateModeDevContainerPodName() (string, error) {
+func (c *Controller) GetDevModePodName() (string, error) {
+	pods, err := c.GetPodList()
+	if err != nil {
+		return "", err
+	}
+	return findDevPodName(pods)
+}
+
+func (c *Controller) GetDuplicateDevModePodName() (string, error) {
 	pods, err := c.GetDuplicateModePodList()
 	if err != nil {
 		return "", err

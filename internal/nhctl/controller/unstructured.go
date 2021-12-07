@@ -29,7 +29,13 @@ func (c *Controller) GetPodTemplate() (*corev1.PodTemplateSpec, error) {
 	return GetPodTemplateFromSpecPath(c.DevModeAction.PodTemplatePath, um)
 }
 
+// GetPodList
+// If in Replace DevMode and DevModeAction.Create is true, return pods of generated deployment
+// Others, return pods of the workload
 func (c *Controller) GetPodList() ([]corev1.Pod, error) {
+	if c.IsInReplaceDevMode() && c.DevModeAction.Create {
+		return c.ListPodOfGeneratedDeployment()
+	}
 	pt, err := c.GetPodTemplate()
 	if err != nil {
 		return nil, err
