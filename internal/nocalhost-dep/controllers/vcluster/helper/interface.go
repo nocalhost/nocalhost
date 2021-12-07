@@ -18,3 +18,7 @@ type Actions interface {
 	GetChart(chartRef string) (*chart.Chart, error)
 	GetState(name string) ActionState
 }
+
+type AuthConfig interface {
+	Get(name, namespace string) (string, error)
+}

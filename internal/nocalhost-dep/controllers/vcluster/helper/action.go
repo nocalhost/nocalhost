@@ -50,6 +50,8 @@ type actions struct {
 	values  chartutil.Values
 }
 
+var _ Actions = &actions{}
+
 func (a *actions) Get(name string, opts ...GetOption) (*release.Release, error) {
 	get := newGet(a)
 	for _, o := range opts {

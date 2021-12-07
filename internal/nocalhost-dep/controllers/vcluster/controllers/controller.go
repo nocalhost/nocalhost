@@ -110,6 +110,13 @@ func (r *Reconciler) reconcile(ctx context.Context, vc *helmv1alpha1.VirtualClus
 		return errors.New("unexpected action state")
 	}
 
+	config, err := helper.NewAuthConfig(r.Config).Get(vc.GetReleaseName(), vc.GetNamespace())
+
+	if err != nil {
+		return err
+	}
+	fmt.Println(config)
+
 	return nil
 }
 
