@@ -17,6 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	helmv1alpha1 "nocalhost/internal/nocalhost-dep/controllers/vcluster/api/v1alpha1"
 	"nocalhost/internal/nocalhost-dep/controllers/vcluster/helper"
@@ -120,7 +121,7 @@ func (r *Reconciler) reconcile(ctx context.Context, vc *helmv1alpha1.VirtualClus
 	return nil
 }
 
-func (r Reconciler) delete(ctx context.Context, vc *helmv1alpha1.VirtualCluster, ac helper.Actions) error {
+func (r *Reconciler) delete(ctx context.Context, vc *helmv1alpha1.VirtualCluster, ac helper.Actions) error {
 	lg := log.FromContext(ctx)
 	var opts []helper.UninstallOption
 	_, err := ac.Uninstall(vc.GetReleaseName(), opts...)
@@ -133,7 +134,9 @@ func (r Reconciler) delete(ctx context.Context, vc *helmv1alpha1.VirtualCluster,
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
+	pred := predicate.GenerationChangedPredicate{}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&helmv1alpha1.VirtualCluster{}).
+		WithEventFilter(pred).
 		Complete(r)
 }
