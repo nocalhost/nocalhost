@@ -10,6 +10,7 @@ import (
 	"nocalhost/internal/nhctl/vpn/remote"
 	"nocalhost/internal/nhctl/vpn/util"
 	"nocalhost/pkg/nhctl/log"
+	"os"
 	"sync"
 	"time"
 )
@@ -73,6 +74,7 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser)
 						continue
 					}
 					c.Logger.Infoln(util.EndSignOK)
+					c.Logger = util.NewLogger(os.Stdout)
 					// wait for exit
 					if err = <-errChan; err != nil {
 						fmt.Println(err)

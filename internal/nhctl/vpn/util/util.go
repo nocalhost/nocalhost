@@ -541,15 +541,19 @@ func GenerateKey(ns string, kubeconfigBytes []byte) string {
 }
 
 func GetContextWithLogger(writer io.WriteCloser) context.Context {
-	ctx, _ := context.WithCancel(context.WithValue(context.TODO(), "logger", &log.Logger{
+	ctx, _ := context.WithCancel(context.WithValue(context.TODO(), "logger", NewLogger(writer)))
+	return ctx
+}
+
+func NewLogger(writer io.WriteCloser) *log.Logger {
+	return &log.Logger{
 		Out:          writer,
 		Formatter:    new(log.TextFormatter),
 		Hooks:        make(log.LevelHooks),
 		Level:        log.InfoLevel,
 		ExitFunc:     os.Exit,
 		ReportCaller: false,
-	}))
-	return ctx
+	}
 }
 
 func GetLoggerFromContext(ctx context.Context) *log.Logger {
