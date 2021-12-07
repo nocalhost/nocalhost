@@ -586,67 +586,106 @@ func (c *Controller) ReplaceDuplicateModeImage(ctx context.Context, ops *model.D
 			return err
 		}
 	}
-	if err = c.PatchDuplicateInfo(um); err != nil {
-		return err
-	}
-	ps, err := GetPodTemplateFromSpecPath(c.DevModeAction.PodTemplatePath, um)
-	if err != nil {
-		return err
-	}
 
-	devContainer, sideCarContainer, devModeVolumes, err :=
-		c.genContainersAndVolumes(&ps.Spec, ops.Container, ops.DevImage, ops.StorageClass, true)
-	if err != nil {
-		return err
-	}
-
-	patchDevContainerToPodSpec(&ps.Spec, ops.Container, devContainer, sideCarContainer, devModeVolumes)
-
-	// Set podTemplate
-	ptm, err := GetUnstructuredMapBySpecificPath(c.DevModeAction.PodTemplatePath, um)
-	if err != nil {
-		return err
-	}
-
-	ptm["spec"] = &ps.Spec
-
-	jsonObj, err := json.Marshal(um)
-	if err != nil {
-		return errors.WithStack(err)
-	}
-
-	infos, err := c.Client.GetResourceInfoFromString(string(jsonObj), true)
-	if err != nil {
-		return err
-	}
-
-	if len(infos) != 1 {
-		return errors.New(fmt.Sprintf("ResourceInfo' num is %d(not 1?)", len(infos)))
-	}
-
-	log.Infof("Creating %s(%v)", infos[0].Name, infos[0].Object.GetObjectKind().GroupVersionKind())
-	err = c.Client.ApplyResourceInfo(infos[0], nil)
-	if err != nil {
-		return err
-	}
-
-	gvk := infos[0].Object.GetObjectKind().GroupVersionKind()
-	kind := gvk.Kind
-	if gvk.Version != "" {
-		kind += "." + gvk.Version
-	}
-	if gvk.Group != "" {
-		kind += "." + gvk.Group
-	}
-
-	for _, item := range c.DevModeAction.ScaleAction {
-		log.Infof("Patching %s", item.Patch)
-		if err = c.Client.Patch(kind, infos[0].Name, item.Patch, item.Type); err != nil {
+	var ps *v1.PodTemplateSpec
+	if !c.DevModeAction.Create {
+		if err = c.PatchDuplicateInfo(um); err != nil {
 			return err
 		}
-	}
+		if ps, err = GetPodTemplateFromSpecPath(c.DevModeAction.PodTemplatePath, um); err != nil {
+			return err
+		}
 
-	c.patchAfterDevContainerReplaced(ops.Container, kind, infos[0].Name)
+		devContainer, sideCarContainer, devModeVolumes, err :=
+			c.genContainersAndVolumes(&ps.Spec, ops.Container, ops.DevImage, ops.StorageClass, true)
+		if err != nil {
+			return err
+		}
+
+		patchDevContainerToPodSpec(&ps.Spec, ops.Container, devContainer, sideCarContainer, devModeVolumes)
+
+		// Set podTemplate
+		ptm, err := GetUnstructuredMapBySpecificPath(c.DevModeAction.PodTemplatePath, um)
+		if err != nil {
+			return err
+		}
+
+		ptm["spec"] = &ps.Spec
+
+		jsonObj, err := json.Marshal(um)
+		if err != nil {
+			return errors.WithStack(err)
+		}
+
+		infos, err := c.Client.GetResourceInfoFromString(string(jsonObj), true)
+		if err != nil {
+			return err
+		}
+
+		if len(infos) != 1 {
+			return errors.New(fmt.Sprintf("ResourceInfo' num is %d(not 1?)", len(infos)))
+		}
+
+		log.Infof("Creating %s(%v)", infos[0].Name, infos[0].Object.GetObjectKind().GroupVersionKind())
+		err = c.Client.ApplyResourceInfo(infos[0], nil)
+		if err != nil {
+			return err
+		}
+
+		gvk := infos[0].Object.GetObjectKind().GroupVersionKind()
+		kind := gvk.Kind
+		if gvk.Version != "" {
+			kind += "." + gvk.Version
+		}
+		if gvk.Group != "" {
+			kind += "." + gvk.Group
+		}
+
+		for _, item := range c.DevModeAction.ScaleAction {
+			log.Infof("Patching %s", item.Patch)
+			if err = c.Client.Patch(kind, infos[0].Name, item.Patch, item.Type); err != nil {
+				return err
+			}
+		}
+
+		c.patchAfterDevContainerReplaced(ops.Container, kind, infos[0].Name)
+	} else {
+		labelsMap, err := c.getDuplicateLabelsMap()
+		if err != nil {
+			return err
+		}
+		if ps, err = GetPodTemplateFromSpecPath(c.DevModeAction.PodTemplatePath, um); err != nil {
+			return err
+		}
+		generatedDeployment := &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   c.getDuplicateResourceName(),
+				Labels: labelsMap,
+			},
+			Spec: appsv1.DeploymentSpec{
+				Template: *ps,
+			},
+		}
+		generatedDeployment.Spec.Selector = &metav1.LabelSelector{MatchLabels: labelsMap}
+		generatedDeployment.Spec.Template.Labels = labelsMap
+		generatedDeployment.ResourceVersion = ""
+		generatedDeployment.Spec.Template.Spec.NodeName = ""
+
+		devContainer, sideCarContainer, devModeVolumes, err :=
+			c.genContainersAndVolumes(&generatedDeployment.Spec.Template.Spec, ops.Container, ops.DevImage, ops.StorageClass, true)
+		if err != nil {
+			return err
+		}
+
+		patchDevContainerToPodSpec(&generatedDeployment.Spec.Template.Spec, ops.Container, devContainer, sideCarContainer, devModeVolumes)
+
+		// Create generated deployment
+		if _, err = c.Client.CreateDeploymentAndWait(generatedDeployment); err != nil {
+			return err
+		}
+
+		c.patchAfterDevContainerReplaced(ops.Container, generatedDeployment.Kind, generatedDeployment.Name)
+	}
 
 	return waitingPodToBeReady(c.GetDuplicateModeDevContainerPodName)
 }
@@ -672,13 +711,17 @@ func (c *Controller) DuplicateModeRollBack() error {
 	if err != nil {
 		return err
 	}
-	infos, err := c.Client.Labels(lmap).ListResourceInfo(string(c.Type))
+	t := string(c.Type)
+	if c.DevModeAction.Create {
+		t = "deployment"
+	}
+	infos, err := c.Client.Labels(lmap).ListResourceInfo(t)
 	if err != nil {
 		return err
 	}
 
 	if len(infos) != 1 {
-		return errors.New(fmt.Sprintf("%d duplicate %s found?", len(infos), c.Type))
+		return errors.New(fmt.Sprintf("%d duplicate %s found?", len(infos), t))
 	}
 
 	return clientgoutils.DeleteResourceInfo(infos[0])
