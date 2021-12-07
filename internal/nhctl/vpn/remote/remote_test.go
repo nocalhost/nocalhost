@@ -275,3 +275,8 @@ func server() {
 		}
 	}
 }
+
+func TestGetMac(t *testing.T) {
+	address := util.GetMacAddress()
+	fmt.Println(address.String())
+}

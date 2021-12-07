@@ -497,16 +497,20 @@ func IsSudoDaemonServing() bool {
 }
 
 func GetMacAddress() net.HardwareAddr {
-	for i := 0; i < 10; i++ {
-		if name, err := net.InterfaceByName(fmt.Sprintf("en%v", i)); err == nil {
-			return name.HardwareAddr
-		}
-	}
-	if index, err := net.Interfaces(); err == nil && len(index) != 0 {
-		for _, i := range index {
-			if len(i.HardwareAddr) != 0 {
-				return i.HardwareAddr
+	var maps = make(map[string]net.HardwareAddr)
+	if interfaces, err := net.Interfaces(); err == nil {
+		for _, ifce := range interfaces {
+			if len(ifce.HardwareAddr) != 0 {
+				maps[ifce.Name] = ifce.HardwareAddr
 			}
+		}
+		for i := 0; i < 10; i++ {
+			if v, found := maps[fmt.Sprintf("en%v", i)]; found {
+				return v
+			}
+		}
+		for _, addr := range maps {
+			return addr
 		}
 	}
 	return net.HardwareAddr{0x00, 0x00, 0x5e, 0x00, 0x53, 0x01}

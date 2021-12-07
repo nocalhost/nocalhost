@@ -14,6 +14,7 @@ import (
 	"k8s.io/kubectl/pkg/polymorphichelpers"
 	"k8s.io/kubectl/pkg/util/podutils"
 	"net"
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/vpn/remote"
 	"nocalhost/internal/nhctl/vpn/util"
 	"sort"
@@ -45,7 +46,7 @@ func CreateOutboundRouterPodIfNecessary(clientset *kubernetes.Clientset, namespa
 	for _, ipNet := range nodeCIDR {
 		args = append(args, fmt.Sprintf("iptables -t nat -A POSTROUTING -s %s -o eth0 -j MASQUERADE", ipNet.String()))
 	}
-	args = append(args, fmt.Sprintf("kubevpn serve -L tcp://:10800 -L tun://:8421?net=%s --debug=true", serverIp.String()))
+	args = append(args, fmt.Sprintf("nhctl vpn serve -L tcp://:10800 -L tun://:8421?net=%s --debug=true", serverIp.String()))
 
 	t := true
 	zero := int64(0)
@@ -62,7 +63,7 @@ func CreateOutboundRouterPodIfNecessary(clientset *kubernetes.Clientset, namespa
 			Containers: []v1.Container{
 				{
 					Name:    "vpn",
-					Image:   "naison/kubevpn:v2",
+					Image:   _const.DefaultVPNImage,
 					Command: []string{"/bin/sh", "-c"},
 					Args:    []string{strings.Join(args, ";")},
 					SecurityContext: &v1.SecurityContext{
@@ -159,18 +160,18 @@ func CreateInboundPod(factory cmdutil.Factory, clientset *kubernetes.Clientset, 
 			Containers: []v1.Container{
 				{
 					Name:    "vpn",
-					Image:   "naison/kubevpn:v2",
+					Image:   _const.DefaultVPNImage,
 					Command: []string{"/bin/sh", "-c"},
 					Args: []string{
 						"sysctl net.ipv4.ip_forward=1;" +
 							"iptables -F;" +
 							"iptables -P INPUT ACCEPT;" +
 							"iptables -P FORWARD ACCEPT;" +
-							"iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 80:60000 -j DNAT --to " + virtualLocalIp + ":80-60000;" +
-							"iptables -t nat -A POSTROUTING -p tcp -m tcp --dport 80:60000 -j MASQUERADE;" +
-							"iptables -t nat -A PREROUTING -i eth0 -p udp --dport 80:60000 -j DNAT --to " + virtualLocalIp + ":80-60000;" +
-							"iptables -t nat -A POSTROUTING -p udp -m udp --dport 80:60000 -j MASQUERADE;" +
-							"kubevpn serve -L 'tun://0.0.0.0:8421/" + realRouterIP + ":8421?net=" + virtualShadowIp + "&route=" + routes + "' --debug=true",
+							"iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 1:65535 -j DNAT --to " + virtualLocalIp + ":1-65535;" +
+							"iptables -t nat -A POSTROUTING -p tcp -m tcp --dport 1:65535 -j MASQUERADE;" +
+							"iptables -t nat -A PREROUTING -i eth0 -p udp --dport 1:65535 -j DNAT --to " + virtualLocalIp + ":1-65535;" +
+							"iptables -t nat -A POSTROUTING -p udp -m udp --dport 1:65535 -j MASQUERADE;" +
+							"nhctl vpn serve -L 'tun://0.0.0.0:8421/" + realRouterIP + ":8421?net=" + virtualShadowIp + "&route=" + routes + "' --debug=true",
 					},
 					SecurityContext: &v1.SecurityContext{
 						Capabilities: &v1.Capabilities{
