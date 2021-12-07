@@ -2,21 +2,26 @@ package sleep
 
 import (
 	"encoding/json"
+	"github.com/spf13/cast"
 	"nocalhost/internal/nocalhost-api/model"
 	"strconv"
 	"time"
 )
 
-func Stringify(v interface{}) string {
+var zero int32 = 0
+var exactly = true
+var falsely = false
+
+func timestamp() string {
+	return strconv.FormatInt(time.Now().Unix(), 10)
+}
+
+func stringify(v interface{}) string {
 	result, _ := json.Marshal(v)
 	return string(result)
 }
 
-func Timestamp() string {
-	return strconv.FormatInt(time.Now().Unix(), 10)
-}
-
-func Ternary(a bool, b, c interface{}) interface{} {
+func ternary(a bool, b, c interface{}) interface{} {
 	if a {
 		return b
 	}
@@ -25,7 +30,7 @@ func Ternary(a bool, b, c interface{}) interface{} {
 
 // Calc Calculate the percentage of sleep time in a week,
 // need to pay attention to the intersection of time
-func Calc(items *[]model.ByWeek) float32 {
+func percent(items *[]model.ByWeek) float32 {
 	var week [10080]uint8
 	for _, it := range *items {
 		a := it.ToIndex(it.SleepDay, it.SleepTime)
@@ -52,4 +57,15 @@ func Calc(items *[]model.ByWeek) float32 {
 		}
 	}
 	return used / 10080
+}
+
+func ignorable(annotations map[string]string) bool {
+	if annotations == nil {
+		return false
+	}
+	val, ok := annotations["dev.nocalhost/dev-mode-count"]
+	if ok {
+		return cast.ToInt(val) > 0
+	}
+	return false
 }

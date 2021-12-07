@@ -15,7 +15,7 @@ func Update(c *clientgo.GoClient, id uint64, ns string, conf model.SleepConfig) 
 	patch, _ := json.Marshal(map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"annotations": map[string]string{
-				KConfig:      Ternary(len(conf.ByWeek) == 0, "", Stringify(conf)).(string),
+				KConfig:      ternary(len(conf.ByWeek) == 0, "", stringify(conf)).(string),
 				KForceSleep:  "",
 				KForceWakeup: "",
 			},
@@ -31,8 +31,8 @@ func Update(c *clientgo.GoClient, id uint64, ns string, conf model.SleepConfig) 
 
 	// 2. write to database
 	err = service.Svc.ClusterUser().Modify(context.TODO(), id, map[string]interface{}{
-		"SleepConfig": &conf,
-		"SleepSaving": Calc(&conf.ByWeek),
+		"sleep_config": &conf,
+		"sleep_saving": percent(&conf.ByWeek),
 	})
 	if err != nil {
 		return err

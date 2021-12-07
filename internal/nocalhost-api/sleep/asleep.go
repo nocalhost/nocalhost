@@ -11,8 +11,6 @@ import (
 	"time"
 )
 
-var zero int32 = 0
-
 func Asleep(c *clientgo.GoClient, ns string, force bool) error {
 	// 1. check record
 	record, err := cluster_user.
@@ -21,6 +19,7 @@ func Asleep(c *clientgo.GoClient, ns string, force bool) error {
 	if err != nil {
 		return err
 	}
+
 	// 2. check namespace
 	namespace, err := c.Clientset().
 		CoreV1().
@@ -29,6 +28,7 @@ func Asleep(c *clientgo.GoClient, ns string, force bool) error {
 	if err != nil {
 		return err
 	}
+
 	// 3. check replicas
 	var replicas map[string]int32
 	if namespace.Annotations == nil || len(namespace.Annotations[KReplicas]) == 0 {
@@ -39,6 +39,7 @@ func Asleep(c *clientgo.GoClient, ns string, force bool) error {
 			return err
 		}
 	}
+
 	// 4. suspend CronJob
 	jobs, err := c.Clientset().
 		BatchV1beta1().
@@ -48,8 +49,10 @@ func Asleep(c *clientgo.GoClient, ns string, force bool) error {
 		return err
 	}
 	for _, jb := range jobs.Items {
-		suspend := true
-		jb.Spec.Suspend = &suspend
+		if ignorable(jb.Annotations) {
+			continue
+		}
+		jb.Spec.Suspend = &exactly
 		_, err = c.Clientset().
 			BatchV1beta1().
 			CronJobs(ns).
@@ -58,23 +61,21 @@ func Asleep(c *clientgo.GoClient, ns string, force bool) error {
 			return err
 		}
 	}
+
 	// 5. purging Deployment
-	dps, err := c.Clientset().
+	deps, err := c.Clientset().
 		AppsV1().
 		Deployments(ns).
 		List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
-	for _, dp := range dps.Items {
-		var count int32 = 0
-		if dp.Spec.Replicas == nil {
-			count = 1
-		} else {
-			count = *dp.Spec.Replicas
+	for _, dp := range deps.Items {
+		if ignorable(dp.Annotations) {
+			continue
 		}
-		if count > 0 {
-			replicas[KDeployment + ":" + dp.Name] = count
+		if count := evaluate(dp.Spec.Replicas); count > 0 {
+			replicas[KDeployment+":"+dp.Name] = count
 			dp.Spec.Replicas = &zero
 			_, err = c.Clientset().
 				AppsV1().
@@ -85,23 +86,21 @@ func Asleep(c *clientgo.GoClient, ns string, force bool) error {
 			}
 		}
 	}
+
 	// 6. purging StatefulSet
-	sts, err := c.Clientset().
+	sets, err := c.Clientset().
 		AppsV1().
 		StatefulSets(ns).
 		List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
-	for _, st := range sts.Items {
-		var count int32 = 0
-		if st.Spec.Replicas == nil {
-			count = 1
-		} else {
-			count = *st.Spec.Replicas
+	for _, st := range sets.Items {
+		if ignorable(st.Annotations) {
+			continue
 		}
-		if count > 0 {
-			replicas[KStatefulSet + ":" + st.Name] = count
+		if count := evaluate(st.Spec.Replicas); count > 0 {
+			replicas[KStatefulSet+":"+st.Name] = count
 			st.Spec.Replicas = &zero
 			_, err = c.Clientset().
 				AppsV1().
@@ -112,13 +111,14 @@ func Asleep(c *clientgo.GoClient, ns string, force bool) error {
 			}
 		}
 	}
+
 	// 7. update annotations
 	patch, _ := json.Marshal(map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"annotations": map[string]string{
 				KStatus:      KAsleep,
-				KReplicas:    Stringify(replicas),
-				KForceSleep:  Ternary(force, Timestamp(), "").(string),
+				KReplicas:    stringify(replicas),
+				KForceSleep:  ternary(force, timestamp(), "").(string),
 				KForceWakeup: "",
 			},
 		},
@@ -130,6 +130,7 @@ func Asleep(c *clientgo.GoClient, ns string, force bool) error {
 	if err != nil {
 		return err
 	}
+
 	// 8. write to database
 	now := time.Now().UTC()
 	return cluster_user.
@@ -138,4 +139,11 @@ func Asleep(c *clientgo.GoClient, ns string, force bool) error {
 			"sleep_at":  &now,
 			"is_asleep": true,
 		})
+}
+
+func evaluate(val *int32) int32 {
+	if val == nil {
+		return 1
+	}
+	return *val
 }

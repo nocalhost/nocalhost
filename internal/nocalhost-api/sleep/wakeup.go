@@ -12,7 +12,7 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 )
 
-func Wakeup(c* clientgo.GoClient, ns string, force bool) error {
+func Wakeup(c *clientgo.GoClient, ns string, force bool) error {
 	// 1. check record
 	record, err := cluster_user.
 		NewClusterUserService().
@@ -20,6 +20,7 @@ func Wakeup(c* clientgo.GoClient, ns string, force bool) error {
 	if err != nil {
 		return err
 	}
+
 	// 2. check namespace
 	namespace, err := c.Clientset().
 		CoreV1().
@@ -28,6 +29,7 @@ func Wakeup(c* clientgo.GoClient, ns string, force bool) error {
 	if err != nil {
 		return err
 	}
+
 	// 3. check replicas
 	if namespace.Annotations == nil || len(namespace.Annotations[KReplicas]) == 0 {
 		return errors.New(fmt.Sprintf("cannot find `%s` from annotations", KReplicas))
@@ -37,16 +39,20 @@ func Wakeup(c* clientgo.GoClient, ns string, force bool) error {
 	if err != nil {
 		return err
 	}
+
 	// 4. restore Deployment
-	dps, err := c.Clientset().
+	deps, err := c.Clientset().
 		AppsV1().
 		Deployments(ns).
 		List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
-	for _, dp := range dps.Items {
-		n, ok := replicas[KDeployment+ ":" + dp.Name]
+	for _, dp := range deps.Items {
+		if ignorable(dp.Annotations) {
+			continue
+		}
+		n, ok := replicas[KDeployment+":"+dp.Name]
 		if ok {
 			dp.Spec.Replicas = &n
 			_, err = c.Clientset().
@@ -58,16 +64,20 @@ func Wakeup(c* clientgo.GoClient, ns string, force bool) error {
 			}
 		}
 	}
+
 	// 5. restore StatefulSet
-	sts, err := c.Clientset().
+	sets, err := c.Clientset().
 		AppsV1().
 		StatefulSets(ns).
 		List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
-	for _, st := range sts.Items {
-		n, ok := replicas[KStatefulSet + ":" + st.Name]
+	for _, st := range sets.Items {
+		if ignorable(st.Annotations) {
+			continue
+		}
+		n, ok := replicas[KStatefulSet+":"+st.Name]
 		if ok {
 			st.Spec.Replicas = &n
 			_, err = c.Clientset().
@@ -79,6 +89,7 @@ func Wakeup(c* clientgo.GoClient, ns string, force bool) error {
 			}
 		}
 	}
+
 	// 6. restore CronJob
 	jobs, err := c.Clientset().
 		BatchV1beta1().
@@ -88,8 +99,10 @@ func Wakeup(c* clientgo.GoClient, ns string, force bool) error {
 		return err
 	}
 	for _, jb := range jobs.Items {
-		suspend := false
-		jb.Spec.Suspend = &suspend
+		if ignorable(jb.Annotations) {
+			continue
+		}
+		jb.Spec.Suspend = &falsely
 		_, err = c.Clientset().
 			BatchV1beta1().
 			CronJobs(ns).
@@ -98,13 +111,14 @@ func Wakeup(c* clientgo.GoClient, ns string, force bool) error {
 			return err
 		}
 	}
+
 	// 7. update annotations
 	patch, _ := json.Marshal(map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"annotations": map[string]string{
 				KStatus:      KActive,
 				KForceSleep:  "",
-				KForceWakeup: Ternary(force, Timestamp(), "").(string),
+				KForceWakeup: ternary(force, timestamp(), "").(string),
 			},
 		},
 	})
@@ -115,6 +129,7 @@ func Wakeup(c* clientgo.GoClient, ns string, force bool) error {
 	if err != nil {
 		return err
 	}
+
 	// 8. write to database
 	return cluster_user.
 		NewClusterUserService().
