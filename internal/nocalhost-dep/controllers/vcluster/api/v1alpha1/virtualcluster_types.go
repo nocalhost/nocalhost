@@ -6,6 +6,7 @@
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -15,9 +16,6 @@ const (
 
 // VirtualClusterSpec defines the desired state of VirtualCluster
 type VirtualClusterSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
 	Helm HelmTemplate `json:"helm"`
 }
 
@@ -32,15 +30,48 @@ type ChartTemplate struct {
 	Name string `json:"name"`
 
 	// +optional
-	Version string `json:"version"`
+	Version string `json:"version,omitempty"`
 	Repo    string `json:"repo"`
 }
 
 // VirtualClusterStatus defines the observed state of VirtualCluster
 type VirtualClusterStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// +optional
+	Phase VirtualClusterPhase `json:"phase,omitempty"`
+	// +optional
+	Conditions Conditions `json:"conditions,omitempty"`
+	// +optional
+	AuthConfig string `json:"authConfig,omitempty"`
+	// +optional
+	Manifest string `json:"manifest,omitempty"`
 }
+
+type VirtualClusterPhase string
+
+const (
+	Installing VirtualClusterPhase = "Installing"
+	Running    VirtualClusterPhase = "Running"
+	Unknown    VirtualClusterPhase = "Unknown"
+)
+
+type Condition struct {
+	// +optional
+	Type ConditionType `json:"type,omitempty"`
+	// +optional
+	Status corev1.ConditionStatus `json:"status,omitempty"`
+	// +optional
+	LastProbeTime metav1.Time `json:"lastProbeTime,omitempty"`
+	// +optional
+	LastTransitionTime metav1.Time `json:"lastTransitionTime,omitempty"`
+	// +optional
+	Reason string `json:"reason,omitempty"`
+	// +optional
+	Message string `json:"message,omitempty"`
+}
+
+type ConditionType string
+
+type Conditions []Condition
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
@@ -50,7 +81,8 @@ type VirtualCluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   VirtualClusterSpec   `json:"spec,omitempty"`
+	Spec VirtualClusterSpec `json:"spec,omitempty"`
+	// +optional
 	Status VirtualClusterStatus `json:"status,omitempty"`
 }
 
