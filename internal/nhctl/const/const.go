@@ -23,6 +23,7 @@ const (
 	NocalhostApplicationName      = "dev.nocalhost/application-name"
 	NocalhostApplicationNamespace = "dev.nocalhost/application-namespace"
 	OriginWorkloadDefinition      = "dev.nocalhost/origin-workload-definition"
+	DevModeCount                  = "dev.nocalhost/dev-mode-count"
 	AppManagedByLabel             = "app.kubernetes.io/managed-by"
 	AppManagedByNocalhost         = "nocalhost"
 	DefaultNocalhostSideCarName   = "nocalhost-sidecar"

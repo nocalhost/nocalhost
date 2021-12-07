@@ -339,6 +339,8 @@ func enterDevMode(devModeType profile.DevModeType) error {
 		return err
 	}
 
+	utils.Should(nocalhostSvc.IncreaseDevModeCount())
+
 	// mark dev start as true
 	devStartSuccess = true
 	coloredoutput.Success("Dev container has been updated")

@@ -13,6 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/pkg/nhctl/log"
+	"strconv"
 	"strings"
 )
 
@@ -54,6 +55,43 @@ func (c *Controller) ListPodOfGeneratedDeployment() ([]corev1.Pod, error) {
 		return nil, err
 	}
 	return c.Client.ListPodsOfDeployment(ds.Name)
+}
+
+func (c *Controller) IncreaseDevModeCount() error {
+	um, err := c.GetUnstructuredMap()
+	if err != nil {
+		return err
+	}
+	devModeCount, err := GetAnnotationFromUnstructuredMap(um, _const.DevModeCount)
+	count := 0
+	if err != nil {
+		count = 1
+	} else {
+		count, _ = strconv.Atoi(devModeCount)
+		count++
+	}
+
+	m := map[string]interface{}{"metadata": map[string]interface{}{"annotations": map[string]string{_const.DevModeCount: fmt.Sprintf("%d", count)}}}
+	mBytes, _ := json.Marshal(m)
+	return c.Client.Patch(c.Type.String(), c.Name, string(mBytes), "strategic")
+}
+
+func (c *Controller) DecreaseDevModeCount() error {
+	um, err := c.GetUnstructuredMap()
+	if err != nil {
+		return err
+	}
+	devModeCount, err := GetAnnotationFromUnstructuredMap(um, _const.DevModeCount)
+	if err != nil {
+		return nil
+	}
+	count, _ := strconv.Atoi(devModeCount)
+	if count > 0 {
+		count--
+	}
+	m := map[string]interface{}{"metadata": map[string]interface{}{"annotations": map[string]string{_const.DevModeCount: fmt.Sprintf("%d", count)}}}
+	mBytes, _ := json.Marshal(m)
+	return c.Client.Patch(c.Type.String(), c.Name, string(mBytes), "strategic")
 }
 
 func (c *Controller) RollbackFromAnnotation() error {

@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/coloredoutput"
 	_const "nocalhost/internal/nhctl/const"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"strconv"
 )
@@ -46,6 +47,7 @@ var devEndCmd = &cobra.Command{
 		}
 
 		must(nocalhostSvc.DevEnd(false))
+		utils.Should(nocalhostSvc.DecreaseDevModeCount())
 
 		// Recover hpa
 		if needToRecoverHPA {
