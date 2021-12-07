@@ -15,14 +15,14 @@ import (
 type SvcType string
 
 const (
-	Deployment  SvcType = "deployment"
-	StatefulSet SvcType = "statefulset"
-	DaemonSet   SvcType = "daemonset"
-	Job         SvcType = "job"
-	CronJob     SvcType = "cronjob"
-	Pod         SvcType = "pod"
-
-	DEPLOYMENT SvcType = "D"
+	Deployment       SvcType = "deployment"
+	StatefulSet      SvcType = "statefulset"
+	DaemonSet        SvcType = "daemonset"
+	Job              SvcType = "job"
+	CronJob          SvcType = "cronjob"
+	Pod              SvcType = "pod"
+	CloneSetV1Alpha1 SvcType = "cloneset.v1alpha1.apps.kruise.io"
+	DEPLOYMENT       SvcType = "D"
 )
 
 func SvcTypeOf(svcType string) SvcType {
@@ -50,6 +50,8 @@ func SvcTypeOfMutate(svcType string) (SvcType, error) {
 			serviceType = CronJob
 		case strings.ToLower(string(Pod)):
 			serviceType = Pod
+		case strings.ToLower(string(CloneSetV1Alpha1)):
+			serviceType = CloneSetV1Alpha1
 		default:
 			return serviceType, errors.New(fmt.Sprintf("Unsupported SvcType %s", svcType))
 		}

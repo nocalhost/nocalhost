@@ -173,7 +173,7 @@ var devStartCmd = &cobra.Command{
 		}
 
 		if !devStartOps.NoTerminal || shell != "" {
-			must(nocalhostSvc.EnterPodTerminal(devPodName, devStartOps.Container, shell))
+			must(nocalhostSvc.EnterPodTerminal(devPodName, "nocalhost-dev", shell))
 		}
 
 	},

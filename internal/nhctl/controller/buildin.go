@@ -18,7 +18,7 @@ type DevModeAction struct {
 }
 
 var (
-	DeploymentDevModeAction = DevModeAction{
+	DefaultDevModeAction = DevModeAction{
 		ScaleAction: []profile2.PatchItem{{
 			Patch: `[{"op":"replace","path":"/spec/replicas","value":1}]`,
 			Type:  "json",
@@ -60,8 +60,8 @@ var (
 
 func GetDevModeActionBySvcType(svcType base.SvcType) (DevModeAction, error) {
 	switch svcType {
-	case base.Deployment:
-		return DeploymentDevModeAction, nil
+	case base.Deployment, base.CloneSetV1Alpha1:
+		return DefaultDevModeAction, nil
 	case base.StatefulSet:
 		return StatefulSetDevModeAction, nil
 	case base.DaemonSet:
@@ -73,7 +73,7 @@ func GetDevModeActionBySvcType(svcType base.SvcType) (DevModeAction, error) {
 		//case base.Pod:
 		//	return DeploymentDevModeAction
 	}
-	return DeploymentDevModeAction, errors.New("un supported workload")
+	return DefaultDevModeAction, errors.New("un supported workload")
 }
 
 //func (d *DevModeAction) GetResourceType() (string, error) {

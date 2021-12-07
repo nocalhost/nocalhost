@@ -108,7 +108,7 @@ func (c *Controller) GetCurrentDevModeType() profile.DevModeType {
 func CheckIfControllerTypeSupport(t string) bool {
 	tt := base.SvcType(t)
 	if tt == base.Deployment || tt == base.StatefulSet || tt == base.DaemonSet || tt == base.Job ||
-		tt == base.CronJob || tt == base.Pod {
+		tt == base.CronJob || tt == base.Pod || tt == base.CloneSetV1Alpha1 {
 		return true
 	}
 	return false
@@ -506,7 +506,7 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 
 	m := map[string]interface{}{"metadata": map[string]interface{}{"annotations": map[string]string{_const.OriginWorkloadDefinition: string(originalSpecJson)}}}
 	mBytes, _ := json.Marshal(m)
-	if err = c.Client.Patch(c.Type.String(), c.Name, string(mBytes), "strategic"); err != nil {
+	if err = c.Client.Patch(c.Type.String(), c.Name, string(mBytes), "merge"); err != nil {
 		return err
 	}
 	log.Info("Original manifest recorded")
