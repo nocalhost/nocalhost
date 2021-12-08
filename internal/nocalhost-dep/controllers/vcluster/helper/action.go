@@ -71,7 +71,7 @@ func (a *actions) Get(name string, opts ...GetOption) (*release.Release, error) 
 	return rel, nil
 }
 
-func (a *actions) Install(name, namespace string, opts ...InstallOption) (*release.Release, error) {
+func (a *actions) Install(name, namespace string, values chartutil.Values, opts ...InstallOption) (*release.Release, error) {
 	chrt, err := a.getChart(a.cpo.Name)
 	if err != nil {
 		return nil, err
@@ -84,14 +84,14 @@ func (a *actions) Install(name, namespace string, opts ...InstallOption) (*relea
 	}
 	i.Namespace = namespace
 	i.ReleaseName = name
-	rel, err := i.Run(chrt, a.values)
+	rel, err := i.Run(chrt, mergeMaps(a.values, values))
 	if err != nil {
 		return nil, errors.Wrapf(err, "can not install helm release: %s", name)
 	}
 	return rel, nil
 }
 
-func (a *actions) Upgrade(name, namespace string, opts ...UpgradeOption) (*release.Release, error) {
+func (a *actions) Upgrade(name, namespace string, values chartutil.Values, opts ...UpgradeOption) (*release.Release, error) {
 	chrt, err := a.getChart(a.cpo.Name)
 	if err != nil {
 		return nil, err
@@ -103,7 +103,7 @@ func (a *actions) Upgrade(name, namespace string, opts ...UpgradeOption) (*relea
 		}
 	}
 	up.Namespace = namespace
-	rel, err := up.Run(name, chrt, a.values)
+	rel, err := up.Run(name, chrt, mergeMaps(a.values, values))
 	if err != nil {
 		return nil, errors.Wrapf(err, "can not upgrade helm release: %s", name)
 	}
@@ -235,6 +235,25 @@ func newRESTClientGetter(config *rest.Config, ns string) genericclioptions.RESTC
 func helmLog(format string, v ...interface{}) {
 	lg := log.Log.WithName("helm")
 	lg.Info(fmt.Sprintf(format, v...))
+}
+
+func mergeMaps(a, b map[string]interface{}) map[string]interface{} {
+	out := make(map[string]interface{}, len(a))
+	for k, v := range a {
+		out[k] = v
+	}
+	for k, v := range b {
+		if v, ok := v.(map[string]interface{}); ok {
+			if bv, ok := out[k]; ok {
+				if bv, ok := bv.(map[string]interface{}); ok {
+					out[k] = mergeMaps(bv, v)
+					continue
+				}
+			}
+		}
+		out[k] = v
+	}
+	return out
 }
 
 func NewActions(vc *helmv1alpha1.VirtualCluster, config *rest.Config) (Actions, error) {

@@ -12,6 +12,7 @@ import (
 
 	"github.com/pkg/errors"
 	"helm.sh/helm/v3/pkg/storage/driver"
+	"helm.sh/helm/v3/pkg/strvals"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -96,7 +97,11 @@ func (r *Reconciler) reconcile(ctx context.Context, vc *helmv1alpha1.VirtualClus
 		if err := r.patchStatus(ctx, vc); err != nil {
 			return err
 		}
-		_, err := ac.Install(vc.GetReleaseName(), vc.GetNamespace(), opts...)
+		values, err := r.extraValues(ctx, vc)
+		if err != nil {
+			return err
+		}
+		_, err = ac.Install(vc.GetReleaseName(), vc.GetNamespace(), values, opts...)
 		if err != nil {
 			return err
 		}
@@ -107,7 +112,11 @@ func (r *Reconciler) reconcile(ctx context.Context, vc *helmv1alpha1.VirtualClus
 		if err := r.patchStatus(ctx, vc); err != nil {
 			return err
 		}
-		_, err := ac.Upgrade(vc.GetReleaseName(), vc.GetNamespace(), opts...)
+		values, err := r.extraValues(ctx, vc)
+		if err != nil {
+			return err
+		}
+		_, err = ac.Upgrade(vc.GetReleaseName(), vc.GetNamespace(), values, opts...)
 		if err != nil {
 			return err
 		}
@@ -140,7 +149,7 @@ func (r *Reconciler) delete(ctx context.Context, vc *helmv1alpha1.VirtualCluster
 	var opts []helper.UninstallOption
 	_, err := ac.Uninstall(vc.GetReleaseName(), opts...)
 	if errors.Cause(err) == driver.ErrReleaseNotFound {
-		lg.Info(fmt.Sprintf("skip uninstall release: %s", vc.GetReleaseName()))
+		lg.Info(fmt.Sprintf("skip uninstall release: %s/%s", vc.GetNamespace(), vc.GetReleaseName()))
 		return nil
 	}
 	return err
@@ -153,8 +162,16 @@ func (r *Reconciler) patchStatus(ctx context.Context, vc *helmv1alpha1.VirtualCl
 	if err := r.Client.Get(ctx, key, latest); err != nil {
 		return err
 	}
-	lg.Info("update status")
+	lg.Info(fmt.Sprintf("update status for %s/%s", vc.GetNamespace(), vc.GetReleaseName()))
 	return r.Client.Status().Patch(ctx, vc, client.MergeFrom(latest.DeepCopy()))
+}
+
+func (r *Reconciler) extraValues(ctx context.Context, vc *helmv1alpha1.VirtualCluster) (map[string]interface{}, error) {
+	cidr := helper.GetCIDR(r.Config, vc.GetNamespace())
+	rel := make(map[string]interface{})
+	extraVals := fmt.Sprintf("vcluster.extraArgs={--service-cidr=%s}", cidr)
+	err := strvals.ParseInto(extraVals, rel)
+	return rel, err
 }
 
 // SetupWithManager sets up the controller with the Manager.
