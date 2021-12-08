@@ -11,6 +11,7 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
+	"helm.sh/helm/v3/pkg/chartutil"
 	"helm.sh/helm/v3/pkg/storage/driver"
 	"helm.sh/helm/v3/pkg/strvals"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -168,10 +169,26 @@ func (r *Reconciler) patchStatus(ctx context.Context, vc *helmv1alpha1.VirtualCl
 
 func (r *Reconciler) extraValues(ctx context.Context, vc *helmv1alpha1.VirtualCluster) (map[string]interface{}, error) {
 	cidr := helper.GetCIDR(r.Config, vc.GetNamespace())
-	rel := make(map[string]interface{})
+	rel, err := defaultValues()
+	if err != nil {
+		return nil, err
+	}
 	extraVals := fmt.Sprintf("vcluster.extraArgs={--service-cidr=%s}", cidr)
-	err := strvals.ParseInto(extraVals, rel)
+	err = strvals.ParseInto(extraVals, rel)
 	return rel, err
+}
+
+func defaultValues() (map[string]interface{}, error) {
+	vals := `
+storage:
+  size: 10Gi
+syncer:
+  extraArgs: ["--disable-sync-resources=ingresses"]
+rbac:
+  clusterRole:
+    create: true
+`
+	return chartutil.ReadValues([]byte(vals))
 }
 
 // SetupWithManager sets up the controller with the Manager.
