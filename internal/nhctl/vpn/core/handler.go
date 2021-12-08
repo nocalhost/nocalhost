@@ -12,7 +12,7 @@ import (
 
 // Handler is a proxy server handler
 type Handler interface {
-	Init(options ...HandlerOption)
+	Init(options ...HandlerOptionFunc)
 	Handle(net.Conn)
 }
 
@@ -23,25 +23,25 @@ type HandlerOptions struct {
 	IPRoutes []tun.IPRoute
 }
 
-// HandlerOption allows a common way to set handler options.
-type HandlerOption func(opts *HandlerOptions)
+// HandlerOptionFunc allows a common way to set handler options.
+type HandlerOptionFunc func(opts *HandlerOptions)
 
 // ChainHandlerOption sets the Chain option of HandlerOptions.
-func ChainHandlerOption(chain *Chain) HandlerOption {
+func ChainHandlerOption(chain *Chain) HandlerOptionFunc {
 	return func(opts *HandlerOptions) {
 		opts.Chain = chain
 	}
 }
 
 // NodeHandlerOption set the server node for server handler.
-func NodeHandlerOption(node *Node) HandlerOption {
+func NodeHandlerOption(node *Node) HandlerOptionFunc {
 	return func(opts *HandlerOptions) {
 		opts.Node = node
 	}
 }
 
 // IPRoutesHandlerOption sets the IP routes for tun tunnel.
-func IPRoutesHandlerOption(routes ...tun.IPRoute) HandlerOption {
+func IPRoutesHandlerOption(routes ...tun.IPRoute) HandlerOptionFunc {
 	return func(opts *HandlerOptions) {
 		opts.IPRoutes = routes
 	}

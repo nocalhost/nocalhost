@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	log "github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -14,10 +15,10 @@ import (
 
 var CancelFunctions = make([]context.CancelFunc, 3)
 
-// vendor/k8s.io/kubectl/pkg/polymorphichelpers/rollback.go:99
+// UpdateRefCount vendor/k8s.io/kubectl/pkg/polymorphichelpers/rollback.go:99
 func UpdateRefCount(clientset *kubernetes.Clientset, namespace, name string, increment int) {
 	if err := retry.OnError(retry.DefaultRetry, func(err error) bool {
-		return err != nil
+		return !errors.IsNotFound(err)
 	}, func() error {
 		pod, err := clientset.CoreV1().Pods(namespace).Get(context.TODO(), name, v1.GetOptions{})
 		if err != nil {

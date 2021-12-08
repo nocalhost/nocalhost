@@ -30,6 +30,7 @@ type PortForwarder struct {
 	ports         []ForwardedPort
 	stopChan      <-chan struct{}
 	innerStopChan chan struct{}
+	once          *sync.Once
 
 	dialer        httpstream.Dialer
 	streamConn    httpstream.Connection
@@ -168,6 +169,7 @@ func NewOnAddresses(dialer httpstream.Dialer, addresses []string, ports []string
 		Ready:         readyChan,
 		out:           out,
 		errOut:        errOut,
+		once:          &sync.Once{},
 	}, nil
 }
 
@@ -394,16 +396,16 @@ firstCreateStream:
 	if err != nil {
 		// docker
 		if IsContainerNotFoundError(err) {
-			close(pf.innerStopChan)
+			pf.closeChannel()
 		} else
 		// containerd
 		if containerderrors.IsNotFound(err) {
-			close(pf.innerStopChan)
+			pf.closeChannel()
 		} else
 		// others
 		if strings.Contains(err.Error(), "no such container") ||
 			strings.Contains(err.Error(), "does not exist") {
-			close(pf.innerStopChan)
+			pf.closeChannel()
 		}
 		runtime.HandleError(err)
 	}
@@ -417,6 +419,12 @@ func (pf *PortForwarder) Close() {
 			runtime.HandleError(fmt.Errorf("error closing listener: %v", err))
 		}
 	}
+}
+
+func (pf *PortForwarder) closeChannel() {
+	pf.once.Do(func() {
+		close(pf.innerStopChan)
+	})
 }
 
 // GetPorts will return the ports that were forwarded; this can be used to
@@ -464,7 +472,7 @@ func (pf *PortForwarder) tryToCreateStream(header *http.Header) (httpstream.Stre
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			runtime.HandleError(fmt.Errorf("pod not found: %s", err))
-			close(pf.innerStopChan)
+			pf.closeChannel()
 		} else {
 			runtime.HandleError(fmt.Errorf("error upgrading connection: %s", err))
 		}

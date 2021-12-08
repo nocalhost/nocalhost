@@ -92,13 +92,11 @@ func (r *Route) GenRouters() ([]router, error) {
 			handler = core.TCPHandler()
 		}
 
-		rt := router{
+		routers = append(routers, router{
 			node:   node,
 			server: &core.Server{Listener: ln, Handler: handler},
-		}
-		routers = append(routers, rt)
+		})
 	}
-
 	return routers, nil
 }
 

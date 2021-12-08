@@ -18,7 +18,7 @@ import (
 )
 
 var watchers = map[string]*ConfigMapWatcher{}
-var watchersLock = sync.Mutex{}
+var watchersLock = &sync.Mutex{}
 
 func ReleaseWatcher(kubeconfigBytes []byte, namespace string) {
 	watchersLock.Lock()
@@ -31,28 +31,29 @@ func ReleaseWatcher(kubeconfigBytes []byte, namespace string) {
 
 func GetOrGenerateConfigMapWatcher(kubeconfigBytes []byte, namespace string, getter cache.Getter) *ConfigMapWatcher {
 	watchersLock.Lock()
+	defer watchersLock.Unlock()
 	k := generateKey(kubeconfigBytes, namespace)
 	if v, ok := watchers[k]; ok && v != nil {
-		watchersLock.Unlock()
 		return v
 	} else {
 		if getter == nil {
-			clientset, err := util.GetClientSetByKubeconfigBytes(kubeconfigBytes)
-			if err != nil {
+			if clientset, err := util.GetClientSetByKubeconfigBytes(kubeconfigBytes); err != nil {
 				return nil
+			} else {
+				getter = clientset.CoreV1().RESTClient()
 			}
-			getter = clientset.CoreV1().RESTClient()
 		}
-		watcher := NewConfigMapWatcher(kubeconfigBytes, namespace, getter)
-		watchers[k] = watcher
-		watchersLock.Unlock()
-		watcher.Start()
-		return watcher
+		if watcher := NewConfigMapWatcher(kubeconfigBytes, namespace, getter); watcher != nil {
+			watchers[k] = watcher
+			watcher.Start()
+			return watcher
+		}
+		return nil
 	}
 }
 
 var connectInfo = &ConnectInfo{}
-var reverseInfoLock = sync.Mutex{}
+var reverseInfoLock = &sync.Mutex{}
 
 // kubeconfig+ns --> name
 var reverseInfo = &sync.Map{}
@@ -154,7 +155,7 @@ func NewConfigMapWatcher(kubeconfigBytes []byte, namespace string, getter cache.
 	informer.AddEventHandler(&resourceHandler{
 		namespace:       namespace,
 		kubeconfigBytes: kubeconfigBytes,
-		lock:            &reverseInfoLock,
+		reverseInfoLock: reverseInfoLock,
 		reverseInfo:     reverseInfo,
 	})
 	return &ConfigMapWatcher{
@@ -178,8 +179,9 @@ func (w *ConfigMapWatcher) Stop() {
 type resourceHandler struct {
 	namespace       string
 	kubeconfigBytes []byte
-	lock            *sync.Mutex
+	reverseInfoLock *sync.Mutex
 	reverseInfo     *sync.Map
+	backoffTime     time.Time
 }
 
 func (h *resourceHandler) toKey() string {
@@ -197,13 +199,13 @@ func (h *resourceHandler) OnAdd(obj interface{}) {
 			connectInfo.kubeconfigBytes = h.kubeconfigBytes
 			connectInfo.ip = status.MacToIP[util.GetMacAddress().String()]
 			if len(connectInfo.namespace) != 0 {
-				lock.Lock()
+				h.reverseInfoLock.Lock()
 				h.reverseInfo.Store(h.toKey(), &name{
 					kubeconfigBytes: h.kubeconfigBytes,
 					namespace:       h.namespace,
 					resources:       status.Reverse,
 				})
-				lock.Unlock()
+				h.reverseInfoLock.Unlock()
 			}
 		} else {
 			ReleaseWatcher(h.kubeconfigBytes, h.namespace)
@@ -225,13 +227,13 @@ func (h *resourceHandler) OnUpdate(oldObj, newObj interface{}) {
 			connectInfo.kubeconfigBytes = h.kubeconfigBytes
 			connectInfo.ip = newStatus.MacToIP[util.GetMacAddress().String()]
 			if len(connectInfo.namespace) != 0 {
-				lock.Lock()
+				h.reverseInfoLock.Lock()
 				h.reverseInfo.Store(h.toKey(), &name{
 					kubeconfigBytes: h.kubeconfigBytes,
 					namespace:       h.namespace,
 					resources:       newStatus.Reverse,
 				})
-				lock.Unlock()
+				h.reverseInfoLock.Unlock()
 			}
 		} else {
 			// needs to notify sudo daemon to update connect namespace
@@ -246,7 +248,13 @@ func (h *resourceHandler) OnUpdate(oldObj, newObj interface{}) {
 	}
 	// if connected --> disconnected
 	if oldStatus.Connect.IsConnected() && !newStatus.Connect.IsConnected() {
-		go h.notifySudoDaemonToDisConnect()
+		if connectInfo.IsSame(h.kubeconfigBytes, h.namespace) {
+			connectInfo.cleanup()
+		}
+		if h.backoffTime.Unix() < time.Now().Unix() {
+			go h.notifySudoDaemonToDisConnect()
+			h.backoffTime = time.Now().Add(time.Second * 5)
+		}
 	}
 }
 
@@ -255,7 +263,9 @@ func (h *resourceHandler) OnDelete(obj interface{}) {
 	status := ToStatus(configMap.Data)
 	if status.Connect.IsConnected() && connectInfo.IsSame(h.kubeconfigBytes, h.namespace) {
 		connectInfo.cleanup()
+		h.reverseInfoLock.Lock()
 		h.reverseInfo.Delete(h.toKey())
+		h.reverseInfoLock.Unlock()
 	}
 }
 
@@ -291,17 +301,20 @@ func generateKey(kubeconfigBytes []byte, namespace string) string {
 
 func init() {
 	go func(info *ConnectInfo) {
+		if util.IsAdmin() {
+			return
+		}
 		for {
-			select {
-			case <-time.Tick(time.Second * 5):
-				if info != nil {
-					kubeConfig, _ := clientcmd.RESTConfigFromKubeConfig(info.kubeconfigBytes)
-					if kubeConfig != nil {
-						fmt.Printf("namespace: %s, kubeconfig: %s\n",
-							info.namespace, kubeConfig.Host)
-					}
+			var kubeConfigHost, namespace string
+			if info != nil {
+				namespace = info.namespace
+				kubeConfig, _ := clientcmd.RESTConfigFromKubeConfig(info.kubeconfigBytes)
+				if kubeConfig != nil {
+					kubeConfigHost = kubeConfig.Host
 				}
 			}
+			fmt.Printf("namespace: %s, kubeconfig: %s\n", namespace, kubeConfigHost)
+			<-time.Tick(time.Second * 5)
 		}
 	}(connectInfo)
 }

@@ -461,8 +461,8 @@ func ProcessStream(conn net.Conn, fun func(conn net.Conn) (io.ReadCloser, error)
 		return err
 	}
 	defer n.Close()
-	_, err = io.Copy(conn, n)
-	return err
+	_, _ = io.Copy(conn, n)
+	return nil
 }
 func Process(conn net.Conn, fun func(conn net.Conn) (interface{}, error)) error {
 	defer conn.Close()

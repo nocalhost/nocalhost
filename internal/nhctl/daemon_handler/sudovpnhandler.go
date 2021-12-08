@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/vpn/dns"
 	"nocalhost/internal/nhctl/vpn/pkg"
@@ -17,7 +18,7 @@ import (
 
 // keep it in memory
 var connected *pkg.ConnectOptions
-var lock sync.Mutex
+var lock = &sync.Mutex{}
 
 // HandleSudoVPNOperate sudo daemon, vpn executor
 func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) error {
@@ -52,26 +53,21 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser)
 		connected = connect
 		ctx, cancelFunc := context.WithCancel(context.TODO())
 		remote.CancelFunctions = append(remote.CancelFunctions, cancelFunc)
-		go func(namespace string, c *pkg.ConnectOptions) {
-			for {
-				select {
-				case <-ctx.Done():
-					logger.Info("prepare to exit, cleaning up")
-					dns.CancelDNS()
-					if err := c.ReleaseIP(); err != nil {
-						logger.Errorf("failed to release ip to dhcp, err: %v", err)
-					}
-					remote.CleanUpTrafficManagerIfRefCountIsZero(c.GetClientSet(), namespace)
-					logger.Info("clean up successful")
-					connected = nil
-					return
-				default:
-					errChan, err := connect.DoConnect(ctx)
+		go func(namespace string, c *pkg.ConnectOptions, ctx context.Context) {
+			// do until canceled
+			for ctx.Err() == nil && c != nil {
+				func() {
+					defer func() {
+						if err := recover(); err != nil {
+							log.Error(err)
+						}
+					}()
+					errChan, err := c.DoConnect(ctx)
 					if err != nil {
 						log.Warn(err)
 						c.Logger.Infoln(util.EndSignFailed)
 						time.Sleep(time.Second * 2)
-						continue
+						return
 					}
 					c.Logger.Infoln(util.EndSignOK)
 					c.Logger = util.NewLogger(os.Stdout)
@@ -80,39 +76,86 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser)
 						fmt.Println(err)
 						time.Sleep(time.Second * 2)
 					}
-				}
+				}()
 			}
-		}(cmd.Namespace, connect)
+			// if exit
+			lock.Lock()
+			defer lock.Unlock()
+			logger.Info("prepare to exit, cleaning up")
+			dns.CancelDNS()
+			if c != nil {
+				if err := c.ReleaseIP(); err != nil {
+					logger.Errorf("failed to release ip to dhcp, err: %v", err)
+				}
+				remote.CleanUpTrafficManagerIfRefCountIsZero(c.GetClientSet(), namespace)
+				logger.Info("clean up successful")
+				connected = nil
+			}
+			remote.CancelFunctions = remote.CancelFunctions[:0]
+			return
+		}(cmd.Namespace, connect, ctx)
 	case command.DisConnect:
 		// stop reverse resource
 		// stop traffic manager
+		lock.Lock()
+		defer lock.Unlock()
+		if connected == nil {
+			logger.Infoln("already closed vpn")
+			logger.Infoln(util.EndSignFailed)
+			return nil
+		}
+		if !connected.IsSameKubeconfigAndNamespace(connect) {
+			logger.Infoln("kubeconfig and namespace not match, can't disconnect vpn")
+			logger.Infoln(util.EndSignFailed)
+			return nil
+		}
+
 		for _, function := range remote.CancelFunctions {
 			if function != nil {
 				go function()
 			}
 		}
+		remote.CancelFunctions = remote.CancelFunctions[:0]
 		//lock.Lock()
 		//defer lock.Unlock()
 		//for connected != nil {
 		//	time.Sleep(time.Second * 2)
 		//	logger.Info("wait for disconnect")
 		//}
-		if connected != nil {
-			logger.Info("prepare to exit, cleaning up")
-			dns.CancelDNS()
-			if err := connected.ReleaseIP(); err != nil {
-				logger.Errorf("failed to release ip to dhcp, err: %v", err)
-			}
-			remote.CleanUpTrafficManagerIfRefCountIsZero(connected.GetClientSet(), connected.Namespace)
-			logger.Info("clean up successful")
-			connected = nil
+		logger.Info("prepare to exit, cleaning up")
+		dns.CancelDNS()
+		if err := connected.ReleaseIP(); err != nil {
+			logger.Errorf("failed to release ip to dhcp, err: %v", err)
 		}
+		remote.CleanUpTrafficManagerIfRefCountIsZero(connected.GetClientSet(), connected.Namespace)
+		logger.Info("clean up successful")
+		connected = nil
 		logger.Info(util.EndSignOK)
+		return nil
 	case command.Reconnect:
+		logger.Info(util.EndSignOK)
+		return nil
 	}
 	return nil
 }
 
 func init() {
 	util.InitLogger(util.Debug)
+	go func() {
+		if !util.IsAdmin() {
+			return
+		}
+		for {
+			var kubeConfigHost, namespace string
+			if connected != nil {
+				namespace = connected.Namespace
+				kubeConfig, _ := clientcmd.RESTConfigFromKubeConfig(connected.KubeconfigBytes)
+				if kubeConfig != nil {
+					kubeConfigHost = kubeConfig.Host
+				}
+			}
+			fmt.Printf("namespace: %s, kubeconfig: %s\n", namespace, kubeConfigHost)
+			<-time.Tick(time.Second * 5)
+		}
+	}()
 }

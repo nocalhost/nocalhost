@@ -41,7 +41,7 @@ func TCPHandler() Handler {
 	return &fakeUdpHandler{}
 }
 
-func (h *fakeUdpHandler) Init(...HandlerOption) {
+func (h *fakeUdpHandler) Init(...HandlerOptionFunc) {
 }
 
 func (h *fakeUdpHandler) Handle(conn net.Conn) {

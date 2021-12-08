@@ -30,7 +30,7 @@ type tunHandler struct {
 }
 
 // TunHandler creates a handler for tun tunnel.
-func TunHandler(opts ...HandlerOption) Handler {
+func TunHandler(opts ...HandlerOptionFunc) Handler {
 	h := &tunHandler{
 		options: &HandlerOptions{},
 		chExit:  make(chan struct{}, 1),
@@ -41,7 +41,7 @@ func TunHandler(opts ...HandlerOption) Handler {
 	return h
 }
 
-func (h *tunHandler) Init(options ...HandlerOption) {
+func (h *tunHandler) Init(options ...HandlerOptionFunc) {
 	if h.options == nil {
 		h.options = &HandlerOptions{}
 	}

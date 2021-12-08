@@ -1,6 +1,7 @@
 package pkg
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -44,6 +45,10 @@ type ConnectOptions struct {
 	dhcp            *remote.DHCPManager
 	ipUsed          []*net.IPNet
 	Logger          *log.Logger
+}
+
+func (c *ConnectOptions) IsSameKubeconfigAndNamespace(another *ConnectOptions) bool {
+	return bytes.Equal(c.KubeconfigBytes, another.KubeconfigBytes) && c.Namespace == another.Namespace
 }
 
 func (c *ConnectOptions) GetClientSet() *kubernetes.Clientset {

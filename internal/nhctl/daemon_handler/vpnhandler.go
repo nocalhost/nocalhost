@@ -46,7 +46,12 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 		return
 	}
 	_ = remote.NewDHCPManager(connect.GetClientSet(), cmd.Namespace, &util.RouterIP).InitDHCPIfNecessary(logCtx)
-	GetOrGenerateConfigMapWatcher(connect.KubeconfigBytes, cmd.Namespace, connect.GetClientSet().CoreV1().RESTClient())
+	w := GetOrGenerateConfigMapWatcher(connect.KubeconfigBytes, cmd.Namespace, connect.GetClientSet().CoreV1().RESTClient())
+	if w == nil {
+		logger.Printf("create configmap for ns: %s failed\n", cmd.Namespace)
+	} else {
+		logger.Printf("create configmap for ns: %s ok\n", cmd.Namespace)
+	}
 	client, _ := daemon_client.GetDaemonClient(true)
 	switch cmd.Action {
 	case command.Connect:
@@ -75,7 +80,9 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 					KubeconfigPath: path,
 					Namespace:      connectInfo.namespace,
 				}
-				connectOptions.InitClient(context.TODO())
+				if err = connectOptions.InitClient(context.TODO()); err != nil {
+					return true
+				}
 				for _, d := range value.(*name).resources.GetBelongToMeResources().List() {
 					_ = UpdateReverseConfigMap(clientset, connectInfo.namespace, d, func(r *ReverseTotal, record ReverseRecord) {
 						r.RemoveRecord(record)
@@ -99,7 +106,7 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 			}
 			if r, err := client.SendSudoVPNOperateCommand(
 				path, connectInfo.namespace, command.DisConnect, cmd.Resource); err == nil {
-				transStreamToWriter(writer, r)
+				transStreamToWriterWithoutExit(writer, r)
 			}
 			// let informer notify daemon to take effect
 			time.Sleep(time.Second * 2)
@@ -177,6 +184,15 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 					return true
 				}
 				path := nocalhost.GetOrGenKubeConfigPath(string(value.(*name).kubeconfigBytes))
+				temp := &pkg.ConnectOptions{
+					Logger:         logger,
+					KubeconfigPath: path,
+					Namespace:      value.(*name).namespace,
+					Workloads:      []string{},
+				}
+				if err = temp.InitClient(context.TODO()); err != nil {
+					return true
+				}
 				for _, resource := range value.(*name).resources.GetBelongToMeResources().List() {
 					_ = UpdateReverseConfigMap(clientset,
 						value.(*name).namespace,
@@ -184,12 +200,7 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 						func(r *ReverseTotal, record ReverseRecord) {
 							r.RemoveRecord(record)
 						})
-					temp := &pkg.ConnectOptions{
-						Logger:         logger,
-						KubeconfigPath: path,
-						Namespace:      value.(*name).namespace,
-						Workloads:      []string{resource},
-					}
+					temp.Workloads = []string{resource}
 					_ = temp.RemoveInboundPod()
 				}
 				return true

@@ -1,8 +1,6 @@
 package util
 
 import (
-	"bytes"
-	"net"
 	"sync"
 	"time"
 )
@@ -39,27 +37,11 @@ var (
 	KeepAliveTime = 180 * time.Second
 	// DialTimeout is the timeout of dial.
 	DialTimeout = 10 * time.Second
-	// HandshakeTimeout is the timeout of handshake.
-	HandshakeTimeout = 5 * time.Second
-	// ConnectTimeout is the timeout for connect.
-	ConnectTimeout = 5 * time.Second
-	// ReadTimeout is the timeout for reading.
-	ReadTimeout = 10 * time.Second
-	// WriteTimeout is the timeout for writing.
-	WriteTimeout = 10 * time.Second
 )
 
 var (
-	DefaultMTU = getMTU()
+	//	network layer ip needs 20 bytes
+	//	transport layer UDP header needs 8 bytes
+	//	UDP over TCP header needs 22 bytes
+	DefaultMTU = 1500 - 20 - 8 - 21
 )
-
-func getMTU() int {
-	if ift, err := net.Interfaces(); err == nil {
-		for _, ifi := range ift {
-			if ifi.Flags&net.FlagUp != 0 && bytes.Compare(ifi.HardwareAddr, nil) != 0 {
-				return ifi.MTU
-			}
-		}
-	}
-	return 1350
-}
