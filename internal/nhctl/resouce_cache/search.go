@@ -11,12 +11,13 @@ import (
 	"fmt"
 	"github.com/hashicorp/golang-lru/simplelru"
 	"github.com/pkg/errors"
-	authorizationv1 "k8s.io/api/authorization/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/restmapper"
@@ -24,6 +25,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/flowcontrol"
 	"nocalhost/internal/nhctl/const"
+	"nocalhost/pkg/nhctl/clientgoutils"
+	"nocalhost/pkg/nhctl/k8sutils"
 	"nocalhost/pkg/nhctl/log"
 	"reflect"
 	"sort"
@@ -47,10 +50,11 @@ var clusterMap = make(map[string]bool)
 var clusterMapLock sync.Mutex
 
 type Searcher struct {
-	kubeconfigBytes []byte
-	informerFactory informers.SharedInformerFactory
+	kubeconfigBytes        []byte
+	informerFactory        informers.SharedInformerFactory
+	dynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory
 	// [string]*meta.RESTMapping
-	supportSchema *sync.Map
+	supportSchema *sync.Map // ResourceType: GvkGvrWithAlias
 	stopChannel   chan struct{}
 	// last used this searcher, for release informer resource
 	lastUsedTime time.Time
@@ -65,19 +69,78 @@ type GvkGvrWithAlias struct {
 }
 
 // getSupportedSchema return restMapping of each resource, [string]*meta.RESTMapping
+// Key: resourceType
 func getSupportedSchema(apiResources []*restmapper.APIGroupResources) (map[string][]GvkGvrWithAlias, error) {
-	var resourceNeeded = map[string]string{"namespaces": "namespaces"}
+	var resourceNeeded = map[string]string{"namespaces": "namespaces"} // deployment/statefulset...
 	for _, v := range GroupToTypeMap {
 		for _, s := range v.V {
 			resourceNeeded[s] = s
 		}
 	}
 
-	nameToMapping := make(map[string][]GvkGvrWithAlias)
+	nameToMapping := make(map[string][]GvkGvrWithAlias) // resourceType: []GvkGvrWithAlias
 	for _, resourceList := range apiResources {
 		for version, resource := range resourceList.VersionedResources {
 			for _, apiResource := range resource {
 				if _, need := resourceNeeded[apiResource.Name]; need {
+					r := GvkGvrWithAlias{
+						Gvr: schema.GroupVersionResource{
+							Group:    resourceList.Group.Name,
+							Version:  version,
+							Resource: apiResource.Name,
+						},
+						Gvk: schema.GroupVersionKind{
+							Group:   resourceList.Group.Name,
+							Version: version,
+							Kind:    apiResource.Kind,
+						},
+						alias:      []string{},
+						Namespaced: apiResource.Namespaced,
+					}
+					if apiResource.ShortNames != nil {
+						r.alias = append(r.alias, apiResource.ShortNames...)
+					}
+					r.alias = append(r.alias, strings.ToLower(apiResource.Kind))
+					r.alias = append(r.alias, strings.ToLower(apiResource.Name))
+					v := nameToMapping[apiResource.Name]
+					if v == nil {
+						v = make([]GvkGvrWithAlias, 0)
+					}
+					v = append(v, r)
+					nameToMapping[apiResource.Name] = v
+				}
+			}
+		}
+	}
+	if len(nameToMapping) == 0 {
+		return nil, errors.New("RestMapping is empty, this should not happened")
+	}
+	return nameToMapping, nil
+}
+
+func getCrdSchema(client *clientgoutils.ClientGoUtils) (map[string][]GvkGvrWithAlias, error) {
+	var crdResources = map[string]string{} // deployment/statefulset...
+
+	apiResources, err := client.GetAPIGroupResources()
+	if err != nil {
+		return nil, err
+	}
+
+	crds, err := client.ListResourceInfo("crd")
+	if err != nil {
+		return nil, err
+	}
+
+	for _, crd := range crds {
+		gvk := crd.Object.GetObjectKind().GroupVersionKind()
+		crdResources[gvk.Kind] = gvk.Kind
+	}
+
+	nameToMapping := make(map[string][]GvkGvrWithAlias) // resourceType: []GvkGvrWithAlias
+	for _, resourceList := range apiResources {
+		for version, resource := range resourceList.VersionedResources {
+			for _, apiResource := range resource {
+				if _, need := crdResources[apiResource.Name]; need {
 					r := GvkGvrWithAlias{
 						Gvr: schema.GroupVersionResource{
 							Group:    resourceList.Group.Name,
@@ -154,6 +217,12 @@ func generateKey(kubeconfigBytes []byte, namespace string) string {
 
 // initSearcher return a searcher which use informer to cache resource, without cache
 func initSearcher(kubeconfigBytes []byte, namespace string) (*Searcher, error) {
+	kubeconfigPath := k8sutils.GetOrGenKubeConfigPath(string(kubeconfigBytes))
+	clientUtils, err := clientgoutils.NewClientGoUtils(kubeconfigPath, namespace)
+	if err != nil {
+		return nil, err
+	}
+
 	config, err := clientcmd.RESTConfigFromKubeConfig(kubeconfigBytes)
 	if err != nil {
 		return nil, err
@@ -164,11 +233,17 @@ func initSearcher(kubeconfigBytes []byte, namespace string) (*Searcher, error) {
 	if err1 != nil {
 		return nil, err1
 	}
+	dynamicClient, err := dynamic.NewForConfig(config)
+	if err != nil {
+		return nil, errors.Wrap(err, "")
+	}
 
 	var informerFactory informers.SharedInformerFactory
+	var dynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory
 
-	if isClusterAdmin(clientset) {
+	if clientUtils.IsClusterAdmin() {
 		informerFactory = informers.NewSharedInformerFactory(clientset, time.Second*5)
+		dynamicInformerFactory = dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, time.Second*5)
 		clusterMapLock.Lock()
 		clusterMap[string(kubeconfigBytes)] = true
 		clusterMapLock.Unlock()
@@ -176,8 +251,10 @@ func initSearcher(kubeconfigBytes []byte, namespace string) (*Searcher, error) {
 		informerFactory = informers.NewSharedInformerFactoryWithOptions(
 			clientset, time.Second*5, informers.WithNamespace(namespace),
 		)
+		dynamicInformerFactory = dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, time.Second*5)
 	}
-	gr, err2 := restmapper.GetAPIGroupResources(clientset)
+	//gr, err2 := restmapper.GetAPIGroupResources(clientset)
+	gr, err2 := clientUtils.GetAPIGroupResources()
 	if err2 != nil {
 		return nil, err2
 	}
@@ -186,7 +263,12 @@ func initSearcher(kubeconfigBytes []byte, namespace string) (*Searcher, error) {
 		return nil, err3
 	}
 
-	result := sync.Map{}
+	crdRestMappingList, err := getCrdSchema(clientUtils)
+	if err != nil {
+		return nil, err
+	}
+
+	result := sync.Map{} // alias: GvkGvrWithAlias
 
 	for name, groupVersionResourceList := range restMappingList {
 		createInformerSuccess := false
@@ -230,11 +312,40 @@ func initSearcher(kubeconfigBytes []byte, namespace string) (*Searcher, error) {
 	}()
 	<-firstSyncChannel
 
+	for _, groupVersionResourceList := range crdRestMappingList {
+		for _, resource := range groupVersionResourceList {
+			informer := dynamicInformerFactory.ForResource(resource.Gvr)
+
+			informer.Informer().
+				AddEventHandler(NewResourceEventHandlerFuncs(informer, kubeconfigBytes, resource.Gvr))
+
+			for _, alias := range resource.alias {
+				result.Store(alias, resource)
+			}
+			break
+		}
+	}
+
+	stopCRDChannel := make(chan struct{}, len(crdRestMappingList))
+	firstCRDSyncChannel := make(chan struct{}, 2)
+	dynamicInformerFactory.Start(stopCRDChannel)
+	go func() {
+		dynamicInformerFactory.WaitForCacheSync(firstCRDSyncChannel)
+		firstCRDSyncChannel <- struct{}{}
+	}()
+	go func() {
+		t := time.NewTicker(time.Second * 3)
+		<-t.C
+		firstCRDSyncChannel <- struct{}{}
+	}()
+	<-firstCRDSyncChannel
+
 	newSearcher := &Searcher{
-		kubeconfigBytes: kubeconfigBytes,
-		informerFactory: informerFactory,
-		supportSchema:   &result,
-		stopChannel:     stopChannel,
+		kubeconfigBytes:        kubeconfigBytes,
+		informerFactory:        informerFactory,
+		dynamicInformerFactory: dynamicInformerFactory,
+		supportSchema:          &result,
+		stopChannel:            stopChannel,
 	}
 	return newSearcher, nil
 }
@@ -265,6 +376,7 @@ func (s *Searcher) GetResourceInfo(resourceType string) (GvkGvrWithAlias, error)
 }
 
 // e's annotation appName must in appNameRange, otherwise app name is not available
+// Get app name from annotation
 func getAppName(e interface{}) string {
 	object := e.(metav1.Object)
 	annotations := object.GetAnnotations()
@@ -379,7 +491,7 @@ func (c *criteria) Consume(consumer func([]interface{}) error) error {
 	return consumer(query)
 }
 
-// Get Query
+// Query Get data
 func (c *criteria) Query() (data []interface{}, e error) {
 	defer func() {
 		if err := recover(); err != nil {
@@ -538,29 +650,29 @@ func (n *filter) toSlice() []interface{} {
 	return n.element[0:]
 }
 
-// isClusterAdmin judge weather is cluster scope kubeconfig or not
-func isClusterAdmin(clientset *kubernetes.Clientset) bool {
-	arg := &authorizationv1.SelfSubjectAccessReview{
-		Spec: authorizationv1.SelfSubjectAccessReviewSpec{
-			ResourceAttributes: &authorizationv1.ResourceAttributes{
-				Namespace: "*",
-				Group:     "*",
-				Verb:      "*",
-				Name:      "*",
-				Version:   "*",
-				Resource:  "*",
-			},
-		},
-	}
-
-	response, err := clientset.AuthorizationV1().SelfSubjectAccessReviews().Create(
-		context.TODO(), arg, metav1.CreateOptions{},
-	)
-	if err != nil || response == nil {
-		return false
-	}
-	return response.Status.Allowed
-}
+//// isClusterAdmin judge weather is cluster scope kubeconfig or not
+//func isClusterAdmin(clientset *kubernetes.Clientset) bool {
+//	arg := &authorizationv1.SelfSubjectAccessReview{
+//		Spec: authorizationv1.SelfSubjectAccessReviewSpec{
+//			ResourceAttributes: &authorizationv1.ResourceAttributes{
+//				Namespace: "*",
+//				Group:     "*",
+//				Verb:      "*",
+//				Name:      "*",
+//				Version:   "*",
+//				Resource:  "*",
+//			},
+//		},
+//	}
+//
+//	response, err := clientset.AuthorizationV1().SelfSubjectAccessReviews().Create(
+//		context.TODO(), arg, metav1.CreateOptions{},
+//	)
+//	if err != nil || response == nil {
+//		return false
+//	}
+//	return response.Status.Allowed
+//}
 
 // RemoveSearcherByKubeconfig remove informer from cache
 func RemoveSearcherByKubeconfig(kubeconfigBytes []byte, namespace string) error {

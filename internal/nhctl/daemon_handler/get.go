@@ -222,6 +222,8 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 		}
 
 	default:
+		request.ClientStack = ""
+		log.Infof("log4Test: Request Type: %v", request)
 		s, err := resouce_cache.GetSearcherWithLRU(KubeConfigBytes, ns)
 		if err != nil {
 			return nil

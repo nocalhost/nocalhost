@@ -134,12 +134,12 @@ func TestGetPods(t *testing.T) {
 }
 
 func TestGetDefault(t *testing.T) {
-	bytes, _ := ioutil.ReadFile("/Users/naison/zzz")
-	s, _ := GetSearcherWithLRU(bytes, "nocalhost")
+	bytes, _ := ioutil.ReadFile("/Users/xinxinhuang/.kube/config")
+	s, _ := GetSearcherWithLRU(bytes, "nocalhost-test")
 	i, e := s.Criteria().ResourceType("deployments").
-		ResourceName("nocalhost-api").
-		AppName("nocalhost").
-		Namespace("nocalhost").Query()
+		ResourceName("details").
+		AppName("bookinfo").
+		Namespace("nocalhost-test").Query()
 	if e != nil {
 		log.Error(e)
 	}

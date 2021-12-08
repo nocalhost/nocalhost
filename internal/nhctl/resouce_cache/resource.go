@@ -5,6 +5,9 @@
 
 package resouce_cache
 
+// GroupToTypeMap
+// K: Workloads/Networks/Configurations
+// V: deployments/statefulset
 var GroupToTypeMap = []struct {
 	K string
 	V []string

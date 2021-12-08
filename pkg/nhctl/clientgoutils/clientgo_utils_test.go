@@ -12,7 +12,7 @@ import (
 
 //
 func getClient() *ClientGoUtils {
-	client, err := NewClientGoUtils("", "nh6xury")
+	client, err := NewClientGoUtils("", "")
 	if err != nil {
 		panic(err)
 	}
@@ -58,3 +58,16 @@ func TestClientGoUtils_GetDeployment(t *testing.T) {
 //		fmt.Println("not ok")
 //	}
 //}
+
+func TestClientGoUtils_ListResourceInfo(t *testing.T) {
+	client := getClient()
+	crds, err := client.ListResourceInfo("crd")
+	if err != nil {
+		return
+	}
+	//for _, crd := range crds {
+	fmt.Printf("%v\n", crds[0].Object)
+	//fmt.Printf("%s %s %s\n", cc.Name, cc.Kind, cc.APIVersion)
+	//}
+
+}
