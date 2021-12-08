@@ -50,7 +50,10 @@ type VirtualClusterPhase string
 
 const (
 	Installing VirtualClusterPhase = "Installing"
+	Upgrading  VirtualClusterPhase = "Upgrading"
 	Running    VirtualClusterPhase = "Running"
+	Failed     VirtualClusterPhase = "Failed"
+	Deleting   VirtualClusterPhase = "Deleting"
 	Unknown    VirtualClusterPhase = "Unknown"
 )
 

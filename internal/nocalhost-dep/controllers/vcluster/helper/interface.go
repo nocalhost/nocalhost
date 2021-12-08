@@ -6,16 +6,14 @@
 package helper
 
 import (
-	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/release"
 )
 
 type Actions interface {
 	Get(name string, opts ...GetOption) (*release.Release, error)
-	Install(name, namespace string, chrt *chart.Chart, opts ...InstallOption) (*release.Release, error)
-	Upgrade(name, namespace string, chrt *chart.Chart, opts ...UpgradeOption) (*release.Release, error)
+	Install(name, namespace string, opts ...InstallOption) (*release.Release, error)
+	Upgrade(name, namespace string, opts ...UpgradeOption) (*release.Release, error)
 	Uninstall(name string, opts ...UninstallOption) (*release.UninstallReleaseResponse, error)
-	GetChart(chartRef string) (*chart.Chart, error)
 	GetState(name string) ActionState
 }
 

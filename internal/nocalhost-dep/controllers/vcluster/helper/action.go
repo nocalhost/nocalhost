@@ -44,13 +44,18 @@ const (
 
 type actions struct {
 	mu      sync.Mutex
-	cpo     action.ChartPathOptions
+	cpo     ChartOptions
 	cfg     *action.Configuration
 	setting *cli.EnvSettings
 	values  chartutil.Values
 }
 
 var _ Actions = &actions{}
+
+type ChartOptions struct {
+	action.ChartPathOptions
+	Name string
+}
 
 func (a *actions) Get(name string, opts ...GetOption) (*release.Release, error) {
 	get := newGet(a)
@@ -66,7 +71,11 @@ func (a *actions) Get(name string, opts ...GetOption) (*release.Release, error) 
 	return rel, nil
 }
 
-func (a *actions) Install(name, namespace string, chrt *chart.Chart, opts ...InstallOption) (*release.Release, error) {
+func (a *actions) Install(name, namespace string, opts ...InstallOption) (*release.Release, error) {
+	chrt, err := a.getChart(a.cpo.Name)
+	if err != nil {
+		return nil, err
+	}
 	i := newInstall(a)
 	for _, o := range opts {
 		if err := o(i); err != nil {
@@ -82,7 +91,11 @@ func (a *actions) Install(name, namespace string, chrt *chart.Chart, opts ...Ins
 	return rel, nil
 }
 
-func (a *actions) Upgrade(name, namespace string, chrt *chart.Chart, opts ...UpgradeOption) (*release.Release, error) {
+func (a *actions) Upgrade(name, namespace string, opts ...UpgradeOption) (*release.Release, error) {
+	chrt, err := a.getChart(a.cpo.Name)
+	if err != nil {
+		return nil, err
+	}
 	up := newUpgrade(a)
 	for _, o := range opts {
 		if err := o(up); err != nil {
@@ -111,7 +124,7 @@ func (a *actions) Uninstall(name string, opts ...UninstallOption) (*release.Unin
 	return rel, nil
 }
 
-func (a *actions) GetChart(chartRef string) (*chart.Chart, error) {
+func (a *actions) getChart(chartRef string) (*chart.Chart, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
@@ -200,13 +213,13 @@ func newGet(a *actions) *action.Get {
 
 func newInstall(a *actions) *action.Install {
 	in := action.NewInstall(a.cfg)
-	in.ChartPathOptions = a.cpo
+	in.ChartPathOptions = a.cpo.ChartPathOptions
 	return in
 }
 
 func newUpgrade(a *actions) *action.Upgrade {
 	up := action.NewUpgrade(a.cfg)
-	up.ChartPathOptions = a.cpo
+	up.ChartPathOptions = a.cpo.ChartPathOptions
 	return up
 }
 
@@ -239,9 +252,12 @@ func NewActions(vc *helmv1alpha1.VirtualCluster, config *rest.Config) (Actions, 
 	}
 
 	return &actions{
-		cpo: action.ChartPathOptions{
-			RepoURL: vc.GetChartRepo(),
-			Version: vc.GetChartVersion(),
+		cpo: ChartOptions{
+			ChartPathOptions: action.ChartPathOptions{
+				RepoURL: vc.GetChartRepo(),
+				Version: vc.GetChartVersion(),
+			},
+			Name: vc.GetChartName(),
 		},
 		cfg:     cfg,
 		setting: cli.New(),

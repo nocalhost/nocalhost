@@ -62,10 +62,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	} else {
 		if controllerutil.ContainsFinalizer(vc, helmv1alpha1.Finalizer) {
 			lg.Info(fmt.Sprintf("deleting release: %s/%s", vc.GetNamespace(), vc.GetReleaseName()))
+			vc.Status.Phase = helmv1alpha1.Deleting
+			if err := r.patchStatus(ctx, vc); err != nil {
+				return ctrl.Result{}, err
+			}
 			if err := r.delete(ctx, vc, ac); err != nil {
 				return ctrl.Result{}, err
 			}
-
 			controllerutil.RemoveFinalizer(vc, helmv1alpha1.Finalizer)
 			if err := r.Update(ctx, vc); err != nil {
 				return ctrl.Result{}, err
@@ -84,29 +87,36 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 func (r *Reconciler) reconcile(ctx context.Context, vc *helmv1alpha1.VirtualCluster, ac helper.Actions) error {
 	lg := log.FromContext(ctx)
 
-	chrt, err := ac.GetChart(vc.GetChartName())
-	if err != nil {
-		return err
-	}
-
 	state := ac.GetState(vc.GetReleaseName())
 	switch state {
 	case helper.ActionInstall:
 		var opts []helper.InstallOption
 		lg.Info(fmt.Sprintf("installing release: %s/%s", vc.GetNamespace(), vc.GetReleaseName()))
-		_, err := ac.Install(vc.GetReleaseName(), vc.GetNamespace(), chrt, opts...)
+		vc.Status.Phase = helmv1alpha1.Installing
+		if err := r.patchStatus(ctx, vc); err != nil {
+			return err
+		}
+		_, err := ac.Install(vc.GetReleaseName(), vc.GetNamespace(), opts...)
 		if err != nil {
 			return err
 		}
 	case helper.ActionUpgrade:
 		var opts []helper.UpgradeOption
 		lg.Info(fmt.Sprintf("upgrading release: %s/%s", vc.GetNamespace(), vc.GetReleaseName()))
-		_, err := ac.Upgrade(vc.GetReleaseName(), vc.GetNamespace(), chrt, opts...)
+		vc.Status.Phase = helmv1alpha1.Upgrading
+		if err := r.patchStatus(ctx, vc); err != nil {
+			return err
+		}
+		_, err := ac.Upgrade(vc.GetReleaseName(), vc.GetNamespace(), opts...)
 		if err != nil {
 			return err
 		}
 	case helper.ActionError:
 		lg.Error(errors.New(fmt.Sprintf("release %s/%s is in error state", vc.GetNamespace(), vc.GetReleaseName())), "")
+		vc.Status.Phase = helmv1alpha1.Failed
+		if err := r.patchStatus(ctx, vc); err != nil {
+			return err
+		}
 		return errors.New(fmt.Sprintf("release %s/%s is in error state", vc.GetNamespace(), vc.GetReleaseName()))
 	default:
 		return errors.New("unexpected action state")
@@ -118,6 +128,7 @@ func (r *Reconciler) reconcile(ctx context.Context, vc *helmv1alpha1.VirtualClus
 	}
 
 	vc.Status.AuthConfig = base64.StdEncoding.EncodeToString([]byte(config))
+	vc.Status.Phase = helmv1alpha1.Running
 	if err := r.patchStatus(ctx, vc); err != nil {
 		return err
 	}
