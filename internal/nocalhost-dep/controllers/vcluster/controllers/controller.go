@@ -13,7 +13,6 @@ import (
 	"github.com/pkg/errors"
 	"helm.sh/helm/v3/pkg/storage/driver"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -118,16 +117,8 @@ func (r *Reconciler) reconcile(ctx context.Context, vc *helmv1alpha1.VirtualClus
 		return err
 	}
 
-	last := &helmv1alpha1.VirtualCluster{}
-	if err := r.Get(ctx, types.NamespacedName{
-		Namespace: vc.GetNamespace(),
-		Name:      vc.GetName(),
-	}, last); err != nil {
-		return err
-	}
-	last.Status.AuthConfig = base64.StdEncoding.EncodeToString([]byte(config))
-	lg.Info("update status")
-	if err := r.Status().Update(ctx, last); err != nil {
+	vc.Status.AuthConfig = base64.StdEncoding.EncodeToString([]byte(config))
+	if err := r.patchStatus(ctx, vc); err != nil {
 		return err
 	}
 	return nil
@@ -142,6 +133,17 @@ func (r *Reconciler) delete(ctx context.Context, vc *helmv1alpha1.VirtualCluster
 		return nil
 	}
 	return err
+}
+
+func (r *Reconciler) patchStatus(ctx context.Context, vc *helmv1alpha1.VirtualCluster) error {
+	lg := log.FromContext(ctx)
+	key := client.ObjectKeyFromObject(vc)
+	latest := &helmv1alpha1.VirtualCluster{}
+	if err := r.Client.Get(ctx, key, latest); err != nil {
+		return err
+	}
+	lg.Info("update status")
+	return r.Client.Status().Patch(ctx, vc, client.MergeFrom(latest.DeepCopy()))
 }
 
 // SetupWithManager sets up the controller with the Manager.
