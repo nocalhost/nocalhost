@@ -154,15 +154,15 @@ func Shell(clientset *kubernetes.Clientset, restclient *rest.RESTClient, config 
 
 	stdoutBuf := bytes.NewBuffer(nil)
 	stdout := io.MultiWriter(stdoutBuf)
-	StreamOptions := exec.StreamOptions{
+	option := exec.StreamOptions{
 		Namespace:     namespace,
 		PodName:       podName,
 		ContainerName: containerName,
 		IOStreams:     genericclioptions.IOStreams{In: stdin, Out: stdout, ErrOut: stderr},
 	}
-	Executor := &exec.DefaultRemoteExecutor{}
+	executor := &exec.DefaultRemoteExecutor{}
 	// ensure we can recover the terminal while attached
-	tt := StreamOptions.SetupTTY()
+	tt := option.SetupTTY()
 
 	var sizeQueue remotecommand.TerminalSizeQueue
 	if tt.Raw {
@@ -171,7 +171,7 @@ func Shell(clientset *kubernetes.Clientset, restclient *rest.RESTClient, config 
 
 		// unset p.Err if it was previously set because both stdout and stderr go over p.Out when tty is
 		// true
-		StreamOptions.ErrOut = nil
+		option.ErrOut = nil
 	}
 
 	fn := func() error {
@@ -179,16 +179,16 @@ func Shell(clientset *kubernetes.Clientset, restclient *rest.RESTClient, config 
 			Resource("pods").
 			Name(pod.Name).
 			Namespace(pod.Namespace).
-			SubResource("exec")
-		req.VersionedParams(&v1.PodExecOptions{
-			Container: containerName,
-			Command:   []string{"sh", "-c", cmd},
-			Stdin:     StreamOptions.Stdin,
-			Stdout:    StreamOptions.Out != nil,
-			Stderr:    StreamOptions.ErrOut != nil,
-			TTY:       tt.Raw,
-		}, scheme.ParameterCodec)
-		return Executor.Execute("POST", req.URL(), config, StreamOptions.In, StreamOptions.Out, StreamOptions.ErrOut, tt.Raw, sizeQueue)
+			SubResource("exec").
+			VersionedParams(&v1.PodExecOptions{
+				Container: containerName,
+				Command:   []string{"sh", "-c", cmd},
+				Stdin:     option.Stdin,
+				Stdout:    option.Out != nil,
+				Stderr:    option.ErrOut != nil,
+				TTY:       tt.Raw,
+			}, scheme.ParameterCodec)
+		return executor.Execute("POST", req.URL(), config, option.In, option.Out, option.ErrOut, tt.Raw, sizeQueue)
 	}
 
 	err = tt.Safe(fn)

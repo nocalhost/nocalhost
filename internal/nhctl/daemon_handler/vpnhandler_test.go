@@ -4,10 +4,12 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"sync"
 	"testing"
+	"time"
 	//
 	// Uncomment to load all auth plugins
 	//_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -39,20 +41,44 @@ func TestName(t *testing.T) {
 	}
 }
 
-func TestMap(t *testing.T) {
-	var a = sync.Map{}
-	a.Store(ConnectInfo1{
-		kubeconfigBytes: []byte("aa"),
-		namespace:       "bb",
-	}, "value_a")
-	load, _ := a.Load(ConnectInfo1{
-		kubeconfigBytes: []byte("aa"),
-		namespace:       "bb",
-	})
-	fmt.Println(load)
+func TestVPNStatus(t *testing.T) {
+	file, _ := ioutil.ReadFile(clientcmd.RecommendedHomeFile)
+	GetOrGenerateConfigMapWatcher(file, "naison", nil)
+	time.Sleep(time.Second * 5)
+	load, _ := GetReverseInfo().Load(generateKey(file, "naison"))
+	resources := load.(*name).resources.GetBelongToMeResources().List()
+	for {
+		time.Sleep(time.Second * 1)
+		GetReverseInfo().Range(func(key, value interface{}) bool {
+			value.(*name).resources.GetBelongToMeResources().ForEach(func(k string, v *resourceInfo) {
+				fmt.Printf("%s is %s\n", k, v.Health)
+				return
+			})
+			meResources := value.(*name).resources.GetBelongToMeResources().List()
+			if len(resources) != len(meResources) {
+				fmt.Println("nooooo size")
+			}
+			for i := 0; i < len(resources); i++ {
+				if resources[i] != meResources[i] {
+					fmt.Println("nooooo")
+				}
+			}
+			return true
+		})
+	}
 }
 
-type ConnectInfo1 struct {
-	kubeconfigBytes []byte
-	namespace       string
+func TestMaps(t *testing.T) {
+	var m sync.Map
+	m.LoadOrStore("1", &a{})
+	m.Range(func(key, value interface{}) bool {
+		value.(*a).name = "bbbbbbbbb"
+		return true
+	})
+	l, _ := m.Load("1")
+	fmt.Println(l)
+}
+
+type a struct {
+	name string
 }

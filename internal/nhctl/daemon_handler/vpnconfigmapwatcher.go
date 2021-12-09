@@ -1,18 +1,20 @@
 package daemon_handler
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha1"
 	"fmt"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/vpn/pkg"
 	"nocalhost/internal/nhctl/vpn/util"
+	"os/exec"
 	"sync"
 	"time"
 )
@@ -70,7 +72,7 @@ func (n *name) getMacByResource(resource string) string {
 	defer reverseInfoLock.Unlock()
 	if load, ok := reverseInfo.Load(generateKey(n.kubeconfigBytes, n.namespace)); ok {
 		for k, v := range load.(*name).resources.ele {
-			if v.Has(resource) {
+			if v.HasKey(resource) {
 				return k
 			}
 		}
@@ -107,6 +109,15 @@ type ConnectInfo struct {
 	kubeconfigBytes []byte
 	namespace       string
 	ip              string
+	health          HealthEnum
+}
+
+func (c ConnectInfo) toKey() string {
+	return generateKey(c.kubeconfigBytes, c.namespace)
+}
+
+func (c ConnectInfo) Status() string {
+	return c.health.String()
 }
 
 func (c *ConnectInfo) cleanup() {
@@ -200,18 +211,40 @@ func (h *resourceHandler) OnAdd(obj interface{}) {
 			connectInfo.ip = status.MacToIP[util.GetMacAddress().String()]
 			if len(connectInfo.namespace) != 0 {
 				h.reverseInfoLock.Lock()
-				h.reverseInfo.Store(h.toKey(), &name{
+				store, _ := h.reverseInfo.LoadOrStore(h.toKey(), &name{
 					kubeconfigBytes: h.kubeconfigBytes,
 					namespace:       h.namespace,
 					resources:       status.Reverse,
 				})
+				for k, v := range status.Reverse.ele {
+					if iv, f := store.(*name).resources.ele[k]; f {
+						for _, info := range v.List() {
+							if !iv.HasKey(info.string) {
+								iv.DeleteByKeys(info.string)
+							}
+						}
+					} else {
+						delete(store.(*name).resources.ele, k)
+					}
+				}
 				h.reverseInfoLock.Unlock()
 			}
 		} else {
+			// needs to notify sudo daemon to update connect namespace
+			fmt.Println("needs to notify sudo daemon to update connect namespace, this should not to be happen")
 			ReleaseWatcher(h.kubeconfigBytes, h.namespace)
 			if bytes, err := util.GetClientSetByKubeconfigBytes(h.kubeconfigBytes); err == nil {
-				_ = bytes.CoreV1().ConfigMaps(h.namespace).
-					Delete(context.TODO(), util.TrafficManager, v1.DeleteOptions{})
+				_ = UpdateConnect(bytes, h.namespace, func(list sets.String, item string) {
+					list.Delete(item)
+				})
+				if value, found := GetReverseInfo().LoadAndDelete(h.toKey()); found {
+					for _, s := range value.(*name).resources.GetBelongToMeResources().KeySet() {
+						_ = UpdateReverseConfigMap(bytes, h.namespace, s,
+							func(r *ReverseTotal, record ReverseRecord) {
+								r.RemoveRecord(record)
+							})
+					}
+				}
 			}
 		}
 	}
@@ -228,11 +261,22 @@ func (h *resourceHandler) OnUpdate(oldObj, newObj interface{}) {
 			connectInfo.ip = newStatus.MacToIP[util.GetMacAddress().String()]
 			if len(connectInfo.namespace) != 0 {
 				h.reverseInfoLock.Lock()
-				h.reverseInfo.Store(h.toKey(), &name{
+				store, _ := h.reverseInfo.LoadOrStore(h.toKey(), &name{
 					kubeconfigBytes: h.kubeconfigBytes,
 					namespace:       h.namespace,
 					resources:       newStatus.Reverse,
 				})
+				for k, v := range newStatus.Reverse.ele {
+					if iv, f := store.(*name).resources.ele[k]; f {
+						for _, info := range v.List() {
+							if !iv.HasKey(info.string) {
+								iv.DeleteByKeys(info.string)
+							}
+						}
+					} else {
+						delete(store.(*name).resources.ele, k)
+					}
+				}
 				h.reverseInfoLock.Unlock()
 			}
 		} else {
@@ -243,17 +287,14 @@ func (h *resourceHandler) OnUpdate(oldObj, newObj interface{}) {
 				_ = UpdateConnect(bytes, h.namespace, func(list sets.String, item string) {
 					list.Delete(item)
 				})
-				GetReverseInfo().Range(func(key, value interface{}) bool {
-					if h.toKey() == key {
-						for _, s := range value.(*name).resources.GetBelongToMeResources().List() {
-							_ = UpdateReverseConfigMap(bytes, h.namespace, s,
-								func(r *ReverseTotal, record ReverseRecord) {
-									r.RemoveRecord(record)
-								})
-						}
+				if value, found := GetReverseInfo().LoadAndDelete(h.toKey()); found {
+					for _, s := range value.(*name).resources.GetBelongToMeResources().KeySet() {
+						_ = UpdateReverseConfigMap(bytes, h.namespace, s,
+							func(r *ReverseTotal, record ReverseRecord) {
+								r.RemoveRecord(record)
+							})
 					}
-					return true
-				})
+				}
 			}
 		}
 	}
@@ -310,22 +351,71 @@ func generateKey(kubeconfigBytes []byte, namespace string) string {
 	return string(h.Sum([]byte(namespace)))
 }
 
+// connection healthy and reverse healthy
 func init() {
-	//go func(info *ConnectInfo) {
-	//	if util.IsAdmin() {
-	//		return
-	//	}
-	//	for {
-	//		var kubeConfigHost, namespace string
-	//		if info != nil {
-	//			namespace = info.namespace
-	//			kubeConfig, _ := clientcmd.RESTConfigFromKubeConfig(info.kubeconfigBytes)
-	//			if kubeConfig != nil {
-	//				kubeConfigHost = kubeConfig.Host
-	//			}
-	//		}
-	//		fmt.Printf("namespace: %s, kubeconfig: %s\n", namespace, kubeConfigHost)
-	//		<-time.Tick(time.Second * 5)
-	//	}
-	//}(connectInfo)
+	go func() {
+		tick := time.Tick(time.Second * 5)
+		for {
+			select {
+			case <-tick:
+				func() {
+					defer func() {
+						recover()
+					}()
+					go checkConnect()
+					checkReverse()
+				}()
+			}
+		}
+	}()
+}
+
+func checkConnect() {
+	if !connectInfo.IsEmpty() {
+		cancel, cancelFunc := context.WithTimeout(context.TODO(), time.Second*5)
+		defer cancelFunc()
+		cmd := exec.CommandContext(cancel, "ping", "-c", "4", util.IpRange.String())
+		_ = cmd.Run()
+		if cmd.ProcessState.Success() {
+			connectInfo.health = Healthy
+		} else {
+			connectInfo.health = UnHealthy
+		}
+	}
+}
+
+func checkReverse() {
+	if connectInfo.IsEmpty() {
+		return
+	}
+	GetReverseInfo().Range(func(key, value interface{}) bool {
+		if !bytes.Equal(value.(*name).kubeconfigBytes, connectInfo.kubeconfigBytes) {
+			return true
+		}
+		path := nocalhost.GetOrGenKubeConfigPath(string(value.(*name).kubeconfigBytes))
+		connect := &pkg.ConnectOptions{
+			KubeconfigPath: path,
+			Namespace:      value.(*name).namespace,
+			Workloads:      []string{},
+		}
+		if err := connect.InitClient(context.TODO()); err != nil {
+			return true
+		}
+		if err := connect.Prepare(context.TODO()); err != nil {
+			return true
+		}
+		value.(*name).resources.GetBelongToMeResources().ForEach(func(k string, v *resourceInfo) {
+			go func(k string, info *resourceInfo) {
+				connect.Workloads = []string{k}
+				if _, err := connect.Shell(context.TODO()); err != nil {
+					info.Health = UnHealthy
+					fmt.Printf("resource %s is UnHealthy\n", info.string)
+				} else {
+					info.Health = Healthy
+					fmt.Printf("resource %s is health\n", info.string)
+				}
+			}(k, v)
+		})
+		return true
+	})
 }

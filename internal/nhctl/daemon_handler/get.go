@@ -221,7 +221,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			if connectInfo.IsSameCluster(KubeConfigBytes) {
 				i.VPN = &item.VPNInfo{
 					Mode:   ConnectMode.String(),
-					Status: Healthy.String(),
+					Status: connectInfo.Status(),
 					IP:     connectInfo.getIPIfIsMe(KubeConfigBytes, ns),
 				}
 			}
@@ -252,7 +252,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			}
 			serviceMap = getServiceProfile(ns, request.AppName, nid, KubeConfigBytes)
 		}
-		var belongsToMe = sets.NewString()
+		var belongsToMe = NewSet()
 		var reverseReversed = sets.NewString()
 		if load, ok := GetReverseInfo().Load(generateKey(KubeConfigBytes, ns)); ok {
 			belongsToMe.Insert(load.(*name).resources.GetBelongToMeResources().List()...)
@@ -278,11 +278,11 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			if err == nil {
 				n := fmt.Sprintf("%s/%s", mapping.Gvr.Resource, i.(metav1.Object).GetName())
 				tempItem.Description = serviceMap[n]
-				if revering := belongsToMe.Has(n) || reverseReversed.Has(n); revering {
+				if revering := belongsToMe.HasKey(n) || reverseReversed.Has(n); revering {
 					tempItem.VPN = &item.VPNInfo{
-						Status:      Healthy.String(),
+						Status:      belongsToMe.Get(n).status(),
 						Mode:        ReverseMode.String(),
-						BelongsToMe: belongsToMe.Has(n),
+						BelongsToMe: belongsToMe.HasKey(n),
 						IP:          connectInfo.getIPIfIsMe(KubeConfigBytes, ns),
 					}
 				}

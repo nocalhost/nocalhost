@@ -463,3 +463,12 @@ func (c *ConnectOptions) ReverePingLocal() bool {
 	)
 	return err == nil
 }
+
+func (c *ConnectOptions) Shell(context.Context) (string, error) {
+	tuple, parsed, err2 := util.SplitResourceTypeName(c.Workloads[0])
+	if !parsed || err2 != nil {
+		return "", errors.New("not need")
+	}
+	newName := ToInboundPodName(tuple.Resource, tuple.Name)
+	return util.Shell(c.clientset, c.restclient, c.config, newName, c.Namespace, "ping -c 4 "+c.tunIP.IP.String())
+}

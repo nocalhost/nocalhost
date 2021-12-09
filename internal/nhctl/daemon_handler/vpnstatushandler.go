@@ -55,14 +55,14 @@ type VPNStatus struct {
 
 type ReverseTotal struct {
 	// mac address --> resources
-	ele map[string]sets.String
+	ele map[string]Set
 }
 
 func (t *ReverseTotal) ReversedResource() sets.String {
 	result := sets.NewString()
 	if t != nil && t.ele != nil {
 		for _, v := range t.ele {
-			result.Insert(v.List()...)
+			result.Insert(v.KeySet()...)
 		}
 	}
 	return result
@@ -121,16 +121,16 @@ func ToStatus(m map[string]string) VPNStatus {
 
 func (t *ReverseTotal) AddRecord(r ReverseRecord) *ReverseTotal {
 	if m, _ := t.ele[r.MacAddress]; m != nil {
-		m.Insert(r.Resources.List()...)
+		m.InsertByKeys(r.Resources.List()...)
 	} else {
-		t.ele[r.MacAddress] = sets.NewString(r.Resources.List()...)
+		t.ele[r.MacAddress] = NewSetByKeys(r.Resources.List()...)
 	}
 	return t
 }
 
 func (t *ReverseTotal) RemoveRecord(r ReverseRecord) *ReverseTotal {
 	if m, _ := t.ele[r.MacAddress]; m != nil {
-		m.Delete(r.Resources.List()...)
+		m.DeleteByKeys(r.Resources.List()...)
 		if m.Len() == 0 {
 			delete(t.ele, r.MacAddress)
 		}
@@ -158,7 +158,7 @@ func NewReverseRecordWithWorkloads(workloads string) ReverseRecord {
 }
 
 func FromStringToReverseTotal(s string) (t *ReverseTotal) {
-	t = &ReverseTotal{ele: map[string]sets.String{}}
+	t = &ReverseTotal{ele: map[string]Set{}}
 	if len(s) == 0 {
 		return
 	}
@@ -175,18 +175,18 @@ func FromStringToReverseTotal(s string) (t *ReverseTotal) {
 func (t *ReverseTotal) ToString() string {
 	var sb strings.Builder
 	for k, v := range t.ele {
-		sb.WriteString(fmt.Sprintf("%s%s%s\n", k, util.Splitter, strings.Join(v.List(), ",")))
+		sb.WriteString(fmt.Sprintf("%s%s%s\n", k, util.Splitter, strings.Join(v.KeySet(), ",")))
 	}
 	return sb.String()
 }
 
-func (t *ReverseTotal) GetBelongToMeResources() sets.String {
+func (t *ReverseTotal) GetBelongToMeResources() Set {
 	if t.ele == nil {
-		return sets.NewString()
+		return NewSet()
 	}
 	s := t.ele[util.GetMacAddress().String()]
 	if s != nil {
 		return s
 	}
-	return sets.NewString()
+	return NewSet()
 }
