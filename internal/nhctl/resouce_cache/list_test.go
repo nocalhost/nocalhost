@@ -20,6 +20,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/flowcontrol"
 	"k8s.io/client-go/util/homedir"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"path/filepath"
 	"testing"
@@ -74,7 +75,7 @@ func TestName(t *testing.T) {
 			time.Sleep(time.Second * 5)
 		}
 	}()
-	search.Start()
+	//search.Start()
 }
 
 //func TestConvert(t *testing.T) {
@@ -134,11 +135,14 @@ func TestGetPods(t *testing.T) {
 }
 
 func TestGetDefault(t *testing.T) {
-	bytes, _ := ioutil.ReadFile("/Users/xinxinhuang/.kube/config")
-	s, _ := GetSearcherWithLRU(bytes, "nocalhost-test")
-	i, e := s.Criteria().ResourceType("deployments").
-		ResourceName("details").
-		AppName("bookinfo").
+	bytes, _ := ioutil.ReadFile(filepath.Join(utils.GetHomePath(), ".kube/config"))
+	s, err := GetSearcherWithLRU(bytes, "nocalhost-test")
+	if err != nil {
+		panic(err)
+	}
+	i, e := s.Criteria().ResourceType("namespaces").
+		ResourceName("").
+		//AppName("bookinfo").
 		Namespace("nocalhost-test").Query()
 	if e != nil {
 		log.Error(e)

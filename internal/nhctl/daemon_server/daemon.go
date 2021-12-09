@@ -148,7 +148,9 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 
 			go func() {
 				defer func() {
-					_ = conn.Close()
+					if conn != nil {
+						_ = conn.Close()
+					}
 					recoverDaemonFromPanic()
 				}()
 
@@ -185,7 +187,7 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 					log.LogE(err)
 					return
 				}
-				log.Tracef("Handling %s command", cmdType)
+				//log.Tracef("Handling %s command", cmdType)
 				handleCommand(conn, bytes, cmdType, clientStack)
 				takes := time.Now().Sub(start).Seconds()
 				log.WriteToEsWithField(map[string]interface{}{"take": takes}, "%s command done", cmdType)
@@ -229,11 +231,9 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 
 func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType, clientStack string) {
 	var err error
-	defer func() {
-		if err != nil {
-			log.Log("Client Stack: " + clientStack)
-		}
-	}()
+	//defer func() {
+	//	recoverDaemonFromPanic()
+	//}()
 
 	// prevent elder version to send cmd to daemon
 	if clientStack == "" {

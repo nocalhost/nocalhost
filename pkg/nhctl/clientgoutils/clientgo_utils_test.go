@@ -6,13 +6,16 @@
 package clientgoutils
 
 import (
+	"encoding/json"
 	"fmt"
+	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"testing"
 )
 
 //
 func getClient() *ClientGoUtils {
-	client, err := NewClientGoUtils("", "")
+	client, err := NewClientGoUtils("", "nocalhost-test")
 	if err != nil {
 		panic(err)
 	}
@@ -61,13 +64,42 @@ func TestClientGoUtils_GetDeployment(t *testing.T) {
 
 func TestClientGoUtils_ListResourceInfo(t *testing.T) {
 	client := getClient()
-	crds, err := client.ListResourceInfo("crd")
+	//crds, err := client.ListResourceInfo("crd")
+	//if err != nil {
+	//	return
+	//}
+	////for _, crd := range crds {
+	////fmt.Printf("%v\n", crds[0].Object)
+	//////fmt.Printf("%s %s %s\n", cc.Name, cc.Kind, cc.APIVersion)
+	//////}
+	//err := client.GetInformer("deployments.v1.apps")
+	//if err != nil {
+	//	panic(err)
+	//}
+
+	gr, err := client.GetAPIGroupResources()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(gr)
+
+	crds, err := client.ListResourceInfo("all")
 	if err != nil {
 		return
 	}
-	//for _, crd := range crds {
-	fmt.Printf("%v\n", crds[0].Object)
-	//fmt.Printf("%s %s %s\n", cc.Name, cc.Kind, cc.APIVersion)
-	//}
-
+	crd := crds[0]
+	um, ok := crd.Object.(*unstructured.Unstructured)
+	if !ok {
+		panic(err)
+	}
+	jsonBytes, err := um.MarshalJSON()
+	if err != nil {
+		panic(err)
+	}
+	crdObj := &apiextensions.CustomResourceDefinition{}
+	err = json.Unmarshal(jsonBytes, crdObj)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(crds)
 }

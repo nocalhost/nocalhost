@@ -7,10 +7,12 @@ package daemon_handler
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/cache"
 	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/appmeta"
@@ -193,7 +195,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 	case "ns", "namespace", "namespaces":
 		s, err := resouce_cache.GetSearcherWithLRU(KubeConfigBytes, ns)
 		if err != nil {
-			return nil
+			return errors.New("fail to get searcher")
 		}
 		data, err := s.Criteria().
 			ResourceType(request.Resource).
@@ -204,7 +206,19 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 		// resource namespace filter status is active
 		availableData := make([]interface{}, 0, 0)
 		for _, datum := range data {
-			if datum.(*v1.Namespace).Status.Phase == v1.NamespaceActive {
+			um, ok := datum.(*unstructured.Unstructured)
+			if !ok {
+				continue
+			}
+			j, err := um.MarshalJSON()
+			if err != nil {
+				continue
+			}
+			namespace := &v1.Namespace{}
+			if err = json.Unmarshal(j, namespace); err != nil {
+				continue
+			}
+			if namespace.Status.Phase == v1.NamespaceActive {
 				availableData = append(availableData, datum)
 			}
 		}
@@ -223,7 +237,6 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 
 	default:
 		request.ClientStack = ""
-		log.Infof("log4Test: Request Type: %v", request)
 		s, err := resouce_cache.GetSearcherWithLRU(KubeConfigBytes, ns)
 		if err != nil {
 			return nil
