@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/vpn/dns"
 	"nocalhost/internal/nhctl/vpn/pkg"
@@ -22,6 +21,7 @@ var lock = &sync.Mutex{}
 
 // HandleSudoVPNOperate sudo daemon, vpn executor
 func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) error {
+	preCheck(cmd)
 	logCtx := util.GetContextWithLogger(writer)
 	logger := util.GetLoggerFromContext(logCtx)
 	connect := &pkg.ConnectOptions{
@@ -141,21 +141,21 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser)
 
 func init() {
 	util.InitLogger(util.Debug)
-	go func() {
-		if !util.IsAdmin() {
-			return
-		}
-		for {
-			var kubeConfigHost, namespace string
-			if connected != nil {
-				namespace = connected.Namespace
-				kubeConfig, _ := clientcmd.RESTConfigFromKubeConfig(connected.KubeconfigBytes)
-				if kubeConfig != nil {
-					kubeConfigHost = kubeConfig.Host
-				}
-			}
-			fmt.Printf("namespace: %s, kubeconfig: %s\n", namespace, kubeConfigHost)
-			<-time.Tick(time.Second * 5)
-		}
-	}()
+	//go func() {
+	//	if !util.IsAdmin() {
+	//		return
+	//	}
+	//	for {
+	//		var kubeConfigHost, namespace string
+	//		if connected != nil {
+	//			namespace = connected.Namespace
+	//			kubeConfig, _ := clientcmd.RESTConfigFromKubeConfig(connected.KubeconfigBytes)
+	//			if kubeConfig != nil {
+	//				kubeConfigHost = kubeConfig.Host
+	//			}
+	//		}
+	//		fmt.Printf("namespace: %s, kubeconfig: %s\n", namespace, kubeConfigHost)
+	//		<-time.Tick(time.Second * 5)
+	//	}
+	//}()
 }

@@ -8,7 +8,6 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/nocalhost"
@@ -300,21 +299,21 @@ func generateKey(kubeconfigBytes []byte, namespace string) string {
 }
 
 func init() {
-	go func(info *ConnectInfo) {
-		if util.IsAdmin() {
-			return
-		}
-		for {
-			var kubeConfigHost, namespace string
-			if info != nil {
-				namespace = info.namespace
-				kubeConfig, _ := clientcmd.RESTConfigFromKubeConfig(info.kubeconfigBytes)
-				if kubeConfig != nil {
-					kubeConfigHost = kubeConfig.Host
-				}
-			}
-			fmt.Printf("namespace: %s, kubeconfig: %s\n", namespace, kubeConfigHost)
-			<-time.Tick(time.Second * 5)
-		}
-	}(connectInfo)
+	//go func(info *ConnectInfo) {
+	//	if util.IsAdmin() {
+	//		return
+	//	}
+	//	for {
+	//		var kubeConfigHost, namespace string
+	//		if info != nil {
+	//			namespace = info.namespace
+	//			kubeConfig, _ := clientcmd.RESTConfigFromKubeConfig(info.kubeconfigBytes)
+	//			if kubeConfig != nil {
+	//				kubeConfigHost = kubeConfig.Host
+	//			}
+	//		}
+	//		fmt.Printf("namespace: %s, kubeconfig: %s\n", namespace, kubeConfigHost)
+	//		<-time.Tick(time.Second * 5)
+	//	}
+	//}(connectInfo)
 }

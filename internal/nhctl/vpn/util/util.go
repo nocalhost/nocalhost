@@ -372,6 +372,10 @@ type ResourceTuple struct {
 	Name     string
 }
 
+func (r ResourceTuple) String() string {
+	return fmt.Sprintf("%s/%s", r.Resource, r.Name)
+}
+
 type ResourceTupleWithScale struct {
 	Resource string
 	Name     string

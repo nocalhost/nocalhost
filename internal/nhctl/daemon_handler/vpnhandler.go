@@ -22,6 +22,7 @@ import (
 
 // HandleVPNOperate not sudo daemon, vpn controller
 func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (err error) {
+	preCheck(cmd)
 	logCtx := util.GetContextWithLogger(writer)
 	logger := util.GetLoggerFromContext(logCtx)
 	defer func() {
@@ -164,12 +165,25 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 			if err = connect.RemoveInboundPod(); err != nil {
 				logger.Errorf("error while delete reverse, info: %s-%s, err: %v",
 					connect.Namespace, cmd.Resource, err)
-				return
 			} else {
 				logger.Infof("delete reverse, info: %s-%s secusefully",
 					connect.Namespace, cmd.Resource)
-				return
 			}
+
+			// if cancel last reverse resources, needs to close connect
+			if value, found := GetReverseInfo().Load(generateKey(connect.KubeconfigBytes, connect.Namespace)); found {
+				if value.(*name).resources.GetBelongToMeResources().Len() == 0 {
+					ReleaseWatcher(connect.KubeconfigBytes, cmd.Namespace)
+					_ = UpdateConnect(connect.GetClientSet(), cmd.Namespace, func(list sets.String, address string) {
+						list.Delete(address)
+					})
+					if r, err := client.SendSudoVPNOperateCommand(
+						cmd.KubeConfig, cmd.Namespace, command.DisConnect, cmd.Resource); err == nil {
+						transStreamToWriter(writer, r)
+					}
+				}
+			}
+			return
 		} else {
 			ReleaseWatcher(connect.KubeconfigBytes, cmd.Namespace)
 			_ = UpdateConnect(connect.GetClientSet(), cmd.Namespace, func(list sets.String, address string) {
@@ -293,5 +307,28 @@ func transStreamToWriterWithoutExit(writer io.Writer, r io.ReadCloser) {
 		}
 		writer.Write(line)
 		writer.Write([]byte("\n"))
+	}
+}
+
+func preCheck(cmd *command.VPNOperateCommand) {
+	if len(cmd.Resource) != 0 {
+		tuple, b, err := util.SplitResourceTypeName(cmd.Resource)
+		if err == nil && b {
+			switch strings.ToLower(tuple.Resource) {
+			case "deployment", "deployments":
+				tuple.Resource = "deployments"
+			case "statefulset", "statefulsets":
+				tuple.Resource = "statefulsets"
+			case "replicaset", "replicasets":
+				tuple.Resource = "replicasets"
+			case "service", "services":
+				tuple.Resource = "services"
+			case "pod", "pods":
+				tuple.Resource = "pods"
+			default:
+				tuple.Resource = "customresourcedefinitions"
+			}
+			cmd.Resource = tuple.String()
+		}
 	}
 }
