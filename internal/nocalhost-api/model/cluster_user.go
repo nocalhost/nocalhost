@@ -42,6 +42,7 @@ type ClusterUserV2 struct {
 	ClusterId          uint64    `gorm:"column:cluster_id;not null" json:"cluster_id"`
 	IsBaseSpace        bool      `gorm:"column:is_base_space;default:false" json:"is_base_space"`
 	BaseDevSpaceId     uint64    `gorm:"column:base_dev_space_id;default:0" json:"base_dev_space_id"`
+	DevSpaceType       uint64    `gorm:"column:dev_space_type;default:0" json:"dev_space_type"`
 	TraceHeader        Header    `gorm:"column:trace_header;type:VARCHAR(256);" json:"trace_header"`
 	SpaceResourceLimit string    `gorm:"column:space_resource_limit;type:VARCHAR(1024);" json:"space_resource_limit"`
 	CreatedAt          time.Time `gorm:"column:created_at" json:"created_at"`
@@ -58,17 +59,18 @@ type SpaceOwnType struct {
 }
 
 type ClusterUserExt struct {
-	ClusterName           string        `json:"cluster_name"`
-	SpaceType             SpaceType     `json:"space_type"`
-	SpaceOwnType          SpaceOwnType  `json:"space_own_type"`
-	ResourceLimitSet      bool          `json:"resource_limit_set"`
-	CooperUser            []*UserSimple `json:"cooper_user"`
-	ViewerUser            []*UserSimple `json:"viewer_user"`
-	Owner                 *UserSimple   `json:"owner"`
-	Modifiable            bool          `json:"modifiable"`
-	Deletable             bool          `json:"deletable"`
-	BaseDevSpaceName      string        `json:"base_dev_space_name"`
-	BaseDevSpaceNameSpace string        `json:"base_dev_space_namespace"`
+	ClusterName           string              `json:"cluster_name"`
+	SpaceType             SpaceType           `json:"space_type"`
+	SpaceOwnType          SpaceOwnType        `json:"space_own_type"`
+	ResourceLimitSet      bool                `json:"resource_limit_set"`
+	CooperUser            []*UserSimple       `json:"cooper_user"`
+	ViewerUser            []*UserSimple       `json:"viewer_user"`
+	Owner                 *UserSimple         `json:"owner"`
+	Modifiable            bool                `json:"modifiable"`
+	Deletable             bool                `json:"deletable"`
+	BaseDevSpaceName      string              `json:"base_dev_space_name"`
+	BaseDevSpaceNameSpace string              `json:"base_dev_space_namespace"`
+	VirtualClusterInfo    *VirtualClusterInfo `json:"virtual_cluster_info,omitempty"`
 }
 
 // ClusterUserModel
@@ -184,4 +186,8 @@ func (h *Header) Scan(value interface{}) error {
 
 func (h Header) Value() (driver.Value, error) {
 	return json.Marshal(h)
+}
+
+type VirtualClusterInfo struct {
+	Status string `json:"status"`
 }

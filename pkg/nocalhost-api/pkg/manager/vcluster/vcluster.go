@@ -69,7 +69,6 @@ func (m *manager) vcInformer() informers.GenericInformer {
 		Resource: "virtualclusters",
 	})
 	m.informers.Start(m.stopCh)
-	// TODO time out for informer sync
 	m.informers.WaitForCacheSync(m.stopCh)
 	return informer
 }
