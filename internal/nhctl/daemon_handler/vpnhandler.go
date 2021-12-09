@@ -66,6 +66,7 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 
 		// change to another cluster or namespace, clean all reverse
 		if !connectInfo.IsEmpty() && !connectInfo.IsSame(connect.KubeconfigBytes, cmd.Namespace) {
+			ReleaseWatcher(connectInfo.kubeconfigBytes, connectInfo.namespace)
 			clientset, err := util.GetClientSetByKubeconfigBytes(connectInfo.kubeconfigBytes)
 			if err != nil {
 				return err

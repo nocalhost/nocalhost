@@ -7,6 +7,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_server/command"
@@ -239,9 +240,20 @@ func (h *resourceHandler) OnUpdate(oldObj, newObj interface{}) {
 			fmt.Println("needs to notify sudo daemon to update connect namespace, this should not to be happen")
 			ReleaseWatcher(h.kubeconfigBytes, h.namespace)
 			if bytes, err := util.GetClientSetByKubeconfigBytes(h.kubeconfigBytes); err == nil {
-				_ = bytes.CoreV1().
-					ConfigMaps(h.namespace).
-					Delete(context.TODO(), util.TrafficManager, v1.DeleteOptions{})
+				_ = UpdateConnect(bytes, h.namespace, func(list sets.String, item string) {
+					list.Delete(item)
+				})
+				GetReverseInfo().Range(func(key, value interface{}) bool {
+					if h.toKey() == key {
+						for _, s := range value.(*name).resources.GetBelongToMeResources().List() {
+							_ = UpdateReverseConfigMap(bytes, h.namespace, s,
+								func(r *ReverseTotal, record ReverseRecord) {
+									r.RemoveRecord(record)
+								})
+						}
+					}
+					return true
+				})
 			}
 		}
 	}

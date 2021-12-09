@@ -492,11 +492,11 @@ func GetContextWithLogger(writer io.WriteCloser) context.Context {
 func NewLogger(writer io.WriteCloser) *log.Logger {
 	return &log.Logger{
 		Out:          writer,
-		Formatter:    new(log.TextFormatter),
+		Formatter:    &Format{},
 		Hooks:        make(log.LevelHooks),
 		Level:        log.InfoLevel,
 		ExitFunc:     os.Exit,
-		ReportCaller: false,
+		ReportCaller: true,
 	}
 }
 

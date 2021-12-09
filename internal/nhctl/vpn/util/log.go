@@ -22,8 +22,7 @@ type Format struct {
 // same like log.SetFlags(log.LstdFlags | log.Lshortfile)
 func (*Format) Format(e *log.Entry) ([]byte, error) {
 	return []byte(
-		fmt.Sprintf("%s %s:%d: %s\n",
-			e.Time.Format("2006/01/02 15:04:05"),
+		fmt.Sprintf("%s:%d: %s\n",
 			filepath.Base(e.Caller.File),
 			e.Caller.Line,
 			e.Message)), nil
