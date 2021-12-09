@@ -304,7 +304,14 @@ func GenKubeconfig(
 
 func GenVirtualClusterKubeconfig(clusterKubeConfig, spaceName, namespace string, f func(kubeConfig string)) {
 
-	kubeConfig, _ := vcluster.GetKubeConfig(clusterKubeConfig, spaceName, namespace)
+	factory := vcluster.GetSharedManagerFactory()
+	vcManager, err := factory.Manager(clusterKubeConfig)
+	if err != nil {
+		f("")
+		return
+	}
+
+	kubeConfig, _ := vcManager.GetKubeConfig(spaceName, namespace)
 	f(kubeConfig)
 }
 
