@@ -184,7 +184,7 @@ func (w *ConfigMapWatcher) Start() {
 }
 
 func (w *ConfigMapWatcher) Stop() {
-	w.stopChan <- struct{}{}
+	close(w.stopChan)
 }
 
 type resourceHandler struct {
@@ -210,42 +210,11 @@ func (h *resourceHandler) OnAdd(obj interface{}) {
 			connectInfo.kubeconfigBytes = h.kubeconfigBytes
 			connectInfo.ip = status.MacToIP[util.GetMacAddress().String()]
 			if len(connectInfo.namespace) != 0 {
-				h.reverseInfoLock.Lock()
-				store, _ := h.reverseInfo.LoadOrStore(h.toKey(), &name{
-					kubeconfigBytes: h.kubeconfigBytes,
-					namespace:       h.namespace,
-					resources:       status.Reverse,
-				})
-				for k, v := range status.Reverse.ele {
-					if iv, f := store.(*name).resources.ele[k]; f {
-						for _, info := range v.List() {
-							if !iv.HasKey(info.string) {
-								iv.DeleteByKeys(info.string)
-							}
-						}
-					} else {
-						delete(store.(*name).resources.ele, k)
-					}
-				}
-				h.reverseInfoLock.Unlock()
+				modifyReverseInfo(h, status)
 			}
 		} else {
-			// needs to notify sudo daemon to update connect namespace
-			fmt.Println("needs to notify sudo daemon to update connect namespace, this should not to be happen")
-			ReleaseWatcher(h.kubeconfigBytes, h.namespace)
-			if bytes, err := util.GetClientSetByKubeconfigBytes(h.kubeconfigBytes); err == nil {
-				_ = UpdateConnect(bytes, h.namespace, func(list sets.String, item string) {
-					list.Delete(item)
-				})
-				if value, found := GetReverseInfo().LoadAndDelete(h.toKey()); found {
-					for _, s := range value.(*name).resources.GetBelongToMeResources().KeySet() {
-						_ = UpdateReverseConfigMap(bytes, h.namespace, s,
-							func(r *ReverseTotal, record ReverseRecord) {
-								r.RemoveRecord(record)
-							})
-					}
-				}
-			}
+			// someone already connected, release myself
+			release(h)
 		}
 	}
 }
@@ -260,45 +229,14 @@ func (h *resourceHandler) OnUpdate(oldObj, newObj interface{}) {
 			connectInfo.kubeconfigBytes = h.kubeconfigBytes
 			connectInfo.ip = newStatus.MacToIP[util.GetMacAddress().String()]
 			if len(connectInfo.namespace) != 0 {
-				h.reverseInfoLock.Lock()
-				store, _ := h.reverseInfo.LoadOrStore(h.toKey(), &name{
-					kubeconfigBytes: h.kubeconfigBytes,
-					namespace:       h.namespace,
-					resources:       newStatus.Reverse,
-				})
-				for k, v := range newStatus.Reverse.ele {
-					if iv, f := store.(*name).resources.ele[k]; f {
-						for _, info := range v.List() {
-							if !iv.HasKey(info.string) {
-								iv.DeleteByKeys(info.string)
-							}
-						}
-					} else {
-						delete(store.(*name).resources.ele, k)
-					}
-				}
-				h.reverseInfoLock.Unlock()
+				modifyReverseInfo(h, newStatus)
 			}
 		} else {
-			// needs to notify sudo daemon to update connect namespace
-			fmt.Println("needs to notify sudo daemon to update connect namespace, this should not to be happen")
-			ReleaseWatcher(h.kubeconfigBytes, h.namespace)
-			if bytes, err := util.GetClientSetByKubeconfigBytes(h.kubeconfigBytes); err == nil {
-				_ = UpdateConnect(bytes, h.namespace, func(list sets.String, item string) {
-					list.Delete(item)
-				})
-				if value, found := GetReverseInfo().LoadAndDelete(h.toKey()); found {
-					for _, s := range value.(*name).resources.GetBelongToMeResources().KeySet() {
-						_ = UpdateReverseConfigMap(bytes, h.namespace, s,
-							func(r *ReverseTotal, record ReverseRecord) {
-								r.RemoveRecord(record)
-							})
-					}
-				}
-			}
+			// someone already connected, release myself
+			release(h)
 		}
 	}
-	// if connected --> disconnected
+	// if connected --> disconnected, needs to notify sudo daemon to connect
 	if oldStatus.Connect.IsConnected() && !newStatus.Connect.IsConnected() {
 		if connectInfo.IsSame(h.kubeconfigBytes, h.namespace) {
 			connectInfo.cleanup()
@@ -306,6 +244,52 @@ func (h *resourceHandler) OnUpdate(oldObj, newObj interface{}) {
 		if h.backoffTime.Unix() < time.Now().Unix() {
 			go h.notifySudoDaemonToDisConnect()
 			h.backoffTime = time.Now().Add(time.Second * 5)
+		}
+	}
+}
+
+// release resource handler will stop watcher
+func release(h *resourceHandler) {
+	// needs to notify sudo daemon to update connect namespace
+	fmt.Println("needs to notify sudo daemon to update connect namespace, this should not to be happen")
+	ReleaseWatcher(h.kubeconfigBytes, h.namespace)
+	if clientset, err := util.GetClientSetByKubeconfigBytes(h.kubeconfigBytes); err == nil {
+		_ = UpdateConnect(clientset, h.namespace, func(list sets.String, item string) {
+			list.Delete(item)
+		})
+		if value, found := GetReverseInfo().LoadAndDelete(h.toKey()); found {
+			for _, s := range value.(*name).resources.GetBelongToMeResources().KeySet() {
+				_ = UpdateReverseConfigMap(clientset, h.namespace, s,
+					func(r *ReverseTotal, record ReverseRecord) {
+						r.RemoveRecord(record)
+					})
+			}
+		}
+	}
+}
+
+// modifyReverseInfo modify reverse info using latest vpn status
+// iterator latest vpn status and delete resource which not exist
+func modifyReverseInfo(h *resourceHandler, newStatus VPNStatus) {
+	h.reverseInfoLock.Lock()
+	defer h.reverseInfoLock.Unlock()
+	// using same reference, because health check will modify status
+	store, _ := h.reverseInfo.LoadOrStore(h.toKey(), &name{
+		kubeconfigBytes: h.kubeconfigBytes,
+		namespace:       h.namespace,
+		resources:       newStatus.Reverse,
+	})
+	for k, v := range newStatus.Reverse.ele {
+		if iv, f := store.(*name).resources.ele[k]; f {
+			for _, info := range v.List() {
+				// if resource is not reversing, needs to delete it
+				if !iv.HasKey(info.string) {
+					iv.DeleteByKeys(info.string)
+				}
+			}
+		} else {
+			// if latest status not contains mac address, needs to delete it
+			delete(store.(*name).resources.ele, k)
 		}
 	}
 }
@@ -321,28 +305,22 @@ func (h *resourceHandler) OnDelete(obj interface{}) {
 	}
 }
 
-func (h *resourceHandler) notifySudoDaemonToConnect() error {
+func (h *resourceHandler) notifySudoDaemonToConnect() {
 	client, err := daemon_client.GetDaemonClient(true)
 	if err != nil {
-		return err
+		return
 	}
 	path := nocalhost.GetOrGenKubeConfigPath(string(h.kubeconfigBytes))
-	if _, err = client.SendSudoVPNOperateCommand(path, h.namespace, command.Connect, ""); err != nil {
-		return err
-	}
-	return nil
+	client.SendSudoVPNOperateCommand(path, h.namespace, command.Connect, "")
 }
 
-func (h *resourceHandler) notifySudoDaemonToDisConnect() error {
+func (h *resourceHandler) notifySudoDaemonToDisConnect() {
 	client, err := daemon_client.GetDaemonClient(true)
 	if err != nil {
-		return err
+		return
 	}
 	path := nocalhost.GetOrGenKubeConfigPath(string(h.kubeconfigBytes))
-	if _, err = client.SendSudoVPNOperateCommand(path, h.namespace, command.DisConnect, ""); err != nil {
-		return err
-	}
-	return nil
+	client.SendSudoVPNOperateCommand(path, h.namespace, command.DisConnect, "")
 }
 
 func generateKey(kubeconfigBytes []byte, namespace string) string {
@@ -409,10 +387,8 @@ func checkReverse() {
 				connect.Workloads = []string{k}
 				if _, err := connect.Shell(context.TODO()); err != nil {
 					info.Health = UnHealthy
-					fmt.Printf("resource %s is UnHealthy\n", info.string)
 				} else {
 					info.Health = Healthy
-					fmt.Printf("resource %s is health\n", info.string)
 				}
 			}(k, v)
 		})
