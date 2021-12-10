@@ -337,8 +337,10 @@ func (c *Controller) createPvcForPersistentVolumeDir(
 		return nil, err
 	}
 	if persistentVolume.WaitForFirstConsumer {
-		log.Infof("The volumeBindingMode of this pvc(%s) is WaitForFirstConsumer, "+
-			"we don't need to wait it for being bounded", persistentVolume.Path)
+		log.Infof(
+			"The volumeBindingMode of this pvc(%s) is WaitForFirstConsumer, "+
+				"we don't need to wait it for being bounded", persistentVolume.Path,
+		)
 		return pvc, nil
 	}
 	// wait pvc to be ready
@@ -361,19 +363,24 @@ func (c *Controller) createPvcForPersistentVolumeDir(
 			if condition.Reason == "ProvisioningFailed" {
 				log.Warnf(
 					"Failed to create a pvc for %s, check if your StorageClass is set correctly",
-					persistentVolume.Path)
+					persistentVolume.Path,
+				)
 				break
 			} else if condition.Reason == "WaitForFirstConsumer" {
-				log.Infof("The volumeBindingMode of this pvc(%s) is WaitForFirstConsumer. "+
-					"We don't need to wait it for being bounded", persistentVolume.Path)
+				log.Infof(
+					"The volumeBindingMode of this pvc(%s) is WaitForFirstConsumer. "+
+						"We don't need to wait it for being bounded", persistentVolume.Path,
+				)
 				return pvc, nil
 			}
 		}
 		if es, err := c.Client.SearchEvents(pvc); err == nil {
 			for _, item := range es.Items {
 				if item.Reason == "WaitForFirstConsumer" {
-					log.Infof("The volumeBindingMode of this pvc(%s) is WaitForFirstConsumer. "+
-						"We don't need to wait it for being bounded", persistentVolume.Path)
+					log.Infof(
+						"The volumeBindingMode of this pvc(%s) is WaitForFirstConsumer. "+
+							"We don't need to wait it for being bounded", persistentVolume.Path,
+					)
 					return pvc, nil
 				}
 			}
@@ -480,7 +487,7 @@ func convertToResourceList(cpu string, mem string) (corev1.ResourceList, error) 
 
 func waitingPodToBeReady(f func() (string, error)) error {
 	// Wait podList to be ready
-	log.Info(" Waiting pod to start...")
+	log.Info("Waiting pod to start...")
 
 	for i := 0; i < 300; i++ {
 		<-time.NewTimer(time.Second * 1).C
@@ -503,6 +510,12 @@ func isContainerReadyAndRunning(containerName string, pod *corev1.Pod) bool {
 	return false
 }
 
+var printer = utils.NewSpinnerExt(
+	func(s string) {
+		log.Infof(s)
+	},
+)
+
 // Find Ready Dev Pod's name
 func findDevPodName(podList []corev1.Pod) (string, error) {
 	resultPodList := make([]corev1.Pod, 0)
@@ -516,6 +529,7 @@ func findDevPodName(podList []corev1.Pod) (string, error) {
 			}
 		}
 	}
+
 	if len(resultPodList) > 0 {
 		latestPod := resultPodList[0]
 		for i := 1; i < len(resultPodList); i++ {
@@ -525,6 +539,30 @@ func findDevPodName(podList []corev1.Pod) (string, error) {
 				latestPod = resultPodList[i]
 			}
 		}
+
+		for _, status := range latestPod.Status.ContainerStatuses {
+			if status.Name != "nocalhost-dev" && status.Name != "nocalhost-sidecar" {
+				continue
+			}
+
+			tag := status.Name
+			msg := "Container: " + status.Name
+
+			if status.State.Running != nil {
+				msg += " is Running"
+			} else if status.State.Terminated != nil {
+				msg += " is Terminated"
+			} else if status.State.Waiting != nil {
+				msg += " is Waiting, Reason: " + status.State.Waiting.Reason
+				if status.State.Waiting.Message != "" {
+					msg += " Msg: " + status.State.Waiting.Message
+				}
+			}
+
+			printer.Start()
+			printer.ChangeContent(tag, msg)
+		}
+
 		if latestPod.Status.Phase == "Running" {
 			return latestPod.Name, nil
 		}
@@ -551,7 +589,8 @@ func (c *Controller) genContainersAndVolumes(podSpec *corev1.PodSpec,
 	devModeMounts = append(devModeMounts, syncthingVolumeMounts...)
 
 	workDirAndPersistVolumes, workDirAndPersistVolumeMounts, err := c.genWorkDirAndPVAndMounts(
-		containerName, storageClass, duplicateDevMode)
+		containerName, storageClass, duplicateDevMode,
+	)
 	if err != nil {
 		return nil, nil, nil, err
 	}
