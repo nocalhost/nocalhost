@@ -427,7 +427,7 @@ func fillResourceListSet(
 func setVClusterStatusInTo(cu []*model.ClusterUserV2) {
 	var hasVirtualCluster bool
 	for i := 0; i < len(cu); i++ {
-		if cu[i].SpaceType == model.VirtualCluster {
+		if cu[i].DevSpaceType == model.VirtualClusterType {
 			hasVirtualCluster = true
 			break
 		}
