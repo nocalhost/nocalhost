@@ -184,6 +184,10 @@ func (w *ConfigMapWatcher) Start() {
 }
 
 func (w *ConfigMapWatcher) Stop() {
+	defer func() {
+		if r := recover(); r != nil {
+		}
+	}()
 	close(w.stopChan)
 }
 

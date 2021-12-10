@@ -504,7 +504,7 @@ func GetLoggerFromContext(ctx context.Context) *log.Logger {
 	if l := ctx.Value("logger"); l != nil {
 		return l.(*log.Logger)
 	} else {
-		return log.New()
+		return NewLogger(os.Stdout)
 	}
 }
 

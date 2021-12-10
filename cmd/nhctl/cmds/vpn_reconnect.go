@@ -65,7 +65,6 @@ var reconnectCmd = &cobra.Command{
 			if line, _, err := stream.ReadLine(); errors.Is(err, io.EOF) {
 				return
 			} else {
-				fmt.Println(string(line))
 				if strings.Contains(string(line), util.EndSignOK) {
 					readClose.Close()
 					return
@@ -73,6 +72,7 @@ var reconnectCmd = &cobra.Command{
 					readClose.Close()
 					return
 				}
+				fmt.Println(string(line))
 			}
 		}
 	},

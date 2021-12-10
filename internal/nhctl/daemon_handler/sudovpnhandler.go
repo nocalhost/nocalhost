@@ -25,7 +25,7 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser)
 	logCtx := util.GetContextWithLogger(writer)
 	logger := util.GetLoggerFromContext(logCtx)
 	connect := &pkg.ConnectOptions{
-		Logger:         logger,
+		Ctx:            logCtx,
 		KubeconfigPath: cmd.KubeConfig,
 		Namespace:      cmd.Namespace,
 		Workloads:      []string{cmd.Resource},
@@ -45,7 +45,7 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser)
 		lock.Lock()
 		defer lock.Unlock()
 		if connected != nil {
-			logger.Errorln("already connected")
+			logger.Errorf("already connected to namespace: %s\n", connected.Namespace)
 			logger.Infoln(util.EndSignFailed)
 			writer.Close()
 			return nil
@@ -65,12 +65,12 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser)
 					errChan, err := c.DoConnect(ctx)
 					if err != nil {
 						log.Warn(err)
-						c.Logger.Infoln(util.EndSignFailed)
+						c.GetLogger().Infoln(util.EndSignFailed)
 						time.Sleep(time.Second * 2)
 						return
 					}
-					c.Logger.Infoln(util.EndSignOK)
-					c.Logger = util.NewLogger(os.Stdout)
+					c.GetLogger().Infoln(util.EndSignOK)
+					c.SetLogger(util.NewLogger(os.Stdout))
 					// wait for exit
 					if err = <-errChan; err != nil {
 						fmt.Println(err)

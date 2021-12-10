@@ -59,7 +59,7 @@ func (d *DHCPManager) InitDHCPIfNecessary(ctx context.Context) error {
 	}
 	_, err = d.client.CoreV1().ConfigMaps(d.namespace).Create(context.Background(), result, metav1.CreateOptions{})
 	if err != nil {
-		util.GetLoggerFromContext(ctx).Errorf("create dhcp error, err: %v", err)
+		util.GetLoggerFromContext(ctx).Errorf("create DHCP error, err: %v", err)
 		return err
 	}
 	return nil

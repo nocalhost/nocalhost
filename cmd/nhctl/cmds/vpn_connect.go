@@ -69,7 +69,6 @@ var connectCmd = &cobra.Command{
 				if len(line) == 0 {
 					continue
 				}
-				fmt.Println(string(line))
 				if strings.Contains(string(line), util.EndSignOK) {
 					readClose.Close()
 					return
@@ -77,6 +76,7 @@ var connectCmd = &cobra.Command{
 					readClose.Close()
 					return
 				}
+				fmt.Println(string(line))
 			}
 		}
 	},

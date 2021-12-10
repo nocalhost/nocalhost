@@ -122,7 +122,7 @@ func getController() Scalable {
 	return nil
 }
 
-func CreateInboundPod(factory cmdutil.Factory, clientset *kubernetes.Clientset, namespace, workloads, virtualLocalIp, realRouterIP, virtualShadowIp, routes string) error {
+func CreateInboundPod(ctx context.Context, factory cmdutil.Factory, clientset *kubernetes.Clientset, namespace, workloads, virtualLocalIp, realRouterIP, virtualShadowIp, routes string) error {
 	tuple, parsed, err2 := util.SplitResourceTypeName(workloads)
 	if !parsed || err2 != nil {
 		return errors.New("not need")
@@ -145,6 +145,7 @@ func CreateInboundPod(factory cmdutil.Factory, clientset *kubernetes.Clientset, 
 		sc = NewCustomResourceDefinitionController(factory, clientset, namespace, tuple.Resource, tuple.Name)
 	}
 	labels, ports, str, err2 := sc.ScaleToZero()
+	util.GetLoggerFromContext(ctx).Infoln("scaling workloads to 0...")
 	t := true
 	zero := int64(0)
 	pod := v1.Pod{
@@ -212,14 +213,17 @@ func CreateInboundPod(factory cmdutil.Factory, clientset *kubernetes.Clientset, 
 	for {
 		select {
 		case e := <-watch.ResultChan():
-			if p, ok := e.Object.(*v1.Pod); ok && p.Status.Phase == v1.PodRunning {
-				watch.Stop()
-				return nil
+			if p, ok := e.Object.(*v1.Pod); ok {
+				util.GetLoggerFromContext(ctx).Infof("pods: %s is %s ...", p.Name, p.Status.Phase)
+				if p.Status.Phase == v1.PodRunning {
+					watch.Stop()
+					return nil
+				}
 			}
 		case <-time.Tick(time.Minute * 5):
 			watch.Stop()
-			log.Error("timeout")
-			return errors.New("timeout")
+			util.GetLoggerFromContext(ctx).Infof("wait pods: %s to be ready timeout", newName)
+			return errors.New(fmt.Sprintf("wait pods: %s to be ready timeout", newName))
 		}
 	}
 }

@@ -21,6 +21,7 @@ import (
 	"nocalhost/internal/nhctl/vpn/dns"
 	"nocalhost/internal/nhctl/vpn/remote"
 	"nocalhost/internal/nhctl/vpn/util"
+	"os"
 	"os/exec"
 	"regexp"
 	"sort"
@@ -30,6 +31,7 @@ import (
 )
 
 type ConnectOptions struct {
+	Ctx             context.Context
 	KubeconfigPath  string
 	KubeconfigBytes []byte
 	Namespace       string
@@ -44,7 +46,22 @@ type ConnectOptions struct {
 	routerIP        string
 	dhcp            *remote.DHCPManager
 	ipUsed          []*net.IPNet
-	Logger          *log.Logger
+	log             *log.Logger
+}
+
+func (c *ConnectOptions) GetLogger() *log.Logger {
+	if l := c.Ctx.Value("logger"); l != nil {
+		return l.(*log.Logger)
+	} else if c.log != nil {
+		return c.log
+	} else {
+		c.log = util.NewLogger(os.Stdout)
+		return c.log
+	}
+}
+
+func (c *ConnectOptions) SetLogger(logger *log.Logger) {
+	c.log = logger
 }
 
 func (c *ConnectOptions) IsSameKubeconfigAndNamespace(another *ConnectOptions) bool {
@@ -57,7 +74,12 @@ func (c *ConnectOptions) GetClientSet() *kubernetes.Clientset {
 
 func (c *ConnectOptions) RentIP(random bool) (ip *net.IPNet, err error) {
 	if random {
-		ip, err = c.dhcp.RentIPRandom()
+		for i := 0; i < 5; i++ {
+			if ip, err = c.dhcp.RentIPRandom(); err == nil {
+				return ip, nil
+			}
+		}
+		return nil, err
 	}
 	ip, err = c.dhcp.RentIPBaseNICAddress()
 	if err != nil {
@@ -92,12 +114,16 @@ func (c *ConnectOptions) createRemoteInboundPod(tunIp *net.IPNet) error {
 		if len(workload) > 0 {
 			wg.Add(1)
 			go func(finalWorkload string) {
-				defer wg.Done()
+				defer func() {
+					recover()
+					wg.Done()
+				}()
 				lock.Lock()
 				virtualShadowIp, _ := c.RentIP(true)
 				lock.Unlock()
 
 				err := CreateInboundPod(
+					c.Ctx,
 					c.factory,
 					c.clientset,
 					c.Namespace,
@@ -176,16 +202,16 @@ func (c *ConnectOptions) Prepare(ctx context.Context) error {
 	c.nodeConfig.ServeNodes = []string{
 		fmt.Sprintf("tun://:8421/127.0.0.1:8421?net=%s&route=%s", c.tunIP.String(), strings.Join(list, ",")),
 	}
-	return err
+	return nil
 }
 
 func (c *ConnectOptions) DoConnect(ctx context.Context) (chan error, error) {
 	var err error
-	c.routerIP, err = CreateOutboundRouterPodIfNecessary(c.clientset, c.Namespace, &util.RouterIP, c.cidrs, c.Logger)
+	c.routerIP, err = CreateOutboundRouterPodIfNecessary(c.clientset, c.Namespace, &util.RouterIP, c.cidrs, c.GetLogger())
 	if err != nil {
 		return nil, err
 	}
-	c.Logger.Info("your ip is " + c.tunIP.String())
+	c.GetLogger().Info("your ip is " + c.tunIP.IP.String())
 	if !util.IsPortListening(10800) {
 		c.portForward(ctx)
 	}
@@ -202,7 +228,7 @@ func (c *ConnectOptions) DoReverse(ctx context.Context) error {
 		},
 	)
 	if err != nil || firstPod == nil {
-		return errors.New("can not found router ip while reverse")
+		return errors.New("can not found router ip while reverse resource")
 	}
 	c.routerIP = firstPod.Status.PodIP
 	if err = c.createRemoteInboundPod(c.tunIP); err != nil {
@@ -236,7 +262,7 @@ func (c *ConnectOptions) portForward(ctx context.Context) {
 			func() {
 				defer func() {
 					if err := recover(); err != nil {
-						c.Logger.Warnf("recover error: %v, ignore", err)
+						c.GetLogger().Warnf("recover error: %v, ignore", err)
 					}
 				}()
 				readChan := make(chan struct{})
@@ -253,11 +279,11 @@ func (c *ConnectOptions) portForward(ctx context.Context) {
 					stopChan,
 				)
 				if apierrors.IsNotFound(err) {
-					c.Logger.Errorln("can not found port-forward resource, err: %v, exiting", err)
+					c.GetLogger().Errorln("can not found port-forward resource, err: %v, exiting", err)
 					return
 				}
 				if err != nil {
-					c.Logger.Errorf("port-forward occurs error, err: %v, retrying", err)
+					c.GetLogger().Errorf("port-forward occurs error, err: %v, retrying", err)
 					//time.Sleep(time.Second * 2)
 				}
 			}()
@@ -266,7 +292,7 @@ func (c *ConnectOptions) portForward(ctx context.Context) {
 	for readyChanRef == nil {
 	}
 	<-*readyChanRef
-	c.Logger.Info("port forward ready")
+	c.GetLogger().Infoln("port forward 10800:10800 ready")
 }
 
 func (c *ConnectOptions) startLocalTunServe(ctx context.Context) (chan error, error) {
@@ -274,7 +300,7 @@ func (c *ConnectOptions) startLocalTunServe(ctx context.Context) (chan error, er
 	if err != nil {
 		return nil, err
 	}
-
+	c.GetLogger().Infof("tunnel create secussfullly")
 	if util.IsWindows() {
 		if !util.FindRule() {
 			util.AddFirewallRule()
@@ -294,7 +320,7 @@ func (c *ConnectOptions) startLocalTunServe(ctx context.Context) (chan error, er
 	if err = c.setupDNS(); err != nil {
 		return nil, err
 	}
-	log.Info("dns service ok")
+	log.Info("setup DNS service successfully")
 	return errChan, nil
 }
 
@@ -370,7 +396,7 @@ func getCIDR(clientset *kubernetes.Clientset, namespace string) ([]*net.IPNet, e
 	if len(result) != 0 {
 		return result, nil
 	}
-	return nil, fmt.Errorf("can not found cidr")
+	return nil, fmt.Errorf("can not found CIDR")
 }
 
 func (c *ConnectOptions) InitClient(ctx context.Context) (err error) {
@@ -393,7 +419,6 @@ func (c *ConnectOptions) InitClient(ctx context.Context) (err error) {
 		}
 	}
 	c.KubeconfigBytes, _ = ioutil.ReadFile(c.KubeconfigPath)
-	util.GetLoggerFromContext(ctx).Infof("kubeconfig path: %s, namespace: %s, serivces: %v", c.KubeconfigPath, c.Namespace, c.Workloads)
 	return
 }
 

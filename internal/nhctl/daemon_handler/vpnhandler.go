@@ -35,47 +35,46 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 		writer.Close()
 	}()
 	connect := &pkg.ConnectOptions{
-		Logger:         logger,
+		Ctx:            logCtx,
 		KubeconfigPath: cmd.KubeConfig,
 		Namespace:      cmd.Namespace,
 		Workloads:      []string{cmd.Resource},
 	}
 	if err = connect.InitClient(logCtx); err != nil {
+		logger.Errorln("init client err, please make sure your kubeconfig is available !")
 		return
 	}
 	if err = connect.Prepare(logCtx); err != nil {
 		return
 	}
 	_ = remote.NewDHCPManager(connect.GetClientSet(), cmd.Namespace, &util.RouterIP).InitDHCPIfNecessary(logCtx)
-	w := GetOrGenerateConfigMapWatcher(connect.KubeconfigBytes, cmd.Namespace, connect.GetClientSet().CoreV1().RESTClient())
-	if w == nil {
-		logger.Printf("create configmap for ns: %s failed\n", cmd.Namespace)
-	} else {
-		logger.Printf("create configmap for ns: %s ok\n", cmd.Namespace)
-	}
+	GetOrGenerateConfigMapWatcher(connect.KubeconfigBytes, cmd.Namespace, connect.GetClientSet().CoreV1().RESTClient())
 	client, _ := daemon_client.GetDaemonClient(true)
 	switch cmd.Action {
 	case command.Connect:
 		// pre-check if resource already in reversing mode
 		if load, ok := GetReverseInfo().Load(generateKey(connect.KubeconfigBytes, connect.Namespace)); ok {
 			if load.(*name).resources.ReversedResource().Has(cmd.Resource) {
-				err = errors.New("already in reversing mode")
+				err = errors.New(fmt.Sprintf("resource %s already in reversing mode by another one", cmd.Resource))
 				return
 			}
 		}
 
 		// change to another cluster or namespace, clean all reverse
 		if !connectInfo.IsEmpty() && !connectInfo.IsSame(connect.KubeconfigBytes, cmd.Namespace) {
+			logger.Infof("you already connect to namespace: %s, switching to namespace: %s...\n",
+				connectInfo.namespace, cmd.Namespace)
 			ReleaseWatcher(connectInfo.kubeconfigBytes, connectInfo.namespace)
 			clientset, err := util.GetClientSetByKubeconfigBytes(connectInfo.kubeconfigBytes)
 			if err != nil {
 				return err
 			}
 			// cleanup all reverse
+			logger.Infof("cleanup all old reverse resources...\n")
 			path := nocalhost.GetOrGenKubeConfigPath(string(connectInfo.kubeconfigBytes))
 			if value, found := GetReverseInfo().LoadAndDelete(connectInfo.toKey()); found {
 				connectOptions := &pkg.ConnectOptions{
-					Logger:         logger,
+					Ctx:            logCtx,
 					KubeconfigPath: path,
 					Namespace:      connectInfo.namespace,
 				}
@@ -103,6 +102,7 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 			}); err != nil {
 				logger.Infof("error while remove connection info of %s\n", connectInfo.namespace)
 			}
+			logger.Infof("disconnecting from old namespace...\n")
 			if r, err := client.SendSudoVPNOperateCommand(
 				path, connectInfo.namespace, command.DisConnect, cmd.Resource); err == nil {
 				transStreamToWriterWithoutExit(writer, r)
@@ -118,18 +118,20 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 		}); err != nil {
 			return
 		}
+		logger.Infof("connecting to new namespace...\n")
 		if r, err := client.SendSudoVPNOperateCommand(
 			cmd.KubeConfig, cmd.Namespace, command.Connect, cmd.Resource); err == nil {
 			transStreamToWriterWithoutExit(writer, r)
 		}
 		//}
-
+		logger.Infof("connectted to new namespace\n")
 		// reverse resource if needed
 		if len(cmd.Resource) != 0 {
+			logger.Infof("prepare to reverse resource: %s...\n", cmd.Resource)
 			_ = UpdateReverseConfigMap(connect.GetClientSet(), cmd.Namespace, cmd.Resource, func(r *ReverseTotal, record ReverseRecord) {
 				r.AddRecord(record)
 			})
-			if err = connect.DoReverse(context.TODO()); err != nil {
+			if err = connect.DoReverse(logCtx); err != nil {
 				return
 			}
 		}
@@ -149,7 +151,7 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 	case command.DisConnect:
 		defer writer.Close()
 		if len(cmd.Resource) != 0 {
-			load, ok := GetReverseInfo().LoadAndDelete(generateKey(connect.KubeconfigBytes, connect.Namespace))
+			load, ok := GetReverseInfo().Load(generateKey(connect.KubeconfigBytes, connect.Namespace))
 			if !ok {
 				return nil
 			}
@@ -161,20 +163,21 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 				},
 			)
 			if err = connect.RemoveInboundPod(); err != nil {
-				logger.Errorf("error while delete reverse, info: %s-%s, err: %v",
+				logger.Errorf("error while delete reverse pods, info: %s-%s, err: %v",
 					connect.Namespace, cmd.Resource, err)
 			} else {
-				logger.Infof("delete reverse, info: %s-%s secusefully",
+				logger.Infof("delete reverse pod, info: %s-%s secusefully",
 					connect.Namespace, cmd.Resource)
 			}
 
 			// if cancel last reverse resources, needs to close connect
-			if value, found := GetReverseInfo().LoadAndDelete(generateKey(connect.KubeconfigBytes, connect.Namespace)); found {
+			if value, found := GetReverseInfo().Load(generateKey(connect.KubeconfigBytes, connect.Namespace)); found {
 				if value.(*name).resources.GetBelongToMeResources().Len() == 0 {
 					ReleaseWatcher(connect.KubeconfigBytes, cmd.Namespace)
 					_ = UpdateConnect(connect.GetClientSet(), cmd.Namespace, func(list sets.String, address string) {
 						list.Delete(address)
 					})
+					logger.Infof("have no reverse resource, disconnectting from namespace: %s...\n", cmd.Namespace)
 					if r, err := client.SendSudoVPNOperateCommand(
 						cmd.KubeConfig, cmd.Namespace, command.DisConnect, cmd.Resource); err == nil {
 						transStreamToWriter(writer, r)
@@ -183,6 +186,7 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 			}
 			return
 		} else {
+			logger.Infof("disconnectting from namespace: %s\n", cmd.Namespace)
 			ReleaseWatcher(connect.KubeconfigBytes, cmd.Namespace)
 			_ = UpdateConnect(connect.GetClientSet(), cmd.Namespace, func(list sets.String, address string) {
 				list.Delete(address)
@@ -195,7 +199,7 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 				}
 				path := nocalhost.GetOrGenKubeConfigPath(string(value.(*name).kubeconfigBytes))
 				temp := &pkg.ConnectOptions{
-					Logger:         logger,
+					Ctx:            logCtx,
 					KubeconfigPath: path,
 					Namespace:      value.(*name).namespace,
 					Workloads:      []string{},
@@ -280,10 +284,12 @@ func transStreamToWriter(writer io.Writer, r io.ReadCloser) {
 		if err != nil {
 			return
 		}
-		writer.Write(line)
-		writer.Write([]byte("\n"))
-		if strings.Contains(string(line), util.EndSignOK) || strings.Contains(string(line), util.EndSignFailed) {
-			return
+		if len(line) != 0 {
+			writer.Write(line)
+			writer.Write([]byte("\n"))
+			if strings.Contains(string(line), util.EndSignOK) || strings.Contains(string(line), util.EndSignFailed) {
+				return
+			}
 		}
 	}
 }
@@ -299,11 +305,13 @@ func transStreamToWriterWithoutExit(writer io.Writer, r io.ReadCloser) {
 		if err != nil {
 			return
 		}
-		if strings.Contains(string(line), util.EndSignOK) || strings.Contains(string(line), util.EndSignFailed) {
-			return
+		if len(line) != 0 {
+			if strings.Contains(string(line), util.EndSignOK) || strings.Contains(string(line), util.EndSignFailed) {
+				return
+			}
+			writer.Write(line)
+			writer.Write([]byte("\n"))
 		}
-		writer.Write(line)
-		writer.Write([]byte("\n"))
 	}
 }
 
