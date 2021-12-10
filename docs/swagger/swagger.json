@@ -1393,6 +1393,30 @@
                 }
             }
         },
+        "/v1/nocalhost/version/vcluster": {
+            "get": {
+                "description": "VClusterVersion get vcluster version  info",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Version"
+                ],
+                "summary": "VClusterVersion get vcluster version  info",
+                "responses": {
+                    "200": {
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":model.VClusterVersion}",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.VClusterVersion"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/plugin/application/{id}/dev_space/{spaceId}/plugin_sync": {
             "put": {
                 "description": "Plug-in Update app installation status",
@@ -1810,6 +1834,30 @@
                         "description": "{\"code\":0,\"message\":\"OK\",\"data\":{\"version\":\"\",\"commit_id\":\"\",\"branch\":\"\"}}",
                         "schema": {
                             "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/v2/dev_space": {
+            "get": {
+                "description": "ListV2 get get devspace list",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "DevSpace"
+                ],
+                "summary": "ListV2 get devspace list",
+                "responses": {
+                    "200": {
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":model.ClusterUserV2}",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterUserV2"
                         }
                     }
                 }
@@ -2270,6 +2318,9 @@
                 "created_at": {
                     "type": "string"
                 },
+                "dev_space_type": {
+                    "type": "integer"
+                },
                 "id": {
                     "type": "integer"
                 },
@@ -2354,6 +2405,94 @@
                 }
             }
         },
+        "model.ClusterUserV2": {
+            "type": "object",
+            "properties": {
+                "base_dev_space_id": {
+                    "type": "integer"
+                },
+                "base_dev_space_name": {
+                    "type": "string"
+                },
+                "base_dev_space_namespace": {
+                    "type": "string"
+                },
+                "cluster_admin": {
+                    "type": "integer"
+                },
+                "cluster_id": {
+                    "type": "integer"
+                },
+                "cluster_name": {
+                    "type": "string"
+                },
+                "cooper_user": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.UserSimple"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "deletable": {
+                    "type": "boolean"
+                },
+                "dev_space_type": {
+                    "type": "integer"
+                },
+                "id": {
+                    "description": "Intrinsic field",
+                    "type": "integer"
+                },
+                "is_base_space": {
+                    "type": "boolean"
+                },
+                "modifiable": {
+                    "type": "boolean"
+                },
+                "namespace": {
+                    "type": "string"
+                },
+                "owner": {
+                    "type": "object",
+                    "$ref": "#/definitions/model.UserSimple"
+                },
+                "resource_limit_set": {
+                    "type": "boolean"
+                },
+                "space_name": {
+                    "type": "string"
+                },
+                "space_own_type": {
+                    "type": "object",
+                    "$ref": "#/definitions/model.SpaceOwnType"
+                },
+                "space_resource_limit": {
+                    "type": "string"
+                },
+                "space_type": {
+                    "type": "string"
+                },
+                "trace_header": {
+                    "type": "object",
+                    "$ref": "#/definitions/model.Header"
+                },
+                "user_id": {
+                    "type": "integer"
+                },
+                "viewer_user": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.UserSimple"
+                    }
+                },
+                "virtual_cluster_info": {
+                    "type": "object",
+                    "$ref": "#/definitions/model.VirtualClusterInfo"
+                }
+            }
+        },
         "model.Header": {
             "type": "object",
             "properties": {
@@ -2429,6 +2568,17 @@
                 },
                 "used": {
                     "type": "number"
+                }
+            }
+        },
+        "model.SpaceOwnType": {
+            "type": "object",
+            "properties": {
+                "priority": {
+                    "type": "integer"
+                },
+                "str": {
+                    "type": "string"
                 }
             }
         },
@@ -2513,6 +2663,49 @@
                 }
             }
         },
+        "model.UserSimple": {
+            "type": "object",
+            "properties": {
+                "avatar": {
+                    "type": "string"
+                },
+                "cluster_admin": {
+                    "type": "integer"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_admin": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "integer"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.VClusterVersion": {
+            "type": "object",
+            "properties": {
+                "versions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "model.VersionUpgradeInfo": {
             "type": "object",
             "properties": {
@@ -2523,6 +2716,17 @@
                     "type": "boolean"
                 },
                 "upgrade_version": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.VirtualClusterInfo": {
+            "type": "object",
+            "properties": {
+                "events": {
+                    "type": "string"
+                },
+                "status": {
                     "type": "string"
                 }
             }

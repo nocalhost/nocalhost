@@ -278,6 +278,8 @@ definitions:
         type: string
       created_at:
         type: string
+      dev_space_type:
+        type: integer
       id:
         type: integer
       kubeconfig:
@@ -334,6 +336,66 @@ definitions:
       user_id:
         type: integer
     type: object
+  model.ClusterUserV2:
+    properties:
+      base_dev_space_id:
+        type: integer
+      base_dev_space_name:
+        type: string
+      base_dev_space_namespace:
+        type: string
+      cluster_admin:
+        type: integer
+      cluster_id:
+        type: integer
+      cluster_name:
+        type: string
+      cooper_user:
+        items:
+          $ref: '#/definitions/model.UserSimple'
+        type: array
+      created_at:
+        type: string
+      deletable:
+        type: boolean
+      dev_space_type:
+        type: integer
+      id:
+        description: Intrinsic field
+        type: integer
+      is_base_space:
+        type: boolean
+      modifiable:
+        type: boolean
+      namespace:
+        type: string
+      owner:
+        $ref: '#/definitions/model.UserSimple'
+        type: object
+      resource_limit_set:
+        type: boolean
+      space_name:
+        type: string
+      space_own_type:
+        $ref: '#/definitions/model.SpaceOwnType'
+        type: object
+      space_resource_limit:
+        type: string
+      space_type:
+        type: string
+      trace_header:
+        $ref: '#/definitions/model.Header'
+        type: object
+      user_id:
+        type: integer
+      viewer_user:
+        items:
+          $ref: '#/definitions/model.UserSimple'
+        type: array
+      virtual_cluster_info:
+        $ref: '#/definitions/model.VirtualClusterInfo'
+        type: object
+    type: object
   model.Header:
     properties:
       key:
@@ -384,6 +446,13 @@ definitions:
         type: string
       used:
         type: number
+    type: object
+  model.SpaceOwnType:
+    properties:
+      priority:
+        type: integer
+      str:
+        type: string
     type: object
   model.UserBaseModel:
     properties:
@@ -438,6 +507,34 @@ definitions:
       status:
         type: integer
     type: object
+  model.UserSimple:
+    properties:
+      avatar:
+        type: string
+      cluster_admin:
+        type: integer
+      email:
+        type: string
+      id:
+        type: integer
+      is_admin:
+        type: integer
+      name:
+        type: string
+      phone:
+        type: integer
+      status:
+        type: integer
+      username:
+        type: string
+    type: object
+  model.VClusterVersion:
+    properties:
+      versions:
+        items:
+          type: string
+        type: array
+    type: object
   model.VersionUpgradeInfo:
     properties:
       current_version:
@@ -445,6 +542,13 @@ definitions:
       has_new_version:
         type: boolean
       upgrade_version:
+        type: string
+    type: object
+  model.VirtualClusterInfo:
+    properties:
+      events:
+        type: string
+      status:
         type: string
     type: object
   setupcluster.MeshDevApp:
@@ -1508,6 +1612,22 @@ paths:
       summary: UpgradeInfo api server version update info
       tags:
       - Version
+  /v1/nocalhost/version/vcluster:
+    get:
+      consumes:
+      - application/json
+      description: VClusterVersion get vcluster version  info
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":model.VClusterVersion}'
+          schema:
+            $ref: '#/definitions/model.VClusterVersion'
+            type: object
+      summary: VClusterVersion get vcluster version  info
+      tags:
+      - Version
   /v1/plugin/{id}/recreate:
     post:
       consumes:
@@ -1793,6 +1913,22 @@ paths:
       summary: Get api server version
       tags:
       - Version
+  /v2/dev_space:
+    get:
+      consumes:
+      - application/json
+      description: ListV2 get get devspace list
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":model.ClusterUserV2}'
+          schema:
+            $ref: '#/definitions/model.ClusterUserV2'
+            type: object
+      summary: ListV2 get devspace list
+      tags:
+      - DevSpace
   /v2/dev_space/cluster:
     get:
       consumes:
