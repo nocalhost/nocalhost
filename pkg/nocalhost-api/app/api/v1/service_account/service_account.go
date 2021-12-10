@@ -125,7 +125,7 @@ func ListAuthorization(c *gin.Context) {
 					return
 				}
 				result = append(result, &ServiceAccountModel{
-					ClusterId:     space.ClusterId + 1<<16,
+					ClusterId:     space.ID + 1<<16,
 					KubeConfig:    kubeConfig,
 					StorageClass:  "",
 					NS:            []NS{},
