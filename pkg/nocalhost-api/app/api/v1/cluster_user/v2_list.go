@@ -8,6 +8,7 @@ package cluster_user
 import (
 	"context"
 	"encoding/json"
+	"nocalhost/internal/nocalhost-dep/controllers/vcluster/api/v1alpha1"
 	"sort"
 	"sync"
 
@@ -447,13 +448,16 @@ func setVClusterStatusInTo(cu []*model.ClusterUserV2) {
 	factory := vcluster.GetSharedManagerFactory()
 	g := sync.WaitGroup{}
 	for i := 0; i < len(cu); i++ {
-		if cu[i].SpaceType == model.VirtualCluster {
+		if cu[i].DevSpaceType == model.VirtualClusterType {
 			g.Add(1)
 			i := i
 			go func() {
 				defer g.Done()
 				vcManager, err := factory.Manager(clusterMap[cu[i].ClusterId].GetKubeConfig())
 				if err != nil {
+					cu[i].VirtualClusterInfo = &model.VirtualClusterInfo{
+						Status: string(v1alpha1.Unknown),
+					}
 					log.Errorf("Error while get vcluster manager: %+v", err)
 					return
 				}
