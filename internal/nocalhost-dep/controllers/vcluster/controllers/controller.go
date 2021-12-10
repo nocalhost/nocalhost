@@ -174,6 +174,15 @@ func (r *Reconciler) extraValues(ctx context.Context, vc *helmv1alpha1.VirtualCl
 		return nil, err
 	}
 	extraVals := fmt.Sprintf("vcluster.extraArgs={--service-cidr=%s}", cidr)
+	annotations := vc.GetAnnotations()
+	svcType := annotations["vcluster.nocalhost.dev/service_type"]
+	if svcType != "" {
+		svcVal := fmt.Sprintf("service.type=%s", svcType)
+		err = strvals.ParseInto(svcVal, rel)
+		if err != nil {
+			return nil, err
+		}
+	}
 	err = strvals.ParseInto(extraVals, rel)
 	return rel, err
 }

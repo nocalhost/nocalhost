@@ -397,6 +397,11 @@ func (d *DevSpace) initVirtualCluster(clusterRecord *model.ClusterModel, cluster
 	vc.SetValues(v.Values)
 	vc.SetChartName("vcluster")
 	vc.SetChartRepo("https://charts.loft.sh")
+	vc.SetChartVersion(v.Version)
+	annotations := map[string]string{
+		"vcluster.nocalhost.dev/service_type": string(v.ServiceType),
+	}
+	vc.SetAnnotations(annotations)
 
 	goClient, err := clientgo.NewAdminGoClient([]byte(clusterRecord.KubeConfig))
 	if err != nil {
