@@ -59,7 +59,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			if err := r.Update(ctx, vc); err != nil {
 				return ctrl.Result{}, err
 			}
-			return ctrl.Result{}, nil
 		}
 	} else {
 		if controllerutil.ContainsFinalizer(vc, helmv1alpha1.Finalizer) {

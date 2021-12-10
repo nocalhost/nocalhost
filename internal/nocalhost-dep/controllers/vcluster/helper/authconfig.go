@@ -43,7 +43,7 @@ func (a *authConfig) Get(name, namespace string) (string, error) {
 	options := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=vcluster,release=%s", name)}
 	var pod corev1.Pod
 	var stdout, stderr bytes.Buffer
-	if err = wait.PollImmediate(5*time.Second, 2*time.Minute, func() (bool, error) {
+	if err = wait.PollImmediate(5*time.Second, 5*time.Minute, func() (bool, error) {
 		pods, err := clientSet.CoreV1().Pods(namespace).List(context.TODO(), options)
 		if err != nil {
 			return false, err
@@ -105,50 +105,67 @@ func (a *authConfig) Get(name, namespace string) (string, error) {
 		return "", errors.WithStack(err)
 	}
 
-	svc, err := clientSet.CoreV1().Services(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-	if err != nil {
-		return "", errors.WithStack(err)
-	}
-
 	var addr, port string
-	if svc.Spec.Type == corev1.ServiceTypeNodePort {
-		nodes, err := clientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+	if err := wait.PollImmediate(5*time.Second, 2*time.Minute, func() (bool, error) {
+		svc, err := clientSet.CoreV1().Services(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
-			return "", errors.WithStack(err)
+			return false, nil
 		}
-		if len(nodes.Items) == 0 {
-			return "", errors.New("can not find nodes")
-		}
-
-		addrs := nodes.Items[0].Status.Addresses
-
-		for _, a := range addrs {
-			if a.Type == corev1.NodeExternalIP {
-				addr = a.Address
-				break
+		if svc.Spec.Type == corev1.ServiceTypeNodePort {
+			nodes, err := clientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+			if err != nil {
+				return false, nil
+			}
+			if len(nodes.Items) == 0 {
+				return false, nil
+			}
+			addrs := nodes.Items[0].Status.Addresses
+			for _, a := range addrs {
+				if a.Type == corev1.NodeExternalIP {
+					addr = a.Address
+					break
+				}
+			}
+			ports := svc.Spec.Ports
+			for _, p := range ports {
+				if p.TargetPort.String() == "8443" {
+					port = strconv.Itoa(int(p.NodePort))
+				}
 			}
 		}
-	}
-	if addr != "" {
-		ports := svc.Spec.Ports
-		for _, p := range ports {
-			if p.TargetPort.String() == "8443" {
-				port = strconv.Itoa(int(p.NodePort))
+		if svc.Spec.Type == corev1.ServiceTypeLoadBalancer {
+			if svc.Status.LoadBalancer.Ingress[0].Hostname != "" {
+				addr = svc.Status.LoadBalancer.Ingress[0].Hostname
+			} else if svc.Status.LoadBalancer.Ingress[0].IP != "" {
+				addr = svc.Status.LoadBalancer.Ingress[0].IP
+			}
+			ports := svc.Spec.Ports
+			for _, p := range ports {
+				if p.TargetPort.String() == "8443" {
+					port = strconv.Itoa(int(p.Port))
+				}
+			}
+			if addr == "" || port == "" {
+				return false, nil
 			}
 		}
+		return true, nil
+	}); err != nil {
+		return "", errors.Errorf("cannot get service %s/%s", namespace, name)
 	}
 
 	newName := "vcluster-" + name
 	newCluster := api.NewCluster()
 	newCtx := api.NewContext()
-	if addr != "" && port != "" {
-		for _, cluster := range kubeConfig.Clusters {
+	for _, cluster := range kubeConfig.Clusters {
+		if addr != "" && port != "" {
 			cluster.Server = fmt.Sprintf("https://%s:%s", addr, port)
-			cluster.InsecureSkipTLSVerify = true
-			cluster.CertificateAuthorityData = nil
-			newCluster = cluster
 		}
+		cluster.InsecureSkipTLSVerify = true
+		cluster.CertificateAuthorityData = nil
+		newCluster = cluster
 	}
+
 	for _, ctx := range kubeConfig.Contexts {
 		ctx.Cluster = newName
 		newCtx = ctx
