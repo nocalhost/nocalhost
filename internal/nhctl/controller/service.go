@@ -13,6 +13,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/common/base"
 	_const "nocalhost/internal/nhctl/const"
@@ -115,7 +116,7 @@ func CheckIfControllerTypeSupport(t string) bool {
 }
 
 func (c *Controller) CheckIfExist() (bool, error) {
-	_, err := c.GetUnstructuredMap()
+	_, err := c.GetUnstructured()
 	if err != nil {
 		return false, err
 	}
@@ -128,21 +129,21 @@ func (c *Controller) GetOriginalContainers() ([]v1.Container, error) {
 
 func GetOriginalContainers(client *clientgoutils.ClientGoUtils, workloadType base.SvcType, workloadName, path string) ([]v1.Container, error) {
 	//var podSpec v1.PodSpec
-	um, err := client.GetUnstructuredMap(string(workloadType), workloadName)
+	um, err := client.GetUnstructured(string(workloadType), workloadName)
 	if err != nil {
 		return nil, err
 	}
 
-	var originalUm map[string]interface{}
+	var originalUm *unstructured.Unstructured
 	od, err := GetAnnotationFromUnstructuredMap(um, _const.OriginWorkloadDefinition)
 	if err == nil {
-		originalUm, _ = client.GetUnstructuredMapFromString(od)
+		originalUm, _ = client.GetUnstructuredFromString(od)
 	}
-	if len(originalUm) > 0 {
+	if originalUm != nil {
 		um = originalUm
 	}
 
-	pt, err := GetPodTemplateFromSpecPath(path, um)
+	pt, err := GetPodTemplateFromSpecPath(path, um.Object)
 	if err != nil {
 		return nil, err
 	}
@@ -238,27 +239,21 @@ func GetOriginalContainers(client *clientgoutils.ClientGoUtils, workloadType bas
 }
 
 func (c *Controller) GetTypeMeta() (metav1.TypeMeta, error) {
-	um, err := c.GetUnstructuredMap()
+	um, err := c.GetUnstructured()
 	if err != nil {
 		return metav1.TypeMeta{}, err
 	}
 
 	result := metav1.TypeMeta{}
 
-	k, ok := um["kind"]
-	if !ok {
+	k := um.GetKind()
+	if k == "" {
 		return result, errors.New("Can not find kind")
 	}
-	if result.Kind, ok = k.(string); !ok {
-		return result, errors.New("Kind is not a string ?")
-	}
 
-	a, ok := um["apiVersion"]
-	if !ok {
+	a := um.GetAPIVersion()
+	if a == "" {
 		return result, errors.New("Can not find apiVersion")
-	}
-	if result.APIVersion, ok = a.(string); !ok {
-		return result, errors.New("ApiVersion is not a string ?")
 	}
 	return result, nil
 }
@@ -317,57 +312,15 @@ func (c *Controller) GetContainerImage(container string) (string, error) {
 }
 
 func (c *Controller) GetContainers() ([]v1.Container, error) {
-	var podSpec v1.PodSpec
-	um, err := c.GetUnstructuredMap()
+	um, err := c.GetUnstructured()
 	if err != nil {
 		return nil, err
 	}
-	pt, err := GetPodTemplateFromSpecPath(c.DevModeAction.PodTemplatePath, um)
+	pt, err := GetPodTemplateFromSpecPath(c.DevModeAction.PodTemplatePath, um.Object)
 	if err != nil {
 		return nil, err
 	}
-
-	podSpec = pt.Spec
-	//switch c.Type {
-	//case base.Deployment:
-	//	d, err := c.Client.GetDeployment(c.Name)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	podSpec = d.Spec.Template.Spec
-	//case base.StatefulSet:
-	//	s, err := c.Client.GetStatefulSet(c.Name)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	podSpec = s.Spec.Template.Spec
-	//case base.DaemonSet:
-	//	d, err := c.Client.GetDaemonSet(c.Name)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	podSpec = d.Spec.Template.Spec
-	//case base.Job:
-	//	j, err := c.Client.GetJobs(c.Name)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	podSpec = j.Spec.Template.Spec
-	//case base.CronJob:
-	//	j, err := c.Client.GetCronJobs(c.Name)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	podSpec = j.Spec.JobTemplate.Spec.Template.Spec
-	//case base.Pod:
-	//	p, err := c.Client.GetPod(c.Name)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	podSpec = p.Spec
-	//}
-
-	return podSpec.Containers, nil
+	return pt.Spec.Containers, nil
 }
 
 func (c *Controller) GetDescription() *profile.SvcProfileV2 {
@@ -468,7 +421,7 @@ func (c *Controller) getGeneratedDeploymentLabels() map[string]string {
 func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevStartOptions) error {
 	c.Client.Context(ctx)
 
-	unstructuredObj, err := c.GetUnstructuredMap()
+	unstructuredObj, err := c.GetUnstructured()
 	if err != nil {
 		return err
 	}
@@ -489,7 +442,7 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 	}
 	log.Info("Scale success")
 
-	podTemplate, err := GetPodTemplateFromSpecPath(c.DevModeAction.PodTemplatePath, unstructuredObj)
+	podTemplate, err := GetPodTemplateFromSpecPath(c.DevModeAction.PodTemplatePath, unstructuredObj.Object)
 	if err != nil {
 		return err
 	}
@@ -569,7 +522,7 @@ func (c *Controller) CheckDevModePodIsRunning() (string, error) {
 func (c *Controller) ReplaceDuplicateModeImage(ctx context.Context, ops *model.DevStartOptions) error {
 	c.Client.Context(ctx)
 
-	um, err := c.GetUnstructuredMap()
+	um, err := c.GetUnstructured()
 	if err != nil {
 		return err
 	}
@@ -582,17 +535,17 @@ func (c *Controller) ReplaceDuplicateModeImage(ctx context.Context, ops *model.D
 			return err
 		}
 
-		if um, err = c.Client.GetUnstructuredMapFromString(od); err != nil {
+		if um, err = c.Client.GetUnstructuredFromString(od); err != nil {
 			return err
 		}
 	}
 
 	var ps *v1.PodTemplateSpec
 	if !c.DevModeAction.Create {
-		if err = c.PatchDuplicateInfo(um); err != nil {
+		if err = c.PatchDuplicateInfo(um.Object); err != nil {
 			return err
 		}
-		if ps, err = GetPodTemplateFromSpecPath(c.DevModeAction.PodTemplatePath, um); err != nil {
+		if ps, err = GetPodTemplateFromSpecPath(c.DevModeAction.PodTemplatePath, um.Object); err != nil {
 			return err
 		}
 
@@ -605,7 +558,7 @@ func (c *Controller) ReplaceDuplicateModeImage(ctx context.Context, ops *model.D
 		patchDevContainerToPodSpec(&ps.Spec, ops.Container, devContainer, sideCarContainer, devModeVolumes)
 
 		// Set podTemplate
-		ptm, err := GetUnstructuredMapBySpecificPath(c.DevModeAction.PodTemplatePath, um)
+		ptm, err := GetUnstructuredMapBySpecificPath(c.DevModeAction.PodTemplatePath, um.Object)
 		if err != nil {
 			return err
 		}
@@ -654,7 +607,7 @@ func (c *Controller) ReplaceDuplicateModeImage(ctx context.Context, ops *model.D
 		if err != nil {
 			return err
 		}
-		if ps, err = GetPodTemplateFromSpecPath(c.DevModeAction.PodTemplatePath, um); err != nil {
+		if ps, err = GetPodTemplateFromSpecPath(c.DevModeAction.PodTemplatePath, um.Object); err != nil {
 			return err
 		}
 		generatedDeployment := &appsv1.Deployment{

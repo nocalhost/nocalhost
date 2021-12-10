@@ -8,6 +8,7 @@ package clientgoutils
 import (
 	"fmt"
 	"github.com/pkg/errors"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/resource"
 	"strings"
@@ -76,19 +77,20 @@ func (c *ClientGoUtils) ListResourceInfo(resourceType string) ([]*resource.Info,
 	return infos, errors.WithStack(err)
 }
 
-func (c *ClientGoUtils) GetUnstructuredMap(resourceType string, resourceName string) (map[string]interface{}, error) {
+func (c *ClientGoUtils) GetUnstructured(resourceType string, resourceName string) (*unstructured.Unstructured, error) {
 	obj, err := c.Get(resourceType, resourceName)
 	if err != nil {
 		return nil, err
 	}
-	var unstructuredObj map[string]interface{}
-	if unstructuredObj, err = runtime.DefaultUnstructuredConverter.ToUnstructured(obj); err != nil {
-		return nil, errors.WithStack(err)
+
+	us, ok := (*obj).(*unstructured.Unstructured)
+	if !ok {
+		return nil, errors.New("Fail to assert")
 	}
-	return unstructuredObj, nil
+	return us, nil
 }
 
-func (c *ClientGoUtils) GetUnstructuredMapFromString(str string) (map[string]interface{}, error) {
+func (c *ClientGoUtils) GetUnstructuredFromString(str string) (*unstructured.Unstructured, error) {
 	infos, err := c.GetResourceInfoFromString(str, true)
 	if err != nil {
 		return nil, err
@@ -98,6 +100,10 @@ func (c *ClientGoUtils) GetUnstructuredMapFromString(str string) (map[string]int
 		return nil, errors.New(fmt.Sprintf("%d infos found, not 1?", len(infos)))
 	}
 
-	originUnstructuredMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(infos[0].Object)
-	return originUnstructuredMap, errors.WithStack(err)
+	obj, ok := infos[0].Object.(*unstructured.Unstructured)
+	if !ok {
+		return nil, errors.New("can not convert to unstructured")
+	}
+	//originUnstructuredMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(infos[0].Object)
+	return obj, err
 }

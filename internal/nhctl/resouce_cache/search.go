@@ -116,6 +116,22 @@ func getSupportedSchema(apiResources []*restmapper.APIGroupResources) (map[strin
 	return nameToMapping, nil
 }
 
+func ConvertRuntimeObjectToCRD(obj runtime.Object) (*apiextensions.CustomResourceDefinition, error) {
+	um, ok := obj.(*unstructured.Unstructured)
+	if !ok {
+		return nil, errors.New("Fail to convert to unstructured")
+	}
+	jsonBytes, err := um.MarshalJSON()
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	crdObj := &apiextensions.CustomResourceDefinition{}
+	if err = json.Unmarshal(jsonBytes, crdObj); err != nil {
+		return nil, errors.WithStack(err)
+	}
+	return crdObj, nil
+}
+
 // todo: support multi versions
 func getCrdSchema(client *clientgoutils.ClientGoUtils, apiGroupResources []*restmapper.APIGroupResources) (map[string][]GvkGvrWithAlias, error) {
 
@@ -126,19 +142,11 @@ func getCrdSchema(client *clientgoutils.ClientGoUtils, apiGroupResources []*rest
 	nameToMapping := make(map[string][]GvkGvrWithAlias) // resourceType: []GvkGvrWithAlias
 
 	for _, crd := range crds {
-		um, ok := crd.Object.(*unstructured.Unstructured)
-		if !ok {
-			continue
-		}
-		jsonBytes, err := um.MarshalJSON()
+		crdObj, err := ConvertRuntimeObjectToCRD(crd.Object)
 		if err != nil {
 			continue
 		}
-		crdObj := &apiextensions.CustomResourceDefinition{}
-		err = json.Unmarshal(jsonBytes, crdObj)
-		if err != nil {
-			continue
-		}
+
 		ggwa := GvkGvrWithAlias{
 			Gvk: schema.GroupVersionKind{
 				Group:   crdObj.Spec.Group,

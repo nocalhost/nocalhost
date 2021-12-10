@@ -13,6 +13,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/cache"
 	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/appmeta"
@@ -191,7 +192,59 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			meta := appmeta_manager.GetApplicationMeta(ns, request.ResourceName, KubeConfigBytes)
 			return ParseApplicationsResult(ns, []*appmeta.ApplicationMeta{meta})
 		}
+	case "crd-list":
+		s, err := resouce_cache.GetSearcherWithLRU(KubeConfigBytes, ns)
+		if err != nil {
+			return errors.New("fail to get searcher")
+		}
+		data, err := s.Criteria().
+			ResourceType("crds").
+			Label(request.Label).
+			ShowHidden(request.ShowHidden).
+			Query()
+		if err != nil {
+			return err
+		}
 
+		type gvkr struct {
+			schema.GroupVersionKind
+			Resource   string
+			Namespaced bool
+		}
+
+		crdGvkList := make([]*gvkr, 0)
+		for _, datum := range data {
+			um, ok := datum.(*unstructured.Unstructured)
+			if !ok {
+				continue
+			}
+			crd, err := resouce_cache.ConvertRuntimeObjectToCRD(um)
+			if err != nil {
+				log.WarnE(err, "")
+				continue
+			}
+
+			ggwa, err := s.GetResourceInfo(crd.Spec.Names.Kind)
+			if err != nil {
+				log.WarnE(err, "")
+				continue
+			}
+			g := gvkr{}
+			g.GroupVersionKind = ggwa.Gvk
+			g.Resource = ggwa.Gvr.Resource
+			g.Namespaced = ggwa.Namespaced
+			crdGvkList = append(crdGvkList, &g)
+		}
+
+		if len(request.ResourceName) == 0 {
+			result := make([]item.Item, 0, len(crdGvkList))
+			for _, datum := range crdGvkList {
+				result = append(result, item.Item{Metadata: datum})
+			}
+			return result[0:]
+		} else {
+			return item.Item{Metadata: crdGvkList[0]}
+		}
 	case "ns", "namespace", "namespaces":
 		s, err := resouce_cache.GetSearcherWithLRU(KubeConfigBytes, ns)
 		if err != nil {

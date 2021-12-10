@@ -41,7 +41,7 @@ func TestDeploymentController_ReplaceImage(t *testing.T) {
 	}
 
 	obj := &unstructured.Unstructured{}
-	obj.Object, err = runtime.DefaultUnstructuredConverter.ToUnstructured(objs[0])
+	obj.Object, err = runtime.DefaultUnstructuredConverter.ToUnstructured(objs)
 	if err != nil {
 		panic(err)
 	}

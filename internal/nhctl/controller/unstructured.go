@@ -11,22 +11,25 @@ import (
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/pkg/nhctl/log"
 	"strconv"
 	"strings"
+	"time"
 )
 
-func (c *Controller) GetUnstructuredMap() (unstructuredMap map[string]interface{}, err error) {
-	return c.Client.GetUnstructuredMap(string(c.Type), c.Name)
+func (c *Controller) GetUnstructured() (unstructuredMap *unstructured.Unstructured, err error) {
+	return c.Client.GetUnstructured(string(c.Type), c.Name)
 }
 
 func (c *Controller) GetPodTemplate() (*corev1.PodTemplateSpec, error) {
-	um, err := c.GetUnstructuredMap()
+	um, err := c.GetUnstructured()
 	if err != nil {
 		return nil, err
 	}
-	return GetPodTemplateFromSpecPath(c.DevModeAction.PodTemplatePath, um)
+	return GetPodTemplateFromSpecPath(c.DevModeAction.PodTemplatePath, um.Object)
 }
 
 // GetPodList
@@ -64,7 +67,7 @@ func (c *Controller) ListPodOfGeneratedDeployment() ([]corev1.Pod, error) {
 }
 
 func (c *Controller) IncreaseDevModeCount() error {
-	um, err := c.GetUnstructuredMap()
+	um, err := c.GetUnstructured()
 	if err != nil {
 		return err
 	}
@@ -83,7 +86,7 @@ func (c *Controller) IncreaseDevModeCount() error {
 }
 
 func (c *Controller) DecreaseDevModeCount() error {
-	um, err := c.GetUnstructuredMap()
+	um, err := c.GetUnstructured()
 	if err != nil {
 		return err
 	}
@@ -113,7 +116,7 @@ func (c *Controller) RollbackFromAnnotation() error {
 		}
 	}
 
-	unstructuredMap, err := c.GetUnstructuredMap()
+	unstructuredMap, err := c.GetUnstructured()
 	if err != nil {
 		return err
 	}
@@ -124,12 +127,12 @@ func (c *Controller) RollbackFromAnnotation() error {
 	}
 	log.Infof("Annotation %s found, use it", _const.OriginWorkloadDefinition)
 
-	originUnstructuredMap, err := c.Client.GetUnstructuredMapFromString(osj)
+	originUnstructuredMap, err := c.Client.GetUnstructuredFromString(osj)
 	if err != nil {
 		return err
 	}
 
-	specMap, ok := originUnstructuredMap["spec"]
+	specMap, ok := originUnstructuredMap.Object["spec"]
 	if !ok {
 		return errors.New("spec not found in annotation")
 	}
@@ -164,17 +167,6 @@ func GetUnstructuredMapBySpecificPath(path string, u map[string]interface{}) (ma
 }
 
 func GetPodTemplateFromSpecPath(path string, unstructuredObj map[string]interface{}) (*corev1.PodTemplateSpec, error) {
-	//pathItems := strings.Split(path, "/")
-	//currentPathMap := unstructuredObj
-	//for _, item := range pathItems {
-	//	if item != "" {
-	//		if m, ok := currentPathMap[item]; ok {
-	//			currentPathMap = m.(map[string]interface{})
-	//		} else {
-	//			return nil, errors.New(fmt.Sprintf("Invalid path: %s", item))
-	//		}
-	//	}
-	//}
 	currentPathMap, err := GetUnstructuredMapBySpecificPath(path, unstructuredObj)
 	if err != nil {
 		return nil, err
@@ -214,59 +206,74 @@ func UnmarshalFromUnstructuredMapBySpecPath(path string, unstructuredObj map[str
 }
 
 // GetAnnotationFromUnstructuredMap todo: check map if nil
-func GetAnnotationFromUnstructuredMap(u map[string]interface{}, key string) (string, error) {
-	meta, ok := u["metadata"]
-	if !ok {
-		return "", errors.New("metadata not found in unstructured map")
-	}
-	metaMap, ok := meta.(map[string]interface{})
-	if !ok {
-		return "", errors.New("metadata in unstructured map assert failed")
+func GetAnnotationFromUnstructuredMap(u *unstructured.Unstructured, key string) (string, error) {
+	as := u.GetAnnotations()
+	if len(as) == 0 {
+		return "", errors.New("Annotations is nil")
 	}
 
-	annotations, ok := metaMap["annotations"]
-	if !ok {
-		return "", errors.New("annotation in unstructured map not found")
+	if v, ok := as[key]; !ok {
+		return "", errors.New(fmt.Sprintf("Annotation %s not fount", key))
+	} else {
+		return v, nil
 	}
-	annotationsMap, ok := annotations.(map[string]interface{})
-	if !ok {
-		return "", errors.New("annotation in unstructured map assert failed")
-	}
-
-	originJson, ok := annotationsMap[key]
-	if !ok {
-		return "", errors.New(fmt.Sprintf("annotation %s not found", key))
-	}
-	return originJson.(string), nil
+	//meta, ok := u["metadata"]
+	//if !ok {
+	//	return "", errors.New("metadata not found in unstructured map")
+	//}
+	//metaMap, ok := meta.(map[string]interface{})
+	//if !ok {
+	//	return "", errors.New("metadata in unstructured map assert failed")
+	//}
+	//
+	//annotations, ok := metaMap["annotations"]
+	//if !ok {
+	//	return "", errors.New("annotation in unstructured map not found")
+	//}
+	//annotationsMap, ok := annotations.(map[string]interface{})
+	//if !ok {
+	//	return "", errors.New("annotation in unstructured map assert failed")
+	//}
+	//
+	//originJson, ok := annotationsMap[key]
+	//if !ok {
+	//	return "", errors.New(fmt.Sprintf("annotation %s not found", key))
+	//}
+	//return originJson.(string), nil
 }
 
-func RemoveUselessInfo(u map[string]interface{}) {
+func RemoveUselessInfo(u *unstructured.Unstructured) {
 	if u == nil {
 		return
 	}
-	delete(u, "status")
-	metaM, ok := u["metadata"]
-	if !ok {
+
+	delete(u.Object, "status")
+
+	//metaM, ok := u.Object["metadata"]
+	//if !ok {
+	//	return
+	//}
+	//mm, ok := metaM.(map[string]interface{})
+	//if !ok {
+	//	return
+	//}
+	u.SetManagedFields(nil)
+	//delete(mm, "resourceVersion")
+	u.SetResourceVersion("")
+	//delete(mm, "creationTimestamp")
+	u.SetCreationTimestamp(metav1.NewTime(time.Time{}))
+	//delete(mm, "managedFields")
+	u.SetManagedFields(nil)
+	u.SetUID("")
+	u.SetGeneration(0)
+	a := u.GetAnnotations()
+	if len(a) == 0 {
 		return
 	}
-	mm, ok := metaM.(map[string]interface{})
-	if !ok {
-		return
-	}
-	delete(mm, "resourceVersion")
-	delete(mm, "creationTimestamp")
-	delete(mm, "managedFields")
-	aM, ok := mm["annotations"]
-	if !ok {
-		return
-	}
-	aa, ok := aM.(map[string]interface{})
-	if !ok {
-		return
-	}
-	delete(aa, _const.OriginWorkloadDefinition)
-	delete(aa, "kubectl.kubernetes.io/last-applied-configuration")
-	delete(aa, OriginSpecJson) // remove deprecated annotation
+	delete(a, _const.OriginWorkloadDefinition)
+	delete(a, "kubectl.kubernetes.io/last-applied-configuration")
+	delete(a, OriginSpecJson) // remove deprecated annotation
+	u.SetAnnotations(a)
 }
 
 func AddItemToUnstructuredMap(path string, u map[string]interface{}, key string, item map[string]interface{}) error {
