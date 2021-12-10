@@ -138,7 +138,7 @@ func (r *Reconciler) reconcile(ctx context.Context, vc *helmv1alpha1.VirtualClus
 	}
 
 	vc.Status.AuthConfig = base64.StdEncoding.EncodeToString([]byte(config))
-	vc.Status.Phase = helmv1alpha1.Running
+	vc.Status.Phase = helmv1alpha1.Ready
 	if err := r.patchStatus(ctx, vc); err != nil {
 		return err
 	}

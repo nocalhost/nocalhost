@@ -46,6 +46,7 @@ func whiteList(method, path string) bool {
 		"/v1/application/[0-9]+":             "GET,PUT,DELETE",
 		"/v1/nocalhost/templates":            "GET",
 		"/v1/nocalhost/version/upgrade_info": "GET",
+		"/v1/nocalhost/version/vcluster":     "GET",
 		"/v1/dev_space":                      "GET,POST",
 
 		"/v1/application": "GET,POST",

@@ -43,7 +43,7 @@ var _ Manager = &manager{}
 func (m *manager) GetStatus(name, namespace string) (string, error) {
 	vc, err := m.getVirtualCluster(name, namespace)
 	if err != nil {
-		return "", err
+		return string(helmv1alpha1.Unknown), err
 	}
 	return string(vc.Status.Phase), nil
 }

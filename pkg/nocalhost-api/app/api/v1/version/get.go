@@ -13,10 +13,12 @@ import (
 
 	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/internal/nocalhost-api/model"
+	"nocalhost/internal/nocalhost-dep/controllers/vcluster/api/v1alpha1"
 	"nocalhost/pkg/nocalhost-api/app/api"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 	"nocalhost/pkg/nocalhost-api/pkg/registry"
+	"nocalhost/pkg/nocalhost-api/pkg/utils"
 )
 
 // Get Get api server version
@@ -79,4 +81,27 @@ func getVersionInfo() (model.VersionUpgradeInfo, error) {
 	}
 
 	return version, nil
+}
+
+// VClusterVersion get vcluster version  info
+// @Summary VClusterVersion get vcluster version  info
+// @Description VClusterVersion get vcluster version  info
+// @Tags Version
+// @Accept  json
+// @Produce  json
+// @Success 200 {object} model.VClusterVersion "{"code":0,"message":"OK","data":model.VClusterVersion}"
+// @Router /v1/nocalhost/version/vcluster [get]
+func VClusterVersion(c *gin.Context) {
+	versions := model.VClusterVersion{
+		Versions: []string{
+			v1alpha1.DefaultVersion,
+		},
+	}
+	ver := utils.GetVClusterVersionList("")
+	if len(ver) == 0 {
+		api.SendResponse(c, errno.OK, versions)
+		return
+	}
+	versions.Versions = ver
+	api.SendResponse(c, errno.OK, versions)
 }

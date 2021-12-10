@@ -74,6 +74,14 @@ func GetV2(c *gin.Context) {
 	api.SendResponse(c, nil, result)
 }
 
+// ListV2 get devspace list
+// @Summary ListV2 get devspace list
+// @Description ListV2 get get devspace list
+// @Tags DevSpace
+// @Accept  json
+// @Produce  json
+// @Success 200 {object} model.ClusterUserV2 "{"code":0,"message":"OK","data":model.ClusterUserV2}"
+// @Router /v2/dev_space [get]
 func ListV2(c *gin.Context) {
 	var params ClusterUserListV2Query
 

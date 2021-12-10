@@ -11,7 +11,8 @@ import (
 )
 
 const (
-	Finalizer = "virtualcluster.helm.nocalhost.dev/finalizer"
+	Finalizer      = "virtualcluster.helm.nocalhost.dev/finalizer"
+	DefaultVersion = "0.4.5"
 )
 
 // VirtualClusterSpec defines the desired state of VirtualCluster
@@ -51,7 +52,7 @@ type VirtualClusterPhase string
 const (
 	Installing VirtualClusterPhase = "Installing"
 	Upgrading  VirtualClusterPhase = "Upgrading"
-	Running    VirtualClusterPhase = "Running"
+	Ready      VirtualClusterPhase = "Ready"
 	Failed     VirtualClusterPhase = "Failed"
 	Deleting   VirtualClusterPhase = "Deleting"
 	Unknown    VirtualClusterPhase = "Unknown"

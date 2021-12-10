@@ -23,7 +23,7 @@ const (
 	IsolateSpace   SpaceType = "IsolateSpace"
 	BadeSpace      SpaceType = "BadeSpace"
 	MeshSpace      SpaceType = "MeshSpace"
-	VirtualCluster SpaceType = "VirtualCluster"
+	VirtualCluster SpaceType = "Vcluster"
 )
 
 var DevSpaceOwnTypeOwner SpaceOwnType = SpaceOwnType{"Owner", 1000}
@@ -190,4 +190,5 @@ func (h Header) Value() (driver.Value, error) {
 
 type VirtualClusterInfo struct {
 	Status string `json:"status"`
+	Events string `json:"events"`
 }
