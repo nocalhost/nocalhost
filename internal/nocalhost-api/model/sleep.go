@@ -4,7 +4,6 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"github.com/pkg/errors"
-	"github.com/spf13/cast"
 	"strconv"
 	"strings"
 	"time"
@@ -12,31 +11,33 @@ import (
 
 type ByWeek struct {
 	// minutes east of UTC
-	UtcOffset  *int          `json:"utc_offset" binding:"required"`
-	SleepDay   time.Weekday `json:"sleep_day" binding:"gte=0,max=6,required" swaggertype:"integer" enums:"0,1,2,3,4,5,6"`
+	UtcOffset *int         `json:"utc_offset" binding:"required"`
+	SleepDay  time.Weekday `json:"sleep_day" binding:"gte=0,max=6,required" swaggertype:"integer" enums:"0,1,2,3,4,5,6"`
 	// eg. 20:00, 23:55
-	SleepTime  string        `json:"sleep_time" binding:"required,timing"`
-	WakeupDay  time.Weekday `json:"wakeup_day" binding:"gte=0,max=6,required" swaggertype:"integer" enums:"0,1,2,3,4,5,6"`
+	SleepTime string       `json:"sleep_time" binding:"required,timing"`
+	WakeupDay time.Weekday `json:"wakeup_day" binding:"gte=0,max=6,required" swaggertype:"integer" enums:"0,1,2,3,4,5,6"`
 	// eg. 08:00, 09:30
-	WakeupTime string        `json:"wakeup_time" binding:"required,timing"`
+	WakeupTime string `json:"wakeup_time" binding:"required,timing"`
 }
 
 func (s *ByWeek) Hour(hm string) int {
-	return cast.ToInt(strings.Split(hm, ":")[0])
+	v, _ := strconv.Atoi(strings.Split(hm, ":")[0])
+	return v
 }
 
 func (s *ByWeek) Minute(hm string) int {
-	return cast.ToInt(strings.Split(hm, ":")[1])
+	v, _ := strconv.Atoi(strings.Split(hm, ":")[1])
+	return v
 }
 
 func (s *ByWeek) ToIndex(day time.Weekday, hm string) int {
-	h := cast.ToInt(strings.Split(hm, ":")[0])
-	m := cast.ToInt(strings.Split(hm, ":")[1])
-	return int(day) * 24 * 60 + h * 60 + m
+	h := s.Hour(hm)
+	m := s.Minute(hm)
+	return int(day)*24*60 + h*60 + m
 }
 
 func (s *ByWeek) TimeZone() *time.Location {
-	return time.FixedZone(strconv.Itoa(*s.UtcOffset), *s.UtcOffset * 60)
+	return time.FixedZone(strconv.Itoa(*s.UtcOffset), *s.UtcOffset*60)
 }
 
 type SleepConfig struct {

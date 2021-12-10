@@ -53,6 +53,7 @@ func Inspect(ns *v1.Namespace) (ToBe, error) {
 	if len(conf.ByWeek) == 0 {
 		return ToBeWakeup, nil
 	}
+
 	// 6. match sleep config
 	for _, f := range conf.ByWeek {
 		now := time.Now().In(f.TimeZone())
@@ -69,7 +70,7 @@ func Inspect(ns *v1.Namespace) (ToBe, error) {
 		t2 := now.Add(d2 * 24 * time.Hour)
 		t2 = time.Date(t2.Year(), t2.Month(), t2.Day(), f.Hour(f.WakeupTime), f.Minute(f.WakeupTime), 0, 0, f.TimeZone())
 
-		println(ns.Name, " Sleep:【" + t1.String() + "】", "Wakeup:【" + t2.String() + "】")
+		println(ns.Name, " Sleep:【"+t1.String()+"】", "Wakeup:【"+t2.String()+"】")
 
 		if now.After(t1) && now.Before(t2) {
 			if ns.Annotations[KStatus] == KAsleep {
