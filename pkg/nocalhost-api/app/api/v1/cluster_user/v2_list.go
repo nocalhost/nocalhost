@@ -283,9 +283,9 @@ func fillExtByUser(src map[uint64][]*model.ClusterUserV2, currentUser uint64, is
 					} else {
 						cu.SpaceType = model.IsolateSpace
 					}
-					if cu.DevSpaceType == model.VirtualClusterType {
-						cu.SpaceType = model.VirtualCluster
-					}
+					//if cu.DevSpaceType == model.VirtualClusterType {
+					//	cu.SpaceType = model.VirtualCluster
+					//}
 
 					if cluster_scope.IsValidOwner(cluster.ID, currentUser) {
 						cu.SpaceOwnType = model.DevSpaceOwnTypeOwner
@@ -305,9 +305,9 @@ func fillExtByUser(src map[uint64][]*model.ClusterUserV2, currentUser uint64, is
 					} else {
 						cu.SpaceType = model.IsolateSpace
 					}
-					if cu.DevSpaceType == model.VirtualClusterType {
-						cu.SpaceType = model.VirtualCluster
-					}
+					//if cu.DevSpaceType == model.VirtualClusterType {
+					//	cu.SpaceType = model.VirtualCluster
+					//}
 
 					// fill SpaceOwnType
 					if contains(ownNss, cu.Namespace) {
