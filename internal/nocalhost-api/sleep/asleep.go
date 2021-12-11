@@ -116,9 +116,9 @@ func Asleep(c *clientgo.GoClient, ns string, force bool) error {
 	patch, _ := json.Marshal(map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"annotations": map[string]string{
-				KStatus:      KAsleep,
 				KReplicas:    stringify(replicas),
-				KForceSleep:  ternary(force, timestamp(), "").(string),
+				KSleepStatus: KAsleep,
+				KForceAsleep: ternary(force, timestamp(), "").(string),
 				KForceWakeup: "",
 			},
 		},
@@ -136,8 +136,8 @@ func Asleep(c *clientgo.GoClient, ns string, force bool) error {
 	return cluster_user.
 		NewClusterUserService().
 		Modify(context.TODO(), record.ID, map[string]interface{}{
-			"sleep_at":  &now,
-			"is_asleep": true,
+			"sleep_at":     &now,
+			"sleep_status": KAsleep,
 		})
 }
 

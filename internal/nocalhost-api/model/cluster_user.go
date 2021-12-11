@@ -39,9 +39,9 @@ type ClusterUserV2 struct {
 	SpaceResourceLimit string       `gorm:"column:space_resource_limit;type:VARCHAR(1024);" json:"space_resource_limit"`
 	CreatedAt          time.Time    `gorm:"column:created_at" json:"created_at"`
 	SleepAt            *time.Time   `gorm:"column:sleep_at;type:timestamp" json:"sleep_at"`
-	IsAsleep           bool         `gorm:"column:is_asleep;not null;default:false" json:"is_asleep"`
 	SleepConfig        *SleepConfig `gorm:"column:sleep_config;type:VARCHAR(1024);" json:"sleep_config"`
 	SleepMinute        uint64       `gorm:"column:sleep_minute;default:0;not null;" json:"sleep_minute"`
+	SleepStatus        string       `gorm:"column:sleep_status;not null;" json:"sleep_status" enums:"asleep,wakeup"`
 
 	// ext field
 	*ClusterUserExt
@@ -91,9 +91,9 @@ type ClusterUserModel struct {
 	UpdatedAt          time.Time    `gorm:"column:updated_at" json:"-"`
 	DeletedAt          *time.Time   `gorm:"column:deleted_at" json:"-"`
 	SleepAt            *time.Time   `gorm:"column:sleep_at;type:timestamp" json:"sleep_at"`
-	IsAsleep           bool         `gorm:"column:is_asleep;not null;default:false" json:"is_asleep"`
-	SleepMinute        uint64       `gorm:"column:sleep_minute;default:0;not null;" json:"sleep_minute"`
 	SleepConfig        *SleepConfig `gorm:"column:sleep_config;type:VARCHAR(1024);" json:"sleep_config"`
+	SleepMinute        uint64       `gorm:"column:sleep_minute;default:0;not null;" json:"sleep_minute"`
+	SleepStatus        string       `gorm:"column:sleep_status;not null;" json:"sleep_status" enums:"asleep,wakeup"`
 }
 
 func (cu *ClusterUserModel) IsClusterAdmin() bool {

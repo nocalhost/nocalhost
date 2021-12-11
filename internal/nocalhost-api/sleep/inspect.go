@@ -22,9 +22,9 @@ func Inspect(ns *v1.Namespace) (ToBe, error) {
 		return ToBeIgnore, nil
 	}
 	// 2. check force sleep
-	if len(ns.Annotations[KForceSleep]) > 0 {
+	if len(ns.Annotations[KForceAsleep]) > 0 {
 		now := time.Now().UTC()
-		t := time.Unix(cast.ToInt64(ns.Annotations[KForceSleep]), 0).UTC()
+		t := time.Unix(cast.ToInt64(ns.Annotations[KForceAsleep]), 0).UTC()
 		if t.Month() == now.Month() && t.Day() == now.Day() {
 			return ToBeIgnore, nil
 		}
@@ -38,15 +38,15 @@ func Inspect(ns *v1.Namespace) (ToBe, error) {
 		}
 	}
 	// 4. check sleep config
-	if len(ns.Annotations[KConfig]) == 0 {
-		if ns.Annotations[KStatus] == KAsleep {
+	if len(ns.Annotations[KSleepConfig]) == 0 {
+		if ns.Annotations[KSleepStatus] == KAsleep {
 			return ToBeWakeup, nil
 		}
 		return ToBeIgnore, nil
 	}
 	// 5. parse sleep config
 	var conf model.SleepConfig
-	err := json.Unmarshal([]byte(ns.Annotations[KConfig]), &conf)
+	err := json.Unmarshal([]byte(ns.Annotations[KSleepConfig]), &conf)
 	if err != nil {
 		return ToBeIgnore, err
 	}
@@ -73,14 +73,14 @@ func Inspect(ns *v1.Namespace) (ToBe, error) {
 		println(ns.Name, " Sleep:【"+t1.String()+"】", "Wakeup:【"+t2.String()+"】")
 
 		if now.After(t1) && now.Before(t2) {
-			if ns.Annotations[KStatus] == KAsleep {
+			if ns.Annotations[KSleepStatus] == KAsleep {
 				return ToBeIgnore, nil
 			}
 			return ToBeAsleep, nil
 		}
 	}
 	// 7. there are no matching rules, then dev space need to be woken up.
-	if ns.Annotations[KStatus] == KAsleep {
+	if ns.Annotations[KSleepStatus] == KAsleep {
 		return ToBeWakeup, nil
 	}
 	return ToBeIgnore, nil

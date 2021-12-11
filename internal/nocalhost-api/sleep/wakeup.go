@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/jinzhu/gorm"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"nocalhost/internal/nocalhost-api/model"
@@ -117,8 +118,8 @@ func Wakeup(c *clientgo.GoClient, ns string, force bool) error {
 	patch, _ := json.Marshal(map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"annotations": map[string]string{
-				KStatus:      KActive,
-				KForceSleep:  "",
+				KSleepStatus: KWakeup,
+				KForceAsleep: "",
 				KForceWakeup: ternary(force, timestamp(), "").(string),
 			},
 		},
@@ -132,16 +133,15 @@ func Wakeup(c *clientgo.GoClient, ns string, force bool) error {
 	}
 
 	// 8. write to database
-	total := record.SleepMinute
+	diff := 0
 	if record.SleepAt != nil {
-		diff := time.Now().Sub(*record.SleepAt)
-		total = total + uint64(diff/time.Minute)
+		diff = int(time.Now().Sub(*record.SleepAt) / time.Minute)
 	}
 	return cluster_user.
 		NewClusterUserService().
 		Modify(context.TODO(), record.ID, map[string]interface{}{
 			"sleep_at":     nil,
-			"is_asleep":    false,
-			"sleep_minute": total,
+			"sleep_status": KWakeup,
+			"sleep_minute": gorm.Expr("`sleep_minute` + ?", diff),
 		})
 }

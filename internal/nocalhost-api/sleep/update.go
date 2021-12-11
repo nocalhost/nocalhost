@@ -15,8 +15,8 @@ func Update(c *clientgo.GoClient, id uint64, ns string, conf model.SleepConfig) 
 	patch, _ := json.Marshal(map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"annotations": map[string]string{
-				KConfig:      ternary(len(conf.ByWeek) == 0, "", stringify(conf)).(string),
-				KForceSleep:  "",
+				KSleepConfig: ternary(len(conf.ByWeek) == 0, "", stringify(conf)).(string),
+				KForceAsleep: "",
 				KForceWakeup: "",
 			},
 		},
