@@ -10,6 +10,7 @@ import (
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service/cluster_user"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
+	"time"
 )
 
 func Wakeup(c *clientgo.GoClient, ns string, force bool) error {
@@ -131,10 +132,16 @@ func Wakeup(c *clientgo.GoClient, ns string, force bool) error {
 	}
 
 	// 8. write to database
+	total := record.SleepMinute
+	if record.SleepAt != nil {
+		diff := time.Now().Sub(*record.SleepAt)
+		total = total + uint64(diff/time.Minute)
+	}
 	return cluster_user.
 		NewClusterUserService().
 		Modify(context.TODO(), record.ID, map[string]interface{}{
-			"sleep_at":  nil,
-			"is_asleep": false,
+			"sleep_at":     nil,
+			"is_asleep":    false,
+			"sleep_minute": total,
 		})
 }

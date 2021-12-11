@@ -41,7 +41,7 @@ type ClusterUserV2 struct {
 	SleepAt            *time.Time   `gorm:"column:sleep_at;type:timestamp" json:"sleep_at"`
 	IsAsleep           bool         `gorm:"column:is_asleep;not null;default:false" json:"is_asleep"`
 	SleepConfig        *SleepConfig `gorm:"column:sleep_config;type:VARCHAR(1024);" json:"sleep_config"`
-	SleepSaving        float32      `gorm:"column:sleep_saving;type:decimal(11,3);default:0;not null;" json:"sleep_saving"`
+	SleepMinute        uint64       `gorm:"column:sleep_minute;default:0;not null;" json:"sleep_minute"`
 
 	// ext field
 	*ClusterUserExt
@@ -92,8 +92,8 @@ type ClusterUserModel struct {
 	DeletedAt          *time.Time   `gorm:"column:deleted_at" json:"-"`
 	SleepAt            *time.Time   `gorm:"column:sleep_at;type:timestamp" json:"sleep_at"`
 	IsAsleep           bool         `gorm:"column:is_asleep;not null;default:false" json:"is_asleep"`
+	SleepMinute        uint64       `gorm:"column:sleep_minute;default:0;not null;" json:"sleep_minute"`
 	SleepConfig        *SleepConfig `gorm:"column:sleep_config;type:VARCHAR(1024);" json:"sleep_config"`
-	SleepSaving        float32      `gorm:"column:sleep_saving;type:decimal(11,3);default:0;not null;" json:"sleep_saving"`
 }
 
 func (cu *ClusterUserModel) IsClusterAdmin() bool {

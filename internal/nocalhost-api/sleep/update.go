@@ -32,7 +32,6 @@ func Update(c *clientgo.GoClient, id uint64, ns string, conf model.SleepConfig) 
 	// 2. write to database
 	err = service.Svc.ClusterUser().Modify(context.TODO(), id, map[string]interface{}{
 		"sleep_config": &conf,
-		"sleep_saving": percent(&conf.ByWeek),
 	})
 	if err != nil {
 		return err
