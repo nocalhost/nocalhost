@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"github.com/pkg/errors"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -17,22 +16,6 @@ type ByWeek struct {
 
 	SleepTime  string `json:"sleep_time" binding:"required,timing"`  // eg. 20:00, 23:55
 	WakeupTime string `json:"wakeup_time" binding:"required,timing"` // eg. 08:00, 09:30
-}
-
-func (s *ByWeek) Hour(hm string) int {
-	v, _ := strconv.Atoi(strings.Split(hm, ":")[0])
-	return v
-}
-
-func (s *ByWeek) Minute(hm string) int {
-	v, _ := strconv.Atoi(strings.Split(hm, ":")[1])
-	return v
-}
-
-func (s *ByWeek) ToIndex(day time.Weekday, hm string) int {
-	h := s.Hour(hm)
-	m := s.Minute(hm)
-	return int(day)*24*60 + h*60 + m
 }
 
 func (s *ByWeek) TimeZone() *time.Location {

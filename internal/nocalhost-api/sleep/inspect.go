@@ -5,6 +5,7 @@ import (
 	"github.com/spf13/cast"
 	v1 "k8s.io/api/core/v1"
 	"nocalhost/internal/nocalhost-api/model"
+	"strconv"
 	"time"
 )
 
@@ -57,29 +58,29 @@ func Inspect(ns *v1.Namespace) (ToBe, error) {
 	// 6. match sleep config
 	for _, f := range conf.ByWeek {
 		now := time.Now().In(f.TimeZone())
-		d1 := time.Duration(*f.SleepDay - now.Weekday())
-		d2 := time.Duration(*f.WakeupDay - now.Weekday())
+		cursor := toIndex(now.Weekday(), now.Hour(), now.Minute())
+		index0 := toIndex(*f.SleepDay, toHour(f.SleepTime), toMinute(f.SleepTime))
+		index1 := toIndex(*f.WakeupDay, toHour(f.WakeupTime), toMinute(f.WakeupTime))
 
-		if *f.WakeupDay < *f.SleepDay {
-			d2 = time.Duration(time.Saturday - *f.SleepDay + *f.WakeupDay + 1)
+		println(ns.Name, "Cursor: 【"+strconv.Itoa(cursor)+"】", " Asleep:【"+strconv.Itoa(index0)+"】", "Wakeup:【"+strconv.Itoa(index1)+"】")
+
+		// case: sleep at Monday 20:00, wakeup at Tuesday 09:00
+		if index0 < index1 && cursor > index0 && cursor < index1 {
+			if ns.Annotations[KSleepStatus] == KAsleep {
+				return ToBeIgnore, nil
+			}
+			return ToBeAsleep, nil
 		}
-		// sleep time
-		t1 := now.Add(d1 * 24 * time.Hour)
-		t1 = time.Date(t1.Year(), t1.Month(), t1.Day(), f.Hour(f.SleepTime), f.Minute(f.SleepTime), 0, 0, f.TimeZone())
-		// wakeup time
-		t2 := now.Add(d2 * 24 * time.Hour)
-		t2 = time.Date(t2.Year(), t2.Month(), t2.Day(), f.Hour(f.WakeupTime), f.Minute(f.WakeupTime), 0, 0, f.TimeZone())
 
-		println(ns.Name, " Sleep:【"+t1.String()+"】", "Wakeup:【"+t2.String()+"】")
-
-		if now.After(t1) && now.Before(t2) {
+		// case: sleep at Friday 20:00, wakeup at Monday 09:00
+		if index1 < index0 && (cursor > index0 || cursor < index1) {
 			if ns.Annotations[KSleepStatus] == KAsleep {
 				return ToBeIgnore, nil
 			}
 			return ToBeAsleep, nil
 		}
 	}
-	// 7. there are no matching rules, then dev space need to be woken up.
+	// 7. No rules were matched, then dev space should be wakeup.
 	if ns.Annotations[KSleepStatus] == KAsleep {
 		return ToBeWakeup, nil
 	}
