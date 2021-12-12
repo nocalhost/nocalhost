@@ -1827,7 +1827,11 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":null}",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/api.Response"
+                        }
                     }
                 }
             }
@@ -1873,7 +1877,11 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":null}",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/api.Response"
+                        }
                     }
                 }
             }
@@ -1909,7 +1917,11 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":null}",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/api.Response"
+                        }
                     }
                 }
             }
@@ -2412,9 +2424,6 @@
                 "id": {
                     "type": "integer"
                 },
-                "is_asleep": {
-                    "type": "boolean"
-                },
                 "is_base_space": {
                     "type": "boolean"
                 },
@@ -2434,8 +2443,15 @@
                     "type": "object",
                     "$ref": "#/definitions/model.SleepConfig"
                 },
-                "sleep_saving": {
-                    "type": "number"
+                "sleep_minute": {
+                    "type": "integer"
+                },
+                "sleep_status": {
+                    "type": "string",
+                    "enum": [
+                        "asleep",
+                        "wakeup"
+                    ]
                 },
                 "space_name": {
                     "type": "string"

@@ -335,8 +335,6 @@ definitions:
         type: string
       id:
         type: integer
-      is_asleep:
-        type: boolean
       is_base_space:
         type: boolean
       kubeconfig:
@@ -350,8 +348,13 @@ definitions:
       sleep_config:
         $ref: '#/definitions/model.SleepConfig'
         type: object
-      sleep_saving:
-        type: number
+      sleep_minute:
+        type: integer
+      sleep_status:
+        enum:
+        - asleep
+        - wakeup
+        type: string
       space_name:
         type: string
       space_resource_limit:
@@ -1815,7 +1818,10 @@ paths:
       - application/json
       responses:
         "200":
-          description: ""
+          description: '{"code":0,"message":"OK","data":null}'
+          schema:
+            $ref: '#/definitions/api.Response'
+            type: object
       summary: Sleep
       tags:
       - DevSpace
@@ -1846,7 +1852,10 @@ paths:
       - application/json
       responses:
         "200":
-          description: ""
+          description: '{"code":0,"message":"OK","data":null}'
+          schema:
+            $ref: '#/definitions/api.Response'
+            type: object
       summary: UpdateSleepConfig
       tags:
       - DevSpace
@@ -1870,7 +1879,10 @@ paths:
       - application/json
       responses:
         "200":
-          description: ""
+          description: '{"code":0,"message":"OK","data":null}'
+          schema:
+            $ref: '#/definitions/api.Response'
+            type: object
       summary: Wakeup
       tags:
       - DevSpace
