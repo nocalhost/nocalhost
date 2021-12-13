@@ -11,12 +11,14 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/informers"
 
+	"nocalhost/internal/nocalhost-api/model"
 	helmv1alpha1 "nocalhost/internal/nocalhost-dep/controllers/vcluster/api/v1alpha1"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 )
@@ -26,7 +28,7 @@ const (
 )
 
 type Manager interface {
-	GetStatus(name, namespace string) (string, error)
+	GetInfo(name, namespace string) (model.VirtualClusterInfo, error)
 	GetKubeConfig(name, namespace string) (string, error)
 	close()
 }
@@ -40,12 +42,18 @@ type manager struct {
 
 var _ Manager = &manager{}
 
-func (m *manager) GetStatus(name, namespace string) (string, error) {
+func (m *manager) GetInfo(name, namespace string) (model.VirtualClusterInfo, error) {
+	info := model.VirtualClusterInfo{}
 	vc, err := m.getVirtualCluster(name, namespace)
 	if err != nil {
-		return string(helmv1alpha1.Unknown), err
+		info.Status = string(helmv1alpha1.Unknown)
+		return info, err
 	}
-	return string(vc.Status.Phase), nil
+	info.Status = string(vc.Status.Phase)
+	info.Version = vc.GetChartVersion()
+	info.Values = vc.GetValues()
+	info.ServiceType = corev1.ServiceType(vc.GetServiceType())
+	return info, nil
 }
 
 func (m *manager) GetKubeConfig(name, namespace string) (string, error) {

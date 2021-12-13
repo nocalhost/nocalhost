@@ -113,10 +113,15 @@ definitions:
     type: object
   cluster_user.DevSpaceRequest:
     properties:
+      dev_space_type:
+        type: integer
       kubeconfig:
         type: string
       space_name:
         type: string
+      virtual_cluster:
+        $ref: '#/definitions/cluster_user.VirtualCluster'
+        type: object
     type: object
   cluster_user.SpaceResourceLimit:
     properties:
@@ -548,7 +553,13 @@ definitions:
     properties:
       events:
         type: string
+      service_type:
+        type: string
       status:
+        type: string
+      values:
+        type: string
+      version:
         type: string
     type: object
   setupcluster.MeshDevApp:

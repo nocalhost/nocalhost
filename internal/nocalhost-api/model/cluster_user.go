@@ -8,6 +8,7 @@ package model
 import (
 	"database/sql/driver"
 	"encoding/json"
+	corev1 "k8s.io/api/core/v1"
 	"time"
 
 	validator "github.com/go-playground/validator/v10"
@@ -189,6 +190,9 @@ func (h Header) Value() (driver.Value, error) {
 }
 
 type VirtualClusterInfo struct {
-	Status string `json:"status"`
-	Events string `json:"events"`
+	Status      string             `json:"status,omitempty"`
+	Events      string             `json:"events,omitempty"`
+	ServiceType corev1.ServiceType `json:"service_type,omitempty"`
+	Version     string             `json:"version,omitempty"`
+	Values      string             `json:"values,omitempty"`
 }

@@ -53,25 +53,8 @@ func GetV2(c *gin.Context) {
 		return
 	}
 
-	// set base space name
-	for i := range result {
-		if result[i].BaseDevSpaceId > 0 {
-			cu, err := service.Svc.ClusterUser().GetFirst(c, model.ClusterUserModel{ID: result[i].BaseDevSpaceId})
-			if err != nil {
-				api.SendResponse(c, errno.ErrMeshClusterUserNotFound, nil)
-				return
-			}
-			if result[i].ClusterUserExt == nil {
-				result[i].ClusterUserExt = &model.ClusterUserExt{
-					BaseDevSpaceName:      cu.SpaceName,
-					BaseDevSpaceNameSpace: cu.Namespace,
-				}
-			} else {
-				result[i].BaseDevSpaceName = cu.SpaceName
-				result[i].BaseDevSpaceNameSpace = cu.Namespace
-			}
-		}
-	}
+	setBaseSpaceNameInto(result)
+	setVClusterInfoInto(result)
 	api.SendResponse(c, nil, result)
 }
 
@@ -120,7 +103,7 @@ func ListV2(c *gin.Context) {
 		api.SendResponse(c, err, nil)
 		return
 	}
-	setVClusterStatusInTo(result)
+	setVClusterInfoInto(result)
 	api.SendResponse(c, nil, result)
 }
 
@@ -425,7 +408,28 @@ func fillResourceListSet(
 	cu.ResourceLimitSet = res.ResourceLimitIsSet()
 }
 
-func setVClusterStatusInTo(cu []*model.ClusterUserV2) {
+func setBaseSpaceNameInto(result []*model.ClusterUserV2) {
+	for i := range result {
+		if result[i].BaseDevSpaceId > 0 {
+			cu, err := service.Svc.ClusterUser().GetFirst(context.TODO(), model.ClusterUserModel{ID: result[i].BaseDevSpaceId})
+			if err != nil {
+				log.Error(err)
+				continue
+			}
+			if result[i].ClusterUserExt == nil {
+				result[i].ClusterUserExt = &model.ClusterUserExt{
+					BaseDevSpaceName:      cu.SpaceName,
+					BaseDevSpaceNameSpace: cu.Namespace,
+				}
+			} else {
+				result[i].BaseDevSpaceName = cu.SpaceName
+				result[i].BaseDevSpaceNameSpace = cu.Namespace
+			}
+		}
+	}
+}
+
+func setVClusterInfoInto(cu []*model.ClusterUserV2) {
 	var hasVirtualCluster bool
 	for i := 0; i < len(cu); i++ {
 		if cu[i].DevSpaceType == model.VirtualClusterType {
@@ -440,6 +444,7 @@ func setVClusterStatusInTo(cu []*model.ClusterUserV2) {
 	list, err := service.Svc.ClusterSvc().GetList(context.TODO())
 	if err != nil {
 		log.Errorf("Error while list cluster: %+v", err)
+		return
 	}
 	clusterMap := make(map[uint64]*model.ClusterList, len(list))
 	for _, l := range list {
@@ -462,10 +467,8 @@ func setVClusterStatusInTo(cu []*model.ClusterUserV2) {
 					return
 				}
 
-				status, _ := vcManager.GetStatus(cu[i].SpaceName, cu[i].Namespace)
-				cu[i].VirtualClusterInfo = &model.VirtualClusterInfo{
-					Status: status,
-				}
+				info, _ := vcManager.GetInfo(cu[i].SpaceName, cu[i].Namespace)
+				cu[i].VirtualClusterInfo = &info
 			}()
 		}
 	}

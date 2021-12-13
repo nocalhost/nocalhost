@@ -2068,11 +2068,18 @@
         "cluster_user.DevSpaceRequest": {
             "type": "object",
             "properties": {
+                "dev_space_type": {
+                    "type": "integer"
+                },
                 "kubeconfig": {
                     "type": "string"
                 },
                 "space_name": {
                     "type": "string"
+                },
+                "virtual_cluster": {
+                    "type": "object",
+                    "$ref": "#/definitions/cluster_user.VirtualCluster"
                 }
             }
         },
@@ -2726,7 +2733,16 @@
                 "events": {
                     "type": "string"
                 },
+                "service_type": {
+                    "type": "string"
+                },
                 "status": {
+                    "type": "string"
+                },
+                "values": {
+                    "type": "string"
+                },
+                "version": {
                     "type": "string"
                 }
             }

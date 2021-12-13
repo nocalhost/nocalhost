@@ -399,7 +399,7 @@ func (d *DevSpace) initVirtualCluster(clusterRecord *model.ClusterModel, cluster
 	vc.SetChartRepo("https://charts.loft.sh")
 	vc.SetChartVersion(v.Version)
 	annotations := map[string]string{
-		"vcluster.nocalhost.dev/service_type": string(v.ServiceType),
+		v1alpha1.ServiceTypeKey: string(v.ServiceType),
 	}
 	vc.SetAnnotations(annotations)
 

@@ -13,6 +13,7 @@ import (
 const (
 	Finalizer      = "virtualcluster.helm.nocalhost.dev/finalizer"
 	DefaultVersion = "0.4.5"
+	ServiceTypeKey = "vcluster.nocalhost.dev/service_type"
 )
 
 // VirtualClusterSpec defines the desired state of VirtualCluster
@@ -124,6 +125,15 @@ func (in *VirtualCluster) SetChartVersion(version string) {
 
 func (in *VirtualCluster) SetChartRepo(repo string) {
 	in.Spec.Helm.Chart.Repo = repo
+}
+
+func (in *VirtualCluster) GetServiceType() string {
+	annotations := in.GetAnnotations()
+	svcType := annotations[ServiceTypeKey]
+	if svcType != "" {
+		svcType = string(corev1.ServiceTypeClusterIP)
+	}
+	return svcType
 }
 
 //+kubebuilder:object:root=true

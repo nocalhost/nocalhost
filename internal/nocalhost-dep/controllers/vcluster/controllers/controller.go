@@ -9,7 +9,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-
 	"github.com/pkg/errors"
 	"helm.sh/helm/v3/pkg/chartutil"
 	"helm.sh/helm/v3/pkg/storage/driver"
@@ -173,8 +172,7 @@ func (r *Reconciler) extraValues(ctx context.Context, vc *helmv1alpha1.VirtualCl
 		return nil, err
 	}
 	extraVals := fmt.Sprintf("vcluster.extraArgs={--service-cidr=%s}", cidr)
-	annotations := vc.GetAnnotations()
-	svcType := annotations["vcluster.nocalhost.dev/service_type"]
+	svcType := vc.GetServiceType()
 	if svcType != "" {
 		svcVal := fmt.Sprintf("service.type=%s", svcType)
 		err = strvals.ParseInto(svcVal, rel)
