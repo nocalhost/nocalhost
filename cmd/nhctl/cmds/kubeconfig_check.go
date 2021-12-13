@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"nocalhost/internal/nhctl/fp"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 )
@@ -113,12 +114,12 @@ func CheckKubeconfig(kubeconfigParams string, contextParam string) CheckInfo {
 		}
 	} else {
 		specifiedNs := ctx.Namespace == ""
+		_ = Prepare()
 
-		err := clientgoutils.DoAuthCheck(
-			utils, "", &clientgoutils.AuthChecker{
-				Verb:        []string{"list", "get", "watch"},
-				ResourceArg: "namespaces",
-			},
+		err := clientgoutils.CheckForResource(
+			fp.NewFilePath(kubeConfig).ReadFile(),
+			"",
+			[]string{"list", "get", "watch"}, "", "namespaces",
 		)
 
 		if err != nil {
@@ -130,7 +131,7 @@ func CheckKubeconfig(kubeconfigParams string, contextParam string) CheckInfo {
 					contextParam, contextParam,
 				)
 
-				if specifiedNs{
+				if specifiedNs {
 					return CheckInfo{
 						SUCCESS, ctx.Namespace, fmt.Sprintf("Current context can list the resources behind ns %s", ctx.Namespace),
 						true, "",
