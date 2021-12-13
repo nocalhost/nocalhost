@@ -43,6 +43,8 @@ github.com/cheggaaa/pb/v3/termutil
 github.com/containerd/containerd/errdefs
 # github.com/davecgh/go-spew v1.1.1
 github.com/davecgh/go-spew/spew
+# github.com/dgrijalva/jwt-go/v4 v4.0.0-preview1
+## explicit
 # github.com/docker/distribution v2.7.1+incompatible
 github.com/docker/distribution
 github.com/docker/distribution/digestset
@@ -276,16 +278,11 @@ github.com/olekukonko/tablewriter
 github.com/olivere/elastic/v7
 github.com/olivere/elastic/v7/config
 github.com/olivere/elastic/v7/uritemplates
-# github.com/onsi/ginkgo v1.14.1
+# github.com/onsi/ginkgo v1.14.2
 ## explicit
 # github.com/opencontainers/go-digest v1.0.0
 github.com/opencontainers/go-digest
-<<<<<<< HEAD
 # github.com/opencontainers/image-spec v1.0.1
-=======
-# github.com/opencontainers/image-spec v1.0.2
-## explicit
->>>>>>> dev
 github.com/opencontainers/image-spec/specs-go
 github.com/opencontainers/image-spec/specs-go/v1
 # github.com/pelletier/go-toml v1.8.1

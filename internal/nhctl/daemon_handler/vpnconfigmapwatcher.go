@@ -11,9 +11,9 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_server/command"
-	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/vpn/pkg"
 	"nocalhost/internal/nhctl/vpn/util"
+	"nocalhost/pkg/nhctl/k8sutils"
 	"os/exec"
 	"sync"
 	"time"
@@ -344,7 +344,7 @@ func (h *resourceHandler) notifySudoDaemonToConnect() {
 	if err != nil {
 		return
 	}
-	path := nocalhost.GetOrGenKubeConfigPath(string(h.kubeconfigBytes))
+	path := k8sutils.GetOrGenKubeConfigPath(string(h.kubeconfigBytes))
 	client.SendSudoVPNOperateCommand(path, h.namespace, command.Connect, "")
 }
 
@@ -353,7 +353,7 @@ func (h *resourceHandler) notifySudoDaemonToDisConnect() {
 	if err != nil {
 		return
 	}
-	path := nocalhost.GetOrGenKubeConfigPath(string(h.kubeconfigBytes))
+	path := k8sutils.GetOrGenKubeConfigPath(string(h.kubeconfigBytes))
 	client.SendSudoVPNOperateCommand(path, h.namespace, command.DisConnect, "")
 }
 
@@ -404,7 +404,7 @@ func checkReverse() {
 		if !bytes.Equal(value.(*name).kubeconfigBytes, connectInfo.kubeconfigBytes) {
 			return true
 		}
-		path := nocalhost.GetOrGenKubeConfigPath(string(value.(*name).kubeconfigBytes))
+		path := k8sutils.GetOrGenKubeConfigPath(string(value.(*name).kubeconfigBytes))
 		connect := &pkg.ConnectOptions{
 			KubeconfigPath: path,
 			Namespace:      value.(*name).namespace,

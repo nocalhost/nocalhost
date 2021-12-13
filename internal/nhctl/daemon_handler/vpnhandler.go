@@ -11,10 +11,10 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_server/command"
-	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/vpn/pkg"
 	"nocalhost/internal/nhctl/vpn/remote"
 	"nocalhost/internal/nhctl/vpn/util"
+	"nocalhost/pkg/nhctl/k8sutils"
 	"nocalhost/pkg/nhctl/log"
 	"strings"
 	"time"
@@ -71,7 +71,7 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 			}
 			// cleanup all reverse
 			logger.Infof("cleanup all old reverse resources...\n")
-			path := nocalhost.GetOrGenKubeConfigPath(string(connectInfo.kubeconfigBytes))
+			path := k8sutils.GetOrGenKubeConfigPath(string(connectInfo.kubeconfigBytes))
 			if value, found := GetReverseInfo().LoadAndDelete(connectInfo.toKey()); found {
 				connectOptions := &pkg.ConnectOptions{
 					Ctx:            logCtx,
@@ -201,7 +201,7 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 				if err != nil {
 					break
 				}
-				path := nocalhost.GetOrGenKubeConfigPath(string(value.(*name).kubeconfigBytes))
+				path := k8sutils.GetOrGenKubeConfigPath(string(value.(*name).kubeconfigBytes))
 				temp := &pkg.ConnectOptions{
 					Ctx:            logCtx,
 					KubeconfigPath: path,
