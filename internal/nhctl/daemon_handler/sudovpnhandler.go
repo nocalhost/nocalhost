@@ -107,11 +107,12 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser)
 			logger.Infoln(util.EndSignFailed)
 			return nil
 		}
-		if !connected.IsSameKubeconfigAndNamespace(connect) {
-			logger.Infoln("kubeconfig and namespace not match, can't disconnect vpn")
-			logger.Infoln(util.EndSignFailed)
-			return nil
-		}
+		// todo how to check it
+		//if !connected.IsSameKubeconfigAndNamespace(connect) {
+		//	logger.Infoln("kubeconfig and namespace not match, can't disconnect vpn")
+		//	logger.Infoln(util.EndSignFailed)
+		//	return nil
+		//}
 
 		for _, function := range remote.CancelFunctions {
 			if function != nil {

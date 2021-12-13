@@ -190,7 +190,7 @@ func (c *ConnectOptions) Prepare(ctx context.Context) error {
 
 func (c *ConnectOptions) DoConnect(ctx context.Context) (chan error, error) {
 	var err error
-	c.trafficManagerIP, err = CreateOutboundRouterPodIfNecessary(c.clientset, c.Namespace, &util.RouterIP, c.cidrs, c.GetLogger())
+	c.trafficManagerIP, err = createOutboundRouterPodIfNecessary(c.clientset, c.Namespace, &util.RouterIP, c.cidrs, c.GetLogger())
 	if err != nil {
 		return nil, err
 	}

@@ -8,33 +8,27 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/polymorphichelpers"
-	"k8s.io/kubectl/pkg/util/podutils"
 	"net"
 	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/vpn/remote"
 	"nocalhost/internal/nhctl/vpn/util"
-	"sort"
 	"strings"
 	"time"
 )
 
-func CreateOutboundRouterPodIfNecessary(clientset *kubernetes.Clientset, namespace string, serverIp *net.IPNet, nodeCIDR []*net.IPNet, logger *log.Logger) (string, error) {
-	firstPod, i, err3 := polymorphichelpers.GetFirstPod(clientset.CoreV1(),
-		namespace,
-		fields.OneTermEqualSelector("app", util.TrafficManager).String(),
-		time.Second*5,
-		func(pods []*v1.Pod) sort.Interface {
-			return sort.Reverse(podutils.ActivePods(pods))
-		},
-	)
-
-	if err3 == nil && i != 0 && firstPod != nil {
-		remote.UpdateRefCount(clientset, namespace, firstPod.Name, 1)
-		return firstPod.Status.PodIP, nil
+func createOutboundRouterPodIfNecessary(
+	clientset *kubernetes.Clientset,
+	namespace string,
+	serverIP *net.IPNet,
+	podCIDR []*net.IPNet,
+	logger *log.Logger,
+) (string, error) {
+	routerPod, err := clientset.CoreV1().Pods(namespace).Get(context.TODO(), util.TrafficManager, metav1.GetOptions{})
+	if err == nil && routerPod.DeletionTimestamp == nil {
+		remote.UpdateRefCount(clientset, namespace, routerPod.Name, 1)
+		return routerPod.Status.PodIP, nil
 	}
 	args := []string{
 		"sysctl net.ipv4.ip_forward=1",
@@ -43,10 +37,10 @@ func CreateOutboundRouterPodIfNecessary(clientset *kubernetes.Clientset, namespa
 		"iptables -P FORWARD ACCEPT",
 		fmt.Sprintf("iptables -t nat -A POSTROUTING -s %s -o eth0 -j MASQUERADE", util.RouterIP.String()),
 	}
-	for _, ipNet := range nodeCIDR {
+	for _, ipNet := range podCIDR {
 		args = append(args, fmt.Sprintf("iptables -t nat -A POSTROUTING -s %s -o eth0 -j MASQUERADE", ipNet.String()))
 	}
-	args = append(args, fmt.Sprintf("nhctl vpn serve -L tcp://:10800 -L tun://:8421?net=%s --debug=true", serverIp.String()))
+	args = append(args, fmt.Sprintf("nhctl vpn serve -L tcp://:10800 -L tun://:8421?net=%s --debug=true", serverIP.String()))
 
 	t := true
 	zero := int64(0)
@@ -92,10 +86,10 @@ func CreateOutboundRouterPodIfNecessary(clientset *kubernetes.Clientset, namespa
 			PriorityClassName: "system-cluster-critical",
 		},
 	}
-	_, err2 := clientset.CoreV1().Pods(namespace).Create(context.TODO(), &pod, metav1.CreateOptions{})
-	if err2 != nil {
-		logger.Errorln(err2)
-		return "", err2
+	_, err = clientset.CoreV1().Pods(namespace).Create(context.TODO(), &pod, metav1.CreateOptions{})
+	if err != nil {
+		logger.Errorln(err)
+		return "", err
 	}
 	watch, err := clientset.CoreV1().Pods(namespace).Watch(context.TODO(), metav1.SingleObject(metav1.ObjectMeta{Name: name}))
 	if err != nil {
@@ -109,9 +103,10 @@ func CreateOutboundRouterPodIfNecessary(clientset *kubernetes.Clientset, namespa
 			if podT, ok := e.Object.(*v1.Pod); ok && podT.Status.Phase == v1.PodRunning {
 				return podT.Status.PodIP, nil
 			}
-		case <-time.Tick(time.Minute * 2):
-			logger.Error("timeout")
-			return "", errors.New("timeout")
+		case <-time.Tick(time.Minute * 10):
+			err = errors.New("wait for outbound pod to be ready timeout")
+			logger.Error(err)
+			return "", err
 		}
 	}
 }
