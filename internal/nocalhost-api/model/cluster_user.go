@@ -71,7 +71,7 @@ type ClusterUserExt struct {
 	Deletable             bool                `json:"deletable"`
 	BaseDevSpaceName      string              `json:"base_dev_space_name"`
 	BaseDevSpaceNameSpace string              `json:"base_dev_space_namespace"`
-	VirtualClusterInfo    *VirtualClusterInfo `json:"virtual_cluster_info,omitempty"`
+	VirtualClusterInfo    *VirtualClusterInfo `json:"virtual_cluster,omitempty"`
 }
 
 // ClusterUserModel
