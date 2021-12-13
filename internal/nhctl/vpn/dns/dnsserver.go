@@ -26,10 +26,10 @@ func NewDNSServer(network, address string, forwardDNS *miekgdns.ClientConfig) er
 		forwardDNS: forwardDNS,
 		client: &miekgdns.Client{
 			Net:          "udp",
-			Timeout:      time.Second * 1,
-			DialTimeout:  time.Second * 1,
-			ReadTimeout:  time.Second * 1,
-			WriteTimeout: time.Second * 1,
+			Timeout:      time.Second * 2,
+			DialTimeout:  time.Second * 2,
+			ReadTimeout:  time.Second * 2,
+			WriteTimeout: time.Second * 2,
 		},
 	})
 }
@@ -66,7 +66,7 @@ func (s *server) ServeDNS(w miekgdns.ResponseWriter, r *miekgdns.Msg) {
 	if err != nil {
 		log.Warnln(err)
 		err = w.WriteMsg(r)
-		if err != nil {
+		if !strings.Contains(err.Error(), "timeout") {
 			log.Warnln(err)
 		}
 	} else {
