@@ -5,6 +5,7 @@ go 1.16
 // require k8s.io/kubernetes v1.16.10
 
 require (
+	github.com/AlecAivazis/survey/v2 v2.3.2
 	github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751
 	github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a // indirect
 	github.com/alicebob/miniredis v2.5.0+incompatible
@@ -44,6 +45,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.11.0
 	github.com/qiniu/api.v7 v0.0.0-20190520053455-bea02cd22bf4
+	github.com/rivo/tview v0.0.0-20211202162923-2a6de950f73b
 	github.com/satori/go.uuid v1.2.0
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cast v1.3.1

@@ -111,7 +111,6 @@ var installCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		var (
-			err             error
 			applicationName = args[0]
 		)
 
@@ -139,69 +138,74 @@ var installCmd = &cobra.Command{
 				)
 			}
 		}
+		installApplication(applicationName)
 
-		log.Info("Installing application...")
-		nocalhostApp, err = common.InstallApplication(installFlags, applicationName, kubeConfig, nameSpace)
-		must(err)
-		log.Infof("Application %s installed", applicationName)
+	},
+}
 
-		configV2 := nocalhostApp.GetApplicationConfigV2()
+func installApplication(applicationName string) {
+	var err error
+	log.Info("Installing application...")
+	nocalhostApp, err = common.InstallApplication(installFlags, applicationName, kubeConfig, nameSpace)
+	must(err)
+	log.Infof("Application %s installed", applicationName)
 
-		// Start port forward
-		for _, svcProfile := range configV2.ServiceConfigs {
-			//nhSvc := initService(svcProfile.Name, svcProfile.Type)
-			checkIfSvcExist(svcProfile.Name, svcProfile.Type)
-			nhSvc := nocalhostSvc
-			for _, cc := range svcProfile.ContainerConfigs {
-				if cc.Install == nil || len(cc.Install.PortForward) == 0 {
+	configV2 := nocalhostApp.GetApplicationConfigV2()
+
+	// Start port forward
+	for _, svcProfile := range configV2.ServiceConfigs {
+		//nhSvc := initService(svcProfile.Name, svcProfile.Type)
+		checkIfSvcExist(svcProfile.Name, svcProfile.Type)
+		nhSvc := nocalhostSvc
+		for _, cc := range svcProfile.ContainerConfigs {
+			if cc.Install == nil || len(cc.Install.PortForward) == 0 {
+				continue
+			}
+
+			svcType := svcProfile.Type
+			log.Infof("Starting port-forward for %s %s", svcType, svcProfile.Name)
+			ctx, _ := context.WithTimeout(context.Background(), 5*time.Minute)
+			podController := nhSvc.BuildPodController()
+			if podController == nil {
+				log.WarnE(errors.New("Pod controller is nil"), "")
+				continue
+			}
+
+			var i int
+			for i = 0; i < 60; i++ {
+				<-time.After(time.Second)
+				podName, err = controller.GetDefaultPodName(ctx, podController)
+				if err != nil {
+					log.WarnE(err, "")
 					continue
 				}
-
-				svcType := svcProfile.Type
-				log.Infof("Starting port-forward for %s %s", svcType, svcProfile.Name)
-				ctx, _ := context.WithTimeout(context.Background(), 5*time.Minute)
-				podController := nhSvc.BuildPodController()
-				if podController == nil {
-					log.WarnE(errors.New("Pod controller is nil"), "")
+				log.Infof("Waiting pod %s to be ready", podName)
+				pod, err := nocalhostApp.GetClient().GetPod(podName)
+				if err != nil {
+					log.Info(err.Error())
 					continue
 				}
-
-				var i int
-				for i = 0; i < 60; i++ {
-					<-time.After(time.Second)
-					podName, err = controller.GetDefaultPodName(ctx, podController)
-					if err != nil {
-						log.WarnE(err, "")
-						continue
-					}
-					log.Infof("Waiting pod %s to be ready", podName)
-					pod, err := nocalhostApp.GetClient().GetPod(podName)
-					if err != nil {
-						log.Info(err.Error())
-						continue
-					}
-					if pod.Status.Phase == "Running" && pod.DeletionTimestamp == nil {
-						log.Infof("Pod %s is ready", podName)
-						break
-					}
-				}
-				if i == 60 {
-					log.Warn("Waiting pod to be ready timeout, continue...")
-					continue
-				}
-
-				for _, pf := range cc.Install.PortForward {
-					lPort, rPort, err := profile.GetPortForwardForString(pf)
-					if err != nil {
-						log.WarnE(err, "")
-						continue
-					}
-					log.Infof("Port forward %d:%d", lPort, rPort)
-					utils.Should(nhSvc.PortForward(podName, lPort, rPort, ""))
+				if pod.Status.Phase == "Running" && pod.DeletionTimestamp == nil {
+					log.Infof("Pod %s is ready", podName)
+					break
 				}
 			}
+			if i == 60 {
+				log.Warn("Waiting pod to be ready timeout, continue...")
+				continue
+			}
+
+			for _, pf := range cc.Install.PortForward {
+				lPort, rPort, err := profile.GetPortForwardForString(pf)
+				if err != nil {
+					log.WarnE(err, "")
+					continue
+				}
+				log.Infof("Port forward %d:%d", lPort, rPort)
+				utils.Should(nhSvc.PortForward(podName, lPort, rPort, ""))
+			}
 		}
-	},
+	}
 }
 
 func must(err error) {

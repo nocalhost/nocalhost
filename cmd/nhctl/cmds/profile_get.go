@@ -79,3 +79,44 @@ var profileGetCmd = &cobra.Command{
 		}
 	},
 }
+
+func getConfig(container, configKey string) string {
+	_ = nocalhostSvc.LoadConfigFromHubC(container)
+
+	_ = nocalhostApp.ReloadSvcCfg(deployment, nocalhostSvc.Type, false, true)
+
+	switch configKey {
+	case "image":
+		p := nocalhostSvc.Config()
+
+		var defaultContainerConfig *profile.ContainerConfig
+		for _, c := range p.ContainerConfigs {
+			if c.Name == container {
+				if c.Dev != nil && c.Dev.Image != "" {
+					return c.Dev.Image
+				}
+			} else if c.Name == "" {
+				defaultContainerConfig = c
+			}
+		}
+		if defaultContainerConfig != nil && defaultContainerConfig.Dev != nil && defaultContainerConfig.Dev.Image != "" {
+			var defaultIndex = -1
+			for i, c := range p.ContainerConfigs {
+				if c.Name == "" {
+					defaultIndex = i
+					break
+				}
+			}
+			if defaultIndex >= 0 {
+				p.ContainerConfigs[defaultIndex] = defaultContainerConfig
+				defaultContainerConfig.Name = container // setting container name
+			}
+			must(nocalhostSvc.UpdateConfig(*p))
+			return defaultContainerConfig.Dev.Image
+			//fmt.Printf(`{"image": "%s"}`, defaultContainerConfig.Dev.Image)
+		}
+	default:
+		log.Fatalf("Getting config key %s is unsupported", configKey)
+	}
+	return ""
+}

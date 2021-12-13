@@ -147,96 +147,100 @@ func GetOriginalContainers(client *clientgoutils.ClientGoUtils, workloadType bas
 	if err != nil {
 		return nil, err
 	}
-
-	//switch workloadType {
-	//case base.Deployment:
-	//	d, err := client.GetDeployment(workloadName)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	if len(d.Annotations) > 0 {
-	//		if osj, ok := d.Annotations[OriginSpecJson]; ok {
-	//			d.Spec = appsv1.DeploymentSpec{}
-	//			if err = json.Unmarshal([]byte(osj), &d.Spec); err != nil {
-	//				return nil, errors.Wrap(err, "")
-	//			}
-	//		}
-	//	}
-	//	podSpec = d.Spec.Template.Spec
-	//case base.StatefulSet:
-	//	s, err := client.GetStatefulSet(workloadName)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	if len(s.Annotations) > 0 {
-	//		if osj, ok := s.Annotations[OriginSpecJson]; ok {
-	//			s.Spec = appsv1.StatefulSetSpec{}
-	//			if err = json.Unmarshal([]byte(osj), &s.Spec); err != nil {
-	//				return nil, errors.Wrap(err, "")
-	//			}
-	//		}
-	//	}
-	//	podSpec = s.Spec.Template.Spec
-	//case base.DaemonSet:
-	//	d, err := client.GetDaemonSet(workloadName)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	if len(d.Annotations) > 0 {
-	//		if osj, ok := d.Annotations[OriginSpecJson]; ok {
-	//			d.Spec = appsv1.DaemonSetSpec{}
-	//			if err = json.Unmarshal([]byte(osj), &d.Spec); err != nil {
-	//				return nil, errors.Wrap(err, "")
-	//			}
-	//		}
-	//	}
-	//	podSpec = d.Spec.Template.Spec
-	//case base.Job:
-	//	j, err := client.GetJobs(workloadName)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	if len(j.Annotations) > 0 {
-	//		if osj, ok := j.Annotations[OriginSpecJson]; ok {
-	//			j.Spec = batchv1.JobSpec{}
-	//			if err = json.Unmarshal([]byte(osj), &j.Spec); err != nil {
-	//				return nil, errors.Wrap(err, "")
-	//			}
-	//		}
-	//	}
-	//	podSpec = j.Spec.Template.Spec
-	//case base.CronJob:
-	//	j, err := client.GetCronJobs(workloadName)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	if len(j.Annotations) > 0 {
-	//		if osj, ok := j.Annotations[OriginSpecJson]; ok {
-	//			j.Spec = batchv1beta1.CronJobSpec{}
-	//			if err = json.Unmarshal([]byte(osj), &j.Spec); err != nil {
-	//				return nil, errors.Wrap(err, "")
-	//			}
-	//		}
-	//	}
-	//	podSpec = j.Spec.JobTemplate.Spec.Template.Spec
-	//case base.Pod:
-	//	p, err := client.GetPod(workloadName)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	if len(p.Annotations) > 0 {
-	//		if osj, ok := p.Annotations[originalPodDefine]; ok {
-	//			p.Spec = v1.PodSpec{}
-	//			if err = json.Unmarshal([]byte(osj), p); err != nil {
-	//				return nil, errors.Wrap(err, "")
-	//			}
-	//		}
-	//	}
-	//	podSpec = p.Spec
-	//}
-
 	return pt.Spec.Containers, nil
 }
+
+//func GetOriginalContainers(name string, workloadType base.SvcType, client *clientgoutils.ClientGoUtils) ([]v1.Container, error) {
+//
+//	//switch workloadType {
+//	//case base.Deployment:
+//	//	d, err := client.GetDeployment(workloadName)
+//	//	if err != nil {
+//	//		return nil, err
+//	//	}
+//	//	if len(d.Annotations) > 0 {
+//	//		if osj, ok := d.Annotations[OriginSpecJson]; ok {
+//	//			d.Spec = appsv1.DeploymentSpec{}
+//	//			if err = json.Unmarshal([]byte(osj), &d.Spec); err != nil {
+//	//				return nil, errors.Wrap(err, "")
+//	//			}
+//	//		}
+//	//	}
+//	//	podSpec = d.Spec.Template.Spec
+//	//case base.StatefulSet:
+//	//	s, err := client.GetStatefulSet(workloadName)
+//	//	if err != nil {
+//	//		return nil, err
+//	//	}
+//	//	if len(s.Annotations) > 0 {
+//	//		if osj, ok := s.Annotations[OriginSpecJson]; ok {
+//	//			s.Spec = appsv1.StatefulSetSpec{}
+//	//			if err = json.Unmarshal([]byte(osj), &s.Spec); err != nil {
+//	//				return nil, errors.Wrap(err, "")
+//	//			}
+//	//		}
+//	//	}
+//	//	podSpec = s.Spec.Template.Spec
+//	//case base.DaemonSet:
+//	//	d, err := client.GetDaemonSet(workloadName)
+//	//	if err != nil {
+//	//		return nil, err
+//	//	}
+//	//	if len(d.Annotations) > 0 {
+//	//		if osj, ok := d.Annotations[OriginSpecJson]; ok {
+//	//			d.Spec = appsv1.DaemonSetSpec{}
+//	//			if err = json.Unmarshal([]byte(osj), &d.Spec); err != nil {
+//	//				return nil, errors.Wrap(err, "")
+//	//			}
+//	//		}
+//	//	}
+//	//	podSpec = d.Spec.Template.Spec
+//	//case base.Job:
+//	//	j, err := client.GetJobs(workloadName)
+//	//	if err != nil {
+//	//		return nil, err
+//	//	}
+//	//	if len(j.Annotations) > 0 {
+//	//		if osj, ok := j.Annotations[OriginSpecJson]; ok {
+//	//			j.Spec = batchv1.JobSpec{}
+//	//			if err = json.Unmarshal([]byte(osj), &j.Spec); err != nil {
+//	//				return nil, errors.Wrap(err, "")
+//	//			}
+//	//		}
+//	//	}
+//	//	podSpec = j.Spec.Template.Spec
+//	//case base.CronJob:
+//	//	j, err := client.GetCronJobs(workloadName)
+//	//	if err != nil {
+//	//		return nil, err
+//	//	}
+//	//	if len(j.Annotations) > 0 {
+//	//		if osj, ok := j.Annotations[OriginSpecJson]; ok {
+//	//			j.Spec = batchv1beta1.CronJobSpec{}
+//	//			if err = json.Unmarshal([]byte(osj), &j.Spec); err != nil {
+//	//				return nil, errors.Wrap(err, "")
+//	//			}
+//	//		}
+//	//	}
+//	//	podSpec = j.Spec.JobTemplate.Spec.Template.Spec
+//	//case base.Pod:
+//	//	p, err := client.GetPod(workloadName)
+//	//	if err != nil {
+//	//		return nil, err
+//	//	}
+//	//	if len(p.Annotations) > 0 {
+//	//		if osj, ok := p.Annotations[originalPodDefine]; ok {
+//	//			p.Spec = v1.PodSpec{}
+//	//			if err = json.Unmarshal([]byte(osj), p); err != nil {
+//	//				return nil, errors.Wrap(err, "")
+//	//			}
+//	//		}
+//	//	}
+//	//	podSpec = p.Spec
+//	//}
+//
+//	return pt.Spec.Containers, nil
+//}}
 
 func (c *Controller) GetTypeMeta() (metav1.TypeMeta, error) {
 	um, err := c.GetUnstructured()

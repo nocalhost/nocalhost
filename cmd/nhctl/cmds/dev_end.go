@@ -9,10 +9,12 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"io/ioutil"
 	"nocalhost/internal/nhctl/coloredoutput"
 	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
+	yaml "nocalhost/pkg/nhctl/utils/custom_yaml_v3"
 	"strconv"
 )
 
@@ -27,14 +29,31 @@ var devEndCmd = &cobra.Command{
 	Use:   "end [NAME]",
 	Short: "end dev model",
 	Long:  `end dev model`,
-	Args: func(cmd *cobra.Command, args []string) error {
-		if len(args) < 1 {
-			return errors.Errorf("%q requires at least 1 argument\n", cmd.CommandPath())
-		}
-		return nil
-	},
+	//Args: func(cmd *cobra.Command, args []string) error {
+	//	if len(args) < 1 {
+	//		return errors.Errorf("%q requires at least 1 argument\n", cmd.CommandPath())
+	//	}
+	//	return nil
+	//},
 	Run: func(cmd *cobra.Command, args []string) {
-		applicationName := args[0]
+		var applicationName string
+		if len(args) < 1 {
+			bys, err := ioutil.ReadFile("nocalhost.yaml")
+			if err != nil {
+				log.FatalE(errors.Errorf("%q requires at least 1 argument\n", cmd.CommandPath()), "")
+			}
+			devConfig := &DevConfig{}
+			if err = yaml.Unmarshal(bys, devConfig); err != nil {
+				log.FatalE(err, "")
+			}
+			applicationName = devConfig.Application
+			deployment = devConfig.WorkLoad
+			serviceType = devConfig.Type
+		} else {
+			applicationName = args[0]
+		}
+		// /Users/xinxinhuang/.nh/bin/nhctl dev end bookinfo -d authors -t deployment -n devspace --kubeconfig /Users/xinxinhuang/.nh/vscode-plugin/kubeConfigs/ef14063c1455c88e5b39387041bb392d50fd5413
+
 		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
 
 		if !nocalhostSvc.IsInReplaceDevMode() && !nocalhostSvc.IsInDuplicateDevMode() {
