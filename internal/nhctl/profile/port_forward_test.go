@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"nocalhost/pkg/nhctl/log"
+	"strings"
 	"testing"
 )
 
@@ -68,4 +69,10 @@ func TestParseRandom(t *testing.T) {
 	if l < 0 || r != 80 {
 		t.Error(errors.New("err"))
 	}
+}
+
+func TestMacAddress(t *testing.T) {
+	s := getMacAddress().String()
+	all := strings.ReplaceAll(s, ":", "")
+	fmt.Println(all)
 }
