@@ -215,6 +215,9 @@ func (h *resourceHandler) toKey() string {
 }
 
 func (h *resourceHandler) OnAdd(obj interface{}) {
+	h.reverseInfoLock.Lock()
+	defer h.reverseInfoLock.Unlock()
+
 	configMap := obj.(*corev1.ConfigMap)
 	status := ToStatus(configMap.Data)
 	modifyReverseInfo(h, status)
@@ -236,6 +239,9 @@ func (h *resourceHandler) OnAdd(obj interface{}) {
 }
 
 func (h *resourceHandler) OnUpdate(oldObj, newObj interface{}) {
+	h.reverseInfoLock.Lock()
+	defer h.reverseInfoLock.Unlock()
+
 	oldStatus := ToStatus(oldObj.(*corev1.ConfigMap).Data)
 	newStatus := ToStatus(newObj.(*corev1.ConfigMap).Data)
 	modifyReverseInfo(h, newStatus)
@@ -288,8 +294,6 @@ func release(h *resourceHandler) {
 // modifyReverseInfo modify reverse info using latest vpn status
 // iterator latest vpn status and delete resource which not exist
 func modifyReverseInfo(h *resourceHandler, latest VPNStatus) {
-	h.reverseInfoLock.Lock()
-	defer h.reverseInfoLock.Unlock()
 	// using same reference, because health check will modify status
 
 	local, ok := h.reverseInfo.Load(h.toKey())
@@ -331,6 +335,9 @@ func modifyReverseInfo(h *resourceHandler, latest VPNStatus) {
 }
 
 func (h *resourceHandler) OnDelete(obj interface{}) {
+	h.reverseInfoLock.Lock()
+	defer h.reverseInfoLock.Unlock()
+
 	configMap := obj.(*corev1.ConfigMap)
 	status := ToStatus(configMap.Data)
 	if status.Connect.IsConnected() && connectInfo.IsSame(h.kubeconfigBytes, h.namespace) {
