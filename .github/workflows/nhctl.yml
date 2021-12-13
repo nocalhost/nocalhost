@@ -59,6 +59,7 @@ jobs:
         env:
           WINDOWS_BINARY: 'nhctl-windows-amd64.exe'
           LINUX_BINARY: 'nhctl-linux-amd64'
+          LINUX_ARM64_BINARY: 'nhctl-linux-arm64'
         run: |
           cd build
           curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=main" --retry 5
@@ -70,6 +71,7 @@ jobs:
         env:
           WINDOWS_BINARY: 'nhctl-windows-amd64.exe'
           LINUX_BINARY: 'nhctl-linux-amd64'
+          LINUX_ARM64_BINARY: 'nhctl-linux-arm64'
         run: |
           cd build
           curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=dev" --retry 5
@@ -120,7 +122,7 @@ jobs:
         run: |
           cd build
           curl -T ${OSX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${OSX_BINARY}?version=main" --retry 5
-          curl -T ${OSX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${OSX_ARM64_BINARY}?version=main" --retry 5
+          curl -T ${OSX_ARM64_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${OSX_ARM64_BINARY}?version=main" --retry 5
 
       - name: Push to Coding Artifacts
         if: ${{ github.ref == 'refs/heads/dev' && github.repository == 'nocalhost/nocalhost' }}
@@ -130,7 +132,7 @@ jobs:
         run: |
           cd build
           curl -T ${OSX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${OSX_BINARY}?version=dev" --retry 5
-          curl -T ${OSX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${OSX_ARM64_BINARY}?version=dev" --retry 5
+          curl -T ${OSX_ARM64_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${OSX_ARM64_BINARY}?version=dev" --retry 5
 
   build-syncthing-linux:
     name: Build syncthing amd64&arm64
