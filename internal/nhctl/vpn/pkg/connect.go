@@ -31,21 +31,21 @@ import (
 )
 
 type ConnectOptions struct {
-	Ctx             context.Context
-	KubeconfigPath  string
-	KubeconfigBytes []byte
-	Namespace       string
-	Workloads       []string
-	clientset       *kubernetes.Clientset
-	restclient      *rest.RESTClient
-	config          *rest.Config
-	factory         cmdutil.Factory
-	cidrs           []*net.IPNet
-	tunIP           *net.IPNet
-	routerIP        string
-	dhcp            *remote.DHCPManager
-	ipUsed          []*net.IPNet
-	log             *log.Logger
+	Ctx              context.Context
+	KubeconfigPath   string
+	KubeconfigBytes  []byte
+	Namespace        string
+	Workloads        []string
+	clientset        *kubernetes.Clientset
+	restclient       *rest.RESTClient
+	config           *rest.Config
+	factory          cmdutil.Factory
+	cidrs            []*net.IPNet
+	localTunIP       *net.IPNet
+	trafficManagerIP string
+	dhcp             *remote.DHCPManager
+	ipUsed           []*net.IPNet
+	log              *log.Logger
 }
 
 func (c *ConnectOptions) GetLogger() *log.Logger {
@@ -101,7 +101,7 @@ func (c *ConnectOptions) ReleaseIP() error {
 	return nil
 }
 
-func (c *ConnectOptions) createRemoteInboundPod(tunIP *net.IPNet) error {
+func (c *ConnectOptions) createRemoteInboundPod() error {
 	wg := sync.WaitGroup{}
 	lock := sync.Mutex{}
 	for _, workload := range c.Workloads {
@@ -113,7 +113,7 @@ func (c *ConnectOptions) createRemoteInboundPod(tunIP *net.IPNet) error {
 					wg.Done()
 				}()
 				lock.Lock()
-				virtualShadowIp, _ := c.RentIP(true)
+				shadowTunIP, _ := c.RentIP(true)
 				lock.Unlock()
 
 				err := CreateInboundPod(
@@ -122,9 +122,9 @@ func (c *ConnectOptions) createRemoteInboundPod(tunIP *net.IPNet) error {
 					c.clientset,
 					c.Namespace,
 					finalWorkload,
-					tunIP.IP.String(),
-					c.routerIP,
-					virtualShadowIp.String(),
+					c.localTunIP.IP.String(),
+					c.trafficManagerIP,
+					shadowTunIP.String(),
 					util.RouterIP.String(),
 				)
 				if err != nil {
@@ -190,11 +190,11 @@ func (c *ConnectOptions) Prepare(ctx context.Context) error {
 
 func (c *ConnectOptions) DoConnect(ctx context.Context) (chan error, error) {
 	var err error
-	c.routerIP, err = CreateOutboundRouterPodIfNecessary(c.clientset, c.Namespace, &util.RouterIP, c.cidrs, c.GetLogger())
+	c.trafficManagerIP, err = CreateOutboundRouterPodIfNecessary(c.clientset, c.Namespace, &util.RouterIP, c.cidrs, c.GetLogger())
 	if err != nil {
 		return nil, err
 	}
-	c.GetLogger().Info("your ip is " + c.tunIP.IP.String())
+	c.GetLogger().Info("your ip is " + c.localTunIP.IP.String())
 	if !util.IsPortListening(10800) {
 		c.portForward(ctx)
 	}
@@ -213,8 +213,8 @@ func (c *ConnectOptions) DoReverse(ctx context.Context) error {
 	if err != nil || firstPod == nil {
 		return errors.New("can not found router ip while reverse resource")
 	}
-	c.routerIP = firstPod.Status.PodIP
-	if err = c.createRemoteInboundPod(c.tunIP); err != nil {
+	c.trafficManagerIP = firstPod.Status.PodIP
+	if err = c.createRemoteInboundPod(); err != nil {
 		return err
 	}
 	return nil
@@ -280,9 +280,9 @@ func (c *ConnectOptions) portForward(ctx context.Context) {
 
 func (c *ConnectOptions) startLocalTunServe(ctx context.Context) (chan error, error) {
 	if util.IsWindows() {
-		c.tunIP.Mask = net.CIDRMask(0, 32)
+		c.localTunIP.Mask = net.CIDRMask(0, 32)
 	} else {
-		c.tunIP.Mask = net.CIDRMask(24, 32)
+		c.localTunIP.Mask = net.CIDRMask(24, 32)
 	}
 	var list = []string{util.RouterIP.String()}
 	for _, cidr := range c.cidrs {
@@ -291,7 +291,7 @@ func (c *ConnectOptions) startLocalTunServe(ctx context.Context) (chan error, er
 	route := Route{
 		ServeNodes: []string{
 			fmt.Sprintf("tun://:8421/127.0.0.1:8421?net=%s&route=%s",
-				c.tunIP.String(), strings.Join(list, ",")),
+				c.localTunIP.String(), strings.Join(list, ",")),
 		},
 		ChainNode: "tcp://127.0.0.1:10800",
 		Retries:   5,
@@ -431,11 +431,11 @@ func (c *ConnectOptions) reset() error {
 // GenerateTunIP TODO optimize code, can use patch ?
 func (c *ConnectOptions) GenerateTunIP(ctx context.Context) error {
 	defer func() {
-		if c.tunIP != nil {
+		if c.localTunIP != nil {
 			if util.IsWindows() {
-				c.tunIP.Mask = net.CIDRMask(0, 32)
+				c.localTunIP.Mask = net.CIDRMask(0, 32)
 			} else {
-				c.tunIP.Mask = net.CIDRMask(24, 32)
+				c.localTunIP.Mask = net.CIDRMask(24, 32)
 			}
 		}
 	}()
@@ -445,10 +445,10 @@ func (c *ConnectOptions) GenerateTunIP(ctx context.Context) error {
 	}
 	dhcp := remote.ToDHCP(get.Data[util.MacToIP])
 	if ip := dhcp.GetIP(); len(ip) != 0 {
-		c.tunIP = &net.IPNet{IP: net.ParseIP(ip), Mask: net.CIDRMask(24, 32)}
+		c.localTunIP = &net.IPNet{IP: net.ParseIP(ip), Mask: net.CIDRMask(24, 32)}
 		return nil
 	}
-	c.tunIP, err = c.dhcp.RentIPBaseNICAddress()
+	c.localTunIP, err = c.dhcp.RentIPBaseNICAddress()
 	if err != nil {
 		return err
 	}
@@ -456,7 +456,7 @@ func (c *ConnectOptions) GenerateTunIP(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	get.Data[util.MacToIP] = dhcp.RentIP(c.tunIP.IP).ToString()
+	get.Data[util.MacToIP] = dhcp.RentIP(c.localTunIP.IP).ToString()
 	if _, err = c.clientset.CoreV1().ConfigMaps(c.Namespace).Update(context.TODO(), get, metav1.UpdateOptions{}); err != nil {
 		return err
 	}
@@ -486,7 +486,7 @@ func (c *ConnectOptions) ReverePingLocal() bool {
 		c.config,
 		ToInboundPodName(tuple.Resource, tuple.Name),
 		c.Namespace,
-		fmt.Sprintf("ping %s -c 4", c.tunIP),
+		fmt.Sprintf("ping %s -c 4", c.localTunIP),
 	)
 	return err == nil
 }
@@ -497,5 +497,5 @@ func (c *ConnectOptions) Shell(context.Context) (string, error) {
 		return "", errors.New("not need")
 	}
 	newName := ToInboundPodName(tuple.Resource, tuple.Name)
-	return util.Shell(c.clientset, c.restclient, c.config, newName, c.Namespace, "ping -c 4 "+c.tunIP.IP.String())
+	return util.Shell(c.clientset, c.restclient, c.config, newName, c.Namespace, "ping -c 4 "+c.localTunIP.IP.String())
 }

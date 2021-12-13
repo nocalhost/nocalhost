@@ -120,7 +120,17 @@ func getController() Scalable {
 	return nil
 }
 
-func CreateInboundPod(ctx context.Context, factory cmdutil.Factory, clientset *kubernetes.Clientset, namespace, workloads, virtualLocalIp, realRouterIP, virtualShadowIp, routes string) error {
+func CreateInboundPod(
+	ctx context.Context,
+	factory cmdutil.Factory,
+	clientset *kubernetes.Clientset,
+	namespace,
+	workloads,
+	localTunIP,
+	trafficManagerIP,
+	shadowTunIP,
+	routes string,
+) error {
 	tuple, parsed, err2 := util.SplitResourceTypeName(workloads)
 	if !parsed || err2 != nil {
 		return errors.New("not need")
@@ -166,11 +176,11 @@ func CreateInboundPod(ctx context.Context, factory cmdutil.Factory, clientset *k
 							"iptables -F;" +
 							"iptables -P INPUT ACCEPT;" +
 							"iptables -P FORWARD ACCEPT;" +
-							"iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 1:65535 -j DNAT --to " + virtualLocalIp + ":1-65535;" +
+							"iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 1:65535 -j DNAT --to " + localTunIP + ":1-65535;" +
 							"iptables -t nat -A POSTROUTING -p tcp -m tcp --dport 1:65535 -j MASQUERADE;" +
-							"iptables -t nat -A PREROUTING -i eth0 -p udp --dport 1:65535 -j DNAT --to " + virtualLocalIp + ":1-65535;" +
+							"iptables -t nat -A PREROUTING -i eth0 -p udp --dport 1:65535 -j DNAT --to " + localTunIP + ":1-65535;" +
 							"iptables -t nat -A POSTROUTING -p udp -m udp --dport 1:65535 -j MASQUERADE;" +
-							"nhctl vpn serve -L 'tun://0.0.0.0:8421/" + realRouterIP + ":8421?net=" + virtualShadowIp + "&route=" + routes + "' --debug=true",
+							"nhctl vpn serve -L 'tun://0.0.0.0:8421/" + trafficManagerIP + ":8421?net=" + shadowTunIP + "&route=" + routes + "' --debug=true",
 					},
 					SecurityContext: &v1.SecurityContext{
 						Capabilities: &v1.Capabilities{
