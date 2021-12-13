@@ -1,3 +1,4 @@
+[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/5381/badge)](https://bestpractices.coreinfrastructure.org/projects/5381)
 ![api-docker](https://github.com/nocalhost/nocalhost/workflows/api-docker/badge.svg?branch=main)
 ![nhctl](https://github.com/nocalhost/nocalhost/workflows/nhctl/badge.svg?branch=main)
 [![Go Report Card](https://goreportcard.com/badge/github.com/nocalhost/nocalhost)](https://goreportcard.com/report/github.com/nocalhost/nocalhost)
@@ -17,7 +18,7 @@ Nocalhost 一词源于 No Local，它是一款基于 IDE 的云原生开发工�
 
 使用 Nocalhost 开发云原生应用时，任何代码更改都可以立即在远程端生效，免去了提交、构建和推送镜像等步骤。能大幅提速编码自测的反馈过程，所以代码修改能实现秒级生效，提升研发效率。
 
-为了让你更好的了解 Nocalhost，建议您可以先阅读我们的博客文章 [Nocalhost - 重新定义云原生开发](https://nocalhost.dev/zh/Blog/redefine-cloud-native-dev-environment/)
+为了让你更好的了解 Nocalhost，建议您可以先阅读我们的博客文章 [Nocalhost - 重新定义云原生开发](https://nocalhost.dev/blog/2021/01/01/)
 
 [![Nocalhost](https://img.youtube.com/vi/z7I-vopn-gQ/0.jpg)](https://www.bilibili.com/video/BV1RX4y1w7hB?share_source=copy_web)
 
@@ -51,7 +52,7 @@ Nocalhost 为 JetBrains 和 VSCode 提供易于使用的 IDE 插件，让开发�
 
 ## 社区
 
-* Slack: [Nocalhost Slack Channel](https://nocalhost.slack.com/)
+* Slack: [Nocalhost Slack Channel](https://cloud-native.slack.com/archives/C02MNCR8R5H)
 * 微信群：扫码添加小助手，发送 **Nocalhost**，小助手会拉您进群
 
 ![nocal-host-wechat](https://user-images.githubusercontent.com/3713305/123894953-a2d0a480-d991-11eb-88af-9082d14b0c2c.png)

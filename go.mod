@@ -22,6 +22,7 @@ require (
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect
 	github.com/go-playground/validator/v10 v10.9.0
 	github.com/go-redis/redis v6.15.9+incompatible
+	github.com/golang-jwt/jwt/v4 v4.1.0
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/golang/protobuf v1.5.0
 	github.com/golang/snappy v0.0.4
@@ -46,7 +47,7 @@ require (
 	github.com/nocalhost/remotecommand v0.0.0-20210713025133-bfbc2d3e1250
 	github.com/olekukonko/tablewriter v0.0.4
 	github.com/olivere/elastic/v7 v7.0.27
-	github.com/onsi/ginkgo v1.14.1 // indirect
+	github.com/onsi/ginkgo v1.14.2 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.7.1
 	github.com/qiniu/api.v7 v0.0.0-20190520053455-bea02cd22bf4

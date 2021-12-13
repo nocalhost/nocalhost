@@ -100,6 +100,7 @@ type GetResourceInfoCommand struct {
 	Resource     string            `json:"resource" yaml:"resource"`
 	ResourceName string            `json:"resourceName" yaml:"resourceName"`
 	Label        map[string]string `json:"label" yaml:"label"`
+	ShowHidden   bool              `json:"showHidden" yaml:"showHidden"`
 }
 
 type UpdateApplicationMetaCommand struct {

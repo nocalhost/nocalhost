@@ -29,6 +29,18 @@ func CreateLevelDB(path string, errorIfExist bool) error {
 	return errors.Wrap(err, "")
 }
 
+func CreateLevelDBWithInitData(path, key string, data []byte, errorIfExist bool) error {
+	db, err := leveldb.OpenFile(path, &opt.Options{
+		ErrorIfExist: errorIfExist,
+	})
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	defer db.Close()
+
+	return errors.WithStack(db.Put([]byte(key), data, nil))
+}
+
 // Open a leveldb
 // If leveldb is corrupted, try to recover it
 // If leveldb is EAGAIN, retry to open it in 1 minutes

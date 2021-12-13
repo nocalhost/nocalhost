@@ -13,11 +13,8 @@ import (
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/model"
-	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
-	"time"
 )
 
 type DuplicateStatefulSetController struct {
@@ -58,14 +55,6 @@ func (s *DuplicateStatefulSetController) ReplaceImage(ctx context.Context, ops *
 	var rs int32 = 1
 	dep.Spec.Replicas = &rs
 
-	p, err := s.GetAppProfile()
-	if err != nil {
-		return err
-	}
-	if p.Identifier == "" {
-		return errors.New("Identifier can not be nil ")
-	}
-
 	labelsMap, err := s.getDuplicateLabelsMap()
 	if err != nil {
 		return err
@@ -77,66 +66,11 @@ func (s *DuplicateStatefulSetController) ReplaceImage(ctx context.Context, ops *
 	dep.Spec.Template.Labels = labelsMap
 	dep.ResourceVersion = ""
 
-	devContainer, err := findContainerInStatefulSetsSpec(dep, ops.Container)
+	devContainer, sideCarContainer, devModeVolumes, err :=
+		s.genContainersAndVolumes(&dep.Spec.Template.Spec, ops.Container, ops.DevImage, ops.StorageClass, true)
 	if err != nil {
 		return err
 	}
-
-	devModeVolumes := make([]corev1.Volume, 0)
-	devModeMounts := make([]corev1.VolumeMount, 0)
-
-	// Set volumes
-	syncthingVolumes, syncthingVolumeMounts := s.generateSyncVolumesAndMounts(true)
-	devModeVolumes = append(devModeVolumes, syncthingVolumes...)
-	devModeMounts = append(devModeMounts, syncthingVolumeMounts...)
-
-	workDirAndPersistVolumes, workDirAndPersistVolumeMounts, err := s.genWorkDirAndPVAndMounts(
-		ops.Container, ops.StorageClass, true)
-	if err != nil {
-		return err
-	}
-
-	devModeVolumes = append(devModeVolumes, workDirAndPersistVolumes...)
-	devModeMounts = append(devModeMounts, workDirAndPersistVolumeMounts...)
-
-	workDir := s.GetWorkDir(ops.Container)
-	devImage := s.GetDevImage(ops.Container) // Default : replace the first container
-	if devImage == "" {
-		return errors.New("Dev image must be specified")
-	}
-
-	sideCarContainer := generateSideCarContainer(s.GetDevSidecarImage(ops.Container), workDir)
-
-	devContainer.Image = devImage
-	devContainer.Name = "nocalhost-dev"
-	devContainer.Command = []string{"/bin/sh", "-c", "tail -f /dev/null"}
-	devContainer.WorkingDir = workDir
-
-	// set image pull policy
-	sideCarContainer.ImagePullPolicy = _const.DefaultSidecarImagePullPolicy
-	devContainer.ImagePullPolicy = _const.DefaultSidecarImagePullPolicy
-
-	// add env
-	devEnv := s.GetDevContainerEnv(ops.Container)
-	for _, v := range devEnv.DevEnv {
-		env := corev1.EnvVar{Name: v.Name, Value: v.Value}
-		devContainer.Env = append(devContainer.Env, env)
-	}
-
-	// Add volumeMounts to containers
-	devContainer.VolumeMounts = append(devContainer.VolumeMounts, devModeMounts...)
-	sideCarContainer.VolumeMounts = append(sideCarContainer.VolumeMounts, devModeMounts...)
-
-	requirements := s.genResourceReq(ops.Container)
-	if requirements != nil {
-		devContainer.Resources = *requirements
-	}
-	r := &profile.ResourceQuota{
-		Limits:   &profile.QuotaList{Memory: "1Gi", Cpu: "1"},
-		Requests: &profile.QuotaList{Memory: "50Mi", Cpu: "100m"},
-	}
-	rq, _ := convertResourceQuota(r)
-	sideCarContainer.Resources = *rq
 
 	if ops.Container != "" {
 		for index, c := range dep.Spec.Template.Spec.Containers {
@@ -167,7 +101,7 @@ func (s *DuplicateStatefulSetController) ReplaceImage(ctx context.Context, ops *
 		dep.Spec.Template.Spec.Containers[i].SecurityContext = nil
 	}
 
-	dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, sideCarContainer)
+	dep.Spec.Template.Spec.Containers = append(dep.Spec.Template.Spec.Containers, *sideCarContainer)
 
 	log.Info("Create duplicate StateFulSets...")
 
@@ -176,47 +110,9 @@ func (s *DuplicateStatefulSetController) ReplaceImage(ctx context.Context, ops *
 		return err
 	}
 
-	for _, patch := range s.config.GetContainerDevConfigOrDefault(ops.Container).Patches {
-		log.Infof("Patching %s", patch.Patch)
-		if err = s.Client.Patch(s.Type.String(), dep.Name, patch.Patch, patch.Type); err != nil {
-			log.WarnE(err, "")
-		}
-	}
-	<-time.Tick(time.Second)
+	s.patchAfterDevContainerReplaced(ops.Container, dep.Kind, dep.Name)
 
 	return waitingPodToBeReady(s.GetNocalhostDevContainerPod)
-}
-
-// Container Get specify container
-// If containerName not specified:
-// 	 if there is only one container defined in spec, return it
-//	 if there are more than one container defined in spec, return err
-func findContainerInStatefulSetsSpec(ss *v1.StatefulSet, containerName string) (*corev1.Container, error) {
-	var devContainer *corev1.Container
-	if containerName != "" {
-		for index, c := range ss.Spec.Template.Spec.Containers {
-			if c.Name == containerName {
-				return &ss.Spec.Template.Spec.Containers[index], nil
-			}
-		}
-		if devContainer == nil {
-			return nil, errors.New(fmt.Sprintf("Container %s not found", containerName))
-		}
-	} else {
-		if len(ss.Spec.Template.Spec.Containers) > 1 {
-			return nil, errors.New(
-				fmt.Sprintf(
-					"There are more than one container defined, " +
-						"please specify one to start developing",
-				),
-			)
-		}
-		if len(ss.Spec.Template.Spec.Containers) == 0 {
-			return nil, errors.New("No container defined ???")
-		}
-		devContainer = &ss.Spec.Template.Spec.Containers[0]
-	}
-	return devContainer, nil
 }
 
 func (s *DuplicateStatefulSetController) RollBack(reset bool) error {
@@ -235,21 +131,11 @@ func (s *DuplicateStatefulSetController) RollBack(reset bool) error {
 			return errors.New(fmt.Sprintf("Duplicate StatefulSet num is %d (not 1)?", len(ss)))
 		} else if len(ss) == 0 {
 			log.Warnf("Duplicate StatefulSet num is %d (not 1)?", len(ss))
-			_ = s.UpdateSvcProfile(func(svcProfileV2 *profile.SvcProfileV2) error {
-				svcProfileV2.DevModeType = ""
-				return nil
-			})
 			return nil
 		}
 	}
 
-	if err = s.Client.DeleteStatefulSet(ss[0].Name); err != nil {
-		return err
-	}
-	return s.UpdateSvcProfile(func(svcProfileV2 *profile.SvcProfileV2) error {
-		svcProfileV2.DevModeType = ""
-		return nil
-	})
+	return s.Client.DeleteStatefulSet(ss[0].Name)
 }
 
 func (s *DuplicateStatefulSetController) GetPodList() ([]corev1.Pod, error) {

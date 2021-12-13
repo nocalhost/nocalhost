@@ -16,13 +16,15 @@ import (
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/appmeta_manager"
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/daemon_common"
 	"nocalhost/internal/nhctl/daemon_handler"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/dev_dir"
-	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/nocalhost_cleanup"
 	"nocalhost/internal/nhctl/syncthing/daemon"
 	"nocalhost/internal/nhctl/utils"
+	k8sutil "nocalhost/pkg/nhctl/k8sutils"
 	"nocalhost/internal/nhctl/vpn/util"
 	"nocalhost/pkg/nhctl/log"
 	"runtime/debug"
@@ -53,19 +55,10 @@ func daemonListenPort() int {
 }
 
 func StartDaemon(isSudoUser bool, v string, c string) error {
+	_const.IsDaemon = true
 
 	log.UseBulk(true)
 	log.Log("Starting daemon server...")
-
-	//k8sruntime.ErrorHandlers = append(
-	//	k8sruntime.ErrorHandlers, func(err error) {
-	//		if strings.Contains(err.Error(), "watch") {
-	//			log.Tracef("[RuntimeErrorHandler] %s", err.Error())
-	//		} else {
-	//			log.ErrorE(errors.Wrap(err, ""), fmt.Sprintf("[RuntimeErrorHandler] Stderr: %s", err.Error()))
-	//		}
-	//	},
-	//)
 
 	startUpPath, _ = utils.GetNhctlPath()
 
@@ -86,7 +79,7 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 		appmeta_manager.Init()
 		appmeta_manager.RegisterListener(
 			func(pack *appmeta_manager.ApplicationEventPack) error {
-				kubeconfig := nocalhost.GetOrGenKubeConfigPath(string(pack.KubeConfigBytes))
+				kubeconfig := k8sutil.GetOrGenKubeConfigPath(string(pack.KubeConfigBytes))
 				nhApp, err := app.NewApplication(pack.AppName, pack.Ns, kubeconfig, true)
 				if err != nil {
 					return nil
@@ -225,6 +218,12 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 
 	//// Recovering syncthing
 	//go recoverSyncthing()
+	go func() {
+		time.Sleep(30 * time.Second)
+		if err := nocalhost_cleanup.CleanUp(false); err != nil {
+			log.Logf("Clean up application in daemon failed: %s", err.Error())
+		}
+	}()
 
 	select {
 	case <-daemonCtx.Done():
@@ -355,7 +354,7 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 					return nil, err
 				}
 
-				return appmeta_manager.GetApplicationMetas(gamsCmd.NameSpace, []byte(gamsCmd.KubeConfigContent)), nil
+				return daemon_handler.GetAllValidApplicationWithDefaultApp(gamsCmd.NameSpace, []byte(gamsCmd.KubeConfigContent)), nil
 			},
 		)
 
