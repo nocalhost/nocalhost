@@ -279,6 +279,11 @@ func (c *ConnectOptions) portForward(ctx context.Context) {
 }
 
 func (c *ConnectOptions) startLocalTunServe(ctx context.Context) (chan error, error) {
+	if util.IsWindows() {
+		c.tunIP.Mask = net.CIDRMask(0, 32)
+	} else {
+		c.tunIP.Mask = net.CIDRMask(24, 32)
+	}
 	var list = []string{util.RouterIP.String()}
 	for _, cidr := range c.cidrs {
 		list = append(list, cidr.String())
