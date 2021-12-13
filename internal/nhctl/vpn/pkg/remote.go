@@ -102,16 +102,14 @@ func CreateOutboundRouterPodIfNecessary(clientset *kubernetes.Clientset, namespa
 		logger.Errorln(err)
 		return "", err
 	}
-	tick := time.Tick(time.Minute * 2)
+	defer watch.Stop()
 	for {
 		select {
 		case e := <-watch.ResultChan():
-			if e.Object.(*v1.Pod).Status.Phase == v1.PodRunning {
-				watch.Stop()
-				return e.Object.(*v1.Pod).Status.PodIP, nil
+			if podT, ok := e.Object.(*v1.Pod); ok && podT.Status.Phase == v1.PodRunning {
+				return podT.Status.PodIP, nil
 			}
-		case <-tick:
-			watch.Stop()
+		case <-time.Tick(time.Minute * 2):
 			logger.Error("timeout")
 			return "", errors.New("timeout")
 		}
@@ -210,18 +208,17 @@ func CreateInboundPod(ctx context.Context, factory cmdutil.Factory, clientset *k
 	if err != nil {
 		return err
 	}
+	defer watch.Stop()
 	for {
 		select {
 		case e := <-watch.ResultChan():
 			if p, ok := e.Object.(*v1.Pod); ok {
 				util.GetLoggerFromContext(ctx).Infof("pods: %s is %s ...", p.Name, p.Status.Phase)
 				if p.Status.Phase == v1.PodRunning {
-					watch.Stop()
 					return nil
 				}
 			}
 		case <-time.Tick(time.Minute * 5):
-			watch.Stop()
 			util.GetLoggerFromContext(ctx).Infof("wait pods: %s to be ready timeout", newName)
 			return errors.New(fmt.Sprintf("wait pods: %s to be ready timeout", newName))
 		}

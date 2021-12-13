@@ -153,9 +153,12 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 		if len(cmd.Resource) != 0 {
 			load, ok := GetReverseInfo().Load(generateKey(connect.KubeconfigBytes, connect.Namespace))
 			if !ok {
+				logger.Infof("can not found reverse info in namespace: %s, no need to cancel it\n", connect.Namespace)
 				return nil
 			}
 			address := load.(*name).getMacByResource(cmd.Resource)
+			// update reverse data immediately
+			load.(*name).deleteByResource(cmd.Resource)
 			_ = UpdateReverseConfigMap(connect.GetClientSet(), cmd.Namespace, cmd.Resource,
 				func(r *ReverseTotal, record ReverseRecord) {
 					record.MacAddress = address
@@ -174,10 +177,11 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 			if value, found := GetReverseInfo().Load(generateKey(connect.KubeconfigBytes, connect.Namespace)); found {
 				if value.(*name).resources.GetBelongToMeResources().Len() == 0 {
 					ReleaseWatcher(connect.KubeconfigBytes, cmd.Namespace)
+					GetReverseInfo().Delete(generateKey(connect.KubeconfigBytes, connect.Namespace))
 					_ = UpdateConnect(connect.GetClientSet(), cmd.Namespace, func(list sets.String, address string) {
 						list.Delete(address)
 					})
-					logger.Infof("have no reverse resource, disconnectting from namespace: %s...\n", cmd.Namespace)
+					logger.Infof("have no reverse resource, disconnectting from namespace: %s ...\n", cmd.Namespace)
 					if r, err := client.SendSudoVPNOperateCommand(
 						cmd.KubeConfig, cmd.Namespace, command.DisConnect, cmd.Resource); err == nil {
 						transStreamToWriter(writer, r)

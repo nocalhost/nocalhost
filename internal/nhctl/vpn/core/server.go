@@ -41,7 +41,7 @@ func (s *Server) Serve(ctx context.Context, h Handler) error {
 	for ctx.Err() == nil {
 		conn, err := l.Accept()
 		if err == nil {
-			go h.Handle(conn)
+			go h.Handle(ctx, conn)
 		}
 	}
 	return nil

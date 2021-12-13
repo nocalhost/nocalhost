@@ -28,6 +28,7 @@ func ReleaseWatcher(kubeconfigBytes []byte, namespace string) {
 	k := generateKey(kubeconfigBytes, namespace)
 	if v, ok := watchers[k]; ok && v != nil {
 		v.Stop()
+		delete(watchers, k)
 	}
 }
 
@@ -78,6 +79,16 @@ func (n *name) getMacByResource(resource string) string {
 		}
 	}
 	return ""
+}
+
+func (n *name) deleteByResource(resource string) {
+	reverseInfoLock.Lock()
+	defer reverseInfoLock.Unlock()
+	if load, ok := reverseInfo.Load(generateKey(n.kubeconfigBytes, n.namespace)); ok {
+		for _, v := range load.(*name).resources.ele {
+			v.DeleteByKeys(resource)
+		}
+	}
 }
 
 func (n *name) isReversingByMe(resource string) bool {
@@ -206,6 +217,7 @@ func (h *resourceHandler) toKey() string {
 func (h *resourceHandler) OnAdd(obj interface{}) {
 	configMap := obj.(*corev1.ConfigMap)
 	status := ToStatus(configMap.Data)
+	modifyReverseInfo(h, status)
 	if status.Connect.IsConnected() {
 		if connectInfo.IsSame(h.kubeconfigBytes, h.namespace) || connectInfo.IsEmpty() {
 			go h.notifySudoDaemonToConnect()
@@ -226,6 +238,7 @@ func (h *resourceHandler) OnAdd(obj interface{}) {
 func (h *resourceHandler) OnUpdate(oldObj, newObj interface{}) {
 	oldStatus := ToStatus(oldObj.(*corev1.ConfigMap).Data)
 	newStatus := ToStatus(newObj.(*corev1.ConfigMap).Data)
+	modifyReverseInfo(h, newStatus)
 	if newStatus.Connect.IsConnected() {
 		if connectInfo.IsSame(h.kubeconfigBytes, h.namespace) || connectInfo.IsEmpty() {
 			go h.notifySudoDaemonToConnect()
@@ -303,9 +316,7 @@ func (h *resourceHandler) OnDelete(obj interface{}) {
 	status := ToStatus(configMap.Data)
 	if status.Connect.IsConnected() && connectInfo.IsSame(h.kubeconfigBytes, h.namespace) {
 		connectInfo.cleanup()
-		h.reverseInfoLock.Lock()
 		h.reverseInfo.Delete(h.toKey())
-		h.reverseInfoLock.Unlock()
 	}
 }
 

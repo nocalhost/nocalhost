@@ -36,7 +36,6 @@ type ConnectOptions struct {
 	KubeconfigBytes []byte
 	Namespace       string
 	Workloads       []string
-	nodeConfig      Route
 	clientset       *kubernetes.Clientset
 	restclient      *rest.RESTClient
 	config          *rest.Config
@@ -102,12 +101,7 @@ func (c *ConnectOptions) ReleaseIP() error {
 	return nil
 }
 
-func (c *ConnectOptions) createRemoteInboundPod(tunIp *net.IPNet) error {
-	var list []string
-	for _, ipNet := range c.cidrs {
-		list = append(list, ipNet.String())
-	}
-
+func (c *ConnectOptions) createRemoteInboundPod(tunIP *net.IPNet) error {
 	wg := sync.WaitGroup{}
 	lock := sync.Mutex{}
 	for _, workload := range c.Workloads {
@@ -128,12 +122,11 @@ func (c *ConnectOptions) createRemoteInboundPod(tunIp *net.IPNet) error {
 					c.clientset,
 					c.Namespace,
 					finalWorkload,
-					tunIp.IP.String(),
+					tunIP.IP.String(),
 					c.routerIP,
 					virtualShadowIp.String(),
 					util.RouterIP.String(),
 				)
-
 				if err != nil {
 					log.Error(err)
 				}
@@ -191,16 +184,6 @@ func (c *ConnectOptions) Prepare(ctx context.Context) error {
 	}
 	if err = c.InitDHCP(ctx); err != nil {
 		return err
-	}
-	var list []string
-	for _, cidr := range c.cidrs {
-		list = append(list, cidr.String())
-	}
-	list = append(list, util.RouterIP.String())
-
-	c.nodeConfig.ChainNode = "tcp://127.0.0.1:10800"
-	c.nodeConfig.ServeNodes = []string{
-		fmt.Sprintf("tun://:8421/127.0.0.1:8421?net=%s&route=%s", c.tunIP.String(), strings.Join(list, ",")),
 	}
 	return nil
 }
@@ -296,7 +279,19 @@ func (c *ConnectOptions) portForward(ctx context.Context) {
 }
 
 func (c *ConnectOptions) startLocalTunServe(ctx context.Context) (chan error, error) {
-	errChan, err := Start(ctx, c.nodeConfig)
+	var list = []string{util.RouterIP.String()}
+	for _, cidr := range c.cidrs {
+		list = append(list, cidr.String())
+	}
+	route := Route{
+		ServeNodes: []string{
+			fmt.Sprintf("tun://:8421/127.0.0.1:8421?net=%s&route=%s",
+				c.tunIP.String(), strings.Join(list, ",")),
+		},
+		ChainNode: "tcp://127.0.0.1:10800",
+		Retries:   5,
+	}
+	errChan, err := Start(ctx, route)
 	if err != nil {
 		return nil, err
 	}
@@ -349,7 +344,7 @@ func Start(ctx context.Context, r Route) (chan error, error) {
 	for i := range routers {
 		go func(ctx context.Context, i int, c chan error) {
 			if err = routers[i].Serve(ctx); err != nil {
-				log.Warn(err)
+				log.Debugln(err)
 				c <- err
 			}
 		}(ctx, i, c)

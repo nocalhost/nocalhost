@@ -44,12 +44,12 @@ func TCPHandler() Handler {
 func (h *fakeUdpHandler) Init(...HandlerOptionFunc) {
 }
 
-func (h *fakeUdpHandler) Handle(conn net.Conn) {
+func (h *fakeUdpHandler) Handle(ctx context.Context, conn net.Conn) {
 	defer conn.Close()
 	if util.Debug {
 		log.Debugf("[tcpserver] %s -> %s\n", conn.RemoteAddr(), conn.LocalAddr())
 	}
-	h.handleUDPTunnel(conn)
+	h.handleUDPTunnel(ctx, conn)
 }
 
 func (h *fakeUdpHandler) transportUDP(relay, peer net.PacketConn) (err error) {
@@ -119,7 +119,7 @@ func (h *fakeUdpHandler) transportUDP(relay, peer net.PacketConn) (err error) {
 	return <-errChan
 }
 
-func (h *fakeUdpHandler) handleUDPTunnel(conn net.Conn) {
+func (h *fakeUdpHandler) handleUDPTunnel(ctx context.Context, conn net.Conn) {
 	// serve tunnel udp, tunnel <-> remote, handle tunnel udp request
 	bindAddr, _ := net.ResolveUDPAddr("udp", ":0")
 	uc, err := net.ListenUDP("udp", bindAddr)
@@ -132,12 +132,12 @@ func (h *fakeUdpHandler) handleUDPTunnel(conn net.Conn) {
 		log.Debugf("[tcpserver] udp-tun %s <- %s\n", conn.RemoteAddr(), uc.LocalAddr())
 	}
 	log.Debugf("[tcpserver] udp-tun %s <-> %s", conn.RemoteAddr(), uc.LocalAddr())
-	_ = h.tunnelServerUDP(conn, uc)
+	_ = h.tunnelServerUDP(ctx, conn, uc)
 	log.Debugf("[tcpserver] udp-tun %s >-< %s", conn.RemoteAddr(), uc.LocalAddr())
 	return
 }
 
-func (h *fakeUdpHandler) tunnelServerUDP(cc net.Conn, pc net.PacketConn) (err error) {
+func (h *fakeUdpHandler) tunnelServerUDP(ctx context.Context, cc net.Conn, pc net.PacketConn) (err error) {
 	errChan := make(chan error, 2)
 
 	go func() {

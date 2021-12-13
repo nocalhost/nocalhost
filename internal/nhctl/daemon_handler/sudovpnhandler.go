@@ -46,6 +46,9 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser)
 		defer lock.Unlock()
 		if connected != nil {
 			logger.Errorf("already connected to namespace: %s\n", connected.Namespace)
+			if connected.Namespace != cmd.Namespace {
+				logger.Errorf("but want's to connect to: %s\n", cmd.Namespace)
+			}
 			logger.Infoln(util.EndSignFailed)
 			writer.Close()
 			return nil
@@ -79,20 +82,20 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser)
 				}()
 			}
 			// if exit
-			lock.Lock()
-			defer lock.Unlock()
-			logger.Info("prepare to exit, cleaning up")
-			dns.CancelDNS()
-			if c != nil {
-				if err := c.ReleaseIP(); err != nil {
-					logger.Errorf("failed to release ip to dhcp, err: %v", err)
-				}
-				remote.CleanUpTrafficManagerIfRefCountIsZero(c.GetClientSet(), namespace)
-				logger.Info("clean up successful")
-				connected = nil
-			}
-			remote.CancelFunctions = remote.CancelFunctions[:0]
-			return
+			//lock.Lock()
+			//defer lock.Unlock()
+			//logger.Info("prepare to exit, cleaning up")
+			//dns.CancelDNS()
+			//if c != nil {
+			//	if err := c.ReleaseIP(); err != nil {
+			//		logger.Errorf("failed to release ip to dhcp, err: %v", err)
+			//	}
+			//	remote.CleanUpTrafficManagerIfRefCountIsZero(c.GetClientSet(), namespace)
+			//	logger.Info("clean up successful")
+			//	connected = nil
+			//}
+			//remote.CancelFunctions = remote.CancelFunctions[:0]
+			//return
 		}(cmd.Namespace, connect, ctx)
 	case command.DisConnect:
 		// stop reverse resource
@@ -112,7 +115,7 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser)
 
 		for _, function := range remote.CancelFunctions {
 			if function != nil {
-				go function()
+				function()
 			}
 		}
 		remote.CancelFunctions = remote.CancelFunctions[:0]

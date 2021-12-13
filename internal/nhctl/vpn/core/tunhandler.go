@@ -13,7 +13,6 @@ import (
 	"golang.org/x/net/ipv4"
 	"golang.org/x/net/ipv6"
 	"net"
-	"nocalhost/internal/nhctl/vpn/remote"
 	"nocalhost/internal/nhctl/vpn/util"
 	"runtime"
 	"sync"
@@ -50,10 +49,8 @@ func (h *tunHandler) Init(options ...HandlerOptionFunc) {
 	}
 }
 
-func (h *tunHandler) Handle(conn net.Conn) {
+func (h *tunHandler) Handle(ctx context.Context, conn net.Conn) {
 	defer conn.Close()
-	ctx, cancelFunc := context.WithCancel(context.TODO())
-	remote.CancelFunctions = append(remote.CancelFunctions, cancelFunc)
 
 	var err error
 	var raddr net.Addr
@@ -89,7 +86,7 @@ func (h *tunHandler) Handle(conn net.Conn) {
 				return err
 			}
 
-			return h.transportTun(conn, pc, raddr)
+			return h.transportTun(ctx, conn, pc, raddr)
 		}()
 		if err != nil {
 			log.Debugf("[tun] %s: %v", conn.LocalAddr(), err)
@@ -121,7 +118,7 @@ func (h *tunHandler) findRouteFor(dst net.IP) net.Addr {
 	return nil
 }
 
-func (h *tunHandler) transportTun(tun net.Conn, conn net.PacketConn, raddr net.Addr) error {
+func (h *tunHandler) transportTun(ctx context.Context, tun net.Conn, conn net.PacketConn, raddr net.Addr) error {
 	errChan := make(chan error, 2)
 	defer func() {
 		if c, ok := conn.(interface{ CloseRead() error }); ok {
@@ -133,8 +130,6 @@ func (h *tunHandler) transportTun(tun net.Conn, conn net.PacketConn, raddr net.A
 		_ = conn.Close()
 	}()
 
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	remote.CancelFunctions = append(remote.CancelFunctions, cancelFunc)
 	go func() {
 		for ctx.Err() == nil {
 			err := func() error {
@@ -271,7 +266,6 @@ func (h *tunHandler) transportTun(tun net.Conn, conn net.PacketConn, raddr net.A
 
 			if err != nil {
 				errChan <- err
-				cancelFunc()
 				return
 			}
 		}

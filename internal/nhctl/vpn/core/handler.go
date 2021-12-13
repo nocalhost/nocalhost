@@ -6,6 +6,7 @@
 package core
 
 import (
+	"context"
 	"net"
 	"nocalhost/internal/nhctl/vpn/tun"
 )
@@ -13,7 +14,7 @@ import (
 // Handler is a proxy server handler
 type Handler interface {
 	Init(options ...HandlerOptionFunc)
-	Handle(net.Conn)
+	Handle(context.Context, net.Conn)
 }
 
 // HandlerOptions describes the options for Handler.
