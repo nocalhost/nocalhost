@@ -64,9 +64,10 @@ func (s *server) ServeDNS(w miekgdns.ResponseWriter, r *miekgdns.Msg) {
 	r.Question = []miekgdns.Question{question}
 	answer, _, err := s.client.Exchange(r, s.forwardDNS.Servers[0]+":53")
 	if err != nil {
-		log.Warnln(err)
-		err = w.WriteMsg(r)
 		if !strings.Contains(err.Error(), "timeout") {
+			log.Warnln(err)
+		}
+		if err = w.WriteMsg(r); err != nil {
 			log.Warnln(err)
 		}
 	} else {
@@ -76,8 +77,7 @@ func (s *server) ServeDNS(w miekgdns.ResponseWriter, r *miekgdns.Msg) {
 		if len(answer.Question) != 0 {
 			answer.Question[0].Name = name
 		}
-		err = w.WriteMsg(answer)
-		if err != nil {
+		if err = w.WriteMsg(answer); err != nil {
 			log.Warnln(err)
 		}
 	}
