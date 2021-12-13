@@ -287,26 +287,45 @@ func release(h *resourceHandler) {
 
 // modifyReverseInfo modify reverse info using latest vpn status
 // iterator latest vpn status and delete resource which not exist
-func modifyReverseInfo(h *resourceHandler, newStatus VPNStatus) {
+func modifyReverseInfo(h *resourceHandler, latest VPNStatus) {
 	h.reverseInfoLock.Lock()
 	defer h.reverseInfoLock.Unlock()
 	// using same reference, because health check will modify status
-	store, _ := h.reverseInfo.LoadOrStore(h.toKey(), &name{
-		kubeconfigBytes: h.kubeconfigBytes,
-		namespace:       h.namespace,
-		resources:       newStatus.Reverse,
-	})
-	for k, v := range newStatus.Reverse.ele {
-		if iv, f := store.(*name).resources.ele[k]; f {
-			for _, info := range v.List() {
+
+	local, ok := h.reverseInfo.Load(h.toKey())
+	if !ok {
+		h.reverseInfo.Store(h.toKey(), &name{
+			kubeconfigBytes: h.kubeconfigBytes,
+			namespace:       h.namespace,
+			resources:       latest.Reverse,
+		})
+		return
+	}
+	// add missing
+	for macAddress, latestResources := range latest.Reverse.ele {
+		if localResource, found := local.(*name).resources.ele[macAddress]; found {
+			for _, resource := range latestResources.KeySet() {
 				// if resource is not reversing, needs to delete it
-				if !iv.HasKey(info.string) {
-					iv.DeleteByKeys(info.string)
+				if !localResource.HasKey(resource) {
+					localResource.InsertByKeys(resource)
 				}
 			}
 		} else {
-			// if latest status not contains mac address, needs to delete it
-			delete(store.(*name).resources.ele, k)
+			// if latest status contains mac address that local cache not contains, needs to add it
+			local.(*name).resources.ele[macAddress] = latestResources
+		}
+	}
+
+	// remove useless
+	for macAddress, localResources := range local.(*name).resources.ele {
+		if latestResource, found := latest.Reverse.ele[macAddress]; !found {
+			delete(local.(*name).resources.ele, macAddress)
+		} else {
+			for _, resource := range localResources.KeySet() {
+				if !latestResource.HasKey(resource) {
+					localResources.DeleteByKeys(resource)
+				}
+			}
 		}
 	}
 }
