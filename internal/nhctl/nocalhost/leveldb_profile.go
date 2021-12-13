@@ -7,14 +7,12 @@ package nocalhost
 
 import (
 	"github.com/pkg/errors"
-	"github.com/syndtr/goleveldb/leveldb"
 	"gopkg.in/yaml.v3"
 	nocalhostDb "nocalhost/internal/nhctl/nocalhost/db"
 	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/profile"
 	"os"
 	"regexp"
-	"strings"
 )
 
 var ProfileNotFound = errors.New("Profile Not Found")
@@ -56,20 +54,20 @@ func GetProfileV2(ns, app, nid string) (*profile.AppProfileV2, error) {
 
 	bys, err := db.Get([]byte(profile.ProfileV2Key(ns, app)))
 	if err != nil {
-		if err == leveldb.ErrNotFound {
-			result, err := db.ListAll()
-			if err != nil {
-				return nil, errors.Wrap(err, "")
-			}
-			for key, val := range result {
-				if strings.Contains(key, "profile.v2") {
-					bys = []byte(val)
-					break
-				}
-			}
-		} else {
-			return nil, errors.Wrap(err, "")
-		}
+		//if err == leveldb.ErrNotFound {
+		//	result, err := db.ListAll()
+		//	if err != nil {
+		//		return nil, errors.Wrap(err, "")
+		//	}
+		//	for key, val := range result {
+		//		if strings.Contains(key, "profile.v2") {
+		//			bys = []byte(val)
+		//			break
+		//		}
+		//	}
+		//} else {
+		return nil, errors.Wrap(err, "")
+		//}
 	}
 	if len(bys) == 0 {
 		return nil, errors.Wrap(ProfileNotFound, "")

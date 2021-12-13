@@ -8,7 +8,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"github.com/pkg/errors"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -64,59 +63,23 @@ func (j *JobController) ReplaceImage(ctx context.Context, ops *model.DevStartOpt
 		delete(generatedJob.Spec.Selector.MatchLabels, "controller-uid")
 	}
 
-	devContainer, err := findContainerInJobSpec(generatedJob, ops.Container)
-	if err != nil {
-		return err
-	}
-
 	devContainer, sideCarContainer, devModeVolumes, err :=
-		j.genContainersAndVolumes(devContainer, ops.Container, ops.DevImage, ops.StorageClass, false)
+		j.genContainersAndVolumes(&generatedJob.Spec.Template.Spec, ops.Container, ops.DevImage, ops.StorageClass, false)
 	if err != nil {
 		return err
 	}
 
-	if ops.Container != "" {
-		for index, c := range generatedJob.Spec.Template.Spec.Containers {
-			if c.Name == ops.Container {
-				generatedJob.Spec.Template.Spec.Containers[index] = *devContainer
-				break
-			}
-		}
-	} else {
-		generatedJob.Spec.Template.Spec.Containers[0] = *devContainer
-	}
-
-	// Add volumes to deployment spec
-	if generatedJob.Spec.Template.Spec.Volumes == nil {
-		generatedJob.Spec.Template.Spec.Volumes = make([]corev1.Volume, 0)
-	}
-	generatedJob.Spec.Template.Spec.Volumes = append(generatedJob.Spec.Template.Spec.Volumes, devModeVolumes...)
-
-	// delete user's SecurityContext
-	generatedJob.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{}
-
-	// disable readiness probes
-	for i := 0; i < len(generatedJob.Spec.Template.Spec.Containers); i++ {
-		generatedJob.Spec.Template.Spec.Containers[i].LivenessProbe = nil
-		generatedJob.Spec.Template.Spec.Containers[i].ReadinessProbe = nil
-		generatedJob.Spec.Template.Spec.Containers[i].StartupProbe = nil
-		generatedJob.Spec.Template.Spec.Containers[i].SecurityContext = nil
-	}
-
-	generatedJob.Spec.Template.Spec.Containers =
-		append(generatedJob.Spec.Template.Spec.Containers, *sideCarContainer)
+	patchDevContainerToPodSpec(&generatedJob.Spec.Template.Spec, ops.Container, devContainer, sideCarContainer, devModeVolumes)
 
 	// Create generated deployment
 	if _, err = j.Client.CreateJob(generatedJob); err != nil {
 		return err
 	}
 
+	j.patchAfterDevContainerReplaced(ops.Container, generatedJob.Kind, generatedJob.Name)
+
 	return waitingPodToBeReady(j.GetNocalhostDevContainerPod)
 }
-
-//func (j *JobController) Name() string {
-//	return j.Controller.Name
-//}
 
 func (j *JobController) RollBack(reset bool) error {
 	return j.Client.DeleteJob(j.getGeneratedJobName())
@@ -138,31 +101,4 @@ func (j *JobController) GetPodList() ([]corev1.Pod, error) {
 		return nil, err
 	}
 	return pl.Items, nil
-}
-
-func findContainerInJobSpec(job *batchv1.Job, containerName string) (*corev1.Container, error) {
-	var devContainer *corev1.Container
-
-	if containerName != "" {
-		for index, c := range job.Spec.Template.Spec.Containers {
-			if c.Name == containerName {
-				return &job.Spec.Template.Spec.Containers[index], nil
-			}
-		}
-		return nil, errors.New(fmt.Sprintf("Container %s not found", containerName))
-	} else {
-		if len(job.Spec.Template.Spec.Containers) > 1 {
-			return nil, errors.New(
-				fmt.Sprintf(
-					"There are more than one container defined," +
-						"please specify one to start developing",
-				),
-			)
-		}
-		if len(job.Spec.Template.Spec.Containers) == 0 {
-			return nil, errors.New("No container defined ???")
-		}
-		devContainer = &job.Spec.Template.Spec.Containers[0]
-	}
-	return devContainer, nil
 }

@@ -33,9 +33,14 @@ import (
 func Delete(c *gin.Context) {
 
 	devSpaceId := cast.ToUint64(c.Param("id"))
-	clusterUser, errn := HasHighPermissionToSomeDevSpace(c, devSpaceId)
+	clusterUser, errn := HasPrivilegeToSomeDevSpace(c, devSpaceId)
 	if errn != nil {
 		api.SendResponse(c, errn, nil)
+		return
+	}
+
+	if clusterUser.Protected {
+		api.SendResponse(c, errno.ErrProtectedSpaceReSet, nil)
 		return
 	}
 
@@ -123,6 +128,11 @@ func ReCreate(c *gin.Context) {
 		return
 	}
 
+	if clusterUser.Protected {
+		api.SendResponse(c, errno.ErrProtectedSpaceReSet, nil)
+		return
+	}
+
 	// base space can't be reset
 	if clusterUser.IsBaseSpace {
 		api.SendResponse(c, errno.ErrBaseSpaceReSet, nil)
@@ -184,6 +194,8 @@ func ReCreate(c *gin.Context) {
 		return
 	}
 
+	// set namespace to empty, to recreate a namespace
+	devSpace.DevSpaceParams.NameSpace = ""
 	result, err := devSpace.Create()
 
 	if err != nil {

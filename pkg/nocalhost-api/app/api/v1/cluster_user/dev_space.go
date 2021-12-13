@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"math/rand"
 	"nocalhost/internal/nocalhost-api/model"
@@ -229,6 +230,9 @@ func (d *DevSpace) createClusterDevSpace(
 	return &result, nil
 }
 
+// createDevSpace
+// create a devSpace, if already exist, return the
+// devSpace created before
 func (d *DevSpace) createDevSpace(
 	clusterRecord model.ClusterModel, usersRecord *model.UserBaseModel,
 ) (*model.ClusterUserModel, error) {
@@ -248,10 +252,27 @@ func (d *DevSpace) createDevSpace(
 			return nil, errno.ErrClusterKubeErr
 		}
 	}
-	// create cluster devs
+
+	// (1) if namespace is specified, no need to create this namespace
+	// but we should initial the namespace
+	needCreateNamespace := true
 	devNamespace := goClient.GenerateNsName(usersRecord.ID)
+
+	if d.DevSpaceParams.NameSpace != "" {
+		devNamespace = d.DevSpaceParams.NameSpace
+
+		_, err := goClient.GetNamespace(devNamespace)
+		if err != nil && !k8serrors.IsNotFound(err) {
+			return nil, err
+		} else {
+			needCreateNamespace = false
+		}
+	}
+
+	// create cluster devs
 	clusterDevsSetUp := setupcluster.NewClusterDevsSetUp(goClient)
 
+	// (2) process for mesh space
 	// set labels for istio proxy sidecar injection
 	labels := make(map[string]string)
 	if d.DevSpaceParams.BaseDevSpaceId > 0 {
@@ -283,11 +304,16 @@ func (d *DevSpace) createDevSpace(
 		labels["nocalhost.dev/devspace"] = "vcluster"
 	}
 
-	// create namespace
-	_, err = goClient.CreateNS(devNamespace, labels)
-	if err != nil {
-		return nil, errno.ErrNameSpaceCreate
+	// (3) create the devspace
+	if needCreateNamespace {
+		// create namespace
+		_, err = goClient.CreateNS(devNamespace, labels)
+		if err != nil {
+			return nil, errno.ErrNameSpaceCreate
+		}
 	}
+
+	// (4) initial the devspace
 	// create namespace ResourceQuota and container limitRange
 	res := d.DevSpaceParams.SpaceResourceLimit
 	if res == nil {
@@ -304,14 +330,24 @@ func (d *DevSpace) createDevSpace(
 		res.ContainerEphemeralStorage,
 	)
 
-	resString, err := json.Marshal(res)
-	result, err := service.Svc.ClusterUser().Create(
-		d.c, *d.DevSpaceParams.ClusterId, usersRecord.ID, *d.DevSpaceParams.Memory, *d.DevSpaceParams.Cpu,
-		"", devNamespace, d.DevSpaceParams.SpaceName, string(resString),
-		d.DevSpaceParams.IsBaseSpace, d.DevSpaceParams.DevSpaceType,
-	)
-	if err != nil {
-		return nil, errno.ErrBindApplicationClsuter
+	var result model.ClusterUserModel
+
+	if any, _ := service.Svc.ClusterUser().GetFirst(
+		context.TODO(), model.ClusterUserModel{
+			Namespace: devNamespace,
+		},
+	); any != nil {
+		result = *any
+	} else {
+		resString, err := json.Marshal(res)
+		result, err = service.Svc.ClusterUser().Create(
+			d.c, *d.DevSpaceParams.ClusterId, usersRecord.ID, *d.DevSpaceParams.Memory, *d.DevSpaceParams.Cpu,
+			"", devNamespace, d.DevSpaceParams.SpaceName, string(resString), d.DevSpaceParams.IsBaseSpace,
+			d.DevSpaceParams.Protected, d.DevSpaceParams.DevSpaceType,
+		)
+		if err != nil {
+			return nil, errno.ErrBindApplicationClsuter
+		}
 	}
 
 	// auth application to user

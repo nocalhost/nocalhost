@@ -90,10 +90,10 @@ type ClusterUserModel struct {
 	Namespace          string     `gorm:"column:namespace;not null" json:"namespace"`
 	Status             *uint64    `gorm:"column:status;default:0" json:"status"`
 	ClusterAdmin       *uint64    `gorm:"column:cluster_admin;default:0" json:"cluster_admin"`
+	Protected          bool       `gorm:"column:protected;default:false" json:"protected"`
 	DevSpaceType       uint64     `gorm:"column:dev_space_type;default:0" json:"dev_space_type"`
 	IsBaseSpace        bool       `gorm:"column:is_base_space;default:false" json:"is_base_space"`
 	BaseDevSpaceId     uint64     `gorm:"column:base_dev_space_id;default:0" json:"base_dev_space_id"`
-	TraceHeader        Header     `gorm:"column:trace_header;type:VARCHAR(256);" json:"trace_header"`
 	CreatedAt          time.Time  `gorm:"column:created_at" json:"created_at"`
 	UpdatedAt          time.Time  `gorm:"column:updated_at" json:"-"`
 	DeletedAt          *time.Time `gorm:"column:deleted_at" json:"-"`

@@ -100,7 +100,7 @@ func UpdateResourceLimit(c *gin.Context) {
 
 	devSpaceId := cast.ToUint64(c.Param("id"))
 
-	_, errn := HasHighPermissionToSomeDevSpace(c, devSpaceId)
+	_, errn := HasPrivilegeToSomeDevSpace(c, devSpaceId)
 	if errn != nil {
 		api.SendResponse(c, errn, nil)
 		return

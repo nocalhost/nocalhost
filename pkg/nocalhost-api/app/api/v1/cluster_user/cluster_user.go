@@ -34,6 +34,7 @@ type ClusterUserCreateRequest struct {
 	BaseDevSpaceId     uint64                    `json:"base_dev_space_id"`
 	MeshDevInfo        *setupcluster.MeshDevInfo `json:"mesh_dev_info"`
 	IsBaseSpace        bool                      `json:"is_base_space"`
+	Protected          bool                      `json:"protected"`
 }
 
 type VirtualCluster struct {

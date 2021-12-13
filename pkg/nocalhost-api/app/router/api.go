@@ -104,6 +104,7 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		c.POST("/:id/storage_class", cluster.GetStorageClassByKubeConfig)
 		c.PUT("/:id", cluster.Update)
 		c.GET("/:id/gen_namespace", cluster.GenNamespace)
+		c.PUT("/:id/migrate",cluster.Migrate)
 	}
 
 	// Applications

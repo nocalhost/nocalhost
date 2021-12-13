@@ -17,7 +17,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
-	"nocalhost/internal/nhctl/appmeta/secret_operator"
+	"nocalhost/internal/nhctl/appmeta/operator"
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/dev_dir"
@@ -28,8 +28,10 @@ import (
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/tools"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 const (
@@ -39,20 +41,21 @@ const (
 	AnnotationKey    = "dev.nocalhost"
 	CmConfigKey      = "config"
 
-	SecretHelmReleaseNameKey = "r"
-	SecretPostInstallKey     = "po"
-	SecretPostUpgradeKey     = "pou"
-	SecretPostDeleteKey      = "pod"
-	SecretPreInstallKey      = "p"
-	SecretPreUpgradeKey      = "pu"
-	SecretPreDeleteKey       = "pd"
-	SecretManifestKey        = "m"
-	SecretDevMetaKey         = "v"
-	SecretAppTypeKey         = "t"
-	SecretConfigKey          = "c"
-	SecretStateKey           = "s"
-	SecretDepKey             = "d"
-	SecretNamespaceId        = "nid"
+	SecretUninstallBackOffKey = "time"
+	SecretHelmReleaseNameKey  = "r"
+	SecretNamespaceIdKey      = "nid"
+	SecretPostInstallKey      = "po"
+	SecretPostUpgradeKey      = "pou"
+	SecretPostDeleteKey       = "pod"
+	SecretPreInstallKey       = "p"
+	SecretPreUpgradeKey       = "pu"
+	SecretPreDeleteKey        = "pd"
+	SecretManifestKey         = "m"
+	SecretDevMetaKey          = "v"
+	SecretAppTypeKey          = "t"
+	SecretConfigKey           = "c"
+	SecretStateKey            = "s"
+	SecretDepKey              = "d"
 
 	Helm           AppType = "helmGit"
 	HelmRepo       AppType = "helmRepo"
@@ -217,8 +220,9 @@ type ApplicationMeta struct {
 
 	Manifest string `json:"manifest"`
 
-	// todo the manifest apply by nhctl apply
-	CustomManifest string `json:"custom_manifest"`
+	// back off timestamp when application uninstall
+	// may invalid while inaccurate sys time
+	UninstallBackOff int64 `json:"uninstall_back_off"`
 
 	// manage the dev status of the application
 	DevMeta ApplicationDevMeta `json:"dev_meta"`
@@ -229,92 +233,116 @@ type ApplicationMeta struct {
 	// something like database
 	Secret *corev1.Secret `json:"secret"`
 
+	// to distinguish same ns/app when using multiple K8s cluster
 	NamespaceId string `json:"namespace_id"`
 
 	// current client go util is injected, may null, be care!
-	operator *secret_operator.ClientGoUtilClient
+	operator *operator.ClientGoUtilClient
 }
 
-func Decode(secret *corev1.Secret) (*ApplicationMeta, error) {
+func (a *ApplicationMeta) ReAssignmentBySecret(secret *corev1.Secret) error {
+	a.Secret = secret
+
 	if secret == nil {
-		return nil, fmt.Errorf("Error while decode Secret, Secret is null. ")
+		return fmt.Errorf("Error while decode Secret, Secret is null. ")
 	}
 
 	ns := secret.Namespace
 	appName, err := GetApplicationName(secret.Name)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	bs, ok := secret.Data[SecretStateKey]
 	if !ok {
-		return nil, fmt.Errorf(
+		return fmt.Errorf(
 			"Error while decode Secret, Secret %s is illegal,"+
 				" must contain with data key %s. ", secret.Name,
 			SecretStateKey,
 		)
 	}
 
-	appMeta := ApplicationMeta{
-		Application:      appName,
-		Ns:               ns,
-		ApplicationState: ApplicationStateOf(string(bs)),
+	a.Application = appName
+	a.Ns = ns
+	a.ApplicationState = ApplicationStateOf(string(bs))
+
+	if bs, ok := secret.Data[SecretUninstallBackOffKey]; ok {
+		str := string(bs)
+		valInt, err := strconv.Atoi(str)
+		if err != nil {
+			a.UninstallBackOff = 0
+		} else {
+			a.UninstallBackOff = int64(valInt)
+		}
 	}
 
 	if bs, ok := secret.Data[SecretPreInstallKey]; ok {
-		appMeta.PreInstallManifest = string(decompress(bs))
+		a.PreInstallManifest = string(decompress(bs))
 	}
 
 	if bs, ok := secret.Data[SecretPreUpgradeKey]; ok {
-		appMeta.PreUpgradeManifest = string(decompress(bs))
+		a.PreUpgradeManifest = string(decompress(bs))
 	}
 
 	if bs, ok := secret.Data[SecretPreDeleteKey]; ok {
-		appMeta.PreDeleteManifest = string(decompress(bs))
+		a.PreDeleteManifest = string(decompress(bs))
 	}
 
 	if bs, ok := secret.Data[SecretPostInstallKey]; ok {
-		appMeta.PostInstallManifest = string(decompress(bs))
+		a.PostInstallManifest = string(decompress(bs))
 	}
 
 	if bs, ok := secret.Data[SecretPostUpgradeKey]; ok {
-		appMeta.PostUpgradeManifest = string(decompress(bs))
+		a.PostUpgradeManifest = string(decompress(bs))
 	}
 
 	if bs, ok := secret.Data[SecretPostDeleteKey]; ok {
-		appMeta.PostDeleteManifest = string(decompress(bs))
+		a.PostDeleteManifest = string(decompress(bs))
 	}
 
 	if bs, ok := secret.Data[SecretManifestKey]; ok {
-		appMeta.Manifest = string(decompress(bs))
+		a.Manifest = string(decompress(bs))
 	}
 
 	if bs, ok := secret.Data[SecretAppTypeKey]; ok {
-		appMeta.ApplicationType = AppType(bs)
+		a.ApplicationType = AppType(bs)
 	}
 
 	if bs, ok := secret.Data[SecretDevMetaKey]; ok {
 		devMeta := &ApplicationDevMeta{}
 
 		_ = yaml.Unmarshal(bs, devMeta)
-		appMeta.DevMeta = *devMeta
+		a.DevMeta = *devMeta
 	}
 
 	if bs, ok := secret.Data[SecretConfigKey]; ok {
 		config, _ := unmarshalConfigUnStrict(decompress(bs))
-		appMeta.Config = config
+		a.Config = config
+	}
+
+	if a.Config == nil {
+		a.Config = &profile2.NocalHostAppConfigV2{}
 	}
 
 	if bs, ok := secret.Data[SecretHelmReleaseNameKey]; ok {
-		appMeta.HelmReleaseName = string(bs)
+		a.HelmReleaseName = string(bs)
 	}
 
-	if bs, ok := secret.Data[SecretNamespaceId]; ok {
-		appMeta.NamespaceId = string(bs)
+	if bs, ok := secret.Data[SecretNamespaceIdKey]; ok {
+		a.NamespaceId = string(bs)
 	}
 
-	appMeta.Secret = secret
-	return &appMeta, nil
+	return nil
+}
+
+func Decode(secret *corev1.Secret) (*ApplicationMeta, error) {
+	appMeta := &ApplicationMeta{}
+
+	if err := appMeta.ReAssignmentBySecret(secret); err != nil {
+		return nil, err
+	}
+
+	return appMeta, nil
 }
 
 func FillingExtField(s *profile2.SvcProfileV2, meta *ApplicationMeta, appName, ns, identifier string) {
@@ -412,10 +440,7 @@ func (a *ApplicationMeta) GetApplicationDevMeta() ApplicationDevMeta {
 	}
 }
 
-// Initial initial the application, try to create a secret
-// error if create fail
-// initial the application will set the state to INSTALLING
-func (a *ApplicationMeta) Initial() error {
+func (a *ApplicationMeta) initialFreshSecret() (*corev1.Secret, error) {
 	b := false
 	m := map[string][]byte{}
 	m[SecretStateKey] = []byte(INSTALLING)
@@ -431,19 +456,135 @@ func (a *ApplicationMeta) Initial() error {
 	}
 	id, err := utils.GetShortUuid()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	a.NamespaceId = id
-	createSecret, err := a.operator.Create(a.Ns, &secret)
+	return &secret, nil
+}
+
+// Initial initial the application,
+// try to create a secret if not exist and it's state is INSTALLING
+// or modify the exists secret as INSTALLING if the secret state is UNINSTALL
+// params: force - force to re initial the appmeta, (while app uninstall, there is 10s re initial protect)
+// if want to disable the protect, set force as true
+func (a *ApplicationMeta) Initial(force bool) error {
+	return a.doPreCheckThen(
+		func(exists bool) error {
+			if exists {
+				a.ApplicationState = INSTALLING
+				return a.Update()
+			} else {
+				if secret, err := a.initialFreshSecret(); err != nil {
+					return err
+				} else {
+
+					createSecret, err := a.operator.Create(a.Ns, secret)
+					if err != nil {
+						if k8serrors.IsAlreadyExists(err) {
+							return err
+						}
+						return errors.Wrap(err, "Error while Initial Application meta, fail to create secret ")
+					}
+
+					if err := a.ReAssignmentBySecret(createSecret); err != nil {
+						return errors.Wrap(err, "Error while Initial Application meta, fail to decode secret ")
+					}
+				}
+				return nil
+			}
+		}, force,
+	)
+}
+
+// Initial initial the application,
+// try to create a secret if not exist and it's state is INSTALLED
+// or modify the exists secret as INSTALLED if the secret state is UNINSTALL
+func (a *ApplicationMeta) OneTimesInitial(fun func(meta *ApplicationMeta), force bool) error {
+
+	return a.doPreCheckThen(
+		func(exists bool) error {
+			if exists {
+				a.ApplicationState = INSTALLED
+
+				fun(a)
+
+				return a.Update()
+			} else {
+				if secret, err := a.initialFreshSecret(); err != nil {
+					return err
+				} else {
+					a.ApplicationState = INSTALLED
+					a.Secret = secret
+
+					fun(a)
+
+					a.prepare()
+
+					createSecret, err := a.operator.Create(a.Ns, secret)
+					if err != nil {
+						if k8serrors.IsAlreadyExists(err) {
+							return err
+						}
+						return errors.Wrap(err, "Error while Initial Application meta, fail to create secret ")
+					}
+
+					if err := a.ReAssignmentBySecret(createSecret); err != nil {
+						return errors.Wrap(err, "Error while Initial Application meta, fail to decode secret ")
+					}
+				}
+				return nil
+			}
+		}, force,
+	)
+}
+
+// do some pre check of initial a secret
+func (a *ApplicationMeta) doPreCheckThen(howToInitialMeta func(bool) error, skipProtectedCheck bool) error {
+	exists := true
+	get, err := a.operator.Get(a.Ns, SecretNamePrefix+a.Application)
 	if err != nil {
-		if k8serrors.IsAlreadyExists(err) {
-			return err
+		if k8serrors.IsNotFound(err) {
+			exists = false
+		} else {
+			return errors.Wrap(
+				err, fmt.Sprintf(
+					"Error while Initial Application meta, fail to get secret , error: %s\n",
+					err.Error(),
+				),
+			)
 		}
-		return errors.Wrap(err, "Error while Initial Application meta ")
 	}
-	a.ApplicationState = INSTALLING
-	a.Secret = createSecret
-	return nil
+
+	// if the secret already exist, and it's install status
+	// is UNINSTALL, make it as installing otherwise return
+	// an error because other process may done this
+	//
+	if exists {
+
+		if err := a.ReAssignmentBySecret(get); err != nil {
+			return errors.Wrap(err, "Error while Initial Application meta, fail to decode secret ")
+		}
+
+		// if secret already exist, and we want to re init it
+		// we should check it's protect from UninstallBackOff
+		// after it last uninstall
+		//
+		// and we can set skipProtectedCheck as true to skip
+		// this check
+		if skipProtectedCheck {
+
+		} else if a.IsNotInstall() {
+
+			if a.ProtectedFromReInstall() {
+				return errors.New(
+					"Application may uninstalling, " +
+						"the secret is protected to re initial, please try again later ",
+				)
+			}
+		}
+	}
+
+	return howToInitialMeta(exists)
 }
 
 func (a *ApplicationMeta) InitGoClient(kubeConfigPath string) error {
@@ -456,9 +597,10 @@ func (a *ApplicationMeta) InitGoClient(kubeConfigPath string) error {
 	if err != nil {
 		return errors.Wrap(err, "can not read kubeconfig content, path: "+kubeConfigPath)
 	}
-	a.operator = &secret_operator.ClientGoUtilClient{
+	a.operator = &operator.ClientGoUtilClient{
 		ClientInner:     clientGo,
 		KubeconfigBytes: content,
+		Dc:              clientGo.GetDynamicClient(),
 	}
 	return err
 }
@@ -591,7 +733,7 @@ func (a *ApplicationMeta) Update() error {
 	return retry.OnError(
 		retry.DefaultRetry, func(err error) bool {
 			if err != nil {
-				if secret, _ := a.operator.ReObtainSecret(a.Ns, SecretNamePrefix+a.Application); secret != nil {
+				if secret, _ := a.operator.Get(a.Ns, SecretNamePrefix+a.Application); secret != nil {
 					a.Secret = secret
 				}
 				return true
@@ -600,6 +742,9 @@ func (a *ApplicationMeta) Update() error {
 		}, func() error {
 			if a.Secret == nil {
 				return errors.New("secret not found")
+			}
+			if a.Secret.Data == nil {
+				return errors.New("secret data is nil")
 			}
 			a.prepare()
 			secret, err := a.operator.Update(a.Ns, a.Secret)
@@ -619,13 +764,14 @@ func (a *ApplicationMeta) Update() error {
 }
 
 func (a *ApplicationMeta) prepare() {
+	a.Secret.Data[SecretUninstallBackOffKey] = []byte(strconv.FormatInt(a.UninstallBackOff, 10))
 	a.Secret.Data[SecretPreInstallKey] = compress([]byte(a.PreInstallManifest))
 	a.Secret.Data[SecretPreUpgradeKey] = compress([]byte(a.PreUpgradeManifest))
 	a.Secret.Data[SecretPreDeleteKey] = compress([]byte(a.PreDeleteManifest))
 	a.Secret.Data[SecretPostInstallKey] = compress([]byte(a.PostInstallManifest))
 	a.Secret.Data[SecretPostUpgradeKey] = compress([]byte(a.PostUpgradeManifest))
 	a.Secret.Data[SecretPostDeleteKey] = compress([]byte(a.PostDeleteManifest))
-	a.Secret.Data[SecretNamespaceId] = []byte(a.NamespaceId)
+	a.Secret.Data[SecretNamespaceIdKey] = []byte(a.NamespaceId)
 
 	a.Secret.Data[SecretManifestKey] = compress([]byte(a.Manifest))
 
@@ -655,6 +801,10 @@ func (a *ApplicationMeta) IsInstalling() bool {
 
 func (a *ApplicationMeta) IsNotInstall() bool {
 	return a.ApplicationState == UNINSTALLED
+}
+
+func (a *ApplicationMeta) ProtectedFromReInstall() bool {
+	return a.UninstallBackOff > time.Now().UnixNano()
 }
 
 func (a *ApplicationMeta) NotInstallTips() string {
@@ -701,7 +851,6 @@ func (a *ApplicationMeta) Uninstall(force bool) error {
 			commonParams = append(commonParams, "--namespace", a.Ns)
 		}
 
-		//appProfile, _ := a.GetProfile()
 		if a.operator.ClientInner.KubeConfigFilePath() != "" {
 			commonParams = append(commonParams, "--kubeconfig", a.operator.ClientInner.KubeConfigFilePath())
 		}
@@ -723,6 +872,8 @@ func (a *ApplicationMeta) Uninstall(force bool) error {
 		}
 	}
 
+	a.operator.CleanCustomResource(a.Application, a.Ns)
+
 	if err := a.Delete(); err != nil {
 		return err
 	}
@@ -734,17 +885,16 @@ func (a *ApplicationMeta) Uninstall(force bool) error {
 		}
 	}
 	a.operator.CleanManifest(a.PostDeleteManifest)
-
 	return nil
 }
 
 func (a *ApplicationMeta) cleanManifest() {
-	operator := a.operator
+	op := a.operator
 
 	resource := clientgoutils.NewResourceFromStr(a.Manifest)
 
 	//goland:noinspection GoNilness
-	infos, err := resource.GetResourceInfo(operator.ClientInner, true)
+	infos, err := resource.GetResourceInfo(op.ClientInner, true)
 	if err != nil {
 		log.Error("Error while loading manifest %s, err: %s ", a.Manifest, err)
 	}
@@ -754,11 +904,11 @@ func (a *ApplicationMeta) cleanManifest() {
 }
 
 func (a *ApplicationMeta) cleanUpDepConfigMap() error {
-	operator := a.operator
+	op := a.operator
 
 	if a.DepConfigName != "" {
 		log.Debugf("Cleaning up config map %s", a.DepConfigName)
-		err := operator.ClientInner.DeleteConfigMapByName(a.DepConfigName)
+		err := op.ClientInner.DeleteConfigMapByName(a.DepConfigName)
 		if err != nil {
 			return err
 		}
@@ -768,7 +918,7 @@ func (a *ApplicationMeta) cleanUpDepConfigMap() error {
 	}
 
 	// Clean up all dep config map
-	list, err := operator.ClientInner.ListConfigMaps()
+	list, err := op.ClientInner.ListConfigMaps()
 	if err != nil {
 		return err
 	}
@@ -776,7 +926,7 @@ func (a *ApplicationMeta) cleanUpDepConfigMap() error {
 	for _, cfg := range list {
 		if strings.HasPrefix(cfg.Name, DependenceConfigMapPrefix) {
 			utils.ShouldI(
-				operator.ClientInner.DeleteConfigMapByName(cfg.Name), "Failed to clean up config map"+cfg.Name,
+				op.ClientInner.DeleteConfigMapByName(cfg.Name), "Failed to clean up config map"+cfg.Name,
 			)
 		}
 	}
@@ -784,25 +934,27 @@ func (a *ApplicationMeta) cleanUpDepConfigMap() error {
 	return nil
 }
 
-// do not call this function direcly
-// there should do something in Uninstall
-// before Delete Secret
+// Delete a application will not actually delete the secret
+// just make the application as UNINSTALL state
+// and set a protect time UninstallBackOff
+// then clean the secret data
 func (a *ApplicationMeta) Delete() error {
-	a.Secret.Data[SecretManifestKey] = []byte(a.Manifest)
+	a.HelmReleaseName = ""
+	a.ApplicationType = ""
+	a.ApplicationState = UNINSTALLED
+	a.DepConfigName = ""
+	a.PreInstallManifest = ""
+	a.PostInstallManifest = ""
+	a.PreUpgradeManifest = ""
+	a.PostUpgradeManifest = ""
+	a.PreDeleteManifest = ""
+	a.PostDeleteManifest = ""
+	a.Manifest = ""
+	a.DevMeta = map[base.SvcType]map[string]string{}
+	a.Config = &profile2.NocalHostAppConfigV2{}
+	a.UninstallBackOff = time.Now().Add(time.Second * 10).UnixNano()
 
-	name := a.Secret.Name
-	err := a.operator.Delete(a.Ns, a.Secret.Name)
-	if err != nil && !k8serrors.IsNotFound(err) {
-		return errors.Wrap(err, "Error while Delete Application meta ")
-	}
-	a.Secret = nil
-	// update daemon application meta manually
-	if client, err := daemon_client.GetDaemonClient(false); err == nil {
-		_, _ = client.SendUpdateApplicationMetaCommand(
-			string(a.operator.GetKubeconfigBytes()), a.Ns, name, nil,
-		)
-	}
-	return nil
+	return a.Update()
 }
 
 func (a *ApplicationMeta) GetCurrentDevModeTypeOfWorkload(workloadName string, workloadType base.SvcType, identifier string) profile2.DevModeType {
@@ -840,6 +992,10 @@ func compress(input []byte) []byte {
 }
 
 func decompress(input []byte) []byte {
+	if input == nil || len(input) == 0 {
+		return input
+	}
+
 	var buf bytes.Buffer
 
 	buf.Write(input)
