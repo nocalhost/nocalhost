@@ -149,6 +149,7 @@ func ReCreate(c *gin.Context) {
 		BaseDevSpaceId:     clusterUser.BaseDevSpaceId,
 		MeshDevInfo:        meshDevInfo,
 		IsBaseSpace:        clusterUser.IsBaseSpace,
+		DevSpaceType:       clusterUser.DevSpaceType,
 	}
 
 	cluster, err := service.Svc.ClusterSvc().GetCache(clusterUser.ClusterId)

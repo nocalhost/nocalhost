@@ -973,7 +973,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Cluster"
+                    "DevSpace"
                 ],
                 "summary": "Update dev space",
                 "parameters": [
@@ -2494,7 +2494,7 @@
                         "$ref": "#/definitions/model.UserSimple"
                     }
                 },
-                "virtual_cluster_info": {
+                "virtual_cluster": {
                     "type": "object",
                     "$ref": "#/definitions/model.VirtualClusterInfo"
                 }

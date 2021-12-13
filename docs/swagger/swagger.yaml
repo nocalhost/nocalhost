@@ -397,7 +397,7 @@ definitions:
         items:
           $ref: '#/definitions/model.UserSimple'
         type: array
-      virtual_cluster_info:
+      virtual_cluster:
         $ref: '#/definitions/model.VirtualClusterInfo'
         type: object
     type: object
@@ -1392,7 +1392,7 @@ paths:
             type: object
       summary: Update dev space
       tags:
-      - Cluster
+      - DevSpace
   /v1/dev_space/{id}/detail:
     get:
       consumes:

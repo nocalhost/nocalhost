@@ -31,7 +31,7 @@ type DevSpaceRequest struct {
 // Update
 // @Summary Update dev space
 // @Description Update dev space
-// @Tags Cluster
+// @Tags DevSpace
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
@@ -66,7 +66,7 @@ func Update(c *gin.Context) {
 		}
 		if err := NewDecSpaceUpdater(req, c).UpdateVirtualCluster(cu); err != nil {
 			log.Warnf("Failed to update virtual cluster: %v", err)
-			api.SendResponse(c, errno.ErrBind, nil)
+			api.SendResponse(c, errno.ErrUpdateVirtualClusterFailed, nil)
 			return
 		}
 	}
