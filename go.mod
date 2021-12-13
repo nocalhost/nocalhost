@@ -47,6 +47,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.7.1
 	github.com/qiniu/api.v7 v0.0.0-20190520053455-bea02cd22bf4
+	github.com/rivo/tview v0.0.0-20211202162923-2a6de950f73b
 	github.com/satori/go.uuid v1.2.0
 	github.com/sirupsen/logrus v1.6.0
 	github.com/spf13/cast v1.3.1
