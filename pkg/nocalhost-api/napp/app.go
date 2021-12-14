@@ -10,6 +10,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"log"
 	"net/http"
+	"nocalhost/internal/nocalhost-api/validation"
 	"os"
 	"os/signal"
 	"syscall"
@@ -19,6 +20,7 @@ import (
 	"nocalhost/pkg/nocalhost-api/conf"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 	"github.com/go-redis/redis"
 	"github.com/jinzhu/gorm"
 	"github.com/spf13/viper"
@@ -67,6 +69,10 @@ func New(cfg *conf.Config) *Application {
 		app.DB.Debug()
 	}
 	app.Router = gin.Default()
+
+	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
+		_ = v.RegisterValidation("timing", validation.Timing)
+	}
 
 	// init coloredoutput
 	conf.InitLog()

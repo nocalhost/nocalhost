@@ -23,6 +23,7 @@ type ClusterUserService interface {
 		model.ClusterUserModel, error,
 	)
 	Delete(ctx context.Context, id uint64) error
+	Modify(ctx context.Context, id uint64, attrs map[string]interface{}) error
 	BatchDelete(ctx context.Context, ids []uint64) error
 	GetFirst(ctx context.Context, models model.ClusterUserModel) (*model.ClusterUserModel, error)
 	GetList(ctx context.Context, models model.ClusterUserModel) ([]*model.ClusterUserModel, error)
@@ -154,6 +155,10 @@ func (srv *clusterUserService) ListV2(models model.ClusterUserModel) (
 		item := &model.ClusterUserV2{}
 		item.ID = userModel.ID
 		item.UserId = userModel.UserId
+		item.SleepAt = userModel.SleepAt
+		item.SleepStatus = userModel.SleepStatus
+		item.SleepConfig = userModel.SleepConfig
+		item.SleepMinute = userModel.SleepMinute
 		item.ClusterAdmin = userModel.ClusterAdmin
 		item.Namespace = userModel.Namespace
 		item.SpaceName = userModel.SpaceName
@@ -204,6 +209,16 @@ func (srv *clusterUserService) Update(ctx context.Context, models *model.Cluster
 
 	srv.Evict(result.ID)
 	return models, nil
+}
+
+func (srv *clusterUserService) Modify(_ context.Context, id uint64, attrs map[string]interface{}) error {
+	err := srv.clusterUserRepo.Modify(id, attrs)
+	if err != nil {
+		return err
+	}
+
+	srv.Evict(id)
+	return nil
 }
 
 func (srv *clusterUserService) GetList(ctx context.Context, models model.ClusterUserModel) (

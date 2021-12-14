@@ -59,10 +59,13 @@ func whiteList(method, path string) bool {
 		"/v1/dev_space/[0-9]+/update_resource_limit": "PUT",
 		"/v1/dev_space/[0-9]+":                       "PUT,DELETE",
 
-		"/v2/dev_space":         "GET",
-		"/v2/dev_space/cluster": "GET",
-		"/v2/dev_space/share":   "POST",
-		"/v2/dev_space/unshare": "POST",
+		"/v2/dev_space":                     "GET",
+		"/v2/dev_space/cluster":             "GET",
+		"/v2/dev_space/share":               "POST",
+		"/v2/dev_space/unshare":             "POST",
+		"/v2/dev_space/[0-9]+/sleep":        "POST",
+		"/v2/dev_space/[0-9]+/wakeup":       "POST",
+		"/v2/dev_space/[0-9]+/sleep_config": "PUT",
 	}
 
 	for reg, med := range permissions {

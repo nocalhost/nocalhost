@@ -145,6 +145,9 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		dv2.GET("/detail", cluster_user.GetV2)
 		dv2.POST("/share", cluster_user.Share)
 		dv2.POST("/unshare", cluster_user.UnShare)
+		dv2.POST("/:id/sleep", cluster_user.Sleep)
+		dv2.POST("/:id/wakeup", cluster_user.Wakeup)
+		dv2.PUT("/:id/sleep_config", cluster_user.ApplySleepConfig)
 	}
 
 	// DevSpace
@@ -169,7 +172,6 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		pa.GET("/service_accounts", service_account.ListAuthorization)
 		pa.GET("/dev_space", applications.PluginGet)
 		pa.POST("/:id/recreate", cluster_user.PluginReCreate)
-		pa.PUT("/application/:id/dev_space/:spaceId/plugin_sync", applications.UpdateApplicationInstall)
 	}
 
 	return g

@@ -7,7 +7,6 @@ package cluster_user
 
 import (
 	"context"
-
 	"github.com/spf13/cast"
 
 	"nocalhost/internal/nocalhost-api/service"

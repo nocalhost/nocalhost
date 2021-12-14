@@ -7,11 +7,11 @@ package cluster
 
 import (
 	"context"
-	"nocalhost/internal/nocalhost-api/model"
-	"nocalhost/pkg/nocalhost-api/pkg/log"
-
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
+	"nocalhost/internal/nocalhost-api/model"
+	"nocalhost/pkg/nocalhost-api/pkg/log"
+	"time"
 )
 
 type ClusterRepo interface {
@@ -23,6 +23,9 @@ type ClusterRepo interface {
 	Update(ctx context.Context, update map[string]interface{}, clusterId uint64) (*model.ClusterModel, error)
 	GetList(ctx context.Context) ([]*model.ClusterList, error)
 	Close()
+
+	Lockup(ctx context.Context, id uint64, prev *time.Time) error
+	Unlock(ctx context.Context, id uint64) error
 }
 
 type clusterBaseRepo struct {
@@ -81,7 +84,7 @@ func (repo *clusterBaseRepo) GetAny(ctx context.Context, where map[string]interf
 func (repo *clusterBaseRepo) GetList(ctx context.Context) ([]*model.ClusterList, error) {
 	var result []*model.ClusterList
 	repo.db.Raw(
-		"select c.id,c.kubeconfig,c.name,c.server,c.storage_class,c.info,c.user_id,c.created_at,count" +
+		"select c.id,c.kubeconfig,c.name,c.server,c.storage_class,c.info,c.user_id,c.created_at,c.inspect_at,count" +
 			"(distinct cu.id) as users_count from clusters as c left join clusters_users as cu on c.id=cu.cluster_id" +
 			" where c.deleted_at is null and cu.deleted_at is null group by c.id",
 	).
@@ -105,6 +108,35 @@ func (repo *clusterBaseRepo) Get(ctx context.Context, clusterId uint64) (model.C
 		return cluster, result.Error
 	}
 	return cluster, nil
+}
+
+func (repo *clusterBaseRepo) Lockup(
+	_ context.Context, id uint64, prev *time.Time,
+) error {
+	cm := model.ClusterModel{}
+	db := repo.db.Model(&cm)
+	if prev == nil {
+		db = db.
+			Where("`id` = ? and `inspect_at` is NULL", id).
+			Update("inspect_at", time.Now().UTC())
+	} else {
+		db = db.
+			Where("`id` = ? and `inspect_at` = ?", id, prev).
+			Update("inspect_at", time.Now().UTC())
+	}
+	if db.Error != nil {
+		return db.Error
+	}
+	if db.RowsAffected > 0 {
+		return nil
+	}
+	return errors.New("0 rows affected")
+}
+
+func (repo *clusterBaseRepo) Unlock(_ context.Context, id uint64) error {
+	cm := model.ClusterModel{}
+	db := repo.db.Model(&cm).Where("`id` = ?", id).Update("inspect_at", nil)
+	return db.Error
 }
 
 // Close close db

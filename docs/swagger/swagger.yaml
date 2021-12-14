@@ -29,13 +29,6 @@ definitions:
     - context
     - status
     type: object
-  applications.UpdateApplicationInstallRequest:
-    properties:
-      status:
-        type: integer
-    required:
-    - status
-    type: object
   cluster.CreateClusterRequest:
     properties:
       kubeconfig:
@@ -174,6 +167,44 @@ definitions:
     - public
     - status
     type: object
+  model.ByWeek:
+    properties:
+      sleep_day:
+        enum:
+        - 0
+        - 1
+        - 2
+        - 3
+        - 4
+        - 5
+        - 6
+        type: integer
+      sleep_time:
+        description: eg. 20:00, 23:55
+        type: string
+      utc_offset:
+        description: minutes east of UTC
+        type: integer
+      wakeup_day:
+        enum:
+        - 0
+        - 1
+        - 2
+        - 3
+        - 4
+        - 5
+        - 6
+        type: integer
+      wakeup_time:
+        description: eg. 08:00, 09:30
+        type: string
+    required:
+    - sleep_day
+    - sleep_time
+    - utc_offset
+    - wakeup_day
+    - wakeup_time
+    type: object
   model.ClusterList:
     properties:
       created_at:
@@ -183,6 +214,8 @@ definitions:
       id:
         type: integer
       info:
+        type: string
+      inspect_at:
         type: string
       is_ready:
         type: boolean
@@ -210,6 +243,8 @@ definitions:
       id:
         type: integer
       info:
+        type: string
+      inspect_at:
         type: string
       is_ready:
         type: boolean
@@ -239,6 +274,8 @@ definitions:
       id:
         type: integer
       info:
+        type: string
+      inspect_at:
         type: string
       kubeconfig:
         type: string
@@ -306,6 +343,18 @@ definitions:
         type: integer
       namespace:
         type: string
+      sleep_at:
+        type: string
+      sleep_config:
+        $ref: '#/definitions/model.SleepConfig'
+        type: object
+      sleep_minute:
+        type: integer
+      sleep_status:
+        enum:
+        - asleep
+        - wakeup
+        type: string
       space_name:
         type: string
       space_resource_limit:
@@ -368,6 +417,13 @@ definitions:
         type: string
       used:
         type: number
+    type: object
+  model.SleepConfig:
+    properties:
+      by_week:
+        items:
+          $ref: '#/definitions/model.ByWeek'
+        type: array
     type: object
   model.UserBaseModel:
     properties:
@@ -1523,45 +1579,6 @@ paths:
       summary: Plugin ReCreate devSpace
       tags:
       - Plug-in
-  /v1/plugin/application/{id}/dev_space/{spaceId}/plugin_sync:
-    put:
-      consumes:
-      - application/json
-      description: Plug-in Update app installation status
-      parameters:
-      - description: Authorization
-        in: header
-        name: Authorization
-        required: true
-        type: string
-      - description: Application ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: DevSpace ID
-        in: path
-        name: spaceId
-        required: true
-        type: integer
-      - description: The application update info
-        in: body
-        name: CreateAppRequest
-        required: true
-        schema:
-          $ref: '#/definitions/applications.UpdateApplicationInstallRequest'
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: '{"code":0,"message":"OK","data":null}'
-          schema:
-            $ref: '#/definitions/api.Response'
-            type: object
-      summary: Plug-in Update app installation status
-      tags:
-      - Plug-in
   /v1/plugin/dev_space:
     get:
       consumes:
@@ -1781,6 +1798,94 @@ paths:
       summary: Get api server version
       tags:
       - Version
+  /v2/dev_space/{id}/sleep:
+    post:
+      consumes:
+      - application/json
+      description: Forced dev space into sleep mode
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: dev space id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":null}'
+          schema:
+            $ref: '#/definitions/api.Response'
+            type: object
+      summary: Sleep
+      tags:
+      - DevSpace
+  /v2/dev_space/{id}/sleep_config:
+    put:
+      consumes:
+      - application/json
+      description: update sleep config in dev space
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: dev space id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Sleep Config
+        in: body
+        name: sleep_config
+        required: true
+        schema:
+          $ref: '#/definitions/model.SleepConfig'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":null}'
+          schema:
+            $ref: '#/definitions/api.Response'
+            type: object
+      summary: UpdateSleepConfig
+      tags:
+      - DevSpace
+  /v2/dev_space/{id}/wakeup:
+    post:
+      consumes:
+      - application/json
+      description: Forced awakens the dev space
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: dev space id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":null}'
+          schema:
+            $ref: '#/definitions/api.Response'
+            type: object
+      summary: Wakeup
+      tags:
+      - DevSpace
   /v2/dev_space/cluster:
     get:
       consumes:

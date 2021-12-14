@@ -182,7 +182,13 @@ func GenKubeconfig(
 				)
 
 				nss = append(
-					nss, NS{SpaceName: cu.SpaceName, Namespace: ns, SpaceId: cu.ID, SpaceOwnType: spaceOwnType.Str},
+					nss, NS{
+						SpaceId:      cu.ID,
+						Namespace:    ns,
+						SpaceName:    cu.SpaceName,
+						SleepStatus:  cu.SleepStatus,
+						SpaceOwnType: spaceOwnType.Str,
+					},
 				)
 				delete(devSpaceMapping, ns)
 			}
@@ -295,5 +301,6 @@ type NS struct {
 	SpaceId      uint64 `json:"space_id"`
 	Namespace    string `json:"namespace"`
 	SpaceName    string `json:"spacename"`
+	SleepStatus  string `json:"sleep_status"`
 	SpaceOwnType string `json:"space_own_type"`
 }

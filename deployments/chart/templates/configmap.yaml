@@ -14,6 +14,8 @@ data:
     log:
       writers: stdout                 # 有2个可选项：file,stdout, 可以两者同时选择输出位置，有2个可选项：file,stdout。
       logger_level: DEBUG             # 日志级别，DEBUG, INFO, WARN, ERROR, FATAL
+    sleep:
+      cron: 10s
     mysql:
       name: nocalhost
       addr: {{ .Chart.Name }}-mariadb:3306
