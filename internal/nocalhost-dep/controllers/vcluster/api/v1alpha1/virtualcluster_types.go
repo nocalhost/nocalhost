@@ -130,7 +130,7 @@ func (in *VirtualCluster) SetChartRepo(repo string) {
 func (in *VirtualCluster) GetServiceType() string {
 	annotations := in.GetAnnotations()
 	svcType := annotations[ServiceTypeKey]
-	if svcType != "" {
+	if svcType == "" {
 		svcType = string(corev1.ServiceTypeClusterIP)
 	}
 	return svcType

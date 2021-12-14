@@ -191,9 +191,9 @@ func (h Header) Value() (driver.Value, error) {
 }
 
 type VirtualClusterInfo struct {
-	Status      string             `json:"status,omitempty"`
+	Status      string             `json:"status"`
 	Events      string             `json:"events,omitempty"`
-	ServiceType corev1.ServiceType `json:"service_type,omitempty"`
-	Version     string             `json:"version,omitempty"`
-	Values      string             `json:"values,omitempty"`
+	ServiceType corev1.ServiceType `json:"service_type"`
+	Version     string             `json:"version"`
+	Values      string             `json:"values"`
 }
