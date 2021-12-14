@@ -54,8 +54,12 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 	case command.Connect:
 		// pre-check if resource already in reversing mode
 		if load, ok := GetReverseInfo().Load(generateKey(connect.KubeconfigBytes, connect.Namespace)); ok {
-			if load.(*name).resources.ReversedResource().Has(cmd.Resource) {
-				err = errors.New(fmt.Sprintf("resource %s already in reversing mode by another one", cmd.Resource))
+			if mac := load.(*name).getMacByResource(cmd.Resource); len(mac) != 0 {
+				if mac == util.GetMacAddress().String() {
+					err = fmt.Errorf("resource: %s is already in reversing mode by yourself", cmd.Resource)
+				} else {
+					err = fmt.Errorf("resource: %s is already in reversing mode by another one", cmd.Resource)
+				}
 				return
 			}
 		}
@@ -88,11 +92,9 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 						})
 					connectOptions.Workloads = []string{d}
 					if err = connectOptions.RemoveInboundPod(); err != nil {
-						logger.Errorln(fmt.Sprintf(
-							"delete reverse resource %s-%s error, err: %v", connectInfo.namespace, d, err))
+						logger.Errorf("delete reverse resource %s-%s error, err: %v\n", connectInfo.namespace, d, err)
 					} else {
-						logger.Infoln(fmt.Sprintf(
-							"delete reverse resource %s-%s successfully", connectInfo.namespace, d))
+						logger.Infof("delete reverse resource %s-%s successfully\n", connectInfo.namespace, d)
 					}
 				}
 			}

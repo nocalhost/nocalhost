@@ -24,8 +24,8 @@ import (
 	"nocalhost/internal/nhctl/nocalhost_cleanup"
 	"nocalhost/internal/nhctl/syncthing/daemon"
 	"nocalhost/internal/nhctl/utils"
-	k8sutil "nocalhost/pkg/nhctl/k8sutils"
 	"nocalhost/internal/nhctl/vpn/util"
+	k8sutil "nocalhost/pkg/nhctl/k8sutils"
 	"nocalhost/pkg/nhctl/log"
 	"runtime/debug"
 	"strings"
@@ -132,6 +132,13 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 		go checkClusterStatusCronJob()
 
 		go reconnectSyncthingIfNeededWithPeriod(time.Second * 30)
+
+		go func() {
+			time.Sleep(30 * time.Second)
+			if err := nocalhost_cleanup.CleanUp(false); err != nil {
+				log.Logf("Clean up application in daemon failed: %s", err.Error())
+			}
+		}()
 	}
 
 	go func() {
@@ -218,12 +225,6 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 
 	//// Recovering syncthing
 	//go recoverSyncthing()
-	go func() {
-		time.Sleep(30 * time.Second)
-		if err := nocalhost_cleanup.CleanUp(false); err != nil {
-			log.Logf("Clean up application in daemon failed: %s", err.Error())
-		}
-	}()
 
 	select {
 	case <-daemonCtx.Done():

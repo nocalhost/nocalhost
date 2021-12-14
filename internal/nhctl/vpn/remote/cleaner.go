@@ -3,6 +3,7 @@ package remote
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,8 +27,10 @@ func UpdateRefCount(clientset *kubernetes.Clientset, namespace, name string, inc
 			return err
 		}
 		curCount := 0
-		if ref := pod.GetAnnotations()["ref-count"]; len(ref) > 0 {
-			curCount, err = strconv.Atoi(ref)
+		if ref := pod.GetAnnotations()["ref-count"]; len(ref) == 0 {
+			return fmt.Errorf("can't found ref-count from pod annotation, this should not happend")
+		} else if curCount, err = strconv.Atoi(ref); err != nil {
+			return err
 		}
 		patch, _ := json.Marshal([]interface{}{
 			map[string]interface{}{
@@ -42,7 +45,7 @@ func UpdateRefCount(clientset *kubernetes.Clientset, namespace, name string, inc
 	}); err != nil {
 		log.Errorf("update ref count error, error: %v", err)
 	} else {
-		log.Info("update ref count successfully")
+		log.Infof("update ref count successfully, increment: %v", increment)
 	}
 }
 

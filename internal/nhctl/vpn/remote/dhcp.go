@@ -5,6 +5,7 @@ import (
 	"crypto/md5"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	net2 "k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/client-go/kubernetes"
@@ -37,9 +38,9 @@ func NewDHCPManager(client *kubernetes.Clientset, namespace string, addr *net.IP
 
 //	todo optimize dhcp, using mac address, ip and deadline as unit
 func (d *DHCPManager) InitDHCPIfNecessary(ctx context.Context) error {
-	get, err := d.client.CoreV1().ConfigMaps(d.namespace).Get(context.Background(), util.TrafficManager, metav1.GetOptions{})
+	configMap, err := d.client.CoreV1().ConfigMaps(d.namespace).Get(context.Background(), util.TrafficManager, metav1.GetOptions{})
 	// already exists, do nothing
-	if err == nil && get != nil {
+	if err == nil && configMap != nil {
 		return nil
 	}
 	var ips []string
@@ -57,7 +58,7 @@ func (d *DHCPManager) InitDHCPIfNecessary(ctx context.Context) error {
 		Data: map[string]string{"DHCP": strings.Join(ips, ",")},
 	}
 	_, err = d.client.CoreV1().ConfigMaps(d.namespace).Create(context.Background(), result, metav1.CreateOptions{})
-	if err != nil {
+	if err != nil && !errors.IsAlreadyExists(err) {
 		util.GetLoggerFromContext(ctx).Errorf("create DHCP error, err: %v", err)
 		return err
 	}
@@ -72,7 +73,7 @@ func (d *DHCPManager) RentIPBaseNICAddress() (*net.IPNet, error) {
 	}
 	split := strings.Split(get.Data["DHCP"], ",")
 
-	ip, left := getIp(split)
+	ip, left := getIP(split)
 
 	get.Data["DHCP"] = strings.Join(left, ",")
 	_, err = d.client.CoreV1().ConfigMaps(d.namespace).Update(context.Background(), get, metav1.UpdateOptions{})
@@ -112,7 +113,7 @@ func (d *DHCPManager) RentIPRandom() (*net.IPNet, error) {
 	}, nil
 }
 
-func getIp(availableIp []string) (int, []string) {
+func getIP(availableIp []string) (int, []string) {
 	var v uint32
 	interfaces, _ := net.Interfaces()
 	hostInterface, _ := net2.ChooseHostInterface()

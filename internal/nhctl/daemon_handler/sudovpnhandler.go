@@ -45,11 +45,14 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser)
 		lock.Lock()
 		defer lock.Unlock()
 		if connected != nil {
-			logger.Errorf("already connected to namespace: %s\n", connected.Namespace)
-			if connected.Namespace != cmd.Namespace {
-				logger.Errorf("but want's to connect to: %s\n", cmd.Namespace)
+			if !connected.IsSameKubeconfigAndNamespace(connect) {
+				logger.Errorf("already connected to namespace: %s, but want's to connect to namespace: %s\n",
+					connected.Namespace, cmd.Namespace)
+				logger.Infoln(util.EndSignFailed)
+			} else {
+				logger.Debugf("connected to spec cluster sucessufully")
+				logger.Infoln(util.EndSignOK)
 			}
-			logger.Infoln(util.EndSignFailed)
 			writer.Close()
 			return nil
 		}
