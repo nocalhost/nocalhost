@@ -8,6 +8,7 @@ package utils
 import (
 	"io"
 	"net/http"
+	"nocalhost/internal/nocalhost-api/global"
 	"sigs.k8s.io/yaml"
 	"sort"
 	"strings"
@@ -35,7 +36,7 @@ func (i IndexFile) getVersionList(name string) []string {
 
 func GetVClusterVersionList(repoURL string) []string {
 	if repoURL == "" {
-		repoURL = "https://charts.loft.sh"
+		repoURL = global.NocalhostChartRepository
 	}
 
 	c := &http.Client{

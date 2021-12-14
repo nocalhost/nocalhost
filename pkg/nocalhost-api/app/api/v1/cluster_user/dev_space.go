@@ -10,11 +10,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand"
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"math/rand"
+
+	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/internal/nocalhost-dep/controllers/vcluster/api/v1alpha1"
@@ -22,7 +26,6 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
-	"time"
 )
 
 type DevSpace struct {
@@ -153,7 +156,7 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 		}
 	}
 
-	// init
+	// init vcluster
 	if d.DevSpaceParams.DevSpaceType == model.VirtualClusterType {
 		if err := d.initVirtualCluster(&clusterRecord, clusterUserModel); err != nil {
 			log.Error(err)
@@ -440,7 +443,7 @@ func (d *DevSpace) initVirtualCluster(clusterRecord *model.ClusterModel, cluster
 	vc.SetNamespace(clusterUser.Namespace)
 	vc.SetValues(v.Values)
 	vc.SetChartName("vcluster")
-	vc.SetChartRepo("https://charts.loft.sh")
+	vc.SetChartRepo(global.NocalhostChartRepository)
 	vc.SetChartVersion(v.Version)
 	annotations := map[string]string{
 		v1alpha1.ServiceTypeKey: string(v.ServiceType),

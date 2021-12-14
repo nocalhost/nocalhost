@@ -31,6 +31,7 @@ const (
 	NocalhostCreateByLabel                    = "app.kubernetes.io/created-by"
 	NocalhostRegistry                         = "nocalhost-docker.pkg.coding.net"
 	Nocalhostrepository                       = "nocalhost/public/nocalhost-api"
+	NocalhostChartRepository                  = "https://nocalhost-helm.pkg.coding.net/nocalhost/nocalhost"
 )
 
 var (
