@@ -190,18 +190,14 @@ storage:
   size: 10Gi
 syncer:
   extraArgs: ["--disable-sync-resources=ingresses"]
-rbac:
-  clusterRole:
-    create: true
 `
 	return chartutil.ReadValues([]byte(vals))
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
-	pred := predicate.GenerationChangedPredicate{}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&helmv1alpha1.VirtualCluster{}).
-		WithEventFilter(pred).
+		WithEventFilter(predicate.Or(predicate.GenerationChangedPredicate{}, predicate.AnnotationChangedPredicate{})).
 		Complete(r)
 }
