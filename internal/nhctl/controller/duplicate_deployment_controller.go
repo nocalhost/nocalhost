@@ -14,10 +14,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nhctl/model"
-	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
 	"strings"
-	"time"
 )
 
 const (
@@ -73,7 +71,6 @@ func (d *DuplicateDeploymentController) ReplaceImage(ctx context.Context, ops *m
 	var rs int32 = 1
 	dep.Spec.Replicas = &rs
 
-	//suffix := d.Identifier[0:5]
 	labelsMap, err := d.getDuplicateLabelsMap()
 	if err != nil {
 		return err
@@ -85,13 +82,8 @@ func (d *DuplicateDeploymentController) ReplaceImage(ctx context.Context, ops *m
 	dep.Spec.Template.Labels = labelsMap
 	dep.ResourceVersion = ""
 
-	devContainer, err := findContainerInDeploySpec(dep, ops.Container)
-	if err != nil {
-		return err
-	}
-
 	devContainer, sideCarContainer, devModeVolumes, err :=
-		d.genContainersAndVolumes(devContainer, ops.Container, ops.DevImage, ops.StorageClass, true)
+		d.genContainersAndVolumes(&dep.Spec.Template.Spec, ops.Container, ops.DevImage, ops.StorageClass, true)
 	if err != nil {
 		return err
 	}
@@ -166,13 +158,7 @@ func (d *DuplicateDeploymentController) ReplaceImage(ctx context.Context, ops *m
 		}
 	}
 
-	for _, patch := range d.config.GetContainerDevConfigOrDefault(ops.Container).Patches {
-		log.Infof("Patching %s", patch.Patch)
-		if err = d.Client.Patch(d.Type.String(), dep.Name, patch.Patch, patch.Type); err != nil {
-			log.WarnE(err, "")
-		}
-	}
-	<-time.Tick(time.Second)
+	d.patchAfterDevContainerReplaced(ops.Container, dep.Kind, dep.Name)
 
 	return waitingPodToBeReady(d.GetNocalhostDevContainerPod)
 }
@@ -193,21 +179,11 @@ func (d *DuplicateDeploymentController) RollBack(reset bool) error {
 			return errors.New(fmt.Sprintf("Duplicate Deployment num is %d (not 1)?", len(deploys)))
 		} else if len(deploys) == 0 {
 			log.Warnf("Duplicate Deployment num is %d (not 1)?", len(deploys))
-			_ = d.UpdateSvcProfile(func(svcProfileV2 *profile.SvcProfileV2) error {
-				svcProfileV2.DevModeType = ""
-				return nil
-			})
 			return nil
 		}
 	}
 
-	if err = d.Client.DeleteDeployment(deploys[0].Name, false); err != nil {
-		return err
-	}
-	return d.UpdateSvcProfile(func(svcProfileV2 *profile.SvcProfileV2) error {
-		svcProfileV2.DevModeType = ""
-		return nil
-	})
+	return d.Client.DeleteDeployment(deploys[0].Name, false)
 }
 
 // GetPodList todo: Do not list pods already deleted - by hxx

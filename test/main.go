@@ -96,10 +96,6 @@ func main() {
 	})
 
 	DoRun(false, &wg, func() {
-		t.Run("RemoveSyncthingPidFile", suite.RemoveSyncthingPid)
-	})
-
-	DoRun(false, &wg, func() {
 		t.Run("KillSyncthingProcess", suite.KillSyncthingProcess)
 	})
 

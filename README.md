@@ -1,3 +1,4 @@
+[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/5381/badge)](https://bestpractices.coreinfrastructure.org/projects/5381)
 ![api-docker](https://github.com/nocalhost/nocalhost/workflows/api-docker/badge.svg?branch=main)
 ![nhctl](https://github.com/nocalhost/nocalhost/workflows/nhctl/badge.svg?branch=main)
 [![Go Report Card](https://goreportcard.com/badge/github.com/nocalhost/nocalhost)](https://goreportcard.com/report/github.com/nocalhost/nocalhost)
@@ -17,7 +18,7 @@ The term Nocalhost originates from No Local, which is a cloud-native development
 
 When developing cloud-based application in Nocalhost, any code changes can immediately take effects in remote side, and there is no need to rebuild a new image. This can shorten the entire development feedback loops and massively improve R&D efficiency.
 
-In order to give you a better understanding of Nocalhost, it is recommended that you read our blog post [Nocalhost - Refine Cloud Native Dev Environment](https://nocalhost.dev/eng/Blog/redefine-cloud-native-dev-environment/)
+In order to give you a better understanding of Nocalhost, it is recommended that you read our blog post [Nocalhost - Refine Cloud Native Dev Environment](https://nocalhost.dev/blog/2021/01/01/)
 
 [![Nocalhost](https://img.youtube.com/vi/z7I-vopn-gQ/0.jpg)](https://www.youtube.com/watch?v=z7I-vopn-gQ)
 
@@ -51,7 +52,7 @@ Full documentation is available on the [Nocalhost](https://nocalhost.dev/)
 
 ## Community
 
-* Slack: [Nocalhost Slack Channel](https://nocalhost.slack.com/)
+* Slack: [Nocalhost Slack Channel](https://cloud-native.slack.com/archives/C02MNCR8R5H)
 * WeChat: Scan the QR Code to add CODING assistance with note "Nocalhost", assistance will add you into our WeChat group
 
 ![nocal-host-wechat](https://user-images.githubusercontent.com/3713305/123894953-a2d0a480-d991-11eb-88af-9082d14b0c2c.png)

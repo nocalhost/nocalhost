@@ -87,5 +87,5 @@ func TestLogger(tag string) *testLogger {
 }
 
 func dirForTestCaseLog(tag string) string {
-	return filepath.Join(tag)
+	return filepath.Join("testlog", tag)
 }
