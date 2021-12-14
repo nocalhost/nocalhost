@@ -207,7 +207,6 @@ type resourceHandler struct {
 	kubeconfigBytes []byte
 	reverseInfoLock *sync.Mutex
 	reverseInfo     *sync.Map
-	backoffTime     time.Time
 }
 
 func (h *resourceHandler) toKey() string {
@@ -222,8 +221,14 @@ func (h *resourceHandler) OnAdd(obj interface{}) {
 	status := ToStatus(configMap.Data)
 	modifyReverseInfo(h, status)
 	if status.Connect.IsConnected() {
+		if !connectInfo.IsEmpty() && !connectInfo.IsSame(h.kubeconfigBytes, h.namespace) {
+			// todo someone already connected, release others or myself
+			// release others
+			release(connectInfo.kubeconfigBytes, connectInfo.namespace)
+			notifySudoDaemonToDisConnect(connectInfo.kubeconfigBytes, connectInfo.namespace)
+		}
 		if connectInfo.IsSame(h.kubeconfigBytes, h.namespace) || connectInfo.IsEmpty() {
-			go h.notifySudoDaemonToConnect()
+			go notifySudoDaemonToConnect(h.kubeconfigBytes, h.namespace)
 
 			connectInfo.namespace = h.namespace
 			connectInfo.kubeconfigBytes = h.kubeconfigBytes
@@ -231,9 +236,6 @@ func (h *resourceHandler) OnAdd(obj interface{}) {
 			if len(connectInfo.namespace) != 0 {
 				modifyReverseInfo(h, status)
 			}
-		} else {
-			// someone already connected, release myself
-			release(h)
 		}
 	}
 }
@@ -246,43 +248,44 @@ func (h *resourceHandler) OnUpdate(oldObj, newObj interface{}) {
 	newStatus := ToStatus(newObj.(*corev1.ConfigMap).Data)
 	modifyReverseInfo(h, newStatus)
 	if newStatus.Connect.IsConnected() {
+		if !connectInfo.IsEmpty() && !connectInfo.IsSame(h.kubeconfigBytes, h.namespace) {
+			// todo someone already connected, release others or myself
+			// release others
+			release(connectInfo.kubeconfigBytes, connectInfo.namespace)
+			notifySudoDaemonToDisConnect(connectInfo.kubeconfigBytes, connectInfo.namespace)
+		}
+
 		if connectInfo.IsSame(h.kubeconfigBytes, h.namespace) || connectInfo.IsEmpty() {
-			go h.notifySudoDaemonToConnect()
+			go notifySudoDaemonToConnect(h.kubeconfigBytes, h.namespace)
 			connectInfo.namespace = h.namespace
 			connectInfo.kubeconfigBytes = h.kubeconfigBytes
 			connectInfo.ip = newStatus.MacToIP[util.GetMacAddress().String()]
 			if len(connectInfo.namespace) != 0 {
 				modifyReverseInfo(h, newStatus)
 			}
-		} else {
-			// someone already connected, release myself
-			release(h)
 		}
 	}
 	// if connected --> disconnected, needs to notify sudo daemon to connect
 	if oldStatus.Connect.IsConnected() && !newStatus.Connect.IsConnected() {
 		if connectInfo.IsSame(h.kubeconfigBytes, h.namespace) {
 			connectInfo.cleanup()
-		}
-		if h.backoffTime.Unix() < time.Now().Unix() {
-			go h.notifySudoDaemonToDisConnect()
-			h.backoffTime = time.Now().Add(time.Second * 5)
+			go notifySudoDaemonToDisConnect(h.kubeconfigBytes, h.namespace)
 		}
 	}
 }
 
 // release resource handler will stop watcher
-func release(h *resourceHandler) {
+func release(kubeconfigBytes []byte, namespace string) {
 	// needs to notify sudo daemon to update connect namespace
 	fmt.Println("needs to notify sudo daemon to update connect namespace, this should not to be happen")
-	ReleaseWatcher(h.kubeconfigBytes, h.namespace)
-	if clientset, err := util.GetClientSetByKubeconfigBytes(h.kubeconfigBytes); err == nil {
-		_ = UpdateConnect(clientset, h.namespace, func(list sets.String, item string) {
+	ReleaseWatcher(kubeconfigBytes, namespace)
+	if clientset, err := util.GetClientSetByKubeconfigBytes(kubeconfigBytes); err == nil {
+		_ = UpdateConnect(clientset, namespace, func(list sets.String, item string) {
 			list.Delete(item)
 		})
-		if value, found := GetReverseInfo().LoadAndDelete(h.toKey()); found {
+		if value, found := GetReverseInfo().LoadAndDelete(generateKey(kubeconfigBytes, namespace)); found {
 			for _, s := range value.(*name).resources.GetBelongToMeResources().KeySet() {
-				_ = UpdateReverseConfigMap(clientset, h.namespace, s,
+				_ = UpdateReverseConfigMap(clientset, namespace, s,
 					func(r *ReverseTotal, record ReverseRecord) {
 						r.RemoveRecord(record)
 					})
@@ -346,22 +349,22 @@ func (h *resourceHandler) OnDelete(obj interface{}) {
 	}
 }
 
-func (h *resourceHandler) notifySudoDaemonToConnect() {
+func notifySudoDaemonToConnect(kubeconfigBytes []byte, namespace string) {
 	client, err := daemon_client.GetDaemonClient(true)
 	if err != nil {
 		return
 	}
-	path := k8sutils.GetOrGenKubeConfigPath(string(h.kubeconfigBytes))
-	client.SendSudoVPNOperateCommand(path, h.namespace, command.Connect, "")
+	path := k8sutils.GetOrGenKubeConfigPath(string(kubeconfigBytes))
+	client.SendSudoVPNOperateCommand(path, namespace, command.Connect, "")
 }
 
-func (h *resourceHandler) notifySudoDaemonToDisConnect() {
+func notifySudoDaemonToDisConnect(kubeconfigBytes []byte, namespace string) {
 	client, err := daemon_client.GetDaemonClient(true)
 	if err != nil {
 		return
 	}
-	path := k8sutils.GetOrGenKubeConfigPath(string(h.kubeconfigBytes))
-	client.SendSudoVPNOperateCommand(path, h.namespace, command.DisConnect, "")
+	path := k8sutils.GetOrGenKubeConfigPath(string(kubeconfigBytes))
+	client.SendSudoVPNOperateCommand(path, namespace, command.DisConnect, "")
 }
 
 func generateKey(kubeconfigBytes []byte, namespace string) string {

@@ -114,18 +114,18 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 			connectInfo.cleanup()
 		}
 		// connect to new cluster or namespace
-		//if connectInfo.IsEmpty() {
-		if err = UpdateConnect(connect.GetClientSet(), cmd.Namespace, func(list sets.String, address string) {
-			list.Insert(address)
-		}); err != nil {
-			return
+		if connectInfo.IsEmpty() {
+			if err = UpdateConnect(connect.GetClientSet(), cmd.Namespace, func(list sets.String, address string) {
+				list.Insert(address)
+			}); err != nil {
+				return
+			}
 		}
 		logger.Infof("connecting to new namespace...\n")
 		if r, err := client.SendSudoVPNOperateCommand(
 			cmd.KubeConfig, cmd.Namespace, command.Connect, cmd.Resource); err == nil {
 			transStreamToWriterWithoutExit(writer, r)
 		}
-		//}
 		logger.Infof("connectted to new namespace\n")
 		// reverse resource if needed
 		if len(cmd.Resource) != 0 {

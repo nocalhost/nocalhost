@@ -262,11 +262,11 @@ func (c *ConnectOptions) portForward(ctx context.Context) {
 					stopChan,
 				)
 				if apierrors.IsNotFound(err) {
-					c.GetLogger().Errorln("can not found port-forward resource, err: %v, exiting", err)
+					c.GetLogger().Errorf("can not found port-forward resource, err: %v, exiting\n", err)
 					return
 				}
 				if err != nil {
-					c.GetLogger().Errorf("port-forward occurs error, err: %v, retrying", err)
+					c.GetLogger().Errorf("port-forward occurs error, err: %v, retrying\n", err)
 					//time.Sleep(time.Second * 2)
 				}
 			}()
@@ -274,8 +274,12 @@ func (c *ConnectOptions) portForward(ctx context.Context) {
 	}(ctx)
 	for readyChanRef == nil {
 	}
-	<-*readyChanRef
-	c.GetLogger().Infoln("port forward 10800:10800 ready")
+	select {
+	case <-*readyChanRef:
+		c.GetLogger().Infoln("port forward 10800:10800 ready")
+	case <-time.Tick(time.Minute * 5):
+		c.GetLogger().Errorln("wait port forward 10800:10800 to be ready timeout")
+	}
 }
 
 func (c *ConnectOptions) startLocalTunServe(ctx context.Context) (chan error, error) {

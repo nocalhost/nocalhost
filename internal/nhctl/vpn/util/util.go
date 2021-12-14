@@ -412,13 +412,14 @@ func BytesToInt(b []byte) uint32 {
 	return u
 }
 
-func IsPortListening(int2 int) bool {
-	l, err := net.Listen("tcp", fmt.Sprintf(":%v", int2))
-	if err == nil {
-		l.Close()
+func IsPortListening(port int) bool {
+	listener, err := net.Listen("tcp4", net.JoinHostPort("0.0.0.0", strconv.Itoa(port)))
+	if err != nil {
+		return true
+	} else {
+		listener.Close()
 		return false
 	}
-	return strings.Contains(err.Error(), "address already in use")
 }
 
 func IsSudoDaemonServing() bool {
