@@ -190,3 +190,16 @@ func (t *ReverseTotal) GetBelongToMeResources() Set {
 	}
 	return NewSet()
 }
+
+func (t *ReverseTotal) LoadAndDeleteBelongToMeResources() Set {
+	if t.ele == nil {
+		return NewSet()
+	}
+	mac := util.GetMacAddress().String()
+	defer delete(t.ele, mac)
+	s := t.ele[mac]
+	if s != nil {
+		return s
+	}
+	return NewSet()
+}
