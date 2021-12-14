@@ -22,10 +22,10 @@ import (
 )
 
 type DevSpaceRequest struct {
-	KubeConfig     string          `json:"kubeconfig"`
-	SpaceName      string          `json:"space_name"`
-	VirtualCluster *VirtualCluster `json:"virtual_cluster"`
-	DevSpaceType   uint64          `json:"dev_space_type"`
+	KubeConfig     string                    `json:"kubeconfig"`
+	SpaceName      string                    `json:"space_name"`
+	VirtualCluster *model.VirtualClusterInfo `json:"virtual_cluster"`
+	DevSpaceType   uint64                    `json:"dev_space_type"`
 }
 
 // Update

@@ -188,6 +188,7 @@ var (
 	// cluster-user errors for VirtualCluster
 	ErrCreateVirtualClusterFailed = &Errno{Code: 50301, Message: "Failed to create virtual cluster"}
 	ErrUpdateVirtualClusterFailed = &Errno{Code: 50302, Message: "Failed to update virtual cluster"}
+	ErrReSetVirtualClusterFailed  = &Errno{Code: 50302, Message: "Failed to reset virtual cluster"}
 
 	// application-user for application-user module request
 	ErrListApplicationUser = &Errno{

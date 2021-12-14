@@ -8,15 +8,17 @@ package cluster_user
 import (
 	"encoding/json"
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/internal/nocalhost-api/service/cooperator/cluster_scope"
 	"nocalhost/internal/nocalhost-api/service/cooperator/ns_scope"
-	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nocalhost-api/app/api"
 	"nocalhost/pkg/nocalhost-api/app/router/ginbase"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
+	"nocalhost/pkg/nocalhost-api/pkg/log"
+	"nocalhost/pkg/nocalhost-api/pkg/manager/vcluster"
 	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
 )
 
@@ -173,7 +175,7 @@ func ReCreate(c *gin.Context) {
 
 	list, e := DoList(&model.ClusterUserModel{ID: devSpaceId}, user, ginbase.IsAdmin(c), false)
 	if e != nil {
-		log.ErrorE(e, "")
+		log.Error(e)
 		api.SendResponse(c, err, nil)
 		return
 	}
@@ -186,6 +188,15 @@ func ReCreate(c *gin.Context) {
 	if cu.IsClusterAdmin() {
 		api.SendResponse(c, nil, nil)
 		return
+	}
+
+	// get virtual cluster info
+	if clusterUser.DevSpaceType == model.VirtualClusterType {
+		if err := setVClusterInfoIntoDevSpace(devSpace, &cluster, clusterUser); err != nil {
+			log.Error(err)
+			api.SendResponse(c, errno.ErrReSetVirtualClusterFailed, nil)
+			return
+		}
 	}
 
 	err = devSpace.Delete()
@@ -244,4 +255,21 @@ func PluginReCreate(c *gin.Context) {
 		return
 	}
 	ReCreate(c)
+}
+
+func setVClusterInfoIntoDevSpace(devSpace *DevSpace, cluster *model.ClusterModel, clusterUser *model.ClusterUserModel) error {
+	if devSpace.DevSpaceParams.DevSpaceType != model.VirtualClusterType {
+		return errors.New("devSpace type is not virtual cluster")
+	}
+	f := vcluster.GetSharedManagerFactory()
+	m, err := f.Manager(cluster.KubeConfig)
+	if err != nil {
+		return err
+	}
+	v, err := m.GetInfo(clusterUser.SpaceName, clusterUser.Namespace)
+	if err != nil {
+		return err
+	}
+	devSpace.DevSpaceParams.VirtualCluster = &v
+	return nil
 }
