@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 	clientcmdapiv1 "k8s.io/client-go/tools/clientcmd/api/v1"
 	_const "nocalhost/internal/nhctl/const"
+	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/internal/nocalhost-api/service/cooperator/cluster_scope"
@@ -311,7 +312,7 @@ func GenVirtualClusterKubeconfig(clusterKubeConfig, spaceName, namespace string,
 		return
 	}
 
-	kubeConfig, _ := vcManager.GetKubeConfig(spaceName, namespace)
+	kubeConfig, _ := vcManager.GetKubeConfig(global.VClusterPrefix+namespace, namespace)
 	f(kubeConfig)
 }
 

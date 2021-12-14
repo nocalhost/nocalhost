@@ -8,6 +8,7 @@ package cluster_user
 import (
 	"context"
 	"encoding/json"
+	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/internal/nocalhost-dep/controllers/vcluster/api/v1alpha1"
 	"sort"
 	"sync"
@@ -467,7 +468,7 @@ func setVClusterInfoInto(cu []*model.ClusterUserV2) {
 					return
 				}
 
-				info, _ := vcManager.GetInfo(cu[i].SpaceName, cu[i].Namespace)
+				info, _ := vcManager.GetInfo(global.VClusterPrefix+cu[i].Namespace, cu[i].Namespace)
 				cu[i].VirtualClusterInfo = &info
 			}()
 		}

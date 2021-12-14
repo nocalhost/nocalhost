@@ -7,6 +7,7 @@ package cluster_user
 
 import (
 	"context"
+	"nocalhost/internal/nocalhost-api/global"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
@@ -49,7 +50,7 @@ func (d *DevSpaceUpdate) UpdateVirtualCluster(cu model.ClusterUserModel) error {
 		Group:    "helm.nocalhost.dev",
 		Version:  "v1alpha1",
 		Resource: "virtualclusters",
-	}).Namespace(space.Namespace).Get(context.TODO(), space.SpaceName, metav1.GetOptions{})
+	}).Namespace(space.Namespace).Get(context.TODO(), global.VClusterPrefix+space.Namespace, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -62,9 +63,8 @@ func (d *DevSpaceUpdate) UpdateVirtualCluster(cu model.ClusterUserModel) error {
 
 	vc.SetValues(v.Values)
 	vc.SetChartVersion(v.Version)
-	annotations := map[string]string{
-		helmv1alpha1.ServiceTypeKey: string(v.ServiceType),
-	}
+	annotations := vc.GetAnnotations()
+	annotations[helmv1alpha1.ServiceTypeKey] = string(v.ServiceType)
 	vc.SetAnnotations(annotations)
 	vc.SetManagedFields(nil)
 

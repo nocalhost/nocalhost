@@ -439,7 +439,7 @@ func (d *DevSpace) initVirtualCluster(clusterRecord *model.ClusterModel, cluster
 		Version: "v1alpha1",
 		Kind:    "VirtualCluster",
 	})
-	vc.SetName(clusterUser.SpaceName)
+	vc.SetName(global.VClusterPrefix + clusterUser.Namespace)
 	vc.SetNamespace(clusterUser.Namespace)
 	vc.SetValues(v.Values)
 	vc.SetChartName("vcluster")
@@ -447,6 +447,7 @@ func (d *DevSpace) initVirtualCluster(clusterRecord *model.ClusterModel, cluster
 	vc.SetChartVersion(v.Version)
 	annotations := map[string]string{
 		v1alpha1.ServiceTypeKey: string(v.ServiceType),
+		v1alpha1.SpaceName:      clusterUser.SpaceName,
 	}
 	vc.SetAnnotations(annotations)
 

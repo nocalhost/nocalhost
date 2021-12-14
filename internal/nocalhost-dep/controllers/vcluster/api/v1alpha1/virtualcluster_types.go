@@ -14,6 +14,7 @@ const (
 	Finalizer      = "virtualcluster.helm.nocalhost.dev/finalizer"
 	DefaultVersion = "0.4.5"
 	ServiceTypeKey = "vcluster.nocalhost.dev/service_type"
+	SpaceName      = "vcluster.nocalhost.dev/space_name"
 )
 
 // VirtualClusterSpec defines the desired state of VirtualCluster
@@ -134,6 +135,11 @@ func (in *VirtualCluster) GetServiceType() string {
 		svcType = string(corev1.ServiceTypeClusterIP)
 	}
 	return svcType
+}
+
+func (in *VirtualCluster) GetSpaceName() string {
+	annotations := in.GetAnnotations()
+	return annotations[SpaceName]
 }
 
 //+kubebuilder:object:root=true

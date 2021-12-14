@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
+	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/internal/nocalhost-api/service/cooperator/cluster_scope"
@@ -266,7 +267,7 @@ func setVClusterInfoIntoDevSpace(devSpace *DevSpace, cluster *model.ClusterModel
 	if err != nil {
 		return err
 	}
-	v, err := m.GetInfo(clusterUser.SpaceName, clusterUser.Namespace)
+	v, err := m.GetInfo(global.VClusterPrefix+clusterUser.Namespace, clusterUser.Namespace)
 	if err != nil {
 		return err
 	}
