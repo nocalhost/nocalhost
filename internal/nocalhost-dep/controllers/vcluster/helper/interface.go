@@ -8,6 +8,8 @@ package helper
 import (
 	"helm.sh/helm/v3/pkg/chartutil"
 	"helm.sh/helm/v3/pkg/release"
+
+	"nocalhost/internal/nocalhost-dep/controllers/vcluster/api/v1alpha1"
 )
 
 type Actions interface {
@@ -19,5 +21,5 @@ type Actions interface {
 }
 
 type AuthConfig interface {
-	Get(name, namespace string) (string, error)
+	Get(vc *v1alpha1.VirtualCluster) (string, error)
 }

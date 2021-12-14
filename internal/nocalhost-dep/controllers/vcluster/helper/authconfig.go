@@ -23,6 +23,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/kubectl/pkg/scheme"
+
+	"nocalhost/internal/nocalhost-dep/controllers/vcluster/api/v1alpha1"
 )
 
 type authConfig struct {
@@ -31,7 +33,9 @@ type authConfig struct {
 
 var _ AuthConfig = &authConfig{}
 
-func (a *authConfig) Get(name, namespace string) (string, error) {
+func (a *authConfig) Get(vc *v1alpha1.VirtualCluster) (string, error) {
+	name := vc.GetReleaseName()
+	namespace := vc.GetNamespace()
 	if a.hostConfig == nil {
 		return "", errors.New("hostConfig is nil")
 	}
@@ -43,7 +47,8 @@ func (a *authConfig) Get(name, namespace string) (string, error) {
 	options := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=vcluster,release=%s", name)}
 	var pod corev1.Pod
 	var stdout, stderr bytes.Buffer
-	if err = wait.PollImmediate(5*time.Second, 5*time.Minute, func() (bool, error) {
+	time.Sleep(time.Second * 10)
+	if err = wait.PollImmediate(5*time.Second, 2*time.Minute, func() (bool, error) {
 		pods, err := clientSet.CoreV1().Pods(namespace).List(context.TODO(), options)
 		if err != nil {
 			return false, err
@@ -106,7 +111,7 @@ func (a *authConfig) Get(name, namespace string) (string, error) {
 	}
 
 	var addr, port string
-	if err := wait.PollImmediate(5*time.Second, 2*time.Minute, func() (bool, error) {
+	if err := wait.PollImmediate(5*time.Second, 1*time.Minute, func() (bool, error) {
 		svc, err := clientSet.CoreV1().Services(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			return false, nil
@@ -154,7 +159,11 @@ func (a *authConfig) Get(name, namespace string) (string, error) {
 		return "", errors.Errorf("cannot get service %s/%s", namespace, name)
 	}
 
-	newName := "vcluster-" + name
+	nameSuffix := vc.GetSpaceName()
+	newName := "vcluster-" + nameSuffix
+	if nameSuffix == "" {
+		newName = name
+	}
 	newCluster := api.NewCluster()
 	newCtx := api.NewContext()
 	for _, cluster := range kubeConfig.Clusters {
