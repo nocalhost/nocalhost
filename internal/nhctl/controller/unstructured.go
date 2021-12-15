@@ -14,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	_const "nocalhost/internal/nhctl/const"
+	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"strconv"
 	"strings"
@@ -71,8 +72,8 @@ func (c *Controller) IncreaseDevModeCount() error {
 	if err != nil {
 		return err
 	}
-	devModeCount, err := GetAnnotationFromUnstructuredMap(um, _const.DevModeCount)
 	count := 0
+	devModeCount, err := GetAnnotationFromUnstructured(um, _const.DevModeCount)
 	if err != nil {
 		count = 1
 	} else {
@@ -90,7 +91,7 @@ func (c *Controller) DecreaseDevModeCount() error {
 	if err != nil {
 		return err
 	}
-	devModeCount, err := GetAnnotationFromUnstructuredMap(um, _const.DevModeCount)
+	devModeCount, err := GetAnnotationFromUnstructured(um, _const.DevModeCount)
 	if err != nil {
 		return nil
 	}
@@ -116,36 +117,61 @@ func (c *Controller) RollbackFromAnnotation() error {
 		}
 	}
 
-	unstructuredMap, err := c.GetUnstructured()
+	devModeWorkload, err := c.GetUnstructured()
 	if err != nil {
 		return err
 	}
 
-	osj, err := GetAnnotationFromUnstructuredMap(unstructuredMap, _const.OriginWorkloadDefinition)
+	osj, err := GetAnnotationFromUnstructured(devModeWorkload, _const.OriginWorkloadDefinition)
 	if err != nil {
 		return err
 	}
 	log.Infof("Annotation %s found, use it", _const.OriginWorkloadDefinition)
 
-	originUnstructuredMap, err := c.Client.GetUnstructuredFromString(osj)
+	originalWorkload, err := c.Client.GetResourceInfoFromString(osj, true)
 	if err != nil {
 		return err
 	}
 
-	specMap, ok := originUnstructuredMap.Object["spec"]
-	if !ok {
-		return errors.New("spec not found in annotation")
+	if len(originalWorkload) != 1 {
+		return errors.New(fmt.Sprintf("Original workload is not 1(%d)?", len(originalWorkload)))
 	}
 
-	jsonPatches := make([]jsonPatch, 0)
-	jsonPatches = append(jsonPatches, jsonPatch{
-		Op:    "replace",
-		Path:  "/spec",
-		Value: specMap,
-	})
+	// Recreate
+	if err := clientgoutils.DeleteResourceInfo(originalWorkload[0]); err != nil {
+		return err
+	}
 
-	bys, _ := json.Marshal(jsonPatches)
-	return c.Client.Patch(c.Type.String(), c.Name, string(bys), "json")
+	originalWorkload, err = c.Client.GetResourceInfoFromString(osj, true)
+	if err != nil {
+		return err
+	}
+
+	if len(originalWorkload) != 1 {
+		return errors.New(fmt.Sprintf("Original workload is not 1(%d)?", len(originalWorkload)))
+	}
+
+	return c.Client.ApplyResourceInfo(originalWorkload[0], nil)
+
+	//originalWorkload, err := c.Client.GetUnstructuredFromString(osj)
+	//if err != nil {
+	//	return err
+	//}
+
+	//specMap, ok := originalWorkload.Object["spec"]
+	//if !ok {
+	//	return errors.New("Spec not found in workload definition")
+	//}
+	//
+	//jsonPatches := make([]jsonPatch, 0)
+	//jsonPatches = append(jsonPatches, jsonPatch{
+	//	Op:    "replace",
+	//	Path:  "/spec",
+	//	Value: specMap,
+	//})
+	//
+	//bys, _ := json.Marshal(jsonPatches)
+	//return c.Client.Patch(c.Type.String(), c.Name, string(bys), "json")
 }
 
 func GetUnstructuredMapBySpecificPath(path string, u map[string]interface{}) (map[string]interface{}, error) {
@@ -205,41 +231,18 @@ func UnmarshalFromUnstructuredMapBySpecPath(path string, unstructuredObj map[str
 	return errors.WithStack(json.Unmarshal(jsonBytes, obj))
 }
 
-// GetAnnotationFromUnstructuredMap todo: check map if nil
-func GetAnnotationFromUnstructuredMap(u *unstructured.Unstructured, key string) (string, error) {
+// GetAnnotationFromUnstructured get annotation from unstructured
+func GetAnnotationFromUnstructured(u *unstructured.Unstructured, key string) (string, error) {
 	as := u.GetAnnotations()
 	if len(as) == 0 {
 		return "", errors.New("Annotations is nil")
 	}
 
 	if v, ok := as[key]; !ok {
-		return "", errors.New(fmt.Sprintf("Annotation %s not fount", key))
+		return "", errors.New(fmt.Sprintf("Annotation %s not found", key))
 	} else {
 		return v, nil
 	}
-	//meta, ok := u["metadata"]
-	//if !ok {
-	//	return "", errors.New("metadata not found in unstructured map")
-	//}
-	//metaMap, ok := meta.(map[string]interface{})
-	//if !ok {
-	//	return "", errors.New("metadata in unstructured map assert failed")
-	//}
-	//
-	//annotations, ok := metaMap["annotations"]
-	//if !ok {
-	//	return "", errors.New("annotation in unstructured map not found")
-	//}
-	//annotationsMap, ok := annotations.(map[string]interface{})
-	//if !ok {
-	//	return "", errors.New("annotation in unstructured map assert failed")
-	//}
-	//
-	//originJson, ok := annotationsMap[key]
-	//if !ok {
-	//	return "", errors.New(fmt.Sprintf("annotation %s not found", key))
-	//}
-	//return originJson.(string), nil
 }
 
 func RemoveUselessInfo(u *unstructured.Unstructured) {

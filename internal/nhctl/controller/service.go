@@ -135,7 +135,7 @@ func GetOriginalContainers(client *clientgoutils.ClientGoUtils, workloadType bas
 	}
 
 	var originalUm *unstructured.Unstructured
-	od, err := GetAnnotationFromUnstructuredMap(um, _const.OriginWorkloadDefinition)
+	od, err := GetAnnotationFromUnstructured(um, _const.OriginWorkloadDefinition)
 	if err == nil {
 		originalUm, _ = client.GetUnstructuredFromString(od)
 	}
@@ -530,7 +530,7 @@ func (c *Controller) ReplaceDuplicateModeImage(ctx context.Context, ops *model.D
 	RemoveUselessInfo(um)
 
 	if c.IsInReplaceDevMode() {
-		od, err := GetAnnotationFromUnstructuredMap(um, _const.OriginWorkloadDefinition)
+		od, err := GetAnnotationFromUnstructured(um, _const.OriginWorkloadDefinition)
 		if err != nil {
 			return err
 		}
