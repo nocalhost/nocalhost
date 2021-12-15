@@ -28,7 +28,6 @@ type tunHandler struct {
 	chExit  chan struct{}
 }
 
-// TunHandler creates a handler for tun tunnel.
 func TunHandler(opts ...HandlerOptionFunc) Handler {
 	h := &tunHandler{
 		options: &HandlerOptions{},

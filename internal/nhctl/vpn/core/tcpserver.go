@@ -36,7 +36,6 @@ func (c *fakeUDPTunConnector) ConnectContext(_ context.Context, conn net.Conn, n
 type fakeUdpHandler struct {
 }
 
-// TCPHandler creates a server Handler
 func TCPHandler() Handler {
 	return &fakeUdpHandler{}
 }

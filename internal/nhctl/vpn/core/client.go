@@ -15,12 +15,10 @@ type Client struct {
 	Transporter
 }
 
-// Connector is responsible for connecting to the destination address.
 type Connector interface {
 	ConnectContext(ctx context.Context, conn net.Conn, network, address string) (net.Conn, error)
 }
 
-// Transporter is responsible for handshaking with the proxy server.
 type Transporter interface {
 	Dial(addr string) (net.Conn, error)
 }

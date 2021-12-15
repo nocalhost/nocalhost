@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
 	"net"
 	"nocalhost/internal/nhctl/vpn/util"
@@ -31,15 +30,7 @@ type DatagramPacket struct {
 	Data       []byte // []byte
 }
 
-func (addr *DatagramPacket) String() string {
-	if addr == nil {
-		return ""
-	}
-	return fmt.Sprintf("Type: %d, Host: %s, Port: %d, DataLength: %d\n",
-		addr.Type, addr.Host, addr.Port, addr.DataLength)
-}
-
-func NewDatagramPacket(addr net.Addr, data []byte) (r *DatagramPacket) {
+func NewDatagramPacket(addr net.Addr, data []byte) *DatagramPacket {
 	s := addr.String()
 	var t uint8
 	if strings.Count(s, ":") >= 2 {
@@ -54,21 +45,20 @@ func NewDatagramPacket(addr net.Addr, data []byte) (r *DatagramPacket) {
 	host, port, _ := net.SplitHostPort(s)
 	atoi, _ := strconv.Atoi(port)
 	// todo if host is a domain
-	r = &DatagramPacket{
+	return &DatagramPacket{
 		Host:       host,
 		Port:       uint16(atoi),
 		Type:       t,
 		DataLength: uint16(len(data)),
 		Data:       data,
 	}
-	return r
 }
 
 func (addr *DatagramPacket) Addr() string {
 	return net.JoinHostPort(addr.Host, strconv.Itoa(int(addr.Port)))
 }
 
-func ReadDatagramPacket(r io.Reader) (rr *DatagramPacket, errsss error) {
+func ReadDatagramPacket(r io.Reader) (*DatagramPacket, error) {
 	b := util.LPool.Get().([]byte)
 	defer util.LPool.Put(b)
 	_, err := io.ReadFull(r, b[:1])
@@ -122,7 +112,6 @@ func ReadDatagramPacket(r io.Reader) (rr *DatagramPacket, errsss error) {
 	i := make([]byte, d.DataLength)
 	copy(i, b[:d.DataLength])
 	d.Data = i
-	rr = d
 	return d, nil
 }
 

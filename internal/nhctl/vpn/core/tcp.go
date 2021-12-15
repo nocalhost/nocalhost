@@ -12,10 +12,8 @@ import (
 	"nocalhost/internal/nhctl/vpn/util"
 )
 
-// tcpTransporter is a raw TCP transporter.
 type tcpTransporter struct{}
 
-// TCPTransporter creates a raw TCP client.
 func TCPTransporter() Transporter {
 	return &tcpTransporter{}
 }
@@ -29,7 +27,6 @@ type tcpListener struct {
 	net.Listener
 }
 
-// TCPListener creates a Listener for TCP proxy server.
 func TCPListener(addr string) (net.Listener, error) {
 	laddr, err := net.ResolveTCPAddr("tcp", addr)
 	if err != nil {
