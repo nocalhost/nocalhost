@@ -26,7 +26,6 @@ import (
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/k8sutils"
 	"nocalhost/pkg/nhctl/log"
-	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -168,8 +167,8 @@ func getCrdSchema(client *clientgoutils.ClientGoUtils, apiGroupResources []*rest
 		}
 		ggwa.alias = append(ggwa.alias, crdObj.Spec.Names.ShortNames...)
 		ggwa.alias = append(ggwa.alias, strings.ToLower(crdObj.Spec.Names.Kind))
-		ggwa.alias = append(ggwa.alias, crdObj.Spec.Names.Singular)
-		ggwa.alias = append(ggwa.alias, apiR.Name)
+		ggwa.alias = append(ggwa.alias, crdObj.Spec.Names.Singular, apiR.Name)
+		ggwa.alias = append(ggwa.alias, fmt.Sprintf("%s.%s.%s", apiR.Name, ggwa.Gvr.Version, ggwa.Gvr.Group))
 		nameToMapping[crdObj.Spec.Names.Singular] = []GvkGvrWithAlias{ggwa}
 	}
 
@@ -424,11 +423,8 @@ func (s *Searcher) Criteria() *criteria {
 }
 
 type criteria struct {
-	search *Searcher
-	// those two just needs one is enough
-	kind         runtime.Object
-	resourceType string
-
+	search         *Searcher
+	resourceType   string
 	namespaceScope bool
 	resourceName   string
 	appName        string
@@ -456,16 +452,6 @@ func (c *criteria) ResourceType(resourceType string) *criteria {
 		c.namespaceScope = mapping.Namespaced
 	} else {
 		log.Logf("Can not found restMapping for resource type: %s", resourceType)
-	}
-	return c
-}
-
-func (c *criteria) Kind(object runtime.Object) *criteria {
-	c.kind = object
-	if info, err := c.search.GetResourceInfo(reflect.TypeOf(object).Name()); err == nil {
-		c.namespaceScope = info.Namespaced
-	} else {
-		log.Logf("Can not found restMapping for resource: %s", reflect.TypeOf(object).Name())
 	}
 	return c
 }
@@ -521,27 +507,21 @@ func (c *criteria) Query() (data []interface{}, e error) {
 	if c.search == nil {
 		return nil, errors.New("search should not be null")
 	}
-	if len(c.resourceType) == 0 && c.kind == nil {
-		return nil, errors.New("resource type and kind should not be null at the same time")
+	if len(c.resourceType) == 0 {
+		return nil, errors.New("resource type should not be null")
 	}
-	//var informer cache.SharedIndexInformer
 	var informer informers.GenericInformer
-	if c.kind != nil {
-		//informer = c.search.informerFactory.InformerFor(c.kind, nil)
-		//informer = c.search.dynamicInformerFactory.ForResource(c.kind,nil)
-	} else {
-		mapping, err := c.search.GetResourceInfo(c.resourceType)
-		if err != nil {
-			return nil, errors.Wrapf(err, "not support resource type: %v", c.resourceType)
-		}
-		//genericInformer, err := c.search.informerFactory.ForResource(mapping.Gvr)
-		//if err != nil {
-		//	genericInformer = c.search.dynamicInformerFactory.ForResource(mapping.Gvr)
-		//	//return nil, errors.Wrapf(err, "get informer failed for resource type: %v", c.resourceType)
-		//}
-		////informer = genericInformer.Informer()
-		informer = c.search.dynamicInformerFactory.ForResource(mapping.Gvr)
+	mapping, err := c.search.GetResourceInfo(c.resourceType)
+	if err != nil {
+		return nil, errors.Wrapf(err, "not support resource type: %v", c.resourceType)
 	}
+	//genericInformer, err := c.search.informerFactory.ForResource(mapping.Gvr)
+	//if err != nil {
+	//	genericInformer = c.search.dynamicInformerFactory.ForResource(mapping.Gvr)
+	//	//return nil, errors.Wrapf(err, "get informer failed for resource type: %v", c.resourceType)
+	//}
+	////informer = genericInformer.Informer()
+	informer = c.search.dynamicInformerFactory.ForResource(mapping.Gvr)
 	if informer == nil {
 		return nil, errors.New("create informer failed, please check your code")
 	}

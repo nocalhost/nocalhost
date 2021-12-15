@@ -140,9 +140,9 @@ func TestGetDefault(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	i, e := s.Criteria().ResourceType("namespaces").
+	i, e := s.Criteria().ResourceType("cloneset").
 		ResourceName("").
-		//AppName("bookinfo").
+		AppName("bookinfo").
 		Namespace("nocalhost-test").Query()
 	if e != nil {
 		log.Error(e)
