@@ -426,7 +426,7 @@ func GetAllValidApplicationWithDefaultApp(ns string, KubeConfigBytes []byte) []*
 
 	// then if meta from secret is installed, put it into result
 	for _, meta := range appFromMeta {
-		if meta.IsInstalled() {
+		if meta.IsInstalled() || meta.IsInstalling() {
 			result[meta.Application] = meta
 		}
 	}
