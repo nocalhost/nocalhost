@@ -104,7 +104,7 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		c.POST("/:id/storage_class", cluster.GetStorageClassByKubeConfig)
 		c.PUT("/:id", cluster.Update)
 		c.GET("/:id/gen_namespace", cluster.GenNamespace)
-		c.PUT("/:id/migrate",cluster.Migrate)
+		c.PUT("/:id/migrate", cluster.Migrate)
 	}
 
 	// Applications
@@ -154,6 +154,7 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 	{
 		dv.POST("", cluster_user.Create)
 		dv.GET("", cluster_user.ListAll)
+		dv.GET("status", cluster_user.GetStatus)
 		dv.DELETE("/:id", cluster_user.Delete)
 		dv.PUT("/:id", cluster_user.Update)
 		dv.POST("/:id/recreate", cluster_user.ReCreate)

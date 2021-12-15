@@ -29,6 +29,7 @@ type ClusterUserRepo interface {
 		condition model.ClusterUserJoinClusterAndAppAndUser,
 	) (*model.ClusterUserJoinClusterAndAppAndUser, error)
 	ListByUser(userId uint64) ([]*model.ClusterUserPluginModel, error)
+	ListByIds(ids []uint64) ([]*model.ClusterUserModel, error)
 	Close()
 }
 
@@ -242,6 +243,13 @@ func (repo *clusterUserRepo) GetJoinClusterAndAppAndUserDetail(
 	}
 
 	return &result, nil
+}
+
+// ListByIds list by ids
+func (repo *clusterUserRepo) ListByIds(ids []uint64) ([]*model.ClusterUserModel, error) {
+	result := make([]*model.ClusterUserModel, 0)
+	err := repo.db.Where(ids).Find(&result).Error
+	return result, err
 }
 
 // Close close db

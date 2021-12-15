@@ -59,6 +59,7 @@ func whiteList(method, path string) bool {
 
 		"/v1/dev_space/[0-9]+/update_resource_limit": "PUT",
 		"/v1/dev_space/[0-9]+":                       "PUT,DELETE",
+		"/v1/dev_space/status":                       "GET",
 
 		"/v2/dev_space":         "GET",
 		"/v2/dev_space/cluster": "GET",

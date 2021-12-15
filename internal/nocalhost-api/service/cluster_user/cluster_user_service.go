@@ -36,6 +36,7 @@ type ClusterUserService interface {
 		ctx context.Context, condition model.ClusterUserJoinClusterAndAppAndUser,
 	) (*model.ClusterUserJoinClusterAndAppAndUser, error)
 	ListByUser(ctx context.Context, userId uint64) ([]*model.ClusterUserPluginModel, error)
+	ListByIds(ctx context.Context, ids []uint64) ([]*model.ClusterUserModel, error)
 	Close()
 
 	// v2
@@ -288,6 +289,10 @@ func (srv *clusterUserService) GetJoinClusterAndAppAndUserDetail(
 
 func (srv *clusterUserService) ListByUser(ctx context.Context, userId uint64) ([]*model.ClusterUserPluginModel, error) {
 	return srv.clusterUserRepo.ListByUser(userId)
+}
+
+func (srv *clusterUserService) ListByIds(ctx context.Context, ids []uint64) ([]*model.ClusterUserModel, error) {
+	return srv.clusterUserRepo.ListByIds(ids)
 }
 
 func (srv *clusterUserService) Close() {

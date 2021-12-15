@@ -7,6 +7,9 @@ package cluster_user
 
 import (
 	"context"
+	"nocalhost/internal/nocalhost-dep/controllers/vcluster/api/v1alpha1"
+	"nocalhost/pkg/nocalhost-api/pkg/manager/vcluster"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -397,4 +400,97 @@ func GetAppsInfo(c *gin.Context) {
 	}
 	result.SortApps()
 	api.SendResponse(c, nil, result)
+}
+
+// GetStatus
+// @Summary Get dev space status
+// @Description Get dev space status
+// @Tags DevSpace
+// @Accept  json
+// @Produce  json
+// @param Authorization header string true "Authorization"
+// @Query ids query string true "ids"
+// @Success 200 {object} DevSpaceStatusResponse "{"code":0,"message":"OK","data":DevSpaceStatusResponse}"
+// @Router /v1/dev_space/status [get]
+func GetStatus(c *gin.Context) {
+	list := &DevSpaceList{}
+	if err := c.ShouldBindQuery(list); err != nil {
+		api.SendResponse(c, errno.ErrBind, nil)
+		return
+	}
+	if len(list.Ids) == 0 {
+		api.SendResponse(c, errno.OK, nil)
+		return
+	}
+
+	sList, err := service.Svc.ClusterUser().ListByIds(c, list.Ids)
+	if err != nil {
+		log.Error(err)
+		api.SendResponse(c, errno.ErrClusterUserNotFound, nil)
+		return
+	}
+	devStatus := make([]*DevSpaceStatus, 0)
+	for _, s := range sList {
+		if s.DevSpaceType != model.VirtualClusterType {
+			continue
+		}
+		status := &DevSpaceStatus{
+			ClusterUserModel: *s,
+		}
+		devStatus = append(devStatus, status)
+	}
+
+	setVClusterInfoIntoSpaceStatus(devStatus)
+
+	result := make(DevSpaceStatusResponse)
+	for _, s := range devStatus {
+		result[s.ID] = s
+	}
+	api.SendResponse(c, nil, result)
+}
+
+func setVClusterInfoIntoSpaceStatus(cu []*DevSpaceStatus) {
+	var hasVirtualCluster bool
+	for i := 0; i < len(cu); i++ {
+		if cu[i].DevSpaceType == model.VirtualClusterType {
+			hasVirtualCluster = true
+			break
+		}
+	}
+	if !hasVirtualCluster {
+		return
+	}
+
+	list, err := service.Svc.ClusterSvc().GetList(context.TODO())
+	if err != nil {
+		log.Errorf("Error while list cluster: %+v", err)
+		return
+	}
+	clusterMap := make(map[uint64]*model.ClusterList, len(list))
+	for _, l := range list {
+		clusterMap[l.ID] = l
+	}
+	factory := vcluster.GetSharedManagerFactory()
+	g := sync.WaitGroup{}
+	for i := 0; i < len(cu); i++ {
+		if cu[i].DevSpaceType == model.VirtualClusterType {
+			g.Add(1)
+			i := i
+			go func() {
+				defer g.Done()
+				vcManager, err := factory.Manager(clusterMap[cu[i].ClusterId].GetKubeConfig())
+				if err != nil {
+					cu[i].VirtualCluster = model.VirtualClusterInfo{
+						Status: string(v1alpha1.Unknown),
+					}
+					log.Errorf("Error while get vcluster manager: %+v", err)
+					return
+				}
+
+				info, _ := vcManager.GetInfo(global.VClusterPrefix+cu[i].Namespace, cu[i].Namespace)
+				cu[i].VirtualCluster = info
+			}()
+		}
+	}
+	g.Wait()
 }

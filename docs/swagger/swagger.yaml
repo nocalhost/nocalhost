@@ -97,6 +97,8 @@ definitions:
         type: object
       namespace:
         type: string
+      protected:
+        type: boolean
       space_name:
         type: string
       space_resource_limit:
@@ -105,7 +107,7 @@ definitions:
       user_id:
         type: integer
       virtual_cluster:
-        $ref: '#/definitions/cluster_user.VirtualCluster'
+        $ref: '#/definitions/model.VirtualClusterInfo'
         type: object
     required:
     - cluster_id
@@ -120,7 +122,7 @@ definitions:
       space_name:
         type: string
       virtual_cluster:
-        $ref: '#/definitions/cluster_user.VirtualCluster'
+        $ref: '#/definitions/model.VirtualClusterInfo'
         type: object
     type: object
   cluster_user.SpaceResourceLimit:
@@ -150,15 +152,6 @@ definitions:
       space_req_mem:
         type: string
       space_storage_capacity:
-        type: string
-    type: object
-  cluster_user.VirtualCluster:
-    properties:
-      service_type:
-        type: string
-      values:
-        type: string
-      version:
         type: string
     type: object
   model.ApplicationClusterModel:
@@ -329,6 +322,8 @@ definitions:
         type: integer
       namespace:
         type: string
+      protected:
+        type: boolean
       space_name:
         type: string
       space_resource_limit:
@@ -1540,6 +1535,28 @@ paths:
             $ref: '#/definitions/model.ClusterUserModel'
             type: object
       summary: UpdateResourceLimit
+      tags:
+      - DevSpace
+  /v1/dev_space/status:
+    get:
+      consumes:
+      - application/json
+      description: Get dev space status
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":DevSpaceStatusResponse}'
+          schema:
+            $ref: '#/definitions/DevSpaceStatusResponse'
+            type: object
+      summary: Get dev space status
       tags:
       - DevSpace
   /v1/login:

@@ -154,3 +154,14 @@ func (srl *SpaceResourceLimit) Validate() bool {
 	}
 	return true
 }
+
+type DevSpaceList struct {
+	Ids []uint64 `form:"ids"`
+}
+
+type DevSpaceStatus struct {
+	model.ClusterUserModel `json:"-"`
+	VirtualCluster         model.VirtualClusterInfo `json:"virtual_cluster"`
+}
+
+type DevSpaceStatusResponse map[uint64]*DevSpaceStatus

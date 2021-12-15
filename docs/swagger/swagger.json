@@ -932,6 +932,39 @@
                 }
             }
         },
+        "/v1/dev_space/status": {
+            "get": {
+                "description": "Get dev space status",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "DevSpace"
+                ],
+                "summary": "Get dev space status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":DevSpaceStatusResponse}",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/DevSpaceStatusResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/dev_space/{id}": {
             "get": {
                 "description": "ListAll dev spaces",
@@ -2049,6 +2082,9 @@
                 "namespace": {
                     "type": "string"
                 },
+                "protected": {
+                    "type": "boolean"
+                },
                 "space_name": {
                     "type": "string"
                 },
@@ -2061,7 +2097,7 @@
                 },
                 "virtual_cluster": {
                     "type": "object",
-                    "$ref": "#/definitions/cluster_user.VirtualCluster"
+                    "$ref": "#/definitions/model.VirtualClusterInfo"
                 }
             }
         },
@@ -2079,7 +2115,7 @@
                 },
                 "virtual_cluster": {
                     "type": "object",
-                    "$ref": "#/definitions/cluster_user.VirtualCluster"
+                    "$ref": "#/definitions/model.VirtualClusterInfo"
                 }
             }
         },
@@ -2123,20 +2159,6 @@
                     "type": "string"
                 },
                 "space_storage_capacity": {
-                    "type": "string"
-                }
-            }
-        },
-        "cluster_user.VirtualCluster": {
-            "type": "object",
-            "properties": {
-                "service_type": {
-                    "type": "string"
-                },
-                "values": {
-                    "type": "string"
-                },
-                "version": {
                     "type": "string"
                 }
             }
@@ -2393,6 +2415,9 @@
                 },
                 "namespace": {
                     "type": "string"
+                },
+                "protected": {
+                    "type": "boolean"
                 },
                 "space_name": {
                     "type": "string"
