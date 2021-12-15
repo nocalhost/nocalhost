@@ -44,6 +44,7 @@ func (a *authConfig) Get(vc *v1alpha1.VirtualCluster) (string, error) {
 		return "", err
 	}
 
+	// 1. get kubeconfig
 	options := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=vcluster,release=%s", name)}
 	var pod corev1.Pod
 	var stdout, stderr bytes.Buffer
@@ -110,6 +111,7 @@ func (a *authConfig) Get(vc *v1alpha1.VirtualCluster) (string, error) {
 		return "", errors.WithStack(err)
 	}
 
+	// 2. get address and port for kube-apiserver
 	var addr, port string
 	if err := wait.PollImmediate(5*time.Second, 1*time.Minute, func() (bool, error) {
 		svc, err := clientSet.CoreV1().Services(namespace).Get(context.TODO(), name, metav1.GetOptions{})
@@ -124,13 +126,22 @@ func (a *authConfig) Get(vc *v1alpha1.VirtualCluster) (string, error) {
 			if len(nodes.Items) == 0 {
 				return false, nil
 			}
-			addrs := nodes.Items[0].Status.Addresses
-			for _, a := range addrs {
-				if a.Type == corev1.NodeExternalIP {
-					addr = a.Address
-					break
+			address := make(map[corev1.NodeAddressType]string)
+			for _, node := range nodes.Items {
+				for _, addressType := range node.Status.Addresses {
+					if _, ok := address[addressType.Type]; ok {
+						continue
+					} else if addressType.Address != "" {
+						address[addressType.Type] = addressType.Address
+					}
 				}
 			}
+			if a, ok := address[corev1.NodeExternalIP]; ok {
+				addr = a
+			} else {
+				addr = address[corev1.NodeInternalIP]
+			}
+
 			ports := svc.Spec.Ports
 			for _, p := range ports {
 				if p.TargetPort.String() == "8443" {
@@ -138,6 +149,7 @@ func (a *authConfig) Get(vc *v1alpha1.VirtualCluster) (string, error) {
 				}
 			}
 		}
+
 		if svc.Spec.Type == corev1.ServiceTypeLoadBalancer {
 			if svc.Status.LoadBalancer.Ingress[0].Hostname != "" {
 				addr = svc.Status.LoadBalancer.Ingress[0].Hostname
@@ -159,6 +171,7 @@ func (a *authConfig) Get(vc *v1alpha1.VirtualCluster) (string, error) {
 		return "", errors.Errorf("cannot get service %s/%s", namespace, name)
 	}
 
+	// 3. set address into kubeconfig
 	nameSuffix := vc.GetSpaceName()
 	newName := "vcluster-" + nameSuffix
 	if nameSuffix == "" {
