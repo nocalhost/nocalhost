@@ -45,7 +45,7 @@ func Sleep(c *gin.Context) {
 		return
 	}
 	// 4. force sleep
-	err = sleep.Asleep(client, space.Namespace, true)
+	err = sleep.Asleep(client, &space, true)
 	if err != nil {
 		log.Error(err)
 		api.SendResponse(c, errno.ErrForceSleep, nil)
@@ -88,7 +88,7 @@ func Wakeup(c *gin.Context) {
 		return
 	}
 	// 4. force sleep
-	err = sleep.Wakeup(client, space.Namespace, true)
+	err = sleep.Wakeup(client, &space, true)
 	if err != nil {
 		log.Error(err)
 		api.SendResponse(c, errno.ErrForceWakeup, nil)

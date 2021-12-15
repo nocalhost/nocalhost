@@ -1,10 +1,12 @@
 package sleep
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/spf13/cast"
-	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nocalhost-api/model"
+	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"strconv"
 	"time"
 )
@@ -17,12 +19,22 @@ const (
 	ToBeAsleep
 )
 
-func Inspect(ns *v1.Namespace) (ToBe, error) {
-	// 1. check annotations
+func Inspect(c *clientgo.GoClient, s *model.ClusterUserModel) (ToBe, error) {
+	// 1. check namespace
+	ns, err := c.Clientset().
+		CoreV1().
+		Namespaces().
+		Get(context.TODO(), s.Namespace, metav1.GetOptions{})
+	if err != nil {
+		return ToBeIgnore, err
+	}
+
+	// 2. check annotations
 	if ns.Annotations == nil {
 		return ToBeIgnore, nil
 	}
-	// 2. check force sleep
+
+	// 3. check force sleep
 	if len(ns.Annotations[KForceAsleep]) > 0 {
 		now := time.Now().UTC()
 		t := time.Unix(cast.ToInt64(ns.Annotations[KForceAsleep]), 0).UTC()
@@ -30,7 +42,8 @@ func Inspect(ns *v1.Namespace) (ToBe, error) {
 			return ToBeIgnore, nil
 		}
 	}
-	// 3. check force wakeup
+
+	// 4. check force wakeup
 	if len(ns.Annotations[KForceWakeup]) > 0 {
 		now := time.Now().UTC()
 		t := time.Unix(cast.ToInt64(ns.Annotations[KForceWakeup]), 0).UTC()
@@ -38,16 +51,18 @@ func Inspect(ns *v1.Namespace) (ToBe, error) {
 			return ToBeIgnore, nil
 		}
 	}
-	// 4. check sleep config
+
+	// 5. check sleep config
 	if len(ns.Annotations[KSleepConfig]) == 0 {
 		if ns.Annotations[KSleepStatus] == KAsleep {
 			return ToBeWakeup, nil
 		}
 		return ToBeIgnore, nil
 	}
-	// 5. parse sleep config
+
+	// 6. parse sleep config
 	var conf model.SleepConfig
-	err := json.Unmarshal([]byte(ns.Annotations[KSleepConfig]), &conf)
+	err = json.Unmarshal([]byte(ns.Annotations[KSleepConfig]), &conf)
 	if err != nil {
 		return ToBeIgnore, err
 	}
@@ -55,7 +70,7 @@ func Inspect(ns *v1.Namespace) (ToBe, error) {
 		return ToBeWakeup, nil
 	}
 
-	// 6. match sleep config
+	// 7. match sleep config
 	for _, f := range conf.ByWeek {
 		now := time.Now().In(f.TimeZone())
 		cursor := toIndex(now.Weekday(), now.Hour(), now.Minute())
@@ -80,7 +95,8 @@ func Inspect(ns *v1.Namespace) (ToBe, error) {
 			return ToBeAsleep, nil
 		}
 	}
-	// 7. No rules were matched, then dev space should be wakeup.
+
+	// 8. No rules were matched, then dev space should be wakeup.
 	if ns.Annotations[KSleepStatus] == KAsleep {
 		return ToBeWakeup, nil
 	}
