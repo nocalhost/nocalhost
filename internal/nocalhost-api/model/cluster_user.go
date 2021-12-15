@@ -104,7 +104,7 @@ type ClusterUserModel struct {
 	SleepAt            *time.Time   `gorm:"column:sleep_at;type:timestamp" json:"sleep_at"`
 	SleepConfig        *SleepConfig `gorm:"column:sleep_config;type:VARCHAR(1024);" json:"sleep_config"`
 	SleepMinute        uint64       `gorm:"column:sleep_minute;default:0;not null;" json:"sleep_minute"`
-	SleepStatus        string       `gorm:"column:sleep_status;not null;" json:"sleep_status" enums:"asleep,wakeup"`
+	SleepStatus        string       `gorm:"column:sleep_status;type:VARCHAR(32);" json:"sleep_status" enums:"asleep,wakeup"`
 	DevSpaceType       uint64       `gorm:"column:dev_space_type;default:0" json:"dev_space_type"`
 }
 
