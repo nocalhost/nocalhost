@@ -11,25 +11,17 @@ import (
 	"time"
 )
 
-func Asleep(c *clientgo.GoClient, ns string, force bool) error {
-	// 1. check record
-	record, err := cluster_user.
-		NewClusterUserService().
-		GetFirst(context.TODO(), model.ClusterUserModel{Namespace: ns})
-	if err != nil {
-		return err
-	}
-
-	// 2. check namespace
+func Asleep(c *clientgo.GoClient, s *model.ClusterUserModel, force bool) error {
+	// 1. check namespace
 	namespace, err := c.Clientset().
 		CoreV1().
 		Namespaces().
-		Get(context.TODO(), ns, metav1.GetOptions{})
+		Get(context.TODO(), s.Namespace, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 
-	// 3. check replicas
+	// 2. check replicas
 	var replicas map[string]int32
 	if namespace.Annotations == nil || len(namespace.Annotations[KReplicas]) == 0 {
 		replicas = make(map[string]int32)
@@ -40,10 +32,10 @@ func Asleep(c *clientgo.GoClient, ns string, force bool) error {
 		}
 	}
 
-	// 4. suspend CronJob
+	// 3. suspend CronJob
 	jobs, err := c.Clientset().
 		BatchV1beta1().
-		CronJobs(ns).
+		CronJobs(s.Namespace).
 		List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
@@ -55,17 +47,17 @@ func Asleep(c *clientgo.GoClient, ns string, force bool) error {
 		jb.Spec.Suspend = &exactly
 		_, err = c.Clientset().
 			BatchV1beta1().
-			CronJobs(ns).
+			CronJobs(s.Namespace).
 			Update(context.TODO(), &jb, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
 	}
 
-	// 5. purging Deployment
+	// 4. purging Deployment
 	deps, err := c.Clientset().
 		AppsV1().
-		Deployments(ns).
+		Deployments(s.Namespace).
 		List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
@@ -79,7 +71,7 @@ func Asleep(c *clientgo.GoClient, ns string, force bool) error {
 			dp.Spec.Replicas = &zero
 			_, err = c.Clientset().
 				AppsV1().
-				Deployments(ns).
+				Deployments(s.Namespace).
 				Update(context.TODO(), &dp, metav1.UpdateOptions{})
 			if err != nil {
 				return err
@@ -87,10 +79,10 @@ func Asleep(c *clientgo.GoClient, ns string, force bool) error {
 		}
 	}
 
-	// 6. purging StatefulSet
+	// 5. purging StatefulSet
 	sets, err := c.Clientset().
 		AppsV1().
-		StatefulSets(ns).
+		StatefulSets(s.Namespace).
 		List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
@@ -104,7 +96,7 @@ func Asleep(c *clientgo.GoClient, ns string, force bool) error {
 			st.Spec.Replicas = &zero
 			_, err = c.Clientset().
 				AppsV1().
-				StatefulSets(ns).
+				StatefulSets(s.Namespace).
 				Update(context.TODO(), &st, metav1.UpdateOptions{})
 			if err != nil {
 				return err
@@ -112,7 +104,7 @@ func Asleep(c *clientgo.GoClient, ns string, force bool) error {
 		}
 	}
 
-	// 7. update annotations
+	// 6. update annotations
 	patch, _ := json.Marshal(map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"annotations": map[string]string{
@@ -126,16 +118,16 @@ func Asleep(c *clientgo.GoClient, ns string, force bool) error {
 	_, err = c.Clientset().
 		CoreV1().
 		Namespaces().
-		Patch(context.TODO(), ns, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
+		Patch(context.TODO(), s.Namespace, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
 		return err
 	}
 
-	// 8. write to database
+	// 7. write to database
 	now := time.Now().UTC()
 	return cluster_user.
 		NewClusterUserService().
-		Modify(context.TODO(), record.ID, map[string]interface{}{
+		Modify(context.TODO(), s.ID, map[string]interface{}{
 			"sleep_at":     &now,
 			"sleep_status": KAsleep,
 		})

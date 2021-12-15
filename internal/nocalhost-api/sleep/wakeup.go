@@ -14,25 +14,17 @@ import (
 	"time"
 )
 
-func Wakeup(c *clientgo.GoClient, ns string, force bool) error {
-	// 1. check record
-	record, err := cluster_user.
-		NewClusterUserService().
-		GetFirst(context.TODO(), model.ClusterUserModel{Namespace: ns})
-	if err != nil {
-		return err
-	}
-
-	// 2. check namespace
+func Wakeup(c *clientgo.GoClient, s *model.ClusterUserModel, force bool) error {
+	// 1. check namespace
 	namespace, err := c.Clientset().
 		CoreV1().
 		Namespaces().
-		Get(context.TODO(), ns, metav1.GetOptions{})
+		Get(context.TODO(), s.Namespace, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 
-	// 3. check replicas
+	// 2. check replicas
 	if namespace.Annotations == nil || len(namespace.Annotations[KReplicas]) == 0 {
 		return errors.New(fmt.Sprintf("cannot find `%s` from annotations", KReplicas))
 	}
@@ -42,10 +34,10 @@ func Wakeup(c *clientgo.GoClient, ns string, force bool) error {
 		return err
 	}
 
-	// 4. restore Deployment
+	// 3. restore Deployment
 	deps, err := c.Clientset().
 		AppsV1().
-		Deployments(ns).
+		Deployments(s.Namespace).
 		List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
@@ -59,7 +51,7 @@ func Wakeup(c *clientgo.GoClient, ns string, force bool) error {
 			dp.Spec.Replicas = &n
 			_, err = c.Clientset().
 				AppsV1().
-				Deployments(ns).
+				Deployments(s.Namespace).
 				Update(context.TODO(), &dp, metav1.UpdateOptions{})
 			if err != nil {
 				return err
@@ -67,10 +59,10 @@ func Wakeup(c *clientgo.GoClient, ns string, force bool) error {
 		}
 	}
 
-	// 5. restore StatefulSet
+	// 4. restore StatefulSet
 	sets, err := c.Clientset().
 		AppsV1().
-		StatefulSets(ns).
+		StatefulSets(s.Namespace).
 		List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
@@ -84,7 +76,7 @@ func Wakeup(c *clientgo.GoClient, ns string, force bool) error {
 			st.Spec.Replicas = &n
 			_, err = c.Clientset().
 				AppsV1().
-				StatefulSets(ns).
+				StatefulSets(s.Namespace).
 				Update(context.TODO(), &st, metav1.UpdateOptions{})
 			if err != nil {
 				return err
@@ -92,10 +84,10 @@ func Wakeup(c *clientgo.GoClient, ns string, force bool) error {
 		}
 	}
 
-	// 6. restore CronJob
+	// 5. restore CronJob
 	jobs, err := c.Clientset().
 		BatchV1beta1().
-		CronJobs(ns).
+		CronJobs(s.Namespace).
 		List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
@@ -107,14 +99,14 @@ func Wakeup(c *clientgo.GoClient, ns string, force bool) error {
 		jb.Spec.Suspend = &falsely
 		_, err = c.Clientset().
 			BatchV1beta1().
-			CronJobs(ns).
+			CronJobs(s.Namespace).
 			Update(context.TODO(), &jb, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
 	}
 
-	// 7. update annotations
+	// 6. update annotations
 	patch, _ := json.Marshal(map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"annotations": map[string]string{
@@ -127,19 +119,19 @@ func Wakeup(c *clientgo.GoClient, ns string, force bool) error {
 	_, err = c.Clientset().
 		CoreV1().
 		Namespaces().
-		Patch(context.TODO(), ns, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
+		Patch(context.TODO(), s.Namespace, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
 		return err
 	}
 
-	// 8. write to database
+	// 7. write to database
 	diff := 0
-	if record.SleepAt != nil {
-		diff = int(time.Now().Sub(*record.SleepAt) / time.Minute)
+	if s.SleepAt != nil {
+		diff = int(time.Now().Sub(*s.SleepAt) / time.Minute)
 	}
 	return cluster_user.
 		NewClusterUserService().
-		Modify(context.TODO(), record.ID, map[string]interface{}{
+		Modify(context.TODO(), s.ID, map[string]interface{}{
 			"sleep_at":     nil,
 			"sleep_status": KWakeup,
 			"sleep_minute": gorm.Expr("`sleep_minute` + ?", diff),
