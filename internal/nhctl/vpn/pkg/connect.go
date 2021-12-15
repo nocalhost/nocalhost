@@ -154,7 +154,7 @@ func (c *ConnectOptions) RemoveInboundPod() error {
 	case "service", "services":
 		sc = NewServiceController(c.factory, c.clientset, c.Namespace, tuple.Name)
 	case "pod", "pods":
-		sc = NewPodController(c.factory, c.clientset, c.Namespace, "pods", tuple.Name)
+		sc = NewPodController(c.factory, c.clientset, c.Namespace, tuple.Name)
 	default:
 		sc = NewCustomResourceDefinitionController(c.factory, c.clientset, c.Namespace, tuple.Resource, tuple.Name)
 	}

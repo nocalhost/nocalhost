@@ -11,16 +11,20 @@ import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"io"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/kubectl/pkg/cmd/util"
+	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 )
@@ -192,4 +196,33 @@ func BenchmarkName(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		TestPing(nil)
 	}
+}
+
+func TestGetUnstructuredObject(t *testing.T) {
+	configFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag()
+	join := filepath.Join(clientcmd.RecommendedConfigDir, "mesh")
+	configFlags.KubeConfig = &join
+	factory := cmdutil.NewFactory(cmdutil.NewMatchVersionFlags(configFlags))
+	_, err := GetUnstructuredObject(factory, "naison", "pods/details-77d4b77fcb-wcnz7")
+	if err != nil {
+		log.Fatal(err)
+	}
+	s := labels.SelectorFromSet(map[string]string{"app": "productpage"})
+	fmt.Println(s.String())
+	var va []ResourceTupleWithScale
+	_, err = GetAndConsumeControllerObject(factory, "naison", s, func(u *unstructured.Unstructured) {
+		replicas, _, err := unstructured.NestedInt64(u.Object, "spec", "replicas")
+		if err != nil {
+			return
+		}
+		va = append(va, ResourceTupleWithScale{
+			Resource: strings.ToLower(u.GetKind()) + "s",
+			Name:     u.GetName(),
+			Scale:    int(replicas),
+		})
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(va)
 }

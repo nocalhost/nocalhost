@@ -7,12 +7,17 @@ package pkg
 
 import (
 	"context"
-	"fmt"
+	"encoding/json"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/kubernetes"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"nocalhost/internal/nhctl/vpn/util"
+	"strings"
 )
 
 type ServiceController struct {
@@ -31,34 +36,67 @@ func NewServiceController(factory cmdutil.Factory, clientset *kubernetes.Clients
 	}
 }
 
+// ScaleToZero get deployment, statefulset, replicaset, otherwise delete it
 func (s *ServiceController) ScaleToZero() (map[string]string, []v1.ContainerPort, string, error) {
-	get, err := s.clientset.CoreV1().Services(s.namespace).Get(context.TODO(), s.name, metav1.GetOptions{})
+	service, err := s.clientset.CoreV1().Services(s.namespace).Get(context.TODO(), s.name, metav1.GetOptions{})
 	if err != nil {
 		return nil, nil, "", err
 	}
 
-	object, err := util.GetUnstructuredObject(s.factory, s.namespace, fmt.Sprintf("services/%s", s.name))
+	var va []util.ResourceTupleWithScale
+	list, err := util.GetAndConsumeControllerObject(s.factory, s.namespace, labels.SelectorFromSet(service.Spec.Selector), func(u *unstructured.Unstructured) {
+		replicas, _, err := unstructured.NestedInt64(u.Object, "spec", "replicas")
+		if err == nil {
+			va = append(va, util.ResourceTupleWithScale{
+				Resource: strings.ToLower(u.GetKind()) + "s",
+				Name:     u.GetName(),
+				Scale:    int(replicas),
+			})
+			err = util.UpdateReplicasScale(s.clientset, s.namespace, util.ResourceTupleWithScale{
+				Resource: strings.ToLower(u.GetKind()) + "s",
+				Name:     u.GetName(),
+				Scale:    0,
+			})
+			if err != nil {
+			}
+		}
+	})
 	if err != nil {
 		return nil, nil, "", err
 	}
-	asSelector, _ := metav1.LabelSelectorAsSelector(util.GetLabelSelector(object.Object))
-	podList, _ := s.clientset.CoreV1().Pods(s.namespace).List(context.Background(), metav1.ListOptions{
-		LabelSelector: asSelector.String(),
-	})
-	if len(podList.Items) == 0 {
+	if len(list) == 0 {
+		return nil, nil, "", nil
+	}
+	if len(va) != 0 {
 		var ports []v1.ContainerPort
-		for _, port := range get.Spec.Ports {
+		for _, port := range service.Spec.Ports {
 			ports = append(ports, v1.ContainerPort{
 				Name:          port.Name,
 				ContainerPort: port.Port,
 				Protocol:      port.Protocol,
 			})
 		}
-		return get.Spec.Selector, ports, "", nil
+		marshal, _ := json.Marshal(va)
+		return service.Spec.Selector, ports, string(marshal), nil
+	} else {
+		// CRD
+		var result []string
+		for _, info := range list {
+			info.Object.GetObjectKind()
+			u := info.Object.(*unstructured.Unstructured)
+			u.SetManagedFields(nil)
+			u.SetResourceVersion("")
+			u.SetUID("")
+			bytes, _ := u.MarshalJSON()
+			result = append(result, string(bytes))
+			helper := resource.NewHelper(info.Client, info.Mapping)
+			if _, err = helper.Delete(s.namespace, info.Name); err != nil {
+				continue
+			}
+		}
+		marshal, _ := json.Marshal(result)
+		return util.GetLabelSelector(list[0].Object).MatchLabels, util.GetPorts(list[0].Object), string(marshal), err
 	}
-	// if podList is not one, needs to merge ???
-	podController := NewPodController(s.factory, s.clientset, s.namespace, s.getResource(), podList.Items[0].Name)
-	return podController.ScaleToZero()
 }
 
 func (s *ServiceController) Cancel() error {
@@ -70,6 +108,41 @@ func (s ServiceController) getResource() string {
 }
 
 func (s *ServiceController) Reset() error {
-	podController := NewPodController(s.factory, s.clientset, s.namespace, s.getResource(), s.name)
-	return podController.Reset()
+	get, err := s.clientset.CoreV1().
+		Pods(s.namespace).
+		Get(context.TODO(), ToInboundPodName(s.getResource(), s.name), metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	return restore(s.factory, s.clientset, s.namespace, get.GetAnnotations()[util.OriginData])
+}
+
+func restore(factory cmdutil.Factory, clientset *kubernetes.Clientset, namespace string, data string) error {
+	if o := data; len(o) != 0 {
+		var resourceTupleList []util.ResourceTupleWithScale
+		if err := json.Unmarshal([]byte(o), &resourceTupleList); err == nil {
+			for _, resourceTuple := range resourceTupleList {
+				if err = util.UpdateReplicasScale(clientset, namespace, resourceTuple); err != nil {
+					return err
+				}
+			}
+		}
+		var list []string
+		if err := json.Unmarshal([]byte(o), &list); err == nil {
+			for _, l := range list {
+				var u unstructured.Unstructured
+				if err = json.Unmarshal([]byte(l), &u); err == nil {
+					if client, err := factory.DynamicClient(); err == nil {
+						gvrResource := client.Resource(schema.GroupVersionResource{
+							Group:    u.GetObjectKind().GroupVersionKind().Group,
+							Version:  u.GetObjectKind().GroupVersionKind().Version,
+							Resource: strings.ToLower(u.GetObjectKind().GroupVersionKind().Kind) + "s",
+						})
+						gvrResource.Namespace(namespace).Create(context.TODO(), &u, metav1.CreateOptions{})
+					}
+				}
+			}
+		}
+	}
+	return nil
 }

@@ -22,15 +22,13 @@ type PodController struct {
 	factory   cmdutil.Factory
 	clientset *kubernetes.Clientset
 	namespace string
-	resource  string
 	name      string
 }
 
-func NewPodController(factory cmdutil.Factory, clientset *kubernetes.Clientset, namespace, resource, name string) *PodController {
+func NewPodController(factory cmdutil.Factory, clientset *kubernetes.Clientset, namespace, name string) *PodController {
 	return &PodController{
 		factory:   factory,
 		clientset: clientset,
-		resource:  resource,
 		namespace: namespace,
 		name:      name,
 	}
@@ -67,7 +65,7 @@ func (pod *PodController) Cancel() error {
 }
 
 func (pod PodController) getResource() string {
-	return pod.resource
+	return "pods"
 }
 
 func (pod *PodController) Reset() error {

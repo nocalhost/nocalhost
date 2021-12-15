@@ -20,10 +20,13 @@ import (
 	"k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	json2 "k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
+	"k8s.io/cli-runtime/pkg/resource"
 	runtimeresource "k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -279,28 +282,41 @@ func GetUnstructuredObject(f cmdutil.Factory, namespace string, workloads string
 	return infos[0], err
 }
 
+func GetAndConsumeControllerObject(f cmdutil.Factory, namespace string, label labels.Selector, ff func(*unstructured.Unstructured)) ([]*resource.Info, error) {
+	do := f.NewBuilder().
+		Unstructured().
+		NamespaceParam(namespace).DefaultNamespace().AllNamespaces(false).
+		ResourceTypeOrNameArgs(true, strings.Join([]string{"deployments", "statefulset", "replicaset"}, ",")).
+		ContinueOnError().
+		LabelSelector(label.String()).
+		Latest().
+		Flatten().
+		TransformRequests(func(req *rest.Request) { req.Param("includeObject", "Object") }).
+		Do()
+	if err := do.Err(); err != nil {
+		return nil, err
+	}
+	infos, err := do.Infos()
+	if err != nil {
+		return nil, err
+	}
+	if ff != nil {
+		for _, info := range infos {
+			if o, ok := info.Object.(*unstructured.Unstructured); ok {
+				ff(o)
+			}
+		}
+	}
+	return infos, nil
+}
+
 func GetLabelSelector(object k8sruntime.Object) *metav1.LabelSelector {
-	defer func() {
-		if err := recover(); err != nil {
-			log.Errorln(err)
-		}
-	}()
-	l := &metav1.LabelSelector{}
-	printer, _ := printers.NewJSONPathPrinter("{.spec.selector}")
-	buf := bytes.NewBuffer([]byte{})
-	if err := printer.PrintObj(object, buf); err != nil {
-		pathPrinter, _ := printers.NewJSONPathPrinter("{.metadata.labels}")
-		_ = pathPrinter.PrintObj(object, buf)
+	u := object.(*unstructured.Unstructured)
+	stringMap, _, err := unstructured.NestedStringMap(u.Object, "spec", "selector")
+	if err == nil {
+		return &metav1.LabelSelector{MatchLabels: stringMap}
 	}
-	err := json2.Unmarshal([]byte(buf.String()), l)
-	if err != nil || len(l.MatchLabels) == 0 {
-		m := map[string]string{}
-		_ = json2.Unmarshal([]byte(buf.String()), &m)
-		if len(m) != 0 {
-			l = &metav1.LabelSelector{MatchLabels: m}
-		}
-	}
-	return l
+	return &metav1.LabelSelector{MatchLabels: u.GetLabels()}
 }
 
 func GetPorts(object k8sruntime.Object) []v1.ContainerPort {

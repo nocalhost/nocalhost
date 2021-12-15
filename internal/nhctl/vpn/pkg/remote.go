@@ -148,7 +148,7 @@ func CreateInboundPod(
 	case "service", "services":
 		sc = NewServiceController(factory, clientset, namespace, tuple.Name)
 	case "pod", "pods":
-		sc = NewPodController(factory, clientset, namespace, "pods", tuple.Name)
+		sc = NewPodController(factory, clientset, namespace, tuple.Name)
 	default:
 		sc = NewCustomResourceDefinitionController(factory, clientset, namespace, tuple.Resource, tuple.Name)
 	}

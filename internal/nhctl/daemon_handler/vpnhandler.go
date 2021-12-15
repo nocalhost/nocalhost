@@ -173,7 +173,7 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 				},
 			)
 			if err = connect.RemoveInboundPod(); err != nil {
-				logger.Errorf("error while delete reverse pods, info: %s-%s, err: %v",
+				logger.Errorf("error while delete reverse pods, resource: %s in namespace: %s, error: %v",
 					connect.Namespace, cmd.Resource, err)
 			} else {
 				logger.Infof("delete reverse pod, info: %s-%s secusefully",
