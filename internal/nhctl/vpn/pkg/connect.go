@@ -7,16 +7,12 @@ import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
-	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/polymorphichelpers"
-	"k8s.io/kubectl/pkg/util/podutils"
 	"net"
 	"nocalhost/internal/nhctl/vpn/dns"
 	"nocalhost/internal/nhctl/vpn/remote"
@@ -24,7 +20,6 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -128,7 +123,7 @@ func (c *ConnectOptions) createRemoteInboundPod() error {
 					util.RouterIP.String(),
 				)
 				if err != nil {
-					log.Error(err)
+					c.GetLogger().Errorf("error while reversing resource: %s, error: %s\n", finalWorkload, err)
 				}
 			}(workload)
 		}
@@ -195,29 +190,19 @@ func (c *ConnectOptions) DoConnect(ctx context.Context) (chan error, error) {
 		return nil, err
 	}
 	c.GetLogger().Info("your ip is " + c.localTunIP.IP.String())
-	if !util.IsPortListening(10800) {
-		c.portForward(ctx)
-	}
+	//if !util.IsPortListening(10800) {
+	c.portForward(ctx)
+	//}
 	return c.startLocalTunServe(ctx)
 }
 
 func (c *ConnectOptions) DoReverse(ctx context.Context) error {
-	firstPod, _, err := polymorphichelpers.GetFirstPod(c.clientset.CoreV1(),
-		c.Namespace,
-		fields.OneTermEqualSelector("app", util.TrafficManager).String(),
-		time.Second*5,
-		func(pods []*v1.Pod) sort.Interface {
-			return sort.Reverse(podutils.ActivePods(pods))
-		},
-	)
-	if err != nil || firstPod == nil {
+	pod, err := c.clientset.CoreV1().Pods(c.Namespace).Get(ctx, util.TrafficManager, metav1.GetOptions{})
+	if err != nil || pod == nil {
 		return errors.New("can not found router ip while reverse resource")
 	}
-	c.trafficManagerIP = firstPod.Status.PodIP
-	if err = c.createRemoteInboundPod(); err != nil {
-		return err
-	}
-	return nil
+	c.trafficManagerIP = pod.Status.PodIP
+	return c.createRemoteInboundPod()
 }
 
 func (c *ConnectOptions) heartbeats(ctx context.Context) {
@@ -274,6 +259,7 @@ func (c *ConnectOptions) portForward(ctx context.Context) {
 	}(ctx)
 	for readyChanRef == nil {
 	}
+	c.GetLogger().Infoln("port-forwarding...")
 	select {
 	case <-*readyChanRef:
 		c.GetLogger().Infoln("port forward 10800:10800 ready")

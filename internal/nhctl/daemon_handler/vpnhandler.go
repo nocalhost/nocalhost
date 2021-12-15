@@ -92,9 +92,9 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 						})
 					connectOptions.Workloads = []string{d}
 					if err = connectOptions.RemoveInboundPod(); err != nil {
-						logger.Errorf("delete reverse resource %s-%s error, err: %v\n", connectInfo.namespace, d, err)
+						logger.Errorf("delete reverse resource: %s in namespace: %s, error: %v\n", connectInfo.namespace, d, err)
 					} else {
-						logger.Infof("delete reverse resource %s-%s successfully\n", connectInfo.namespace, d)
+						logger.Infof("delete reverse resource: %s in namespace: %s successfully\n", connectInfo.namespace, d)
 					}
 				}
 			}
@@ -103,7 +103,7 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 			if err = UpdateConnect(clientset, connectInfo.namespace, func(list sets.String, item string) {
 				list.Delete(item)
 			}); err != nil {
-				logger.Infof("error while remove connection info of %s\n", connectInfo.namespace)
+				logger.Infof("error while remove connection info of namespace: %s\n", connectInfo.namespace)
 			}
 
 			logger.Infof("disconnecting from old namespace...\n")
@@ -138,6 +138,8 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 			})
 			if err = connect.DoReverse(logCtx); err != nil {
 				return
+			} else {
+				logger.Infof("reverse resource: %s suecessfully\n", cmd.Resource)
 			}
 		}
 		return
