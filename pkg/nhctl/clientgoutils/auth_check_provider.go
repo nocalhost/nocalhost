@@ -2,9 +2,9 @@ package clientgoutils
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v3"
 	authorizationv1 "k8s.io/api/authorization/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -64,8 +64,7 @@ func (a *authCheckManager) AuthCheckForResource(namespace string, verbs []string
 
 	var acs = make([]*AuthChecker, 0)
 	for _, resource := range resources {
-
-		acs = append(acs, &AuthChecker{ResourceArg: resource, Verb: AllVerbs})
+		acs = append(acs, &AuthChecker{ResourceArg: resource, Verb: verbs})
 	}
 
 	return a.doAuthCheck(namespace, acs...)
@@ -182,12 +181,12 @@ func (a *authCheckManager) doAuthCheck(namespace string, authCheckers ...*AuthCh
 	}
 
 	if len(forbiddenCheckers) > 0 {
-		marshal, _ := yaml.Marshal(forbiddenCheckers)
+		marshal, _ := json.Marshal(forbiddenCheckers)
 		return errors.Wrap(
 			PermissionDenied,
 			fmt.Sprintf(
-				"Permission denied when pre check! "+
-					"please make sure you have such permission in current namespace: \n\n%s", marshal,
+				"Permission denied when auth check! "+
+					"please make sure you have such permission in current namespace: \n%s", marshal,
 			),
 		)
 	}
