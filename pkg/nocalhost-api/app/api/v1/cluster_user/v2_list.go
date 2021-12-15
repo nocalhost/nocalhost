@@ -8,7 +8,10 @@ package cluster_user
 import (
 	"context"
 	"encoding/json"
+	"nocalhost/internal/nocalhost-api/global"
+	"nocalhost/internal/nocalhost-dep/controllers/vcluster/api/v1alpha1"
 	"sort"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 
@@ -20,6 +23,7 @@ import (
 	"nocalhost/pkg/nocalhost-api/app/router/ginbase"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
+	"nocalhost/pkg/nocalhost-api/pkg/manager/vcluster"
 )
 
 func GetV2(c *gin.Context) {
@@ -50,28 +54,19 @@ func GetV2(c *gin.Context) {
 		return
 	}
 
-	// set base space name
-	for i := range result {
-		if result[i].BaseDevSpaceId > 0 {
-			cu, err := service.Svc.ClusterUser().GetFirst(c, model.ClusterUserModel{ID: result[i].BaseDevSpaceId})
-			if err != nil {
-				api.SendResponse(c, errno.ErrMeshClusterUserNotFound, nil)
-				return
-			}
-			if result[i].ClusterUserExt == nil {
-				result[i].ClusterUserExt = &model.ClusterUserExt{
-					BaseDevSpaceName:      cu.SpaceName,
-					BaseDevSpaceNameSpace: cu.Namespace,
-				}
-			} else {
-				result[i].BaseDevSpaceName = cu.SpaceName
-				result[i].BaseDevSpaceNameSpace = cu.Namespace
-			}
-		}
-	}
+	setBaseSpaceNameInto(result)
+	setVClusterInfoInto(result)
 	api.SendResponse(c, nil, result)
 }
 
+// ListV2 get devspace list
+// @Summary ListV2 get devspace list
+// @Description ListV2 get get devspace list
+// @Tags DevSpace
+// @Accept  json
+// @Produce  json
+// @Success 200 {object} model.ClusterUserV2 "{"code":0,"message":"OK","data":model.ClusterUserV2}"
+// @Router /v2/dev_space [get]
 func ListV2(c *gin.Context) {
 	var params ClusterUserListV2Query
 
@@ -99,16 +94,18 @@ func ListV2(c *gin.Context) {
 		cu.SpaceName = params.SpaceName
 	}
 
-	if result, err := DoList(&cu, userId, isAdmin, params.IsCanBeUsedAsBaseSpace); err != nil {
+	result, err := DoList(&cu, userId, isAdmin, params.IsCanBeUsedAsBaseSpace)
+	if err != nil {
 		if err == errno.ErrClusterNotFound {
 			log.Error(err)
 			api.SendResponse(c, nil, []model.ClusterUserV2{})
 			return
 		}
 		api.SendResponse(c, err, nil)
-	} else {
-		api.SendResponse(c, nil, result)
+		return
 	}
+	setVClusterInfoInto(result)
+	api.SendResponse(c, nil, result)
 }
 
 func DoList(params *model.ClusterUserModel, userId uint64, isAdmin, isCanBeUsedAsBaseSpace bool) (
@@ -271,6 +268,9 @@ func fillExtByUser(src map[uint64][]*model.ClusterUserV2, currentUser uint64, is
 					} else {
 						cu.SpaceType = model.IsolateSpace
 					}
+					//if cu.DevSpaceType == model.VirtualClusterType {
+					//	cu.SpaceType = model.VirtualCluster
+					//}
 
 					if cluster_scope.IsValidOwner(cluster.ID, currentUser) {
 						cu.SpaceOwnType = model.DevSpaceOwnTypeOwner
@@ -290,6 +290,9 @@ func fillExtByUser(src map[uint64][]*model.ClusterUserV2, currentUser uint64, is
 					} else {
 						cu.SpaceType = model.IsolateSpace
 					}
+					//if cu.DevSpaceType == model.VirtualClusterType {
+					//	cu.SpaceType = model.VirtualCluster
+					//}
 
 					// fill SpaceOwnType
 					if contains(ownNss, cu.Namespace) {
@@ -404,4 +407,71 @@ func fillResourceListSet(
 	}
 
 	cu.ResourceLimitSet = res.ResourceLimitIsSet()
+}
+
+func setBaseSpaceNameInto(result []*model.ClusterUserV2) {
+	for i := range result {
+		if result[i].BaseDevSpaceId > 0 {
+			cu, err := service.Svc.ClusterUser().GetFirst(context.TODO(), model.ClusterUserModel{ID: result[i].BaseDevSpaceId})
+			if err != nil {
+				log.Error(err)
+				continue
+			}
+			if result[i].ClusterUserExt == nil {
+				result[i].ClusterUserExt = &model.ClusterUserExt{
+					BaseDevSpaceName:      cu.SpaceName,
+					BaseDevSpaceNameSpace: cu.Namespace,
+				}
+			} else {
+				result[i].BaseDevSpaceName = cu.SpaceName
+				result[i].BaseDevSpaceNameSpace = cu.Namespace
+			}
+		}
+	}
+}
+
+func setVClusterInfoInto(cu []*model.ClusterUserV2) {
+	var hasVirtualCluster bool
+	for i := 0; i < len(cu); i++ {
+		if cu[i].DevSpaceType == model.VirtualClusterType {
+			hasVirtualCluster = true
+			break
+		}
+	}
+	if !hasVirtualCluster {
+		return
+	}
+
+	list, err := service.Svc.ClusterSvc().GetList(context.TODO())
+	if err != nil {
+		log.Errorf("Error while list cluster: %+v", err)
+		return
+	}
+	clusterMap := make(map[uint64]*model.ClusterList, len(list))
+	for _, l := range list {
+		clusterMap[l.ID] = l
+	}
+	factory := vcluster.GetSharedManagerFactory()
+	g := sync.WaitGroup{}
+	for i := 0; i < len(cu); i++ {
+		if cu[i].DevSpaceType == model.VirtualClusterType {
+			g.Add(1)
+			i := i
+			go func() {
+				defer g.Done()
+				vcManager, err := factory.Manager(clusterMap[cu[i].ClusterId].GetKubeConfig())
+				if err != nil {
+					cu[i].VirtualClusterInfo = &model.VirtualClusterInfo{
+						Status: string(v1alpha1.Unknown),
+					}
+					log.Errorf("Error while get vcluster manager: %+v", err)
+					return
+				}
+
+				info, _ := vcManager.GetInfo(global.VClusterPrefix+cu[i].Namespace, cu[i].Namespace)
+				cu[i].VirtualClusterInfo = &info
+			}()
+		}
+	}
+	g.Wait()
 }

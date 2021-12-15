@@ -889,6 +889,82 @@
                 }
             }
         },
+        "/v1/dev_space": {
+            "post": {
+                "description": "Create dev space",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "DevSpace"
+                ],
+                "summary": "Create dev space",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "dev space info",
+                        "name": "CreateAppRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/cluster_user.ClusterUserCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterUserModel"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/dev_space/status": {
+            "get": {
+                "description": "Get dev space status",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "DevSpace"
+                ],
+                "summary": "Get dev space status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":DevSpaceStatusResponse}",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/DevSpaceStatusResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/dev_space/{id}": {
             "get": {
                 "description": "ListAll dev spaces",
@@ -930,7 +1006,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Cluster"
+                    "DevSpace"
                 ],
                 "summary": "Update dev space",
                 "parameters": [
@@ -957,54 +1033,6 @@
                             "type": "object",
                             "$ref": "#/definitions/cluster_user.DevSpaceRequest"
                         }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "$ref": "#/definitions/model.ClusterUserModel"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "description": "Create dev space",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "DevSpace"
-                ],
-                "summary": "Create dev space",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Authorization",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
-                    },
-                    {
-                        "description": "cluster user info",
-                        "name": "CreateAppRequest",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "object",
-                            "$ref": "#/definitions/cluster_user.ClusterUserCreateRequest"
-                        }
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Application ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
                     }
                 ],
                 "responses": {
@@ -1398,6 +1426,87 @@
                 }
             }
         },
+        "/v1/nocalhost/version/vcluster": {
+            "get": {
+                "description": "VClusterVersion get vcluster version  info",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Version"
+                ],
+                "summary": "VClusterVersion get vcluster version  info",
+                "responses": {
+                    "200": {
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":model.VClusterVersion}",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.VClusterVersion"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/plugin/application/{id}/dev_space/{spaceId}/plugin_sync": {
+            "put": {
+                "description": "Plug-in Update app installation status",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Plug-in"
+                ],
+                "summary": "Plug-in Update app installation status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Application ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "DevSpace ID",
+                        "name": "spaceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "The application update info",
+                        "name": "CreateAppRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/applications.UpdateApplicationInstallRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":null}",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/plugin/dev_space": {
             "get": {
                 "description": "Plug-in access to applications (including installation status)",
@@ -1763,6 +1872,30 @@
                 }
             }
         },
+        "/v2/dev_space": {
+            "get": {
+                "description": "ListV2 get get devspace list",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "DevSpace"
+                ],
+                "summary": "ListV2 get devspace list",
+                "responses": {
+                    "200": {
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":model.ClusterUserV2}",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterUserV2"
+                        }
+                    }
+                }
+            }
+        },
         "/v2/dev_space/cluster": {
             "get": {
                 "description": "Get the cluster list which user can create devSpace",
@@ -1791,136 +1924,6 @@
                         "schema": {
                             "type": "object",
                             "$ref": "#/definitions/model.ClusterList"
-                        }
-                    }
-                }
-            }
-        },
-        "/v2/dev_space/{id}/sleep": {
-            "post": {
-                "description": "Forced dev space into sleep mode",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "DevSpace"
-                ],
-                "summary": "Sleep",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Authorization",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "dev space id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":null}",
-                        "schema": {
-                            "type": "object",
-                            "$ref": "#/definitions/api.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/v2/dev_space/{id}/sleep_config": {
-            "put": {
-                "description": "update sleep config in dev space",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "DevSpace"
-                ],
-                "summary": "UpdateSleepConfig",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Authorization",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "dev space id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Sleep Config",
-                        "name": "sleep_config",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "object",
-                            "$ref": "#/definitions/model.SleepConfig"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":null}",
-                        "schema": {
-                            "type": "object",
-                            "$ref": "#/definitions/api.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/v2/dev_space/{id}/wakeup": {
-            "post": {
-                "description": "Forced awakens the dev space",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "DevSpace"
-                ],
-                "summary": "Wakeup",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Authorization",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "dev space id",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":null}",
-                        "schema": {
-                            "type": "object",
-                            "$ref": "#/definitions/api.Response"
                         }
                     }
                 }
@@ -1967,6 +1970,17 @@
                 "public": {
                     "type": "integer"
                 },
+                "status": {
+                    "type": "integer"
+                }
+            }
+        },
+        "applications.UpdateApplicationInstallRequest": {
+            "type": "object",
+            "required": [
+                "status"
+            ],
+            "properties": {
                 "status": {
                     "type": "integer"
                 }
@@ -2049,6 +2063,9 @@
                 "cpu": {
                     "type": "integer"
                 },
+                "dev_space_type": {
+                    "type": "integer"
+                },
                 "id": {
                     "type": "integer"
                 },
@@ -2065,6 +2082,9 @@
                 "namespace": {
                     "type": "string"
                 },
+                "protected": {
+                    "type": "boolean"
+                },
                 "space_name": {
                     "type": "string"
                 },
@@ -2074,17 +2094,28 @@
                 },
                 "user_id": {
                     "type": "integer"
+                },
+                "virtual_cluster": {
+                    "type": "object",
+                    "$ref": "#/definitions/model.VirtualClusterInfo"
                 }
             }
         },
         "cluster_user.DevSpaceRequest": {
             "type": "object",
             "properties": {
+                "dev_space_type": {
+                    "type": "integer"
+                },
                 "kubeconfig": {
                     "type": "string"
                 },
                 "space_name": {
                     "type": "string"
+                },
+                "virtual_cluster": {
+                    "type": "object",
+                    "$ref": "#/definitions/model.VirtualClusterInfo"
                 }
             }
         },
@@ -2180,54 +2211,6 @@
                 }
             }
         },
-        "model.ByWeek": {
-            "type": "object",
-            "required": [
-                "sleep_day",
-                "sleep_time",
-                "utc_offset",
-                "wakeup_day",
-                "wakeup_time"
-            ],
-            "properties": {
-                "sleep_day": {
-                    "type": "integer",
-                    "enum": [
-                        0,
-                        1,
-                        2,
-                        3,
-                        4,
-                        5,
-                        6
-                    ]
-                },
-                "sleep_time": {
-                    "description": "eg. 20:00, 23:55",
-                    "type": "string"
-                },
-                "utc_offset": {
-                    "description": "minutes east of UTC",
-                    "type": "integer"
-                },
-                "wakeup_day": {
-                    "type": "integer",
-                    "enum": [
-                        0,
-                        1,
-                        2,
-                        3,
-                        4,
-                        5,
-                        6
-                    ]
-                },
-                "wakeup_time": {
-                    "description": "eg. 08:00, 09:30",
-                    "type": "string"
-                }
-            }
-        },
         "model.ClusterList": {
             "type": "object",
             "properties": {
@@ -2241,9 +2224,6 @@
                     "type": "integer"
                 },
                 "info": {
-                    "type": "string"
-                },
-                "inspect_at": {
                     "type": "string"
                 },
                 "is_ready": {
@@ -2285,9 +2265,6 @@
                     "type": "integer"
                 },
                 "info": {
-                    "type": "string"
-                },
-                "inspect_at": {
                     "type": "string"
                 },
                 "is_ready": {
@@ -2338,9 +2315,6 @@
                 "info": {
                     "type": "string"
                 },
-                "inspect_at": {
-                    "type": "string"
-                },
                 "kubeconfig": {
                     "type": "string"
                 },
@@ -2372,6 +2346,9 @@
                 },
                 "created_at": {
                     "type": "string"
+                },
+                "dev_space_type": {
+                    "type": "integer"
                 },
                 "id": {
                     "type": "integer"
@@ -2421,6 +2398,9 @@
                 "created_at": {
                     "type": "string"
                 },
+                "dev_space_type": {
+                    "type": "integer"
+                },
                 "id": {
                     "type": "integer"
                 },
@@ -2436,22 +2416,8 @@
                 "namespace": {
                     "type": "string"
                 },
-                "sleep_at": {
-                    "type": "string"
-                },
-                "sleep_config": {
-                    "type": "object",
-                    "$ref": "#/definitions/model.SleepConfig"
-                },
-                "sleep_minute": {
-                    "type": "integer"
-                },
-                "sleep_status": {
-                    "type": "string",
-                    "enum": [
-                        "asleep",
-                        "wakeup"
-                    ]
+                "protected": {
+                    "type": "boolean"
                 },
                 "space_name": {
                     "type": "string"
@@ -2468,6 +2434,94 @@
                 },
                 "user_id": {
                     "type": "integer"
+                }
+            }
+        },
+        "model.ClusterUserV2": {
+            "type": "object",
+            "properties": {
+                "base_dev_space_id": {
+                    "type": "integer"
+                },
+                "base_dev_space_name": {
+                    "type": "string"
+                },
+                "base_dev_space_namespace": {
+                    "type": "string"
+                },
+                "cluster_admin": {
+                    "type": "integer"
+                },
+                "cluster_id": {
+                    "type": "integer"
+                },
+                "cluster_name": {
+                    "type": "string"
+                },
+                "cooper_user": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.UserSimple"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "deletable": {
+                    "type": "boolean"
+                },
+                "dev_space_type": {
+                    "type": "integer"
+                },
+                "id": {
+                    "description": "Intrinsic field",
+                    "type": "integer"
+                },
+                "is_base_space": {
+                    "type": "boolean"
+                },
+                "modifiable": {
+                    "type": "boolean"
+                },
+                "namespace": {
+                    "type": "string"
+                },
+                "owner": {
+                    "type": "object",
+                    "$ref": "#/definitions/model.UserSimple"
+                },
+                "resource_limit_set": {
+                    "type": "boolean"
+                },
+                "space_name": {
+                    "type": "string"
+                },
+                "space_own_type": {
+                    "type": "object",
+                    "$ref": "#/definitions/model.SpaceOwnType"
+                },
+                "space_resource_limit": {
+                    "type": "string"
+                },
+                "space_type": {
+                    "type": "string"
+                },
+                "trace_header": {
+                    "type": "object",
+                    "$ref": "#/definitions/model.Header"
+                },
+                "user_id": {
+                    "type": "integer"
+                },
+                "viewer_user": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.UserSimple"
+                    }
+                },
+                "virtual_cluster": {
+                    "type": "object",
+                    "$ref": "#/definitions/model.VirtualClusterInfo"
                 }
             }
         },
@@ -2549,14 +2603,14 @@
                 }
             }
         },
-        "model.SleepConfig": {
+        "model.SpaceOwnType": {
             "type": "object",
             "properties": {
-                "by_week": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/model.ByWeek"
-                    }
+                "priority": {
+                    "type": "integer"
+                },
+                "str": {
+                    "type": "string"
                 }
             }
         },
@@ -2641,6 +2695,49 @@
                 }
             }
         },
+        "model.UserSimple": {
+            "type": "object",
+            "properties": {
+                "avatar": {
+                    "type": "string"
+                },
+                "cluster_admin": {
+                    "type": "integer"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_admin": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "integer"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.VClusterVersion": {
+            "type": "object",
+            "properties": {
+                "versions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "model.VersionUpgradeInfo": {
             "type": "object",
             "properties": {
@@ -2651,6 +2748,26 @@
                     "type": "boolean"
                 },
                 "upgrade_version": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.VirtualClusterInfo": {
+            "type": "object",
+            "properties": {
+                "events": {
+                    "type": "string"
+                },
+                "service_type": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "values": {
+                    "type": "string"
+                },
+                "version": {
                     "type": "string"
                 }
             }

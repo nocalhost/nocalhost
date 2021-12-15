@@ -1250,6 +1250,10 @@ func (c *GoClient) ListPods(namespace string) (*corev1.PodList, error) {
 	return c.client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
 }
 
+func (c *GoClient) ListPodsByOptions(namespace string, options metav1.ListOptions) (*corev1.PodList, error) {
+	return c.client.CoreV1().Pods(namespace).List(context.TODO(), options)
+}
+
 func (c *GoClient) DeletePod(namespace, name string) error {
 	return c.client.CoreV1().Pods(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 }
@@ -1261,6 +1265,14 @@ func (c *GoClient) GetRestClient() (*restclient.RESTClient, error) {
 }
 
 func (c *GoClient) Clientset() *kubernetes.Clientset {
+	return c.client
+}
+
+func (c *GoClient) GetRestConfig() *restclient.Config {
+	return c.restConfig
+}
+
+func (c *GoClient) GetClientSet() *kubernetes.Clientset {
 	return c.client
 }
 

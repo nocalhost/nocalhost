@@ -17,7 +17,7 @@ import (
 type ClusterUserService interface {
 	Create(
 		ctx context.Context, clusterId, userId, memory, cpu uint64, kubeConfig, devNameSpace, spaceName string,
-		spaceResourceLimit string, isBaseName bool, protected bool,
+		spaceResourceLimit string, isBaseName bool, protected bool, devSpaceType uint64,
 	) (model.ClusterUserModel, error)
 	CreateClusterAdminSpace(ctx context.Context, clusterId, userId uint64, spaceName string) (
 		model.ClusterUserModel, error,
@@ -37,6 +37,7 @@ type ClusterUserService interface {
 		ctx context.Context, condition model.ClusterUserJoinClusterAndAppAndUser,
 	) (*model.ClusterUserJoinClusterAndAppAndUser, error)
 	ListByUser(ctx context.Context, userId uint64) ([]*model.ClusterUserPluginModel, error)
+	ListByIds(ctx context.Context, ids []uint64) ([]*model.ClusterUserModel, error)
 	Close()
 
 	// v2
@@ -168,6 +169,7 @@ func (srv *clusterUserService) ListV2(models model.ClusterUserModel) (
 		item.BaseDevSpaceId = userModel.BaseDevSpaceId
 		item.IsBaseSpace = userModel.IsBaseSpace
 		item.TraceHeader = userModel.TraceHeader
+		item.DevSpaceType = userModel.DevSpaceType
 		result = append(result, item)
 	}
 	return result, nil
@@ -244,7 +246,7 @@ func (srv *clusterUserService) GetFirst(ctx context.Context, models model.Cluste
 
 func (srv *clusterUserService) Create(
 	ctx context.Context, clusterId, userId, memory, cpu uint64, kubeConfig, devNameSpace, spaceName string,
-	spaceResourceLimit string, isBaseName bool, protected bool,
+	spaceResourceLimit string, isBaseName bool, protected bool, devSpaceType uint64,
 ) (model.ClusterUserModel, error) {
 	c := model.ClusterUserModel{
 
@@ -258,6 +260,7 @@ func (srv *clusterUserService) Create(
 		SpaceResourceLimit: spaceResourceLimit,
 		IsBaseSpace:        isBaseName,
 		Protected:          protected,
+		DevSpaceType:       devSpaceType,
 	}
 	result, err := srv.clusterUserRepo.Create(c)
 	if err != nil {
@@ -301,6 +304,10 @@ func (srv *clusterUserService) GetJoinClusterAndAppAndUserDetail(
 
 func (srv *clusterUserService) ListByUser(ctx context.Context, userId uint64) ([]*model.ClusterUserPluginModel, error) {
 	return srv.clusterUserRepo.ListByUser(userId)
+}
+
+func (srv *clusterUserService) ListByIds(ctx context.Context, ids []uint64) ([]*model.ClusterUserModel, error) {
+	return srv.clusterUserRepo.ListByIds(ids)
 }
 
 func (srv *clusterUserService) Close() {

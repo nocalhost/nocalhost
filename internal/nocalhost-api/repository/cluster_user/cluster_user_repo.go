@@ -30,6 +30,7 @@ type ClusterUserRepo interface {
 		condition model.ClusterUserJoinClusterAndAppAndUser,
 	) (*model.ClusterUserJoinClusterAndAppAndUser, error)
 	ListByUser(userId uint64) ([]*model.ClusterUserPluginModel, error)
+	ListByIds(ids []uint64) ([]*model.ClusterUserModel, error)
 	Close()
 }
 
@@ -234,6 +235,7 @@ func (repo *clusterUserRepo) GetJoinClusterAndAppAndUserDetail(
 				"cluster_user_join_cluster_and_app_and_users.kubeconfig," +
 				"cluster_user_join_cluster_and_app_and_users.space_resource_limit," +
 				"cluster_user_join_cluster_and_app_and_users.status," +
+				"cluster_user_join_cluster_and_app_and_users.dev_space_type," +
 				"cluster_user_join_cluster_and_app_and_users.created_at",
 		).
 		Joins(
@@ -248,6 +250,13 @@ func (repo *clusterUserRepo) GetJoinClusterAndAppAndUserDetail(
 	}
 
 	return &result, nil
+}
+
+// ListByIds list by ids
+func (repo *clusterUserRepo) ListByIds(ids []uint64) ([]*model.ClusterUserModel, error) {
+	result := make([]*model.ClusterUserModel, 0)
+	err := repo.db.Where(ids).Find(&result).Error
+	return result, err
 }
 
 // Close close db

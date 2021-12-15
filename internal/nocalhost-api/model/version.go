@@ -10,3 +10,7 @@ type VersionUpgradeInfo struct {
 	UpgradeVersion string `json:"upgrade_version"`
 	HasNewVersion  bool   `json:"has_new_version"`
 }
+
+type VClusterVersion struct {
+	Versions []string `json:"versions"`
+}

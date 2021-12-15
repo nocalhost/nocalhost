@@ -8,6 +8,7 @@ package model
 import (
 	"database/sql/driver"
 	"encoding/json"
+	corev1 "k8s.io/api/core/v1"
 	"time"
 
 	validator "github.com/go-playground/validator/v10"
@@ -15,8 +16,15 @@ import (
 )
 
 const (
-	IsolateSpace SpaceType = "IsolateSpace"
-	MeshSpace    SpaceType = "MeshSpace"
+	IsolateSpaceType uint64 = iota
+	BadeSpaceType
+	MeshSpaceType
+	VirtualClusterType
+
+	IsolateSpace   SpaceType = "IsolateSpace"
+	BadeSpace      SpaceType = "BadeSpace"
+	MeshSpace      SpaceType = "MeshSpace"
+	VirtualCluster SpaceType = "Vcluster"
 )
 
 var DevSpaceOwnTypeOwner SpaceOwnType = SpaceOwnType{"Owner", 1000}
@@ -42,6 +50,7 @@ type ClusterUserV2 struct {
 	SleepConfig        *SleepConfig `gorm:"column:sleep_config;type:VARCHAR(1024);" json:"sleep_config"`
 	SleepMinute        uint64       `gorm:"column:sleep_minute;default:0;not null;" json:"sleep_minute"`
 	SleepStatus        string       `gorm:"column:sleep_status;not null;" json:"sleep_status" enums:"asleep,wakeup"`
+	DevSpaceType       uint64       `gorm:"column:dev_space_type;default:0" json:"dev_space_type"`
 
 	// ext field
 	*ClusterUserExt
@@ -55,17 +64,18 @@ type SpaceOwnType struct {
 }
 
 type ClusterUserExt struct {
-	ClusterName           string        `json:"cluster_name"`
-	SpaceType             SpaceType     `json:"space_type"`
-	SpaceOwnType          SpaceOwnType  `json:"space_own_type"`
-	ResourceLimitSet      bool          `json:"resource_limit_set"`
-	CooperUser            []*UserSimple `json:"cooper_user"`
-	ViewerUser            []*UserSimple `json:"viewer_user"`
-	Owner                 *UserSimple   `json:"owner"`
-	Modifiable            bool          `json:"modifiable"`
-	Deletable             bool          `json:"deletable"`
-	BaseDevSpaceName      string        `json:"base_dev_space_name"`
-	BaseDevSpaceNameSpace string        `json:"base_dev_space_namespace"`
+	ClusterName           string              `json:"cluster_name"`
+	SpaceType             SpaceType           `json:"space_type"`
+	SpaceOwnType          SpaceOwnType        `json:"space_own_type"`
+	ResourceLimitSet      bool                `json:"resource_limit_set"`
+	CooperUser            []*UserSimple       `json:"cooper_user"`
+	ViewerUser            []*UserSimple       `json:"viewer_user"`
+	Owner                 *UserSimple         `json:"owner"`
+	Modifiable            bool                `json:"modifiable"`
+	Deletable             bool                `json:"deletable"`
+	BaseDevSpaceName      string              `json:"base_dev_space_name"`
+	BaseDevSpaceNameSpace string              `json:"base_dev_space_namespace"`
+	VirtualClusterInfo    *VirtualClusterInfo `json:"virtual_cluster,omitempty"`
 }
 
 // ClusterUserModel
@@ -95,6 +105,7 @@ type ClusterUserModel struct {
 	SleepConfig        *SleepConfig `gorm:"column:sleep_config;type:VARCHAR(1024);" json:"sleep_config"`
 	SleepMinute        uint64       `gorm:"column:sleep_minute;default:0;not null;" json:"sleep_minute"`
 	SleepStatus        string       `gorm:"column:sleep_status;not null;" json:"sleep_status" enums:"asleep,wakeup"`
+	DevSpaceType       uint64       `gorm:"column:dev_space_type;default:0" json:"dev_space_type"`
 }
 
 func (cu *ClusterUserModel) IsClusterAdmin() bool {
@@ -150,6 +161,7 @@ type ClusterUserJoinClusterAndAppAndUser struct {
 	SpaceResourceLimit string    `gorm:"cloumn:space_resource_limit" json:"space_resource_limit"`
 	Namespace          string    `gorm:"column:namespace" json:"namespace"`
 	Status             *uint64   `gorm:"column:status" json:"status"`
+	DevSpaceType       uint64    `gorm:"column:dev_space_type" json:"dev_space_type"`
 	CreatedAt          time.Time `gorm:"column:created_at" json:"created_at"`
 }
 
@@ -184,4 +196,12 @@ func (h *Header) Scan(value interface{}) error {
 
 func (h Header) Value() (driver.Value, error) {
 	return json.Marshal(h)
+}
+
+type VirtualClusterInfo struct {
+	Status      string             `json:"status"`
+	Events      string             `json:"events,omitempty"`
+	ServiceType corev1.ServiceType `json:"service_type"`
+	Version     string             `json:"version"`
+	Values      string             `json:"values"`
 }

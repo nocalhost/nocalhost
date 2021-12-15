@@ -29,6 +29,13 @@ definitions:
     - context
     - status
     type: object
+  applications.UpdateApplicationInstallRequest:
+    properties:
+      status:
+        type: integer
+    required:
+    - status
+    type: object
   cluster.CreateClusterRequest:
     properties:
       kubeconfig:
@@ -77,6 +84,8 @@ definitions:
         type: integer
       cpu:
         type: integer
+      dev_space_type:
+        type: integer
       id:
         type: integer
       is_base_space:
@@ -88,6 +97,8 @@ definitions:
         type: object
       namespace:
         type: string
+      protected:
+        type: boolean
       space_name:
         type: string
       space_resource_limit:
@@ -95,16 +106,24 @@ definitions:
         type: object
       user_id:
         type: integer
+      virtual_cluster:
+        $ref: '#/definitions/model.VirtualClusterInfo'
+        type: object
     required:
     - cluster_id
     - user_id
     type: object
   cluster_user.DevSpaceRequest:
     properties:
+      dev_space_type:
+        type: integer
       kubeconfig:
         type: string
       space_name:
         type: string
+      virtual_cluster:
+        $ref: '#/definitions/model.VirtualClusterInfo'
+        type: object
     type: object
   cluster_user.SpaceResourceLimit:
     properties:
@@ -167,44 +186,6 @@ definitions:
     - public
     - status
     type: object
-  model.ByWeek:
-    properties:
-      sleep_day:
-        enum:
-        - 0
-        - 1
-        - 2
-        - 3
-        - 4
-        - 5
-        - 6
-        type: integer
-      sleep_time:
-        description: eg. 20:00, 23:55
-        type: string
-      utc_offset:
-        description: minutes east of UTC
-        type: integer
-      wakeup_day:
-        enum:
-        - 0
-        - 1
-        - 2
-        - 3
-        - 4
-        - 5
-        - 6
-        type: integer
-      wakeup_time:
-        description: eg. 08:00, 09:30
-        type: string
-    required:
-    - sleep_day
-    - sleep_time
-    - utc_offset
-    - wakeup_day
-    - wakeup_time
-    type: object
   model.ClusterList:
     properties:
       created_at:
@@ -214,8 +195,6 @@ definitions:
       id:
         type: integer
       info:
-        type: string
-      inspect_at:
         type: string
       is_ready:
         type: boolean
@@ -243,8 +222,6 @@ definitions:
       id:
         type: integer
       info:
-        type: string
-      inspect_at:
         type: string
       is_ready:
         type: boolean
@@ -275,8 +252,6 @@ definitions:
         type: integer
       info:
         type: string
-      inspect_at:
-        type: string
       kubeconfig:
         type: string
       name:
@@ -301,6 +276,8 @@ definitions:
         type: string
       created_at:
         type: string
+      dev_space_type:
+        type: integer
       id:
         type: integer
       kubeconfig:
@@ -333,6 +310,8 @@ definitions:
         type: integer
       created_at:
         type: string
+      dev_space_type:
+        type: integer
       id:
         type: integer
       is_base_space:
@@ -343,18 +322,8 @@ definitions:
         type: integer
       namespace:
         type: string
-      sleep_at:
-        type: string
-      sleep_config:
-        $ref: '#/definitions/model.SleepConfig'
-        type: object
-      sleep_minute:
-        type: integer
-      sleep_status:
-        enum:
-        - asleep
-        - wakeup
-        type: string
+      protected:
+        type: boolean
       space_name:
         type: string
       space_resource_limit:
@@ -366,6 +335,66 @@ definitions:
         type: object
       user_id:
         type: integer
+    type: object
+  model.ClusterUserV2:
+    properties:
+      base_dev_space_id:
+        type: integer
+      base_dev_space_name:
+        type: string
+      base_dev_space_namespace:
+        type: string
+      cluster_admin:
+        type: integer
+      cluster_id:
+        type: integer
+      cluster_name:
+        type: string
+      cooper_user:
+        items:
+          $ref: '#/definitions/model.UserSimple'
+        type: array
+      created_at:
+        type: string
+      deletable:
+        type: boolean
+      dev_space_type:
+        type: integer
+      id:
+        description: Intrinsic field
+        type: integer
+      is_base_space:
+        type: boolean
+      modifiable:
+        type: boolean
+      namespace:
+        type: string
+      owner:
+        $ref: '#/definitions/model.UserSimple'
+        type: object
+      resource_limit_set:
+        type: boolean
+      space_name:
+        type: string
+      space_own_type:
+        $ref: '#/definitions/model.SpaceOwnType'
+        type: object
+      space_resource_limit:
+        type: string
+      space_type:
+        type: string
+      trace_header:
+        $ref: '#/definitions/model.Header'
+        type: object
+      user_id:
+        type: integer
+      viewer_user:
+        items:
+          $ref: '#/definitions/model.UserSimple'
+        type: array
+      virtual_cluster:
+        $ref: '#/definitions/model.VirtualClusterInfo'
+        type: object
     type: object
   model.Header:
     properties:
@@ -418,12 +447,12 @@ definitions:
       used:
         type: number
     type: object
-  model.SleepConfig:
+  model.SpaceOwnType:
     properties:
-      by_week:
-        items:
-          $ref: '#/definitions/model.ByWeek'
-        type: array
+      priority:
+        type: integer
+      str:
+        type: string
     type: object
   model.UserBaseModel:
     properties:
@@ -478,6 +507,34 @@ definitions:
       status:
         type: integer
     type: object
+  model.UserSimple:
+    properties:
+      avatar:
+        type: string
+      cluster_admin:
+        type: integer
+      email:
+        type: string
+      id:
+        type: integer
+      is_admin:
+        type: integer
+      name:
+        type: string
+      phone:
+        type: integer
+      status:
+        type: integer
+      username:
+        type: string
+    type: object
+  model.VClusterVersion:
+    properties:
+      versions:
+        items:
+          type: string
+        type: array
+    type: object
   model.VersionUpgradeInfo:
     properties:
       current_version:
@@ -485,6 +542,19 @@ definitions:
       has_new_version:
         type: boolean
       upgrade_version:
+        type: string
+    type: object
+  model.VirtualClusterInfo:
+    properties:
+      events:
+        type: string
+      service_type:
+        type: string
+      status:
+        type: string
+      values:
+        type: string
+      version:
         type: string
     type: object
   setupcluster.MeshDevApp:
@@ -1207,6 +1277,35 @@ paths:
       summary: Get cluster storageClass from create cluster
       tags:
       - Cluster
+  /v1/dev_space:
+    post:
+      consumes:
+      - application/json
+      description: Create dev space
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: dev space info
+        in: body
+        name: CreateAppRequest
+        required: true
+        schema:
+          $ref: '#/definitions/cluster_user.ClusterUserCreateRequest'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ClusterUserModel'
+            type: object
+      summary: Create dev space
+      tags:
+      - DevSpace
   /v1/dev_space/{id}:
     delete:
       consumes:
@@ -1256,39 +1355,6 @@ paths:
       summary: ListAll dev spaces
       tags:
       - DevSpace
-    post:
-      consumes:
-      - application/json
-      description: Create dev space
-      parameters:
-      - description: Authorization
-        in: header
-        name: Authorization
-        required: true
-        type: string
-      - description: cluster user info
-        in: body
-        name: CreateAppRequest
-        required: true
-        schema:
-          $ref: '#/definitions/cluster_user.ClusterUserCreateRequest'
-          type: object
-      - description: Application ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/model.ClusterUserModel'
-            type: object
-      summary: Create dev space
-      tags:
-      - DevSpace
     put:
       consumes:
       - application/json
@@ -1321,7 +1387,7 @@ paths:
             type: object
       summary: Update dev space
       tags:
-      - Cluster
+      - DevSpace
   /v1/dev_space/{id}/detail:
     get:
       consumes:
@@ -1471,6 +1537,28 @@ paths:
       summary: UpdateResourceLimit
       tags:
       - DevSpace
+  /v1/dev_space/status:
+    get:
+      consumes:
+      - application/json
+      description: Get dev space status
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":DevSpaceStatusResponse}'
+          schema:
+            $ref: '#/definitions/DevSpaceStatusResponse'
+            type: object
+      summary: Get dev space status
+      tags:
+      - DevSpace
   /v1/login:
     post:
       description: Web and plug-in login
@@ -1552,6 +1640,22 @@ paths:
       summary: UpgradeInfo api server version update info
       tags:
       - Version
+  /v1/nocalhost/version/vcluster:
+    get:
+      consumes:
+      - application/json
+      description: VClusterVersion get vcluster version  info
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":model.VClusterVersion}'
+          schema:
+            $ref: '#/definitions/model.VClusterVersion'
+            type: object
+      summary: VClusterVersion get vcluster version  info
+      tags:
+      - Version
   /v1/plugin/{id}/recreate:
     post:
       consumes:
@@ -1577,6 +1681,45 @@ paths:
             $ref: '#/definitions/model.ClusterModel'
             type: object
       summary: Plugin ReCreate devSpace
+      tags:
+      - Plug-in
+  /v1/plugin/application/{id}/dev_space/{spaceId}/plugin_sync:
+    put:
+      consumes:
+      - application/json
+      description: Plug-in Update app installation status
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Application ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: DevSpace ID
+        in: path
+        name: spaceId
+        required: true
+        type: integer
+      - description: The application update info
+        in: body
+        name: CreateAppRequest
+        required: true
+        schema:
+          $ref: '#/definitions/applications.UpdateApplicationInstallRequest'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":null}'
+          schema:
+            $ref: '#/definitions/api.Response'
+            type: object
+      summary: Plug-in Update app installation status
       tags:
       - Plug-in
   /v1/plugin/dev_space:
@@ -1798,92 +1941,20 @@ paths:
       summary: Get api server version
       tags:
       - Version
-  /v2/dev_space/{id}/sleep:
-    post:
+  /v2/dev_space:
+    get:
       consumes:
       - application/json
-      description: Forced dev space into sleep mode
-      parameters:
-      - description: Authorization
-        in: header
-        name: Authorization
-        required: true
-        type: string
-      - description: dev space id
-        in: path
-        name: id
-        required: true
-        type: string
+      description: ListV2 get get devspace list
       produces:
       - application/json
       responses:
         "200":
-          description: '{"code":0,"message":"OK","data":null}'
+          description: '{"code":0,"message":"OK","data":model.ClusterUserV2}'
           schema:
-            $ref: '#/definitions/api.Response'
+            $ref: '#/definitions/model.ClusterUserV2'
             type: object
-      summary: Sleep
-      tags:
-      - DevSpace
-  /v2/dev_space/{id}/sleep_config:
-    put:
-      consumes:
-      - application/json
-      description: update sleep config in dev space
-      parameters:
-      - description: Authorization
-        in: header
-        name: Authorization
-        required: true
-        type: string
-      - description: dev space id
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Sleep Config
-        in: body
-        name: sleep_config
-        required: true
-        schema:
-          $ref: '#/definitions/model.SleepConfig'
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: '{"code":0,"message":"OK","data":null}'
-          schema:
-            $ref: '#/definitions/api.Response'
-            type: object
-      summary: UpdateSleepConfig
-      tags:
-      - DevSpace
-  /v2/dev_space/{id}/wakeup:
-    post:
-      consumes:
-      - application/json
-      description: Forced awakens the dev space
-      parameters:
-      - description: Authorization
-        in: header
-        name: Authorization
-        required: true
-        type: string
-      - description: dev space id
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: '{"code":0,"message":"OK","data":null}'
-          schema:
-            $ref: '#/definitions/api.Response'
-            type: object
-      summary: Wakeup
+      summary: ListV2 get devspace list
       tags:
       - DevSpace
   /v2/dev_space/cluster:

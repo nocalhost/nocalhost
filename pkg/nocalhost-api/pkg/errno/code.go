@@ -188,6 +188,11 @@ var (
 	ErrForceSleep        = &Errno{Code: 50214, Message: "Failed to force sleep"}
 	ErrForceWakeup       = &Errno{Code: 50215, Message: "Failed to force wakeup"}
 
+	// cluster-user errors for VirtualCluster
+	ErrCreateVirtualClusterFailed = &Errno{Code: 50301, Message: "Failed to create virtual cluster"}
+	ErrUpdateVirtualClusterFailed = &Errno{Code: 50302, Message: "Failed to update virtual cluster"}
+	ErrReSetVirtualClusterFailed  = &Errno{Code: 50302, Message: "Failed to reset virtual cluster"}
+
 	// application-user for application-user module request
 	ErrListApplicationUser = &Errno{
 		Code: 60000, Message: "Failed to list application_user, please check params and try again",

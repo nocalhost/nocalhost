@@ -46,6 +46,7 @@ func whiteList(method, path string) bool {
 		"/v1/application/[0-9]+":             "GET,PUT,DELETE",
 		"/v1/nocalhost/templates":            "GET",
 		"/v1/nocalhost/version/upgrade_info": "GET",
+		"/v1/nocalhost/version/vcluster":     "GET",
 		"/v1/dev_space":                      "GET,POST",
 
 		"/v1/application": "GET,POST",
@@ -58,6 +59,7 @@ func whiteList(method, path string) bool {
 
 		"/v1/dev_space/[0-9]+/update_resource_limit": "PUT",
 		"/v1/dev_space/[0-9]+":                       "PUT,DELETE",
+		"/v1/dev_space/status":                       "GET",
 
 		"/v2/dev_space":                     "GET",
 		"/v2/dev_space/cluster":             "GET",

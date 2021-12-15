@@ -22,14 +22,16 @@ import (
 )
 
 type DevSpaceRequest struct {
-	KubeConfig string `json:"kubeconfig"`
-	SpaceName  string `json:"space_name"`
+	KubeConfig     string                    `json:"kubeconfig"`
+	SpaceName      string                    `json:"space_name"`
+	VirtualCluster *model.VirtualClusterInfo `json:"virtual_cluster"`
+	DevSpaceType   uint64                    `json:"dev_space_type"`
 }
 
 // Update
 // @Summary Update dev space
 // @Description Update dev space
-// @Tags Cluster
+// @Tags DevSpace
 // @Accept  json
 // @Produce  json
 // @param Authorization header string true "Authorization"
@@ -55,6 +57,18 @@ func Update(c *gin.Context) {
 		ID:         devSpaceId,
 		KubeConfig: string(sDec),
 		SpaceName:  req.SpaceName,
+	}
+	if req.DevSpaceType == model.VirtualClusterType {
+		if req.VirtualCluster == nil {
+			log.Warnf("bind dev space params err: %v", err)
+			api.SendResponse(c, errno.ErrBind, nil)
+			return
+		}
+		if err := NewDecSpaceUpdater(req, c).UpdateVirtualCluster(cu); err != nil {
+			log.Warnf("Failed to update virtual cluster: %v", err)
+			api.SendResponse(c, errno.ErrUpdateVirtualClusterFailed, nil)
+			return
+		}
 	}
 	result, err := service.Svc.ClusterUser().Update(c, &cu)
 	if err != nil {
@@ -178,6 +192,7 @@ func UpdateResourceLimit(c *gin.Context) {
 // @Success 200 {object} model.ClusterUserModel
 // @Router /v1/dev_space/{id}/update_mesh_dev_space_info [put]
 func UpdateMeshDevSpaceInfo(c *gin.Context) {
+	// TODO move to /v1/dev_space/{id} [put]
 	var req setupcluster.MeshDevInfo
 	if err := c.ShouldBindJSON(&req); err != nil {
 		log.Warnf("bind resource limits params err: %v", err)

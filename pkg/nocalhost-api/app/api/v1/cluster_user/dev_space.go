@@ -10,17 +10,22 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand"
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	"math/rand"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
+	"nocalhost/internal/nocalhost-dep/controllers/vcluster/api/v1alpha1"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
-	"time"
 )
 
 type DevSpace struct {
@@ -142,7 +147,25 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 	if d.DevSpaceParams.BaseDevSpaceId > 0 {
 		if clusterUserModel, err = d.initMeshDevSpace(&clusterRecord, clusterUserModel, baseClusterUser); err != nil {
 			log.Error(err)
+			// rollback
+			d.KubeConfig = []byte(clusterRecord.GetKubeConfig())
+			d.DevSpaceParams.NameSpace = clusterUserModel.Namespace
+			d.DevSpaceParams.ID = &clusterUserModel.ID
+			_ = d.Delete()
 			return nil, errno.ErrInitMeshSpaceFailed
+		}
+	}
+
+	// init vcluster
+	if d.DevSpaceParams.DevSpaceType == model.VirtualClusterType {
+		if err := d.initVirtualCluster(&clusterRecord, clusterUserModel); err != nil {
+			log.Error(err)
+			// rollback
+			d.KubeConfig = []byte(clusterRecord.GetKubeConfig())
+			d.DevSpaceParams.NameSpace = clusterUserModel.Namespace
+			d.DevSpaceParams.ID = &clusterUserModel.ID
+			_ = d.Delete()
+			return nil, errno.ErrCreateVirtualClusterFailed
 		}
 	}
 
@@ -280,6 +303,10 @@ func (d *DevSpace) createDevSpace(
 		labels["nocalhost.dev/devspace"] = "base"
 	}
 
+	if d.DevSpaceParams.VirtualCluster != nil && d.DevSpaceParams.DevSpaceType == model.VirtualClusterType {
+		labels["nocalhost.dev/devspace"] = "vcluster"
+	}
+
 	// (3) create the devspace
 	if needCreateNamespace {
 		// create namespace
@@ -319,7 +346,7 @@ func (d *DevSpace) createDevSpace(
 		result, err = service.Svc.ClusterUser().Create(
 			d.c, *d.DevSpaceParams.ClusterId, usersRecord.ID, *d.DevSpaceParams.Memory, *d.DevSpaceParams.Cpu,
 			"", devNamespace, d.DevSpaceParams.SpaceName, string(resString), d.DevSpaceParams.IsBaseSpace,
-			d.DevSpaceParams.Protected,
+			d.DevSpaceParams.Protected, d.DevSpaceParams.DevSpaceType,
 		)
 		if err != nil {
 			return nil, errno.ErrBindApplicationClsuter
@@ -398,4 +425,37 @@ func (d *DevSpace) deleteTracingHeader() error {
 		return err
 	}
 	return nil
+}
+
+func (d *DevSpace) initVirtualCluster(clusterRecord *model.ClusterModel, clusterUser *model.ClusterUserModel) error {
+	v := d.DevSpaceParams.VirtualCluster
+	if v == nil {
+		return errors.New("can not find virtual cluster info")
+	}
+
+	vc := &v1alpha1.VirtualCluster{}
+	vc.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   "helm.nocalhost.dev",
+		Version: "v1alpha1",
+		Kind:    "VirtualCluster",
+	})
+	vc.SetName(global.VClusterPrefix + clusterUser.Namespace)
+	vc.SetNamespace(clusterUser.Namespace)
+	vc.SetValues(v.Values)
+	vc.SetChartName("vcluster")
+	vc.SetChartRepo(global.NocalhostChartRepository)
+	vc.SetChartVersion(v.Version)
+	annotations := map[string]string{
+		v1alpha1.ServiceTypeKey: string(v.ServiceType),
+		v1alpha1.SpaceName:      clusterUser.SpaceName,
+	}
+	vc.SetAnnotations(annotations)
+
+	goClient, err := clientgo.NewAdminGoClient([]byte(clusterRecord.KubeConfig))
+	if err != nil {
+		return err
+	}
+
+	_, err = goClient.Apply(vc)
+	return err
 }
