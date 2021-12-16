@@ -951,7 +951,6 @@ func (a *ApplicationMeta) Delete() error {
 	a.PostDeleteManifest = ""
 	a.Manifest = ""
 	a.DevMeta = map[base.SvcType]map[string]string{}
-	a.Config = &profile2.NocalHostAppConfigV2{}
 	a.UninstallBackOff = time.Now().Add(time.Second * 10).UnixNano()
 
 	return a.Update()
