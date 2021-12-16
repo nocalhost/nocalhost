@@ -12,10 +12,12 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/kubernetes"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"nocalhost/internal/nhctl/vpn/util"
+	"strings"
 )
 
 type CustomResourceDefinitionController struct {
@@ -38,27 +40,21 @@ func NewCustomResourceDefinitionController(factory cmdutil.Factory, clientset *k
 
 // ScaleToZero TODO needs to create a same pod name, but with different labels for using to click
 func (crd *CustomResourceDefinitionController) ScaleToZero() (map[string]string, []v1.ContainerPort, string, error) {
-	topController := util.GetTopController(crd.factory, crd.clientset, crd.namespace, fmt.Sprintf("%s/%s", crd.getResource(), crd.name))
-	// controllerBy is empty
-	if len(topController.Name) == 0 || len(topController.Resource) == 0 {
-		get, err := crd.clientset.CoreV1().Pods(crd.namespace).Get(context.TODO(), crd.name, metav1.GetOptions{})
-		if err != nil {
-			return nil, nil, "", err
-		}
-		_ = crd.clientset.CoreV1().Pods(crd.namespace).Delete(context.TODO(), crd.name, metav1.DeleteOptions{})
-		return get.GetLabels(), get.Spec.Containers[0].Ports, "", nil
-	}
-	object, err := util.GetUnstructuredObject(crd.factory, crd.namespace, fmt.Sprintf("%s/%s", topController.Resource, topController.Name))
-	helper := resource.NewHelper(object.Client, object.Mapping)
-	//crd.f = func() error {
-	//	_, err = helper.Create(crd.namespace, true, object.Object)
-	//	return err
-	//}
-	if _, err = helper.Delete(crd.namespace, object.Name); err != nil {
+	//topController := util.GetTopController(crd.factory, crd.clientset, crd.namespace, fmt.Sprintf("%s/%s", crd.getResource(), crd.name))
+	info, err := util.GetUnstructuredObject(crd.factory, crd.namespace, fmt.Sprintf("%s/%s", crd.getResource(), crd.name))
+	if err != nil {
 		return nil, nil, "", err
 	}
-	marshal, _ := json.Marshal(object.Object)
-	return util.GetLabelSelector(object.Object).MatchLabels, util.GetPorts(object.Object), string(marshal), err
+	helper := resource.NewHelper(info.Client, info.Mapping)
+	if _, err = helper.Delete(crd.namespace, info.Name); err != nil {
+		return nil, nil, "", err
+	}
+	u := info.Object.(*unstructured.Unstructured)
+	u.SetManagedFields(nil)
+	u.SetResourceVersion("")
+	u.SetUID("")
+	bytes, _ := u.MarshalJSON()
+	return util.GetLabelSelector(info.Object).MatchLabels, util.GetPorts(info.Object), string(bytes), err
 }
 
 func (crd *CustomResourceDefinitionController) Cancel() error {
@@ -78,23 +74,16 @@ func (crd *CustomResourceDefinitionController) Reset() error {
 	}
 	if a := get.GetAnnotations()[util.OriginData]; len(a) != 0 {
 		var r unstructured.Unstructured
-		if err = json.Unmarshal([]byte(a), &r); err != nil {
-			return err
+		if err = json.Unmarshal([]byte(a), &r); err == nil {
+			if client, err := crd.factory.DynamicClient(); err == nil {
+				gvr := schema.GroupVersionResource{
+					Group:    r.GetObjectKind().GroupVersionKind().Group,
+					Version:  r.GetObjectKind().GroupVersionKind().Version,
+					Resource: strings.ToLower(r.GetObjectKind().GroupVersionKind().Kind) + "s",
+				}
+				_, _ = client.Resource(gvr).Create(context.TODO(), &r, metav1.CreateOptions{})
+			}
 		}
-		client, err := crd.factory.DynamicClient()
-		if err != nil {
-			return err
-		}
-		mapper, err := crd.factory.ToRESTMapper()
-		if err != nil {
-			return err
-		}
-		mapping, err := mapper.RESTMapping(r.GetObjectKind().GroupVersionKind().GroupKind(), r.GetObjectKind().GroupVersionKind().Version)
-		if err != nil {
-			return err
-		}
-		_, err = client.Resource(mapping.Resource).Create(context.TODO(), &r, metav1.CreateOptions{})
-		return err
 	}
 	return nil
 }

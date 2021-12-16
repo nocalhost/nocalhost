@@ -91,8 +91,8 @@ func PortForwardPod(config *rest.Config, clientset *rest.RESTClient, podName, na
 	return nil
 }
 
-func GetTopController(factory cmdutil.Factory, clientset *kubernetes.Clientset, namespace, serviceName string) (controller ResourceTupleWithScale) {
-	object, err := GetUnstructuredObject(factory, namespace, serviceName)
+func GetTopController(factory cmdutil.Factory, clientset *kubernetes.Clientset, namespace, workload string) (controller ResourceTupleWithScale) {
+	object, err := GetUnstructuredObject(factory, namespace, workload)
 	if err != nil {
 		return
 	}

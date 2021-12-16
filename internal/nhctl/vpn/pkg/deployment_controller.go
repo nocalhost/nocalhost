@@ -32,11 +32,11 @@ func NewDeploymentController(factory cmdutil.Factory, clientset *kubernetes.Clie
 }
 
 func (d *DeploymentController) ScaleToZero() (map[string]string, []v1.ContainerPort, string, error) {
-	scale, err2 := d.clientset.AppsV1().Deployments(d.namespace).GetScale(context.TODO(), d.name, metav1.GetOptions{})
-	if err2 != nil {
-		return nil, nil, "", err2
+	scale, err := d.clientset.AppsV1().Deployments(d.namespace).GetScale(context.TODO(), d.name, metav1.GetOptions{})
+	if err != nil {
+		return nil, nil, "", err
 	}
-	if err := util.UpdateReplicasScale(d.clientset, d.namespace, util.ResourceTupleWithScale{
+	if err = util.UpdateReplicasScale(d.clientset, d.namespace, util.ResourceTupleWithScale{
 		Resource: d.getResource(),
 		Name:     d.name,
 		Scale:    0,

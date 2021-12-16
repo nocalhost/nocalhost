@@ -131,8 +131,8 @@ func CreateInboundPod(
 	shadowTunIP,
 	routes string,
 ) error {
-	tuple, parsed, err2 := util.SplitResourceTypeName(workloads)
-	if !parsed || err2 != nil {
+	tuple, parsed, err := util.SplitResourceTypeName(workloads)
+	if !parsed || err != nil {
 		return errors.New("not need")
 	}
 	newName := ToInboundPodName(tuple.Resource, tuple.Name)
@@ -149,11 +149,17 @@ func CreateInboundPod(
 		sc = NewServiceController(factory, clientset, namespace, tuple.Name)
 	case "pod", "pods":
 		sc = NewPodController(factory, clientset, namespace, tuple.Name)
+	case "daemonset", "daemonsets":
+		sc = NewDaemonSetController(factory, clientset, namespace, tuple.Name)
 	default:
 		sc = NewCustomResourceDefinitionController(factory, clientset, namespace, tuple.Resource, tuple.Name)
 	}
-	labels, ports, str, err2 := sc.ScaleToZero()
 	util.GetLoggerFromContext(ctx).Infoln("scaling workloads to 0...")
+	labels, ports, str, err := sc.ScaleToZero()
+	if err != nil {
+		util.GetLoggerFromContext(ctx).Errorf("scale workloads to 0 failed, error: %v\n", err)
+		return err
+	}
 	t := true
 	zero := int64(0)
 	pod := v1.Pod{
@@ -211,7 +217,7 @@ func CreateInboundPod(
 			PriorityClassName: "system-cluster-critical",
 		},
 	}
-	if _, err := clientset.CoreV1().Pods(namespace).Create(context.TODO(), &pod, metav1.CreateOptions{}); err != nil {
+	if _, err = clientset.CoreV1().Pods(namespace).Create(context.TODO(), &pod, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 	watch, err := clientset.CoreV1().Pods(namespace).Watch(context.TODO(), metav1.SingleObject(metav1.ObjectMeta{Name: newName}))

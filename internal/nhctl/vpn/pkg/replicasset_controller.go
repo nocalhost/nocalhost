@@ -32,11 +32,11 @@ func NewReplicasController(factory cmdutil.Factory, clientset *kubernetes.Client
 }
 
 func (c *ReplicasController) ScaleToZero() (map[string]string, []v1.ContainerPort, string, error) {
-	replicaSet, err2 := c.clientset.AppsV1().ReplicaSets(c.namespace).Get(context.TODO(), c.name, metav1.GetOptions{})
-	if err2 != nil {
-		return nil, nil, "", err2
+	replicaSet, err := c.clientset.AppsV1().ReplicaSets(c.namespace).Get(context.TODO(), c.name, metav1.GetOptions{})
+	if err != nil {
+		return nil, nil, "", err
 	}
-	if err := util.UpdateReplicasScale(c.clientset, c.namespace, util.ResourceTupleWithScale{
+	if err = util.UpdateReplicasScale(c.clientset, c.namespace, util.ResourceTupleWithScale{
 		Resource: c.getResource(),
 		Name:     c.name,
 		Scale:    0,

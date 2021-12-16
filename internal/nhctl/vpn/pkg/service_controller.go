@@ -82,7 +82,6 @@ func (s *ServiceController) ScaleToZero() (map[string]string, []v1.ContainerPort
 		// CRD
 		var result []string
 		for _, info := range list {
-			info.Object.GetObjectKind()
 			u := info.Object.(*unstructured.Unstructured)
 			u.SetManagedFields(nil)
 			u.SetResourceVersion("")
