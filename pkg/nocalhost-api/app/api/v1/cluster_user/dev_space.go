@@ -141,6 +141,13 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 	if d.DevSpaceParams.BaseDevSpaceId > 0 {
 		if clusterUserModel, err = d.initMeshDevSpace(&clusterRecord, clusterUserModel, baseClusterUser); err != nil {
 			log.Error(err)
+			// rollback
+			log.Debugf("rollback dev space %s", clusterUserModel.SpaceName)
+			d.KubeConfig = []byte(clusterRecord.GetKubeConfig())
+			d.DevSpaceParams.NameSpace = clusterUserModel.Namespace
+			d.DevSpaceParams.SpaceName = clusterUserModel.SpaceName
+			d.DevSpaceParams.ID = &clusterUserModel.ID
+			_ = d.Delete()
 			return nil, errno.ErrInitMeshSpaceFailed
 		}
 	}
@@ -186,8 +193,8 @@ func (d *DevSpace) createClusterDevSpace(
 	trueFlag := uint64(1)
 	list, err := service.Svc.ClusterUser().GetList(
 		context.TODO(), model.ClusterUserModel{
-			ClusterId: clusterRecord.ID,
-			UserId: usersRecord.ID,
+			ClusterId:    clusterRecord.ID,
+			UserId:       usersRecord.ID,
 			ClusterAdmin: &trueFlag,
 		},
 	)
@@ -315,12 +322,12 @@ func (d *DevSpace) initMeshDevSpace(
 
 	meshManager, err := setupcluster.GetSharedMeshManagerFactory().Manager(clusterRecord.KubeConfig)
 	if err != nil {
-		return nil, err
+		return clusterUser, err
 	}
 
 	if err := meshManager.InitMeshDevSpace(meshDevInfo); err != nil {
 		_ = meshManager.Rollback(meshDevInfo)
-		return nil, err
+		return clusterUser, err
 	}
 
 	clusterUser.TraceHeader = d.DevSpaceParams.MeshDevInfo.Header
