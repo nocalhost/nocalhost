@@ -105,14 +105,10 @@ var rootCmd = &cobra.Command{
 		serviceType = strings.ToLower(serviceType)
 
 		if authCheck {
-
 			must(Prepare())
-			client, err := clientgoutils.NewClientGoUtils(kubeConfig, nameSpace)
-			must(err)
-
-			must(clientgoutils.DoCheck(client, nameSpace, cmd))
-
-			fmt.Printf("yes")
+			if clientgoutils.AuthCheck(nameSpace, kubeConfig, cmd) {
+				fmt.Printf("yes")
+			}
 			os.Exit(0)
 			return
 		}

@@ -106,8 +106,8 @@ func NewClientGoUtils(kubeConfigPath string, namespace string) (*ClientGoUtils, 
 		return nil, errors.Wrap(err, "")
 	}
 
-	// set default rateLimiter to 100, in case of throttling request
-	client.restConfig.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(100, 200)
+	// set default rateLimiter to 1000, in case of throttling request
+	client.restConfig.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(1000, 200)
 
 	if client.ClientSet, err = kubernetes.NewForConfig(client.restConfig); err != nil {
 		return nil, errors.Wrap(err, "")
