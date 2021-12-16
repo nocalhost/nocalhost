@@ -22,61 +22,62 @@ import (
 	"k8s.io/client-go/util/homedir"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
+	"path"
 	"path/filepath"
 	"testing"
 	"time"
 )
 
-func TestName(t *testing.T) {
-	b, _ := ioutil.ReadFile("/Users/naison/t")
-	search, err := GetSearcherWithLRU(b, "nh7wump")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	go func() {
-		for {
-			query, e := search.Criteria().Kind(&corev1.Namespace{}).Query()
-			if e != nil {
-				fmt.Println(e)
-			}
-			for _, ns := range query {
-				fmt.Println(ns.(*corev1.Namespace).Namespace)
-			}
-
-			deploymentList, err := search.Criteria().ResourceType("deployments").AppName("default.application").Query()
-			if err != nil {
-				fmt.Println(err)
-			}
-			fmt.Println(deploymentList)
-			deployments, _ := search.Criteria().Kind(&v1.Deployment{}).Namespace("test").Query()
-			fmt.Print("\ntest: ")
-			for _, name := range deployments {
-				fmt.Print(name.(*v1.Deployment).Name + " ")
-			}
-
-			fmt.Println("pods in service 1")
-			list, _ := search.Criteria().Kind(&v1.Deployment{}).AppName("1").Query()
-			for _, pod := range list {
-				fmt.Print(pod.(metav1.Object).GetName() + " ")
-			}
-
-			fmt.Print("\nkube-system: ")
-			//keys := inform.GetIndexer().ListKeys()
-			//for _, k := range keys {
-			//    fmt.Print(k + " ")
-			//}
-			deployme, ok := search.Criteria().Kind(&v1.Deployment{}).Namespace("test").ResourceName("productpage").QueryOne()
-			//for _, name := range deployme {
-			//}
-			if ok != nil {
-				fmt.Print(deployme.(metav1.Object).GetCreationTimestamp().String() + " ")
-			}
-			time.Sleep(time.Second * 5)
-		}
-	}()
-	//search.Start()
-}
+//func TestName(t *testing.T) {
+//	b, _ := ioutil.ReadFile("/Users/naison/t")
+//	search, err := GetSearcherWithLRU(b, "nh7wump")
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+//
+//	go func() {
+//		for {
+//			query, e := search.Criteria().Kind(&corev1.Namespace{}).Query()
+//			if e != nil {
+//				fmt.Println(e)
+//			}
+//			for _, ns := range query {
+//				fmt.Println(ns.(*corev1.Namespace).Namespace)
+//			}
+//
+//			deploymentList, err := search.Criteria().ResourceType("deployments").AppName("default.application").Query()
+//			if err != nil {
+//				fmt.Println(err)
+//			}
+//			fmt.Println(deploymentList)
+//			deployments, _ := search.Criteria().Kind(&v1.Deployment{}).Namespace("test").Query()
+//			fmt.Print("\ntest: ")
+//			for _, name := range deployments {
+//				fmt.Print(name.(*v1.Deployment).Name + " ")
+//			}
+//
+//			fmt.Println("pods in service 1")
+//			list, _ := search.Criteria().Kind(&v1.Deployment{}).AppName("1").Query()
+//			for _, pod := range list {
+//				fmt.Print(pod.(metav1.Object).GetName() + " ")
+//			}
+//
+//			fmt.Print("\nkube-system: ")
+//			//keys := inform.GetIndexer().ListKeys()
+//			//for _, k := range keys {
+//			//    fmt.Print(k + " ")
+//			//}
+//			deployme, ok := search.Criteria().Kind(&v1.Deployment{}).Namespace("test").ResourceName("productpage").QueryOne()
+//			//for _, name := range deployme {
+//			//}
+//			if ok != nil {
+//				fmt.Print(deployme.(metav1.Object).GetCreationTimestamp().String() + " ")
+//			}
+//			time.Sleep(time.Second * 5)
+//		}
+//	}()
+//	//search.Start()
+//}
 
 //func TestConvert(t *testing.T) {
 //	b, _ := ioutil.ReadFile("/Users/naison/tke")
@@ -135,15 +136,16 @@ func TestGetPods(t *testing.T) {
 }
 
 func TestGetDefault(t *testing.T) {
-	bytes, _ := ioutil.ReadFile(filepath.Join(utils.GetHomePath(), ".kube/config"))
+	//bytes, _ := ioutil.ReadFile("/tmp/test.txt")
+	bytes, _ := ioutil.ReadFile(path.Join(utils.GetHomePath(), ".kube/config"))
 	s, err := GetSearcherWithLRU(bytes, "nocalhost-test")
 	if err != nil {
 		panic(err)
 	}
-	i, e := s.Criteria().ResourceType("cloneset").
+	i, e := s.Criteria().ResourceType("crds").
 		ResourceName("").
-		AppName("bookinfo").
-		Namespace("nocalhost-test").Query()
+		//AppName("bookinfo").
+		Namespace("").Query()
 	if e != nil {
 		log.Error(e)
 	}
@@ -186,17 +188,17 @@ func TestGetNamespace(t *testing.T) {
 	}
 }
 
-func TestGetDeploy(t *testing.T) {
-	kubeconfigBytes, _ := ioutil.ReadFile("/Users/naison/.kube/config")
-	s, _ := GetSearcherWithLRU(kubeconfigBytes, "")
-	list, er := s.Criteria().Kind(&v1.Deployment{}).Namespace("default").Query()
-	if er != nil {
-		fmt.Println(er)
-	}
-	for _, dep := range list {
-		fmt.Println(dep.(metav1.Object).GetName())
-	}
-}
+//func TestGetDeploy(t *testing.T) {
+//	kubeconfigBytes, _ := ioutil.ReadFile("/Users/naison/.kube/config")
+//	s, _ := GetSearcherWithLRU(kubeconfigBytes, "")
+//	list, er := s.Criteria().Kind(&v1.Deployment{}).Namespace("default").Query()
+//	if er != nil {
+//		fmt.Println(er)
+//	}
+//	for _, dep := range list {
+//		fmt.Println(dep.(metav1.Object).GetName())
+//	}
+//}
 
 func TestNewLRU(t *testing.T) {
 	lru, _ := simplelru.NewLRU(2, nil)
@@ -238,18 +240,18 @@ func TestApiResource(t *testing.T) {
 	}
 }
 
-func TestNoListNamespacePermission(t *testing.T) {
-	join := filepath.Join(homedir.HomeDir(), ".kube", "minikube")
-	kubeconfigBytes, _ := ioutil.ReadFile(join)
-	s, _ := GetSearcherWithLRU(kubeconfigBytes, "default")
-	list, er := s.Criteria().Kind(&corev1.Namespace{}).Namespace("default").Query()
-	if er != nil {
-		fmt.Println(er)
-	}
-	for _, dep := range list {
-		fmt.Println(dep.(metav1.Object).GetName())
-	}
-}
+//func TestNoListNamespacePermission(t *testing.T) {
+//	join := filepath.Join(homedir.HomeDir(), ".kube", "minikube")
+//	kubeconfigBytes, _ := ioutil.ReadFile(join)
+//	s, _ := GetSearcherWithLRU(kubeconfigBytes, "default")
+//	list, er := s.Criteria().Kind(&corev1.Namespace{}).Namespace("default").Query()
+//	if er != nil {
+//		fmt.Println(er)
+//	}
+//	for _, dep := range list {
+//		fmt.Println(dep.(metav1.Object).GetName())
+//	}
+//}
 
 func TestEventHandler(t *testing.T) {
 	join := filepath.Join(homedir.HomeDir(), ".kube", "config")

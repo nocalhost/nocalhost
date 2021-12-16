@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/nocalhost_path"
+	"nocalhost/pkg/nhctl/log"
 	"path/filepath"
 )
 
@@ -27,6 +28,14 @@ const (
 	CloneSetV1Alpha1 base.SvcType = "clonesets.v1alpha1.apps.kruise.io"
 )
 
+func SvcTypeIsBuildIn(svcType base.SvcType) bool {
+	if svcType == Deployment || svcType == StatefulSet || svcType == DaemonSet ||
+		svcType == Job || svcType == CronJob || svcType == Pod {
+		return true
+	}
+	return false
+}
+
 func init() {
 	supportedSvcType = make(map[base.SvcType]base.DevModeAction, 0)
 	supportedSvcType[Deployment] = DefaultDevModeAction
@@ -41,6 +50,7 @@ func init() {
 	if err == nil && len(bys) > 0 {
 		configFile := base.ConfigFile{}
 		if err = yaml.Unmarshal(bys, &configFile); err != nil {
+			log.WarnE(err, "")
 			return
 		}
 		for _, action := range configFile.CrdDevModeActions {
@@ -65,7 +75,7 @@ func SvcTypeOfMutate(svcType string) (base.SvcType, error) {
 
 var (
 	DefaultDevModeAction = base.DevModeAction{
-		ScaleAction: []base.PatchItem{{
+		ScalePatches: []base.PatchItem{{
 			Patch: `[{"op":"replace","path":"/spec/replicas","value":1}]`,
 			Type:  "json",
 		}},
@@ -73,7 +83,7 @@ var (
 	}
 
 	StatefulSetDevModeAction = base.DevModeAction{
-		ScaleAction: []base.PatchItem{{
+		ScalePatches: []base.PatchItem{{
 			Patch: `[{"op":"replace","path":"/spec/replicas","value":1}]`,
 			Type:  "json",
 		}},
@@ -81,7 +91,7 @@ var (
 	}
 
 	DaemonSetDevModeAction = base.DevModeAction{
-		ScaleAction: []base.PatchItem{{
+		ScalePatches: []base.PatchItem{{
 			Patch: `{"spec":{"template": {"spec": {"nodeName": "nocalhost.unreachable"}}}}`,
 			Type:  "strategic",
 		}},
@@ -95,7 +105,7 @@ var (
 	}
 
 	CronJobDevModeAction = base.DevModeAction{
-		ScaleAction: []base.PatchItem{{
+		ScalePatches: []base.PatchItem{{
 			Patch: `{"spec":{"suspend": true}}`,
 			Type:  "strategic",
 		}},
@@ -103,21 +113,3 @@ var (
 		Create:          true,
 	}
 )
-
-//func GetDevModeActionBySvcType(svcType base.SvcType) (base.DevModeAction, error) {
-//	switch svcType {
-//	case base.Deployment, base.CloneSetV1Alpha1:
-//		return DefaultDevModeAction, nil
-//	case base.StatefulSet:
-//		return StatefulSetDevModeAction, nil
-//	case base.DaemonSet:
-//		return DaemonSetDevModeAction, nil
-//	case base.Job:
-//		return JobDevModeAction, nil
-//	case base.CronJob:
-//		return CronJobDevModeAction, nil
-//		//case base.Pod:
-//		//	return DeploymentDevModeAction
-//	}
-//	return DefaultDevModeAction, errors.New("un supported workload")
-//}

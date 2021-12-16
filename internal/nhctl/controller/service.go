@@ -435,7 +435,7 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 	}
 
 	log.Infof("Scale %s(%s) to 1", c.Name, c.Type.String())
-	for _, item := range c.DevModeAction.ScaleAction {
+	for _, item := range c.DevModeAction.ScalePatches {
 		log.Infof("Patching %s", item.Patch)
 		if err := c.Client.Patch(c.Type.String(), c.Name, item.Patch, item.Type); err != nil {
 			return err
@@ -595,7 +595,7 @@ func (c *Controller) ReplaceDuplicateModeImage(ctx context.Context, ops *model.D
 			kind += "." + gvk.Group
 		}
 
-		for _, item := range c.DevModeAction.ScaleAction {
+		for _, item := range c.DevModeAction.ScalePatches {
 			log.Infof("Patching %s", item.Patch)
 			if err = c.Client.Patch(kind, infos[0].Name, item.Patch, item.Type); err != nil {
 				return err

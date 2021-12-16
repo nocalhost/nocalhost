@@ -377,7 +377,7 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 					return nil, errors.Wrap(err, "")
 				}
 
-				return daemon_handler.HandleGetResourceInfoRequest(cmd), nil
+				return daemon_handler.HandleGetResourceInfoRequest(cmd)
 			},
 		)
 

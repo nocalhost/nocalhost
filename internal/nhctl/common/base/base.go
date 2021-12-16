@@ -6,19 +6,19 @@
 package base
 
 type DevModeAction struct {
-	ScaleAction     []PatchItem
-	PodTemplatePath string
-	Create          bool
+	ScalePatches    []PatchItem `json:"scalePatches" yaml:"scalePatches"`
+	PodTemplatePath string      `json:"podTemplatePath" yaml:"podTemplatePath"`
+	Create          bool        `json:"create" yaml:"create"`
 }
 
 type CrdDevModeAction struct {
-	CrdType       string         `json:"crd_type" yaml:"crd_type"`
-	DevModeAction *DevModeAction `json:"dev_mode_action" yaml:"dev_mode_action"`
+	CrdType       string         `json:"crdType" yaml:"crdType"`
+	DevModeAction *DevModeAction `json:"devModeAction" yaml:"devModeAction"`
 }
 
 type ConfigFile struct {
-	NhEsUrl           string             `json:"nh_es_url" yaml:"nh_es_url"`
-	CrdDevModeActions []CrdDevModeAction `json:"crd_dev_mode_actions" yaml:"crd_dev_mode_actions"`
+	NhEsUrl           string             `json:"nhEsUrl" yaml:"nhEsUrl"`
+	CrdDevModeActions []CrdDevModeAction `json:"crdDevModeActions" yaml:"crdDevModeActions"`
 }
 
 type PatchItem struct {

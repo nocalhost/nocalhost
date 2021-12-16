@@ -46,6 +46,9 @@ var lock sync.Mutex
 var clusterMap = make(map[string]bool)
 var clusterMapLock sync.Mutex
 
+// key: generateKey(kubeconfigBytes, namespace) value: []*restmapper.APIGroupResources
+var apiGroupResourcesMap sync.Map
+
 type Searcher struct {
 	kubeconfigBytes []byte
 	//informerFactory        informers.SharedInformerFactory
@@ -67,7 +70,7 @@ type GvkGvrWithAlias struct {
 
 // getSupportedSchema return restMapping of each resource, [string]*meta.RESTMapping
 // Key: resourceType
-func getSupportedSchema(apiResources []*restmapper.APIGroupResources) (map[string][]GvkGvrWithAlias, error) {
+func getSupportedSchema(apiResources []*restmapper.APIGroupResources) ([]GvkGvrWithAlias, error) {
 	var resourceNeeded = map[string]string{"namespaces": "namespaces"} // deployment/statefulset...
 	for _, v := range GroupToTypeMap {
 		for _, s := range v.V {
@@ -75,7 +78,7 @@ func getSupportedSchema(apiResources []*restmapper.APIGroupResources) (map[strin
 		}
 	}
 
-	nameToMapping := make(map[string][]GvkGvrWithAlias) // resourceType: []GvkGvrWithAlias
+	nameToMapping := make([]GvkGvrWithAlias, 0) // []GvkGvrWithAlias
 	for _, resourceList := range apiResources {
 		for version, resource := range resourceList.VersionedResources {
 			for _, apiResource := range resource {
@@ -99,12 +102,7 @@ func getSupportedSchema(apiResources []*restmapper.APIGroupResources) (map[strin
 					}
 					r.alias = append(r.alias, strings.ToLower(apiResource.Kind))
 					r.alias = append(r.alias, strings.ToLower(apiResource.Name))
-					v := nameToMapping[apiResource.Name]
-					if v == nil {
-						v = make([]GvkGvrWithAlias, 0)
-					}
-					v = append(v, r)
-					nameToMapping[apiResource.Name] = v
+					nameToMapping = append(nameToMapping, r)
 				}
 			}
 		}
@@ -132,13 +130,13 @@ func ConvertRuntimeObjectToCRD(obj runtime.Object) (*apiextensions.CustomResourc
 }
 
 // todo: support multi versions
-func getCrdSchema(client *clientgoutils.ClientGoUtils, apiGroupResources []*restmapper.APIGroupResources) (map[string][]GvkGvrWithAlias, error) {
+func getCrdSchema(client *clientgoutils.ClientGoUtils, apiGroupResources []*restmapper.APIGroupResources) ([]GvkGvrWithAlias, error) {
 
 	crds, err := client.ListResourceInfo("crd")
 	if err != nil {
 		return nil, err
 	}
-	nameToMapping := make(map[string][]GvkGvrWithAlias) // resourceType: []GvkGvrWithAlias
+	nameToMapping := make([]GvkGvrWithAlias, 0)
 
 	for _, crd := range crds {
 		crdObj, err := ConvertRuntimeObjectToCRD(crd.Object)
@@ -146,30 +144,10 @@ func getCrdSchema(client *clientgoutils.ClientGoUtils, apiGroupResources []*rest
 			continue
 		}
 
-		ggwa := GvkGvrWithAlias{
-			Gvk: schema.GroupVersionKind{
-				Group:   crdObj.Spec.Group,
-				Version: crdObj.Spec.Versions[0].Name,
-				Kind:    crdObj.Spec.Names.Kind,
-			},
-			alias:      []string{},
-			Namespaced: crdObj.Spec.Scope == apiextensions.NamespaceScoped,
+		gs := ConvertCRDToGgwa(crdObj, apiGroupResources)
+		if len(gs) > 0 {
+			nameToMapping = append(nameToMapping, gs...)
 		}
-		apiR, err := convertGvkToApiResource(&ggwa.Gvk, apiGroupResources)
-		if err != nil {
-			log.Warnf("Failed to convert gvk %v to apiResource", ggwa.Gvk)
-			continue
-		}
-		ggwa.Gvr = schema.GroupVersionResource{
-			Group:    ggwa.Gvk.Group,
-			Version:  ggwa.Gvk.Version,
-			Resource: apiR.Name,
-		}
-		ggwa.alias = append(ggwa.alias, crdObj.Spec.Names.ShortNames...)
-		ggwa.alias = append(ggwa.alias, strings.ToLower(crdObj.Spec.Names.Kind))
-		ggwa.alias = append(ggwa.alias, crdObj.Spec.Names.Singular, apiR.Name)
-		ggwa.alias = append(ggwa.alias, fmt.Sprintf("%s.%s.%s", apiR.Name, ggwa.Gvr.Version, ggwa.Gvr.Group))
-		nameToMapping[crdObj.Spec.Names.Singular] = []GvkGvrWithAlias{ggwa}
 	}
 
 	crdGvk := schema.GroupVersionKind{
@@ -194,13 +172,42 @@ func getCrdSchema(client *clientgoutils.ClientGoUtils, apiGroupResources []*rest
 			Namespaced: false,
 		}
 		ggwa.alias = append(ggwa.alias, apiR.ShortNames...)
-		nameToMapping[apiR.Name] = []GvkGvrWithAlias{ggwa}
+		ggwa.alias = append(ggwa.alias, "crds")
+		nameToMapping = append(nameToMapping, ggwa)
 	}
 
 	if len(nameToMapping) == 0 {
 		return nil, errors.New("RestMapping is empty, this should not happened")
 	}
 	return nameToMapping, nil
+}
+
+func ConvertCRDToGgwa(crdObj *apiextensions.CustomResourceDefinition, agrs []*restmapper.APIGroupResources) []GvkGvrWithAlias {
+	result := make([]GvkGvrWithAlias, 0)
+	for _, version := range crdObj.Spec.Versions {
+		ggwa := GvkGvrWithAlias{
+			Gvk: schema.GroupVersionKind{
+				Group:   crdObj.Spec.Group,
+				Version: version.Name,
+				Kind:    crdObj.Spec.Names.Kind,
+			},
+			alias:      []string{},
+			Namespaced: crdObj.Spec.Scope == apiextensions.NamespaceScoped,
+		}
+		apiR, err := convertGvkToApiResource(&ggwa.Gvk, agrs)
+		if err != nil {
+			log.Warnf("Failed to convert gvk %v to apiResource", ggwa.Gvk)
+			continue
+		}
+		ggwa.Gvr = schema.GroupVersionResource{
+			Group:    ggwa.Gvk.Group,
+			Version:  ggwa.Gvk.Version,
+			Resource: apiR.Name,
+		}
+		ggwa.alias = append(ggwa.alias, fmt.Sprintf("%s.%s.%s", apiR.Name, ggwa.Gvr.Version, ggwa.Gvr.Group))
+		result = append(result, ggwa)
+	}
+	return result
 }
 
 func convertGvkToApiResource(gvk *schema.GroupVersionKind, grs []*restmapper.APIGroupResources) (*metav1.APIResource, error) {
@@ -223,6 +230,28 @@ func convertGvkToApiResource(gvk *schema.GroupVersionKind, grs []*restmapper.API
 	return nil, errors.New("Can not convert gvk to gvr")
 }
 
+func GetApiGroupResources(kubeBytes []byte, ns string) ([]*restmapper.APIGroupResources, error) {
+	clusterKey := generateKey(kubeBytes, ns)
+	var gr []*restmapper.APIGroupResources
+	v, ok := apiGroupResourcesMap.Load(clusterKey)
+	if !ok {
+		kubeconfigPath := k8sutils.GetOrGenKubeConfigPath(string(kubeBytes))
+		clientUtils, err := clientgoutils.NewClientGoUtils(kubeconfigPath, ns)
+		if err != nil {
+			return nil, err
+		}
+		if gr, err = clientUtils.GetAPIGroupResources(); err != nil {
+			return nil, err
+		}
+		apiGroupResourcesMap.Store(clusterKey, gr)
+	} else {
+		if gr, ok = v.([]*restmapper.APIGroupResources); !ok {
+			return nil, errors.New("apiGroupResourcesMap value is not []*restmapper.APIGroupResources")
+		}
+	}
+	return gr, nil
+}
+
 // GetSearcherWithLRU GetSearchWithLRU will cache kubeconfig with LRU
 func GetSearcherWithLRU(kubeconfigBytes []byte, namespace string) (search *Searcher, err error) {
 	defer func() {
@@ -232,15 +261,36 @@ func GetSearcherWithLRU(kubeconfigBytes []byte, namespace string) (search *Searc
 	}()
 	lock.Lock()
 	defer lock.Unlock()
-	searcher, exist := searchMap.Get(generateKey(kubeconfigBytes, namespace))
+	clusterKey := generateKey(kubeconfigBytes, namespace)
+	searcher, exist := searchMap.Get(clusterKey)
 	if !exist || searcher == nil {
-		newSearcher, err := initSearcher(kubeconfigBytes, namespace)
+		kubeconfigPath := k8sutils.GetOrGenKubeConfigPath(string(kubeconfigBytes))
+		clientUtils, err := clientgoutils.NewClientGoUtils(kubeconfigPath, namespace)
 		if err != nil {
 			return nil, err
 		}
-		searchMap.Add(generateKey(kubeconfigBytes, namespace), newSearcher)
+
+		var gr []*restmapper.APIGroupResources
+		v, ok := apiGroupResourcesMap.Load(clusterKey)
+		if !ok {
+			if gr, err = clientUtils.GetAPIGroupResources(); err != nil {
+				return nil, err
+			}
+			apiGroupResourcesMap.Store(clusterKey, gr)
+		} else {
+			if gr, ok = v.([]*restmapper.APIGroupResources); !ok {
+				return nil, errors.New("apiGroupResourcesMap value is not []*restmapper.APIGroupResources")
+			}
+		}
+
+		newSearcher, err := initSearcher(kubeconfigBytes, namespace, clientUtils, gr)
+		if err != nil {
+			return nil, err
+		}
+		log.Infof("Search map is len is %d", searchMap.Len()+1)
+		searchMap.Add(clusterKey, newSearcher)
 	}
-	if searcher, exist = searchMap.Get(generateKey(kubeconfigBytes, namespace)); exist && searcher != nil {
+	if searcher, exist = searchMap.Get(clusterKey); exist && searcher != nil {
 		search = searcher.(*Searcher)
 		err = nil
 		return
@@ -263,21 +313,17 @@ func generateKey(kubeconfigBytes []byte, namespace string) string {
 }
 
 // initSearcher return a searcher which use informer to cache resource, without cache
-func initSearcher(kubeconfigBytes []byte, namespace string) (*Searcher, error) {
-	kubeconfigPath := k8sutils.GetOrGenKubeConfigPath(string(kubeconfigBytes))
-	clientUtils, err := clientgoutils.NewClientGoUtils(kubeconfigPath, namespace)
-	if err != nil {
-		return nil, err
-	}
+func initSearcher(kubeconfigBytes []byte, namespace string, clientUtils *clientgoutils.ClientGoUtils,
+	gr []*restmapper.APIGroupResources) (*Searcher, error) {
 
 	//// default value is flowcontrol.NewTokenBucketRateLimiter(5, 10)
 	//config.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(10000, 10000)
 
 	//var informerFactory informers.SharedInformerFactory
 	var dynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory
+	var err error
 
 	if clientUtils.IsClusterAdmin() {
-
 		dynamicInformerFactory = dynamicinformer.NewDynamicSharedInformerFactory(clientUtils.GetDynamicClient(), time.Second*5)
 		clusterMapLock.Lock()
 		clusterMap[string(kubeconfigBytes)] = true
@@ -285,23 +331,23 @@ func initSearcher(kubeconfigBytes []byte, namespace string) (*Searcher, error) {
 	} else {
 		dynamicInformerFactory = dynamicinformer.NewFilteredDynamicSharedInformerFactory(clientUtils.GetDynamicClient(), time.Second*5, namespace, nil)
 	}
-	gr, err2 := clientUtils.GetAPIGroupResources()
-	if err2 != nil {
-		return nil, err2
+
+	var crdRestMappingList []GvkGvrWithAlias
+
+	if clientUtils.IsClusterAdmin() {
+		crdRestMappingList, err = getCrdSchema(clientUtils, gr)
+		if err != nil {
+			log.WarnE(err, "Failed to get crd schema")
+		}
 	}
 
-	crdRestMappingList, err := getCrdSchema(clientUtils, gr)
+	restMappingList, err := getSupportedSchema(gr)
 	if err != nil {
 		return nil, err
 	}
 
-	restMappingList, err3 := getSupportedSchema(gr)
-	if err3 != nil {
-		return nil, err3
-	}
-
-	for s, aliases := range crdRestMappingList {
-		restMappingList[s] = aliases
+	for _, aliases := range crdRestMappingList {
+		restMappingList = append(restMappingList, aliases)
 	}
 
 	supportedSchema := sync.Map{} // alias: GvkGvrWithAlias
@@ -335,22 +381,14 @@ func initSearcher(kubeconfigBytes []byte, namespace string) (*Searcher, error) {
 	//	}
 	//}
 
-	//stopChannel := make(chan struct{}, len(restMappingList))
-	//informerFactory.Start(stopChannel)
-	//timeoutCtx, _ := context.WithTimeout(context.Background(), 3*time.Second)
-	//informerFactory.WaitForCacheSync(timeoutCtx.Done())
+	for _, resource := range restMappingList {
+		informer := dynamicInformerFactory.ForResource(resource.Gvr)
 
-	for _, groupVersionResourceList := range restMappingList {
-		for _, resource := range groupVersionResourceList {
-			informer := dynamicInformerFactory.ForResource(resource.Gvr)
+		informer.Informer().
+			AddEventHandler(NewResourceEventHandlerFuncs(informer, kubeconfigBytes, resource.Gvr))
 
-			informer.Informer().
-				AddEventHandler(NewResourceEventHandlerFuncs(informer, kubeconfigBytes, resource.Gvr))
-
-			for _, alias := range resource.alias {
-				supportedSchema.Store(alias, resource)
-			}
-			break
+		for _, alias := range resource.alias {
+			supportedSchema.Store(alias, resource)
 		}
 	}
 
