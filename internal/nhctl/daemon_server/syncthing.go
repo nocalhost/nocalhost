@@ -12,7 +12,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
 	"nocalhost/internal/nhctl/appmeta_manager"
-	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/daemon_server/command"
@@ -132,7 +131,7 @@ func reconnectedSyncthingIfNeeded() {
 			continue
 		}
 		for _, svcProfile := range appProfile.SvcProfile {
-			svcType, err1 := base.SvcTypeOfMutate(svcProfile.GetType())
+			svcType, err1 := nocalhost.SvcTypeOfMutate(svcProfile.GetType())
 			if err1 != nil {
 				continue
 			}

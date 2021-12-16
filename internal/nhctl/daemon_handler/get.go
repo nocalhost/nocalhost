@@ -47,7 +47,7 @@ func getServiceProfile(ns, appName, nid string, kubeconfigBytes []byte) map[stri
 		for _, svcProfileV2 := range description.SvcProfile {
 			if svcProfileV2 != nil {
 				svcProfileV2.DevModeType = appMeta.GetCurrentDevModeTypeOfWorkload(
-					svcProfileV2.Name, base.SvcTypeOf(svcProfileV2.Type), description.Identifier,
+					svcProfileV2.Name, base.SvcType(svcProfileV2.Type), description.Identifier,
 				)
 				name := strings.ToLower(svcProfileV2.GetType()) + "s"
 				serviceMap[name+"/"+svcProfileV2.GetName()] = svcProfileV2
@@ -109,7 +109,7 @@ func GetDescriptionDaemon(ns, appName, nid string, kubeconfigBytes []byte) *prof
 
 			appmeta.FillingExtField(svcProfile, &meta, appName, ns, appProfile.Identifier)
 
-			if m := devMeta[base.SvcTypeOf(svcProfile.GetType()).Alias()]; m != nil {
+			if m := devMeta[base.SvcType(svcProfile.GetType()).Alias()]; m != nil {
 				delete(m, svcProfile.GetName())
 			}
 		}

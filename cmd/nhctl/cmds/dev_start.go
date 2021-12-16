@@ -228,12 +228,12 @@ func loadLocalOrCmConfigIfValid() {
 
 		must(associatePath.Associate(svcPack, kubeConfig, true))
 
-		_ = nocalhostApp.ReloadSvcCfg(deployment, base.SvcTypeOf(serviceType), false, false)
+		_ = nocalhostApp.ReloadSvcCfg(deployment, base.SvcType(serviceType), false, false)
 	case 1:
 
 		must(dev_dir.DevPath(devStartOps.LocalSyncDir[0]).Associate(svcPack, kubeConfig, true))
 
-		_ = nocalhostApp.ReloadSvcCfg(deployment, base.SvcTypeOf(serviceType), false, false)
+		_ = nocalhostApp.ReloadSvcCfg(deployment, base.SvcType(serviceType), false, false)
 	default:
 		log.Fatal(errors.New("Can not define multi 'local-sync(-s)'"))
 	}

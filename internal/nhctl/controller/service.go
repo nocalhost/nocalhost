@@ -18,6 +18,7 @@ import (
 	"nocalhost/internal/nhctl/common/base"
 	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/model"
+	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
@@ -39,7 +40,7 @@ type Controller struct {
 	Client           *clientgoutils.ClientGoUtils
 	AppMeta          *appmeta.ApplicationMeta
 	config           *profile.ServiceConfigV2
-	DevModeAction    DevModeAction
+	DevModeAction    base.DevModeAction
 	devModePodLabels map[string]string
 }
 
@@ -61,9 +62,9 @@ func NewController(ns, name, appName, identifier string, svcType base.SvcType,
 		Identifier: identifier,
 	}
 	c.DevModeType = c.GetCurrentDevModeType()
-	da, err := GetDevModeActionBySvcType(svcType)
+	da, err := nocalhost.GetDevModeActionBySvcType(svcType)
 	if err == nil {
-		c.DevModeAction = da
+		c.DevModeAction = *da
 	}
 
 	a := c.GetAppConfig().GetSvcConfigS(c.Name, c.Type)

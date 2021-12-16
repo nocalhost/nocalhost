@@ -13,7 +13,6 @@ import (
 	"nocalhost/internal/nhctl/common"
 	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/controller"
-	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/utils"
 	"time"
 
@@ -191,7 +190,7 @@ var installCmd = &cobra.Command{
 				}
 
 				for _, pf := range cc.Install.PortForward {
-					lPort, rPort, err := profile.GetPortForwardForString(pf)
+					lPort, rPort, err := utils.GetPortForwardForString(pf)
 					if err != nil {
 						log.WarnE(err, "")
 						continue
