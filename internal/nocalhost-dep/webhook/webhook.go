@@ -235,8 +235,10 @@ func mutationRequired(ignoredList []string, metadata *metav1.ObjectMeta) bool {
 			matchNamespacesMap[ns] = struct{}{}
 		}
 		if _, ok := matchNamespacesMap[metadata.Namespace]; !ok {
-			glog.Infof("Skip mutation %s/%s, it's not in the MATCH_NAMESPACE %v",
-				metadata.Namespace, metadata.Name, matchNamespaces)
+			glog.Infof(
+				"Skip mutation %s/%s, it's not in the MATCH_NAMESPACE %v",
+				metadata.Namespace, metadata.Name, matchNamespaces,
+			)
 			return false
 		}
 	}

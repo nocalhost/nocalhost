@@ -81,7 +81,7 @@ var devAssociateCmd = &cobra.Command{
 		)
 
 		if info {
-			fmt.Printf(svcPack.GetAssociatePath().ToString())
+			fmt.Print(svcPack.GetAssociatePath().ToString())
 			return
 		} else if deAssociate {
 			svcPack.UnAssociatePath()
@@ -98,12 +98,28 @@ var devAssociateCmd = &cobra.Command{
 		initApp(commonFlags.AppName)
 		checkIfSvcExist(commonFlags.SvcName, serviceType)
 
-		if !dev_dir.DevPath(workDir).AlreadyAssociate(svcPack) && ((nocalhostSvc.IsInReplaceDevMode() && nocalhostSvc.IsProcessor()) || nocalhostSvc.IsInDuplicateDevMode()) {
-			log.PWarn("Current svc is already in DevMode, so can not switch associate dir, please exit the DevMode and try again.")
-			os.Exit(1)
+		if (nocalhostSvc.IsInReplaceDevMode() && nocalhostSvc.IsProcessor()) || nocalhostSvc.IsInDuplicateDevMode() {
+			if !dev_dir.DevPath(workDir).AlreadyAssociate(svcPack) {
+				log.PWarn("Current svc is already in DevMode, so can not switch associate dir, please exit the DevMode and try again.")
+				os.Exit(1)
+			} else {
+				if profile, err := nocalhostSvc.GetProfile(); err != nil {
+					log.PWarn("Fail to get profile of current svc, please exit the DevMode and try again.")
+					os.Exit(1)
+				} else {
+					svcPack = dev_dir.NewSvcPack(
+						nameSpace,
+						commonFlags.AppName,
+						base.SvcTypeOf(serviceType),
+						commonFlags.SvcName,
+						profile.OriginDevContainer,
+					)
+				}
+			}
 		}
 
 		must(dev_dir.DevPath(workDir).Associate(svcPack, kubeConfig, !migrate))
+
 		must(nocalhostApp.ReloadSvcCfg(nocalhostSvc.Name, nocalhostSvc.Type, false, false))
 	},
 }

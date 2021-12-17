@@ -11,6 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"nocalhost/internal/nhctl/const"
+	"strconv"
 
 	//"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/nocalhost"
@@ -26,8 +27,7 @@ func (c *Controller) GetDevContainerEnv(container string) *ContainerDevEnv {
 	// Find service env
 	devEnv := make([]*profile.Env, 0)
 	kvMap := make(map[string]string, 0)
-	//serviceConfig, _ := c.GetProfile()
-	serviceConfig, _ := c.GetConfig()
+	serviceConfig := c.Config()
 	for _, v := range serviceConfig.ContainerConfigs {
 		if v.Name == container || container == "" {
 			// Env has a higher priority than envFrom
@@ -48,7 +48,7 @@ func (c *Controller) GetDevContainerEnv(container string) *ContainerDevEnv {
 
 func (c *Controller) GetDevSidecarImage(container string) string {
 	// Find service env
-	serviceConfig, _ := c.GetConfig()
+	serviceConfig := c.Config()
 	for _, v := range serviceConfig.ContainerConfigs {
 		if v.Name == container || container == "" {
 			// Env has a higher priority than envFrom
@@ -95,7 +95,7 @@ func (c *Controller) markReplicaSetRevision() error {
 					`{"metadata":{"annotations":{"%s":"%d", "%s":"%s"}}}`,
 					_const.DevImageOriginalPodReplicasAnnotationKey, originalPodReplicas,
 					_const.DevImageRevisionAnnotationKey, _const.DevImageRevisionAnnotationValue,
-				),
+				), "",
 			); err == nil {
 				break
 			}
@@ -200,98 +200,96 @@ func (c *Controller) genWorkDirAndPVAndMounts(container, storageClass string, du
 	var workDirResideInPersistVolumeDirs bool
 	var err error
 	persistentVolumes := c.GetPersistentVolumeDirs(container)
-	if len(persistentVolumes) > 0 {
-		for index, persistentVolume := range persistentVolumes {
-			if persistentVolume.Path == "" {
-				log.Warnf("PersistentVolume's path should be set")
-				continue
-			}
-
-			// Check if pvc is already exist
-			labels := map[string]string{}
-			if duplicateDevMode {
-				labels, err = c.getDuplicateLabelsMap()
-				if err != nil {
-					log.WarnE(err, "")
-					continue
-				}
-				labels[_const.DevWorkloadIgnored] = "false"
-				labels[_const.AppLabel] = c.AppName
-			} else {
-				labels[_const.AppLabel] = c.AppName
-				labels[_const.ServiceLabel] = c.Name
-			}
-			labels[_const.PersistentVolumeDirLabel] = utils.Sha1ToString(persistentVolume.Path)
-			claims, err := c.Client.GetPvcByLabels(labels)
-			if err != nil {
-				log.WarnE(err, fmt.Sprintf("Fail to get a pvc for %s", persistentVolume.Path))
-				continue
-			}
-			if len(claims) > 1 {
-				log.Warn(
-					fmt.Sprintf(
-						"Find %d pvc for %s, expected 1, skipping this dir", len(claims), persistentVolume.Path,
-					),
-				)
-				continue
-			}
-
-			var claimName string
-			if len(claims) == 1 { // pvc for this path found
-				claimName = claims[0].Name
-			} else { // no pvc for this path, create one
-				var pvc *corev1.PersistentVolumeClaim
-				if c.GetStorageClass(container) != "" {
-					storageClass = c.GetStorageClass(container)
-				}
-				log.Infof(
-					"No PVC for %s found, trying to create one with storage class %s...",
-					persistentVolume.Path, storageClass,
-				)
-				pvc, err = c.createPvcForPersistentVolumeDir(persistentVolume, labels, storageClass)
-				if err != nil || pvc == nil {
-					return nil, nil, errors.Wrap(
-						nocalhost.CreatePvcFailed, "Failed to create pvc for "+persistentVolume.Path,
-					)
-				}
-				claimName = pvc.Name
-			}
-
-			// Do not use emptyDir for workDir
-			if persistentVolume.Path == workDir {
-				workDirDefinedInPersistVolume = true
-				workDirVol.EmptyDir = nil
-				workDirVol.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{
-					ClaimName: claimName,
-				}
-
-				log.Info("WorkDir uses persistent volume defined in persistVolumeDirs")
-				continue
-			} else if strings.HasPrefix(workDir, persistentVolume.Path) && !workDirDefinedInPersistVolume {
-				log.Infof("WorkDir:%s resides in the persist dir: %s", workDir, persistentVolume.Path)
-				// No need to mount workDir
-				workDirResideInPersistVolumeDirs = true
-			}
-
-			persistVolName := fmt.Sprintf("persist-volume-%d", index)
-			persistentVol := corev1.Volume{
-				Name: persistVolName,
-				VolumeSource: corev1.VolumeSource{
-					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-						ClaimName: claimName,
-					},
-				},
-			}
-			persistentMount := corev1.VolumeMount{
-				Name:      persistVolName,
-				MountPath: persistentVolume.Path,
-			}
-
-			volumes = append(volumes, persistentVol)
-			volumeMounts = append(volumeMounts, persistentMount)
-
-			log.Infof("%s mounts a pvc successfully", persistentVolume.Path)
+	for index, persistentVolume := range persistentVolumes {
+		if persistentVolume.Path == "" {
+			log.Warnf("PersistentVolume's path should be set")
+			continue
 		}
+
+		// Check if pvc is already exist
+		labels := map[string]string{}
+		if duplicateDevMode {
+			labels, err = c.getDuplicateLabelsMap()
+			if err != nil {
+				log.WarnE(err, "")
+				continue
+			}
+			labels[_const.DevWorkloadIgnored] = "false"
+			labels[_const.AppLabel] = c.AppName
+		} else {
+			labels[_const.AppLabel] = c.AppName
+			labels[_const.ServiceLabel] = c.Name
+		}
+		labels[_const.PersistentVolumeDirLabel] = utils.Sha1ToString(persistentVolume.Path)
+		claims, err := c.Client.GetPvcByLabels(labels)
+		if err != nil {
+			log.WarnE(err, fmt.Sprintf("Fail to get a pvc for %s", persistentVolume.Path))
+			continue
+		}
+		if len(claims) > 1 {
+			log.Warn(
+				fmt.Sprintf(
+					"Find %d pvc for %s, expected 1, skipping this dir", len(claims), persistentVolume.Path,
+				),
+			)
+			continue
+		}
+
+		var claimName string
+		if len(claims) == 1 { // pvc for this path found
+			claimName = claims[0].Name
+		} else { // no pvc for this path, create one
+			var pvc *corev1.PersistentVolumeClaim
+			if c.GetStorageClass(container) != "" {
+				storageClass = c.GetStorageClass(container)
+			}
+			log.Infof(
+				"No PVC for %s found, trying to create one with storage class %s...",
+				persistentVolume.Path, storageClass,
+			)
+			pvc, err = c.createPvcForPersistentVolumeDir(persistentVolume, labels, storageClass)
+			if err != nil || pvc == nil {
+				return nil, nil, errors.Wrap(
+					nocalhost.CreatePvcFailed, "Failed to create pvc for "+persistentVolume.Path,
+				)
+			}
+			claimName = pvc.Name
+		}
+
+		// Do not use emptyDir for workDir
+		if persistentVolume.Path == workDir {
+			workDirDefinedInPersistVolume = true
+			workDirVol.EmptyDir = nil
+			workDirVol.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{
+				ClaimName: claimName,
+			}
+
+			log.Info("WorkDir uses persistent volume defined in persistVolumeDirs")
+			continue
+		} else if strings.HasPrefix(workDir, persistentVolume.Path) && !workDirDefinedInPersistVolume {
+			log.Infof("WorkDir:%s resides in the persist dir: %s", workDir, persistentVolume.Path)
+			// No need to mount workDir
+			workDirResideInPersistVolumeDirs = true
+		}
+
+		persistVolName := fmt.Sprintf("persist-volume-%d", index)
+		persistentVol := corev1.Volume{
+			Name: persistVolName,
+			VolumeSource: corev1.VolumeSource{
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+					ClaimName: claimName,
+				},
+			},
+		}
+		persistentMount := corev1.VolumeMount{
+			Name:      persistVolName,
+			MountPath: persistentVolume.Path,
+		}
+
+		volumes = append(volumes, persistentVol)
+		volumeMounts = append(volumeMounts, persistentMount)
+
+		log.Infof("%s mounts a pvc successfully", persistentVolume.Path)
 	}
 
 	if workDirDefinedInPersistVolume || !workDirResideInPersistVolumeDirs {
@@ -338,50 +336,58 @@ func (c *Controller) createPvcForPersistentVolumeDir(
 	if err != nil {
 		return nil, err
 	}
+	if persistentVolume.WaitForFirstConsumer {
+		log.Infof("The volumeBindingMode of this pvc(%s) is WaitForFirstConsumer, "+
+			"we don't need to wait it for being bounded", persistentVolume.Path)
+		return pvc, nil
+	}
 	// wait pvc to be ready
-	var pvcBounded bool
+	//var pvcBounded bool
 	var errorMes string
 
 	for i := 0; i < 30; i++ {
 		time.Sleep(time.Second * 2)
 		pvc, err = c.Client.GetPvcByName(pvc.Name)
 		if err != nil {
-			log.Warnf("Failed to update pvc's status: %s", err.Error())
+			log.Warnf("Failed to get pvc's status: %s", err.Error())
 			continue
 		}
 		if pvc.Status.Phase == corev1.ClaimBound {
 			log.Infof("PVC %s has bounded to a pv", pvc.Name)
-			pvcBounded = true
 			return pvc, nil
-		} else {
-			if len(pvc.Status.Conditions) > 0 {
-				for _, condition := range pvc.Status.Conditions {
-					errorMes = condition.Message
-					if condition.Reason == "ProvisioningFailed" {
-						log.Warnf(
-							"Failed to create a pvc for %s, check if your StorageClass is set correctly",
-							persistentVolume.Path,
-						)
-						break
-					}
+		}
+		for _, condition := range pvc.Status.Conditions {
+			errorMes = condition.Message
+			if condition.Reason == "ProvisioningFailed" {
+				log.Warnf(
+					"Failed to create a pvc for %s, check if your StorageClass is set correctly",
+					persistentVolume.Path)
+				break
+			} else if condition.Reason == "WaitForFirstConsumer" {
+				log.Infof("The volumeBindingMode of this pvc(%s) is WaitForFirstConsumer. "+
+					"We don't need to wait it for being bounded", persistentVolume.Path)
+				return pvc, nil
+			}
+		}
+		if es, err := c.Client.SearchEvents(pvc); err == nil {
+			for _, item := range es.Items {
+				if item.Reason == "WaitForFirstConsumer" {
+					log.Infof("The volumeBindingMode of this pvc(%s) is WaitForFirstConsumer. "+
+						"We don't need to wait it for being bounded", persistentVolume.Path)
+					return pvc, nil
 				}
 			}
-			log.Infof("PVC %s's status is %s, waiting it to be bounded", pvc.Name, pvc.Status.Phase)
 		}
+		log.Infof("PVC %s's status is %s, waiting it to be bounded", pvc.Name, pvc.Status.Phase)
 	}
-	if !pvcBounded {
-		if errorMes == "" {
-			errorMes = "timeout"
-		}
-		log.Warnf("Failed to wait %s to be bounded: %s", pvc.Name, errorMes)
-		err = c.Client.DeletePVC(pvc.Name)
-		if err != nil {
-			log.Warnf("Fail to clean pvc %s", pvc.Name)
-			return nil, err
-		} else {
-			log.Infof("PVC %s is cleaned up", pvc.Name)
-		}
+	if errorMes == "" {
+		errorMes = "timeout"
 	}
+	log.Warnf("Failed to wait %s to be bounded: %s", pvc.Name, errorMes)
+	if err = c.Client.DeletePVC(pvc.Name); err != nil {
+		return nil, err
+	}
+	log.Infof("PVC %s is cleaned up", pvc.Name)
 	return nil, errors.New("Failed to create pvc for " + persistentVolume.Path)
 }
 
@@ -413,10 +419,7 @@ func (c *Controller) genResourceReq(container string) *corev1.ResourceRequiremen
 		requirements *corev1.ResourceRequirements
 	)
 
-	svcProfile, _ := c.GetConfig()
-	if svcProfile == nil {
-		return requirements
-	}
+	svcProfile := c.Config()
 
 	containerConfig := svcProfile.GetContainerDevConfigOrDefault(container)
 	if containerConfig == nil {
@@ -477,8 +480,7 @@ func convertToResourceList(cpu string, mem string) (corev1.ResourceList, error) 
 
 func waitingPodToBeReady(f func() (string, error)) error {
 	// Wait podList to be ready
-	spinner := utils.NewSpinner(" Waiting pod to start...")
-	spinner.Start()
+	log.Info(" Waiting pod to start...")
 
 	for i := 0; i < 300; i++ {
 		<-time.NewTimer(time.Second * 1).C
@@ -486,7 +488,6 @@ func waitingPodToBeReady(f func() (string, error)) error {
 			break
 		}
 	}
-	spinner.Stop()
 	return nil
 }
 
@@ -503,21 +504,42 @@ func isContainerReadyAndRunning(containerName string, pod *corev1.Pod) bool {
 }
 
 func findDevPod(podList []corev1.Pod) (string, error) {
+	resultPodList := make([]corev1.Pod, 0)
 	for _, pod := range podList {
-		if pod.Status.Phase == "Running" && pod.DeletionTimestamp == nil {
+		//if pod.Status.Phase == "Running" && pod.DeletionTimestamp == nil {
+		if pod.DeletionTimestamp == nil {
 			for _, container := range pod.Spec.Containers {
 				if container.Name == _const.DefaultNocalhostSideCarName {
-					return pod.Name, nil
+					resultPodList = append(resultPodList, pod)
 				}
 			}
 		}
 	}
+	if len(resultPodList) > 0 {
+		latestPod := resultPodList[0]
+		for i := 1; i < len(resultPodList); i++ {
+			rv1, _ := strconv.Atoi(resultPodList[i].ResourceVersion)
+			rv2, _ := strconv.Atoi(latestPod.ResourceVersion)
+			if rv1 > rv2 {
+				latestPod = resultPodList[i]
+			}
+		}
+		if latestPod.Status.Phase == "Running" {
+			return latestPod.Name, nil
+		}
+		return "", errors.New("dev container has not be ready")
+	}
 	return "", errors.New("dev container not found")
 }
 
-func (c *Controller) genContainersAndVolumes(devContainer *corev1.Container,
+func (c *Controller) genContainersAndVolumes(podSpec *corev1.PodSpec,
 	containerName, devImage, storageClass string, duplicateDevMode bool) (*corev1.Container,
 	*corev1.Container, []corev1.Volume, error) {
+
+	devContainer, err := findDevContainerInPodSpec(podSpec, containerName)
+	if err != nil {
+		return nil, nil, nil, err
+	}
 
 	devModeVolumes := make([]corev1.Volume, 0)
 	devModeMounts := make([]corev1.VolumeMount, 0)
@@ -596,6 +618,39 @@ func (c *Controller) genContainersAndVolumes(devContainer *corev1.Container,
 	rq, _ := convertResourceQuota(r)
 	sideCarContainer.Resources = *rq
 	return devContainer, &sideCarContainer, devModeVolumes, nil
+}
+
+func patchDevContainerToPodSpec(podSpec *corev1.PodSpec, containerName string, devContainer,
+	sidecarContainer *corev1.Container, devModeVolumes []corev1.Volume) {
+	if containerName != "" {
+		for index, c := range podSpec.Containers {
+			if c.Name == containerName {
+				podSpec.Containers[index] = *devContainer
+				break
+			}
+		}
+	} else {
+		podSpec.Containers[0] = *devContainer
+	}
+
+	// Add volumes to deployment spec
+	if podSpec.Volumes == nil {
+		podSpec.Volumes = make([]corev1.Volume, 0)
+	}
+	podSpec.Volumes = append(podSpec.Volumes, devModeVolumes...)
+
+	// delete user's SecurityContext
+	podSpec.SecurityContext = &corev1.PodSecurityContext{}
+
+	// disable readiness probes
+	for i := 0; i < len(podSpec.Containers); i++ {
+		podSpec.Containers[i].LivenessProbe = nil
+		podSpec.Containers[i].ReadinessProbe = nil
+		podSpec.Containers[i].StartupProbe = nil
+		podSpec.Containers[i].SecurityContext = nil
+	}
+
+	podSpec.Containers = append(podSpec.Containers, *sidecarContainer)
 }
 
 // IsResourcesLimitTooLow

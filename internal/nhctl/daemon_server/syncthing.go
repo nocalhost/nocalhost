@@ -11,7 +11,6 @@ import (
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
-	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/appmeta_manager"
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/const"
@@ -22,7 +21,6 @@ import (
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing"
 	"nocalhost/internal/nhctl/syncthing/daemon"
-	"nocalhost/internal/nhctl/syncthing/network/req"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
@@ -32,11 +30,11 @@ import (
 	"time"
 )
 
-func recoverSyncthing() error {
+func recoverSyncthing() {
 	log.Log("Recovering syncthing")
-	appMap, err := nocalhost.GetNsAndApplicationInfo()
+	appMap, err := nocalhost.GetNsAndApplicationInfo(true, true)
 	if err != nil {
-		return err
+		return
 	}
 
 	wg := sync.WaitGroup{}
@@ -50,7 +48,6 @@ func recoverSyncthing() error {
 		}(a.Namespace, a.Name, a.Nid)
 	}
 	wg.Wait()
-	return nil
 }
 
 func recoverSyncthingForApplication(ns, appName, nid string) error {
@@ -97,13 +94,35 @@ func reconnectSyncthingIfNeededWithPeriod(duration time.Duration) {
 	}
 }
 
+// namespace-nid-appName-serviceType-serviceName
+var maps sync.Map
+
+func toKey(controller2 *controller.Controller) string {
+	return fmt.Sprintf("%s-%s-%s-%s-%s",
+		controller2.NameSpace,
+		controller2.AppMeta.NamespaceId,
+		controller2.AppName,
+		controller2.Type,
+		controller2.Name,
+	)
+}
+
+type backoff struct {
+	times    int
+	lastTime time.Time
+	nextTime time.Time
+}
+
 // reconnectedSyncthingIfNeeded will reconnect syncthing immediately if syncthing service is not available
 func reconnectedSyncthingIfNeeded() {
-	defer RecoverDaemonFromPanic()
-	clone := appmeta_manager.GetAllApplicationMetasWithDeepClone()
+
+	defer recoverDaemonFromPanic()
+	clone := appmeta_manager.GetAllApplicationMetas()
+
 	if clone == nil {
 		return
 	}
+
 	for _, meta := range clone {
 		if meta == nil || meta.DevMeta == nil {
 			continue
@@ -117,25 +136,26 @@ func reconnectedSyncthingIfNeeded() {
 			if err1 != nil {
 				continue
 			}
-			svc := &controller.Controller{
-				NameSpace:   meta.Ns,
-				AppName:     meta.Application,
-				Name:        svcProfile.GetName(),
-				Type:        svcType,
-				Identifier:  appProfile.Identifier,
-				DevModeType: svcProfile.DevModeType,
-				AppMeta:     meta,
+
+			svc, err := controller.NewController(meta.Ns, svcProfile.GetName(), meta.Application, appProfile.Identifier,
+				svcType, nil, meta)
+			if err != nil {
+				log.WarnE(err, "")
+				continue
 			}
-			if !svc.IsProcessor() || !svc.IsInDevMode() {
+
+			if !svc.IsProcessor() {
 				continue
 			}
 			// reconnect two times:
+			// pre each time, check syncthing connections, if remote device connection is connected, no needs to recover
+			// if remote device connection is not connected, but have this connection, just to do port-forward
 			// the first time: using old port-forward, just create a new syncthing process
 			//   detect syncthing service is available or not, if it's still not available
 			// the second time: redo port-forward, and create a new syncthing process
-			go func(svc *controller.Controller, appProfile *profile.AppProfileV2, svcProfile *profile.SvcProfileV2,
-				meta *appmeta.ApplicationMeta) {
-				defer RecoverDaemonFromPanic()
+			go func(svc *controller.Controller) {
+				defer recoverDaemonFromPanic()
+				var err error
 				for i := 0; i < 2; i++ {
 					if err = retry.OnError(wait.Backoff{
 						Steps:    3,
@@ -144,23 +164,36 @@ func reconnectedSyncthingIfNeeded() {
 					}, func(err error) bool {
 						return err != nil
 					}, func() error {
-						status := svc.NewSyncthingHttpClient(2).GetSyncthingStatus()
-						if status.Status != req.Disconnected {
+						connected, err := svc.NewSyncthingHttpClient(2).SystemConnections()
+						if connected && err == nil {
 							return nil
 						}
 						return errors.New("needs to reconnect")
 					}); err == nil {
-						break
+						maps.Delete(toKey(svc))
+						return
 					}
-					log.LogDebugf("prepare to restore syncthing, name: %s\n", svcProfile.GetName())
+					v, _ := maps.LoadOrStore(toKey(svc), &backoff{times: 0, lastTime: time.Now(), nextTime: time.Now()})
+					if v.(*backoff).nextTime.Sub(time.Now()).Seconds() > 0 {
+						return
+					}
+					v.(*backoff).times++
+					// if last 5 min failed 5 times, will delay 3 min to retry
+					if time.Now().Sub(v.(*backoff).lastTime).Minutes() >= 5 && v.(*backoff).times >= 5 {
+						v.(*backoff).nextTime = time.Now().Add(time.Minute * 3)
+					} else {
+						v.(*backoff).lastTime = time.Now()
+					}
+
+					log.LogDebugf("prepare to restore syncthing, name: %s", svc.Name)
 					// TODO using developing container, otherwise will using default containerDevConfig
 					if err = doReconnectSyncthing(svc, "", appProfile.Kubeconfig, i == 1); err != nil {
-						log.PErrorf(
+						log.Errorf(
 							"error while reconnect syncthing, ns: %s, app: %s, svc: %s, type: %s, err: %v",
-							meta.Ns, meta.Application, svcProfile.GetName(), svcProfile.GetType(), err)
+							svc.AppMeta.Ns, svc.AppMeta.Application, svc.Name, svc.Type, err)
 					}
 				}
-			}(svc, appProfile, svcProfile, meta)
+			}(svc)
 		}
 	}
 }
@@ -171,41 +204,32 @@ func doReconnectSyncthing(svc *controller.Controller, container string, kubeconf
 	if err != nil {
 		return err
 	}
+	client := svc.NewSyncthingHttpClient(2)
+	if isConnected, err := client.SystemConnections(); isConnected {
+		return nil
+	} else
+	// have connections but status is not connected, just to do port-forward, not needs to create a new syncthing process
+	if !isConnected && err == nil {
+		return doPortForward(svc, svcProfile, kubeconfigPath)
+	}
+	// using api to showdown server gracefully
+	for i := 0; i < 5; i++ {
+		_, _ = client.Post("/rest/system/shutdown", "")
+	}
 	// stop syncthing process with pid
 	_ = svc.FindOutSyncthingProcess(func(pid int) error { return syncthing.Stop(pid, true) })
 	// stop syncthing process with keywords
 	str := strings.ReplaceAll(svc.GetApplicationSyncDir(), nocalhost_path.GetNhctlHomeDir(), "")
 	utils2.KillSyncthingProcess(str)
 	flag := false
-	if config, err := svc.GetConfig(); err == nil {
-		if cfg := config.GetContainerDevConfig(container); cfg != nil && cfg.Sync != nil {
-			flag = cfg.Sync.Type == _const.DefaultSyncType
-		}
+	config := svc.Config()
+	if cfg := config.GetContainerDevConfig(container); cfg != nil && cfg.Sync != nil {
+		flag = cfg.Sync.Type == _const.DefaultSyncType
 	}
 	// if reconnected is true, means needs to stop port-forward
 	if redoPortForward {
-		p := &command.PortForwardCommand{
-			NameSpace:   svc.NameSpace,
-			AppName:     svc.AppName,
-			Service:     svc.Name,
-			ServiceType: svc.Type.String(),
-			LocalPort:   svcProfile.RemoteSyncthingPort,
-			RemotePort:  svcProfile.RemoteSyncthingPort,
-			Role:        "SYNC",
-			Nid:         svc.AppMeta.NamespaceId,
-		}
-		err = pfManager.StopPortForwardGoRoutine(p)
-		if err != nil {
-			log.LogE(err)
-		}
-		if svc.Client, err = clientgoutils.NewClientGoUtils(kubeconfigPath, svc.NameSpace); err != nil {
+		if err = doPortForward(svc, svcProfile, kubeconfigPath); err != nil {
 			return err
-		}
-		if p.PodName, err = svc.BuildPodController().GetNocalhostDevContainerPod(); err != nil {
-			return err
-		}
-		if err = pfManager.StartPortForwardGoRoutine(p, true); err != nil {
-			log.LogE(err)
 		}
 	}
 	newSyncthing, err := svc.NewSyncthing(container, svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin, flag)
@@ -217,4 +241,31 @@ func doReconnectSyncthing(svc *controller.Controller, container string, kubeconf
 		return err
 	}
 	return svc.SetSyncingStatus(true)
+}
+
+func doPortForward(svc *controller.Controller, svcProfile *profile.SvcProfileV2, kubeconfigPath string) error {
+	p := &command.PortForwardCommand{
+		NameSpace:   svc.NameSpace,
+		AppName:     svc.AppName,
+		Service:     svc.Name,
+		ServiceType: svc.Type.String(),
+		LocalPort:   svcProfile.RemoteSyncthingPort,
+		RemotePort:  svcProfile.RemoteSyncthingPort,
+		Role:        "SYNC",
+		Nid:         svc.AppMeta.NamespaceId,
+	}
+	var err error
+	if err = pfManager.StopPortForwardGoRoutine(p); err != nil {
+		log.LogE(err)
+	}
+	if svc.Client, err = clientgoutils.NewClientGoUtils(kubeconfigPath, svc.NameSpace); err != nil {
+		return err
+	}
+	if p.PodName, err = svc.BuildPodController().GetNocalhostDevContainerPod(); err != nil {
+		return err
+	}
+	if err = pfManager.StartPortForwardGoRoutine(p, true); err != nil {
+		log.LogE(err)
+	}
+	return nil
 }

@@ -7,13 +7,16 @@ package user
 
 import (
 	"context"
+	"fmt"
+	"github.com/pkg/errors"
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nocalhost-api/cache"
+	"strings"
 	"time"
 
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/jinzhu/gorm"
-	"github.com/pkg/errors"
 
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/repository/user"
@@ -39,6 +42,8 @@ type UserService interface {
 	GetUserByID(ctx context.Context, id uint64) (*model.UserBaseModel, error)
 	GetUserByPhone(ctx context.Context, phone int64) (*model.UserBaseModel, error)
 	GetUserByEmail(ctx context.Context, email string) (*model.UserBaseModel, error)
+
+	CreateOrGetUserByEmail(ctx context.Context, email string) (*model.UserBaseModel, error)
 	UpdateUser(ctx context.Context, id uint64, user *model.UserBaseModel) (*model.UserBaseModel, error)
 	GetUserList(ctx context.Context) ([]*model.UserList, error)
 	UpdateServiceAccountName(ctx context.Context, id uint64, saName string) error
@@ -230,10 +235,34 @@ func (srv *userService) GetUserByPhone(ctx context.Context, phone int64) (*model
 	return userModel, nil
 }
 
+func (srv *userService) CreateOrGetUserByEmail(ctx context.Context, userEmail string) (*model.UserBaseModel, error) {
+	userPointer, err := srv.GetUserByEmail(ctx, userEmail)
+
+	if err != nil {
+		if gorm.IsRecordNotFoundError(err) {
+			userName := userEmail[:strings.Index(userEmail, "@")]
+
+			userCreated, err := srv.Create(
+				ctx, userEmail, "123456", userName, _const.UintEnable, _const.UintDisable,
+			)
+
+			if err != nil {
+				return nil, errors.Wrap(err, fmt.Sprintf("Fail to create user by email %s", userEmail))
+			}
+
+			return &userCreated, nil
+		} else {
+			return nil, errors.Wrap(err, fmt.Sprintf("Fail to get user by email %s", userEmail))
+		}
+	} else {
+		return userPointer, nil
+	}
+}
+
 func (srv *userService) GetUserByEmail(ctx context.Context, email string) (*model.UserBaseModel, error) {
 	userModel, err := srv.userRepo.GetUserByEmail(ctx, email)
 	if err != nil || gorm.IsRecordNotFoundError(err) {
-		return userModel, errors.Wrapf(err, "get user info err from db by email: %s", email)
+		return userModel, err
 	}
 
 	return userModel, nil

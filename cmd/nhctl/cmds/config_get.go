@@ -105,10 +105,6 @@ var configGetCmd = &cobra.Command{
 		// get application config
 		if commonFlags.AppConfig {
 
-			// need to load latest config
-			// hotfix for v0.4.7 due to plugin blocking
-			//_ = nocalhostApp.ReloadCfg(false, true)
-
 			applicationConfig := nocalhostApp.GetApplicationConfigV2()
 			bys, err := yaml.Marshal(applicationConfig)
 			must(errors.Wrap(err, "fail to get application config"))
@@ -116,8 +112,6 @@ var configGetCmd = &cobra.Command{
 			return
 		}
 
-		//appProfile, err := nocalhostApp.GetProfile()
-		//must(err)
 		if commonFlags.SvcName == "" {
 			appConfig := nocalhostApp.GetApplicationConfigV2()
 			config := &ConfigForPlugin{}
@@ -135,10 +129,20 @@ var configGetCmd = &cobra.Command{
 			_ = nocalhostSvc.LoadConfigFromHub()
 			// need to load latest config
 			_ = nocalhostApp.ReloadSvcCfg(commonFlags.SvcName, nocalhostSvc.Type, false, true)
+			nocalhostSvc.ReloadConfig()
 
 			svcProfile, err := nocalhostSvc.GetProfile()
 			must(err)
-			svcConfig, _ := nocalhostSvc.GetConfig()
+			svcConfig := nocalhostSvc.Config()
+
+			// to avoid empty config
+			if svcConfig == nil {
+				svcConfig = &profile.ServiceConfigV2{
+					Name:             commonFlags.SvcName,
+					Type:             nocalhostSvc.Type.String(),
+					ContainerConfigs: []*profile.ContainerConfig{},
+				}
+			}
 
 			if svcProfile != nil {
 				bys, err := yaml.Marshal(svcConfig)

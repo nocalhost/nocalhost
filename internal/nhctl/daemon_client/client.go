@@ -21,6 +21,7 @@ import (
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"runtime/debug"
+	"sync"
 	"time"
 )
 
@@ -63,7 +64,53 @@ func CheckIfDaemonServerRunning(isSudoUser bool) bool {
 	return !ports.IsTCP4PortAvailable("0.0.0.0", listenPort)
 }
 
-func NewDaemonClient(isSudoUser bool) (*DaemonClient, error) {
+var (
+	client     *DaemonClient
+	sudoClient *DaemonClient
+	lock       sync.Mutex
+)
+
+func GetDaemonClient(isSudoUser bool) (*DaemonClient, error) {
+	var (
+		c   *DaemonClient
+		err error
+	)
+
+	if c, err = getCachedDaemonClient(isSudoUser); err == nil {
+		return c, nil
+	}
+
+	if c, err = newDaemonClient(isSudoUser); err != nil {
+		return nil, err
+	}
+
+	lock.Lock()
+	defer lock.Unlock()
+	if isSudoUser {
+		if sudoClient == nil {
+			sudoClient = c
+		}
+		return sudoClient, nil
+	}
+	if client == nil {
+		client = c
+	}
+	return client, nil
+}
+
+func getCachedDaemonClient(isSudoUser bool) (*DaemonClient, error) {
+	lock.Lock()
+	defer lock.Unlock()
+	if !isSudoUser && client != nil {
+		return client, nil
+	}
+	if isSudoUser && sudoClient != nil {
+		return sudoClient, nil
+	}
+	return nil, errors.New("No cached daemon client")
+}
+
+func newDaemonClient(isSudoUser bool) (*DaemonClient, error) {
 	var err error
 	client := &DaemonClient{
 		isSudo: isSudoUser,
@@ -161,6 +208,19 @@ func (d *DaemonClient) SendCheckClusterStatusCommand(kubeContent string) (*daemo
 		return nil, err
 	}
 	return r, err
+}
+
+func (d *DaemonClient) SendFlushDirMappingCacheCommand() error {
+	cmd := &command.CheckClusterStatusCommand{
+		CommandType: command.FlushDirMappingCache,
+		ClientStack: string(debug.Stack()),
+	}
+
+	bys, err := json.Marshal(cmd)
+	if err != nil {
+		return errors.Wrap(err, "")
+	}
+	return d.sendDataToDaemonServer(bys)
 }
 
 // SendRestartDaemonServerCommand
@@ -305,6 +365,7 @@ func (d *DaemonClient) SendGetResourceInfoCommand(
 	resource,
 	resourceName string,
 	label map[string]string,
+	showHidden bool,
 ) (interface{}, error) {
 	cmd := &command.GetResourceInfoCommand{
 		CommandType: command.GetResourceInfo,
@@ -316,6 +377,7 @@ func (d *DaemonClient) SendGetResourceInfoCommand(
 		Resource:     resource,
 		ResourceName: resourceName,
 		Label:        label,
+		ShowHidden:   showHidden,
 	}
 
 	bys, err := json.Marshal(cmd)

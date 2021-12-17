@@ -98,54 +98,20 @@ func (d *DaemonSetController) ReplaceImage(ctx context.Context, ops *model.DevSt
 		},
 	}
 
-	devContainer, err := findContainerInDeploySpec(generatedDeployment, ops.Container)
-	if err != nil {
-		return err
-	}
-
 	devContainer, sideCarContainer, devModeVolumes, err :=
-		d.genContainersAndVolumes(devContainer, ops.Container, ops.DevImage, ops.StorageClass, false)
+		d.genContainersAndVolumes(&generatedDeployment.Spec.Template.Spec, ops.Container, ops.DevImage, ops.StorageClass, false)
 	if err != nil {
 		return err
 	}
 
-	if ops.Container != "" {
-		for index, c := range generatedDeployment.Spec.Template.Spec.Containers {
-			if c.Name == ops.Container {
-				generatedDeployment.Spec.Template.Spec.Containers[index] = *devContainer
-				break
-			}
-		}
-	} else {
-		generatedDeployment.Spec.Template.Spec.Containers[0] = *devContainer
-	}
-
-	// Add volumes to deployment spec
-	if generatedDeployment.Spec.Template.Spec.Volumes == nil {
-		generatedDeployment.Spec.Template.Spec.Volumes = make([]corev1.Volume, 0)
-	}
-	generatedDeployment.Spec.Template.Spec.Volumes = append(
-		generatedDeployment.Spec.Template.Spec.Volumes, devModeVolumes...,
-	)
-
-	// delete user's SecurityContext
-	generatedDeployment.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{}
-
-	// disable readiness probes
-	for i := 0; i < len(generatedDeployment.Spec.Template.Spec.Containers); i++ {
-		generatedDeployment.Spec.Template.Spec.Containers[i].LivenessProbe = nil
-		generatedDeployment.Spec.Template.Spec.Containers[i].ReadinessProbe = nil
-		generatedDeployment.Spec.Template.Spec.Containers[i].StartupProbe = nil
-		generatedDeployment.Spec.Template.Spec.Containers[i].SecurityContext = nil
-	}
-
-	generatedDeployment.Spec.Template.Spec.Containers =
-		append(generatedDeployment.Spec.Template.Spec.Containers, *sideCarContainer)
+	patchDevContainerToPodSpec(&generatedDeployment.Spec.Template.Spec, ops.Container, devContainer, sideCarContainer, devModeVolumes)
 
 	// Create generated deployment
 	if _, err = d.Client.CreateDeployment(generatedDeployment); err != nil {
 		return err
 	}
+
+	d.patchAfterDevContainerReplaced(ops.Container, generatedDeployment.Kind, generatedDeployment.Name)
 
 	return waitingPodToBeReady(d.GetNocalhostDevContainerPod)
 }

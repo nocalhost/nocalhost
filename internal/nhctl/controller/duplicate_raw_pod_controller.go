@@ -12,7 +12,6 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"nocalhost/internal/nhctl/model"
-	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
 	"time"
 )
@@ -75,51 +74,20 @@ func (r *DuplicateRawPodController) ReplaceImage(ctx context.Context, ops *model
 	originalPod.Status = corev1.PodStatus{}
 	originalPod.ResourceVersion = ""
 
-	devContainer, err := findContainerInPodSpec(originalPod, ops.Container)
-	if err != nil {
-		return err
-	}
-
 	devContainer, sideCarContainer, devModeVolumes, err :=
-		r.genContainersAndVolumes(devContainer, ops.Container, ops.DevImage, ops.StorageClass, true)
+		r.genContainersAndVolumes(&originalPod.Spec, ops.Container, ops.DevImage, ops.StorageClass, true)
 	if err != nil {
 		return err
 	}
 
-	if ops.Container != "" {
-		for index, c := range originalPod.Spec.Containers {
-			if c.Name == ops.Container {
-				originalPod.Spec.Containers[index] = *devContainer
-				break
-			}
-		}
-	} else {
-		originalPod.Spec.Containers[0] = *devContainer
-	}
-
-	// Add volumes to spec
-	if originalPod.Spec.Volumes == nil {
-		originalPod.Spec.Volumes = make([]corev1.Volume, 0)
-	}
-	originalPod.Spec.Volumes = append(originalPod.Spec.Volumes, devModeVolumes...)
-
-	// delete user's SecurityContext
-	originalPod.Spec.SecurityContext = &corev1.PodSecurityContext{}
-
-	// disable readiness probes
-	for i := 0; i < len(originalPod.Spec.Containers); i++ {
-		originalPod.Spec.Containers[i].LivenessProbe = nil
-		originalPod.Spec.Containers[i].ReadinessProbe = nil
-		originalPod.Spec.Containers[i].StartupProbe = nil
-		originalPod.Spec.Containers[i].SecurityContext = nil
-	}
-
-	originalPod.Spec.Containers = append(originalPod.Spec.Containers, *sideCarContainer)
+	patchDevContainerToPodSpec(&originalPod.Spec, ops.Container, devContainer, sideCarContainer, devModeVolumes)
 
 	log.Info("Create duplicate dev pod...")
 	if _, err = r.Client.CreatePod(originalPod); err != nil {
 		return err
 	}
+
+	r.patchAfterDevContainerReplaced(ops.Container, originalPod.Kind, originalPod.Name)
 
 	return waitingPodToBeReady(r.GetNocalhostDevContainerPod)
 }
@@ -135,21 +103,11 @@ func (r *DuplicateRawPodController) RollBack(reset bool) error {
 			return errors.New(fmt.Sprintf("Duplicate pod num is %d (not 1)?", len(deploys)))
 		} else if len(deploys) == 0 {
 			log.Warnf("Duplicate pod num is %d (not 1)?", len(deploys))
-			_ = r.UpdateSvcProfile(func(svcProfileV2 *profile.SvcProfileV2) error {
-				svcProfileV2.DevModeType = ""
-				return nil
-			})
 			return nil
 		}
 	}
 
-	if err = r.Client.DeletePod(deploys[0].Name, false, 1*time.Second); err != nil {
-		return err
-	}
-	return r.UpdateSvcProfile(func(svcProfileV2 *profile.SvcProfileV2) error {
-		svcProfileV2.DevModeType = ""
-		return nil
-	})
+	return r.Client.DeletePod(deploys[0].Name, false, 1*time.Second)
 }
 
 func (r *DuplicateRawPodController) GetPodList() ([]corev1.Pod, error) {

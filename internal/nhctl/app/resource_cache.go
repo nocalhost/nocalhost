@@ -56,13 +56,13 @@ func (a *Application) GetObjectMeta(resourceName, resourceType string) (*MetaWra
 }
 
 func (a *Application) getResource(resourceName, resourceType string) (interface{}, error) {
-	cli, err := daemon_client.NewDaemonClient(utils.IsSudoUser())
+	cli, err := daemon_client.GetDaemonClient(utils.IsSudoUser())
 	if err != nil {
 		return nil, err
 	}
 
 	data, err := cli.SendGetResourceInfoCommand(
-		a.KubeConfig, a.NameSpace, "", resourceType, resourceName, nil,
+		a.KubeConfig, a.NameSpace, "", resourceType, resourceName, nil, false,
 	)
 	if data == nil || err != nil {
 		return nil, errors.Wrap(err, "Fail to get resource info from daemon")

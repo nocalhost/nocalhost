@@ -27,6 +27,7 @@ const (
 	UpdateApplicationMeta DaemonCommandType = "UpdateApplicationMeta"
 	KubeconfigOperation   DaemonCommandType = "KubeconfigOperationCommand"
 	CheckClusterStatus    DaemonCommandType = "CheckClusterStatus"
+	FlushDirMappingCache  DaemonCommandType = "FlushDirMappingCache"
 
 	PREVIEW_VERSION = 0
 	SUCCESS         = 200
@@ -96,6 +97,7 @@ type GetResourceInfoCommand struct {
 	Resource     string            `json:"resource" yaml:"resource"`
 	ResourceName string            `json:"resourceName" yaml:"resourceName"`
 	Label        map[string]string `json:"label" yaml:"label"`
+	ShowHidden   bool              `json:"showHidden" yaml:"showHidden"`
 }
 
 type UpdateApplicationMetaCommand struct {

@@ -58,46 +58,13 @@ func (r *RawPodController) ReplaceImage(ctx context.Context, ops *model.DevStart
 	}
 	originalPod.Annotations[originalPodDefine] = string(bys)
 
-	devContainer, err := findContainerInPodSpec(originalPod, ops.Container)
-	if err != nil {
-		return err
-	}
-
 	devContainer, sideCarContainer, devModeVolumes, err :=
-		r.genContainersAndVolumes(devContainer, ops.Container, ops.DevImage, ops.StorageClass, false)
+		r.genContainersAndVolumes(&originalPod.Spec, ops.Container, ops.DevImage, ops.StorageClass, false)
 	if err != nil {
 		return err
 	}
 
-	if ops.Container != "" {
-		for index, c := range originalPod.Spec.Containers {
-			if c.Name == ops.Container {
-				originalPod.Spec.Containers[index] = *devContainer
-				break
-			}
-		}
-	} else {
-		originalPod.Spec.Containers[0] = *devContainer
-	}
-
-	// Add volumes to spec
-	if originalPod.Spec.Volumes == nil {
-		originalPod.Spec.Volumes = make([]corev1.Volume, 0)
-	}
-	originalPod.Spec.Volumes = append(originalPod.Spec.Volumes, devModeVolumes...)
-
-	// delete user's SecurityContext
-	originalPod.Spec.SecurityContext = &corev1.PodSecurityContext{}
-
-	// disable readiness probes
-	for i := 0; i < len(originalPod.Spec.Containers); i++ {
-		originalPod.Spec.Containers[i].LivenessProbe = nil
-		originalPod.Spec.Containers[i].ReadinessProbe = nil
-		originalPod.Spec.Containers[i].StartupProbe = nil
-		originalPod.Spec.Containers[i].SecurityContext = nil
-	}
-
-	originalPod.Spec.Containers = append(originalPod.Spec.Containers, *sideCarContainer)
+	patchDevContainerToPodSpec(&originalPod.Spec, ops.Container, devContainer, sideCarContainer, devModeVolumes)
 
 	log.Info("Delete original pod...")
 	if err = r.Client.DeletePodByName(r.GetName(), 0); err != nil {
@@ -105,26 +72,16 @@ func (r *RawPodController) ReplaceImage(ctx context.Context, ops *model.DevStart
 	}
 
 	time.Sleep(1 * time.Second)
-	//log.Info("Waiting pod to be deleted")
-	//if err = k8sutils.WaitPodDeleted(r.Client.ClientSet, r.NameSpace, r.Name(), 10*time.Minute); err != nil {
-	//	log.Info("Recovering pod...")
-	//	if _, err := r.Client.CreatePod(originalPod); err != nil {
-	//		return err
-	//	}
-	//	return err
-	//}
 
 	log.Info("Create dev pod...")
 	if _, err = r.Client.CreatePod(originalPod); err != nil {
 		return err
 	}
 
+	r.patchAfterDevContainerReplaced(ops.Container, originalPod.Kind, originalPod.Name)
+
 	return waitingPodToBeReady(r.GetNocalhostDevContainerPod)
 }
-
-//func (r *RawPodController) Name() string {
-//	return r.Controller.Name
-//}
 
 func (r *RawPodController) RollBack(reset bool) error {
 	originPod, err := r.Client.GetPod(r.GetName())
@@ -167,18 +124,18 @@ func (r *RawPodController) GetPodList() ([]corev1.Pod, error) {
 	return []corev1.Pod{*pod}, nil
 }
 
-func findContainerInPodSpec(pod *corev1.Pod, containerName string) (*corev1.Container, error) {
+func findDevContainerInPodSpec(pod *corev1.PodSpec, containerName string) (*corev1.Container, error) {
 	var devContainer *corev1.Container
 
 	if containerName != "" {
-		for index, c := range pod.Spec.Containers {
+		for index, c := range pod.Containers {
 			if c.Name == containerName {
-				return &pod.Spec.Containers[index], nil
+				return &pod.Containers[index], nil
 			}
 		}
 		return nil, errors.New(fmt.Sprintf("Container %s not found", containerName))
 	} else {
-		if len(pod.Spec.Containers) > 1 {
+		if len(pod.Containers) > 1 {
 			return nil, errors.New(
 				fmt.Sprintf(
 					"There are more than one container defined," +
@@ -186,10 +143,10 @@ func findContainerInPodSpec(pod *corev1.Pod, containerName string) (*corev1.Cont
 				),
 			)
 		}
-		if len(pod.Spec.Containers) == 0 {
+		if len(pod.Containers) == 0 {
 			return nil, errors.New("No container defined ???")
 		}
-		devContainer = &pod.Spec.Containers[0]
+		devContainer = &pod.Containers[0]
 	}
 	return devContainer, nil
 }

@@ -12,9 +12,9 @@ import (
 	nocalhostDb "nocalhost/internal/nhctl/nocalhost/db"
 	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/profile"
+	"nocalhost/pkg/nhctl/log"
 	"os"
 	"regexp"
-	"strings"
 )
 
 var ProfileNotFound = errors.New("Profile Not Found")
@@ -34,6 +34,7 @@ func UpdateProfileV2(ns, app, nid string, profileV2 *profile.AppProfileV2) error
 	if _, err = os.Stat(nocalhost_path.GetAppDbDir(ns, app, nid)); err != nil {
 		return errors.Wrap(err, "")
 	}
+	profileV2.GenerateIdentifierIfNeeded()
 	return db.Put([]byte(profile.ProfileV2Key(ns, app)), bys)
 }
 
@@ -51,31 +52,42 @@ func GetProfileV2(ns, app, nid string) (*profile.AppProfileV2, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer db.Close()
 
 	bys, err := db.Get([]byte(profile.ProfileV2Key(ns, app)))
+	_ = db.Close()
 	if err != nil {
 		if err == leveldb.ErrNotFound {
-			result, err := db.ListAll()
+			//	result, err := db.ListAll()
+			//	if err != nil {
+			//		return nil, errors.Wrap(err, "")
+			//	}
+			//	for key, val := range result {
+			//		if strings.Contains(key, "profile.v2") {
+			//			bys = []byte(val)
+			//			break
+			//		}
+			//	}
+			log.Warnf("Profile(%s,%s,%s) not found, init one", ns, app, nid)
+			db, err = nocalhostDb.OpenApplicationLevelDB(ns, app, nid, false)
 			if err != nil {
-				return nil, errors.Wrap(err, "")
+				return nil, err
 			}
-			for key, val := range result {
-				if strings.Contains(key, "profile.v2") {
-					bys = []byte(val)
-					break
-				}
+			defer db.Close()
+			p := &profile.AppProfileV2{}
+			pb, _ := yaml.Marshal(p)
+			if err = db.Put([]byte(profile.ProfileV2Key(ns, app)), pb); err != nil {
+				return nil, errors.WithStack(err)
 			}
+			return p, nil
 		} else {
-			return nil, errors.Wrap(err, "")
+			return nil, errors.WithStack(err)
 		}
 	}
 	if len(bys) == 0 {
-		return nil, errors.Wrap(ProfileNotFound, "")
+		return nil, errors.WithStack(ProfileNotFound)
 	}
 
-	result, err := UnmarshalProfileUnStrict(bys)
-	return result, errors.Wrap(err, "")
+	return UnmarshalProfileUnStrict(bys)
 }
 
 func UnmarshalProfileUnStrict(p []byte) (*profile.AppProfileV2, error) {
@@ -86,5 +98,5 @@ func UnmarshalProfileUnStrict(p []byte) (*profile.AppProfileV2, error) {
 		rep := re.ReplaceAllString(string(p), "")
 		err = yaml.Unmarshal([]byte(rep), result)
 	}
-	return result, err
+	return result, errors.WithStack(err)
 }

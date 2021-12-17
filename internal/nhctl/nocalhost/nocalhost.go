@@ -13,7 +13,6 @@ import (
 	"nocalhost/internal/nhctl/appmeta"
 	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/daemon_client"
-	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/pkg/nhctl/log"
 	"os"
@@ -81,20 +80,6 @@ func GetLogDir() string {
 	return filepath.Join(nocalhost_path.GetNhctlHomeDir(), _const.DefaultLogDirName)
 }
 
-// gen or get kubeconfig from local path by kubeconfig content
-// we would gen or get kubeconfig file named by hash
-func GetOrGenKubeConfigPath(kubeconfigContent string) string {
-	dir := nocalhost_path.GetNhctlKubeconfigDir(utils.Sha1ToString(kubeconfigContent))
-	path := fp.NewFilePath(dir)
-	if path.ReadFile() != "" {
-		return dir
-	} else {
-		_ = path.RelOrAbs("../").Mkdir()
-		_ = path.WriteFile(kubeconfigContent)
-		return dir
-	}
-}
-
 type AppInfo struct {
 	Name      string
 	Namespace string
@@ -128,7 +113,7 @@ func MoveAppFromNsToNid() error {
 				log.Logf("Move %s-%s to nid dir", a.Name(), ns.Name())
 				kube, err := GetKubeConfigFromProfile(ns.Name(), a.Name(), "")
 				if err != nil {
-					log.Logf("Moving %s-%s pass: %s ", a.Name(), ns.Name(), err.Error())
+					log.Logf("Moving %s-%s pass: %s , get kubeconfig failed", a.Name(), ns.Name(), err.Error())
 					return
 				}
 				meta, err := GetApplicationMeta(a.Name(), ns.Name(), kube)
@@ -196,10 +181,13 @@ func MigrateNsDirToSupportNidIfNeeded(app, ns, nid string) error {
 	return nil
 }
 
-func GetNsAndApplicationInfo() ([]AppInfo, error) {
-	if err := MoveAppFromNsToNid(); err != nil {
-		log.LogE(err)
+func GetNsAndApplicationInfo(portForwardFilter, nidMigrate bool) ([]AppInfo, error) {
+	if nidMigrate {
+		if err := MoveAppFromNsToNid(); err != nil {
+			log.LogE(err)
+		}
 	}
+
 	result := make([]AppInfo, 0)
 	nsDir := nocalhost_path.GetNhctlNameSpaceBaseDir()
 	nsList, err := ioutil.ReadDir(nsDir)
@@ -231,11 +219,18 @@ func GetNsAndApplicationInfo() ([]AppInfo, error) {
 					if !IsNocalhostAppDir(appPath) {
 						continue
 					}
-					result = append(result, AppInfo{
-						Name:      appDir.Name(),
-						Namespace: ns.Name(),
-						Nid:       nidDir.Name(),
-					})
+					if portForwardFilter {
+						if !IsPortForwarding(appPath) {
+							continue
+						}
+					}
+					result = append(
+						result, AppInfo{
+							Name:      appDir.Name(),
+							Namespace: ns.Name(),
+							Nid:       nidDir.Name(),
+						},
+					)
 				}
 			}
 		}
@@ -267,8 +262,28 @@ func IsNocalhostAppDir(dir string) bool {
 	return false
 }
 
+func IsPortForwarding(dir string) bool {
+	s, err := os.Stat(dir)
+	if err != nil {
+		return false
+	}
+	if !s.IsDir() {
+		return false
+	}
+	appDirItems, err := ioutil.ReadDir(dir)
+	if err != nil {
+		return false
+	}
+	for _, item := range appDirItems {
+		if item.Name() == "portforward" {
+			return true
+		}
+	}
+	return false
+}
+
 func GetApplicationMeta(appName, namespace, kubeConfig string) (*appmeta.ApplicationMeta, error) {
-	cli, err := daemon_client.NewDaemonClient(utils.IsSudoUser())
+	cli, err := daemon_client.GetDaemonClient(utils.IsSudoUser())
 	if err != nil {
 		return nil, err
 	}
@@ -303,7 +318,7 @@ func GetApplicationMeta(appName, namespace, kubeConfig string) (*appmeta.Applica
 }
 
 func GetApplicationMetas(namespace, kubeConfig string) (appmeta.ApplicationMetas, error) {
-	cli, err := daemon_client.NewDaemonClient(utils.IsSudoUser())
+	cli, err := daemon_client.GetDaemonClient(utils.IsSudoUser())
 	if err != nil {
 		return nil, err
 	}

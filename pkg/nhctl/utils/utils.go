@@ -112,7 +112,13 @@ func KillSyncthingProcessOnWindows(keyword string) {
 }
 
 func KillSyncthingProcessOnUnix(keyword string) {
-	command := exec.Command("sh", "-c", "ps -ef | grep "+keyword+"  | awk -F ' ' '{print $2}' | xargs kill")
-	err := command.Run()
+	command := exec.Command("sh", "-c", "ps -ef | grep "+keyword+"  | awk -F ' ' '{print $2}'")
+	output, err := command.Output()
+	ids := strings.Split(string(output), "\n")
+	for _, id := range ids {
+		if i, err := strconv.Atoi(id); err == nil {
+			_ = terminate.Terminate(i, false)
+		}
+	}
 	log.Logf("kill syncthing process, keyword: %s, command: %v, err: %v", keyword, command.Args, err)
 }

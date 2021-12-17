@@ -22,5 +22,5 @@ export LDFLAGS="\
 
     ${LDFLAGS:-} \
 "
-
-go build -o "${TARGET}" -gcflags "all=-N -l" --ldflags "${LDFLAGS}" "${SOURCE}"
+# https://github.com/docker-library/golang/issues/209#issuecomment-530591780
+CGO_ENABLED=0 go build -a -installsuffix cgo -o "${TARGET}" -gcflags "all=-N -l" --ldflags "${LDFLAGS}" "${SOURCE}"

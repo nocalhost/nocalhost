@@ -7,9 +7,68 @@ import (
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"strings"
+	"sync"
+	"time"
 )
 
-var NO_DEFAULT_PACK = errors.New("Current Svc pack not found ")
+var (
+	NO_DEFAULT_PACK = errors.New("Current Svc pack not found ")
+	cacheLock       = sync.Mutex{}
+	cache           *DevDirMapping
+)
+
+func Initial() {
+	FlushCache()
+	tick := time.NewTicker(time.Second * 5)
+	go func() {
+		for {
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Errorf("Fail to flush dir-svc cache in cacher ", r)
+					}
+				}()
+				<-tick.C
+				FlushCache()
+			}()
+		}
+	}()
+}
+
+func FlushCache() {
+	if err := Get(
+		func(dirMapping *DevDirMapping, pathToPack map[DevPath][]*SvcPack) error {
+			cacheLock.Lock()
+			defer cacheLock.Unlock()
+			cache = dirMapping
+			return nil
+		},
+	); err != nil {
+		log.ErrorE(err, fmt.Sprintf("Fail to flush dir-svc cache"))
+	}
+}
+
+func (svcPack *SvcPack) GetAssociatePathCache() DevPath {
+	if !svcPack.valid() {
+		log.Logf("Current svc is invalid to get associate path, %v", svcPack)
+		return ""
+	}
+
+	if cache == nil {
+		FlushCache()
+	}
+
+	cacheLock.Lock()
+	defer cacheLock.Unlock()
+
+	var path DevPath
+	if _, ok := cache.PackToPath[svcPack.Key()]; ok {
+		path = cache.PackToPath[svcPack.Key()]
+	} else {
+		path = cache.PackToPath[svcPack.KeyWithoutContainer()]
+	}
+	return path
+}
 
 // get associate path of svcPack
 // if no path match, try with svc with none container
@@ -178,7 +237,7 @@ func (d DevPath) RemovePack(specifyPack *SvcPack) error {
 func (d DevPath) removePackAndThen(
 	specifyPack *SvcPack,
 	fun func(dirMapping *DevDirMapping,
-	pathToPack map[DevPath][]*SvcPack) error) error {
+		pathToPack map[DevPath][]*SvcPack) error) error {
 	if !specifyPack.valid() {
 		return errors.New("Svc pack is invalid")
 	}
@@ -242,6 +301,16 @@ func getDefaultPack(path DevPath) (*SvcPack, error) {
 
 	if pack, ok := packs.Packs[defaultSvcPackKey]; ok {
 		return pack, nil
+	}
+
+	// some dirty data may cause defaultSvcPackKey to nil mapping
+	// so return random one
+	if len(packs.Packs) > 0 {
+		for _, pack := range packs.Packs {
+			if pack.Key() != pack.KeyWithoutContainer() {
+				return pack, nil
+			}
+		}
 	}
 
 	return nil, NO_DEFAULT_PACK

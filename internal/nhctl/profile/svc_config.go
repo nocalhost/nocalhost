@@ -6,14 +6,18 @@
 package profile
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/go-playground/validator/v10"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"nocalhost/internal/nhctl/common/base"
 	_const "nocalhost/internal/nhctl/const"
+	"nocalhost/pkg/nhctl/clientgoutils"
 	"os"
 	"reflect"
 	"strings"
@@ -89,7 +93,7 @@ func (s *ServiceConfigV2) GetDefaultContainerDevConfig() *ContainerDevConfig {
 	return s.ContainerConfigs[0].Dev
 }
 
-// Compatible for v1
+// GetContainerDevConfigOrDefault Compatible for v1
 // Finding `containerName` config, if not found, use the first container config
 func (s *ServiceConfigV2) GetContainerDevConfigOrDefault(containerName string) *ContainerDevConfig {
 	if containerName == "" {
@@ -137,6 +141,35 @@ func (s *ServiceConfigV2) Validate() error {
 		}
 	}
 	return err
+}
+
+// PrepareForConfigurationValidate some validation relies on K8s resource, etc.
+// so we should query them first
+// and use os.setEnv to pass those condition
+func PrepareForConfigurationValidate(client *clientgoutils.ClientGoUtils, containers []v1.Container) {
+	if len(containers) > 0 {
+		cs := ""
+		for _, container := range containers {
+			cs += container.Name + "\n"
+		}
+		_ = os.Setenv(CONTAINERS, cs)
+	}
+
+	if client == nil || client.ClientSet == nil {
+		return
+	}
+
+	if list, err := client.ClientSet.StorageV1().StorageClasses().List(
+		context.TODO(), metav1.ListOptions{},
+	); err != nil {
+		return
+	} else {
+		storageClasses := ""
+		for _, item := range list.Items {
+			storageClasses += item.Name + "\n"
+		}
+		_ = os.Setenv(SUPPORT_SC, storageClasses)
+	}
 }
 
 func IsDNS1123Label(fl validator.FieldLevel) string {

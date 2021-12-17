@@ -88,7 +88,6 @@ func (c *Controller) NewSyncthing(container string, localSyncDir []string, syncD
 		sendMode = _const.SendOnlySyncType
 	}
 	localHomeDir := c.GetApplicationSyncDir()
-	logPath := filepath.Join(c.GetApplicationSyncDir(), syncthing.LogFile)
 
 	s := &syncthing.Syncthing{
 		APIKey:           syncthing.DefaultAPIKey,
@@ -102,7 +101,7 @@ func (c *Controller) NewSyncthing(container string, localSyncDir []string, syncD
 		// syncthing HOME PATH will be used for cert and config.xml
 		LocalHome:        localHomeDir,
 		RemoteHome:       syncthing.RemoteHome,
-		LogPath:          logPath,
+		LogPath:          filepath.Join(localHomeDir, syncthing.LogFile),
 		RemoteAddress:    fmt.Sprintf("%s:%d", syncthing.Bind, remotePort),
 		RemoteDeviceID:   syncthing.DefaultRemoteDeviceID,
 		RemoteGUIAddress: fmt.Sprintf("%s:%d", syncthing.Bind, remoteGUIPort),
@@ -112,13 +111,15 @@ func (c *Controller) NewSyncthing(container string, localSyncDir []string, syncD
 		LocalPort:        localListenPort,
 		ListenAddress:    fmt.Sprintf("%s:%d", syncthing.Bind, localListenPort),
 		Type:             sendMode, // sendonly mode
-		IgnoreDelete:     true,
 		Folders:          []*syncthing.Folder{},
 		RescanInterval:   "300",
 	}
-	svcConfig, _ := c.GetConfig()
+	svcConfig := c.Config()
 	devConfig := svcConfig.GetContainerDevConfigOrDefault(container)
 	if devConfig != nil && devConfig.Sync != nil {
+		// enable delete protection by default
+		// or use the val user specify
+		s.IgnoreDelete = devConfig.Sync.DeleteProtection == nil || *devConfig.Sync.DeleteProtection
 		s.EnableParseFromGitIgnore = devConfig.Sync.Mode == _const.GitIgnoreMode
 		s.SyncedPattern = devConfig.Sync.FilePattern
 		s.IgnoredPattern = devConfig.Sync.IgnoreFilePattern

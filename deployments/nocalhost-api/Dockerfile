@@ -1,5 +1,5 @@
 # build from root path
-FROM golang as builder
+FROM golang:1.16 as builder
 ARG version="latest"
 ARG service_initial
 
@@ -11,13 +11,11 @@ WORKDIR /opt/src
 
 RUN ["make", "api"]
 
-#FROM ubuntu:20.04
-FROM nocalhost-docker.pkg.coding.net/nocalhost/public/ubuntu:stable
+FROM alpine:3.14
 
-RUN ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
-RUN apt-get update && DEBIAN_FRONTEND="noninteractive" apt-get install -y tzdata
+ENV TZ="Asia/Shanghai"
+RUN apk add --no-cache tzdata
 
-RUN ["mkdir", "-p", "/app/config"]
 COPY --from=builder /opt/src/build/nocalhost-api /app/nocalhost-api
 COPY --from=builder /opt/src/conf/config.prod.yaml.example /app/config/config.yaml
 

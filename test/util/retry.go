@@ -26,7 +26,7 @@ func Retry(suiteName string, funcs []func() error) {
 			if err = f(); err == nil {
 				break
 			}
-			logger.Infof("Error while exec retry func, %s", err)
+			logger.Infof("Error while exec retry func, %v", err)
 		}
 		clientgoutils.MustI(
 			err, fmt.Sprintf(

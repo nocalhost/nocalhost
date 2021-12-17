@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/util/retry"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -404,6 +405,18 @@ func (c *GoClient) IsAdmin() (bool, error) {
 	return response.Status.Allowed, nil
 }
 
+func (c *GoClient) DeleteServiceAccount(name, namespace string) error {
+	if name == "" {
+		name = global.NocalhostDevServiceAccountName
+	}
+
+	err := c.client.CoreV1().ServiceAccounts(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+	if err != nil && !k8serrors.IsNotFound(err) {
+		return err
+	}
+	return nil
+}
+
 // create serviceAccount for namespace(Authorization cluster for developer)
 // default name is nocalhost
 func (c *GoClient) CreateServiceAccount(name, namespace string) (bool, error) {
@@ -439,6 +452,17 @@ func (c *GoClient) RefreshServiceAccount(name, namespace string) {
 
 		sa.Labels[NocalhostLabel] = time.Now().Format("20060102150405")
 		_, _ = c.client.CoreV1().ServiceAccounts(namespace).Update(context.TODO(), sa, metav1.UpdateOptions{})
+	} else {
+		err = retry.OnError(
+			retry.DefaultBackoff, func(err error) bool {
+				return !k8serrors.IsAlreadyExists(err)
+			}, func() error {
+				_, err = c.CreateServiceAccount(name, namespace)
+				return err
+			},
+		)
+
+		log.Errorf("Error while create sa %s after multiple retry!", name)
 	}
 }
 
@@ -859,7 +883,7 @@ func (c *GoClient) RemoveClusterRoleBinding(name, toServiceAccount, toServiceAcc
 
 func (c *GoClient) RemoveRoleBinding(name, namespace, toServiceAccount, toServiceAccountNs string) error {
 	rb, err := c.client.RbacV1().RoleBindings(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-	if err != nil && !k8serrors.IsNotFound(err) {
+	if err != nil && k8serrors.IsNotFound(err) {
 		return nil
 	} else if err != nil {
 		return err

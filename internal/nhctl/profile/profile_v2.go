@@ -11,12 +11,16 @@ import (
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 	"gopkg.in/yaml.v3"
+	"io/ioutil"
+	"net"
 	"nocalhost/internal/nhctl/dbutils"
 	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type DevModeType string
@@ -27,6 +31,7 @@ const (
 	DefaultWorkDir   = "/home/nocalhost-dev"
 	DuplicateDevMode = DevModeType("duplicate")
 	ReplaceDevMode   = DevModeType("replace")
+	NoneDevMode      = DevModeType("")
 )
 
 func (d DevModeType) IsReplaceDevMode() bool {
@@ -161,19 +166,6 @@ func (a *AppProfileV2) SvcProfileV2(svcName string, svcType string) *SvcProfileV
 		a.SvcProfile = make([]*SvcProfileV2, 0)
 	}
 	svcProfile := &SvcProfileV2{
-		//ServiceConfigV2: &ServiceConfigV2{
-		//	Name: svcName,
-		//	Type: svcType,
-		//	ContainerConfigs: []*ContainerConfig{
-		//		{
-		//			Dev: &ContainerDevConfig{
-		//				Image:   DefaultDevImage,
-		//				WorkDir: DefaultWorkDir,
-		//			},
-		//		},
-		//	},
-		//},
-		//ActualName: svcName,
 		Type: svcType,
 		Name: svcName,
 	}
@@ -186,10 +178,38 @@ func (a *AppProfileV2) SvcProfileV2(svcName string, svcType string) *SvcProfileV
 // make sure it will be saving while use
 func (a *AppProfileV2) GenerateIdentifierIfNeeded() string {
 	if a != nil && a.Identifier == "" {
-		u, _ := uuid.NewRandom()
-		a.Identifier = u.String()
+		var s string
+		if address := getMacAddress(); address != nil {
+			s = address.String()
+		} else if random, err := uuid.NewUUID(); err == nil {
+			s = random.String()
+		} else {
+			s = strconv.Itoa(time.Now().Nanosecond())
+		}
+		a.Identifier = "i" + strings.ReplaceAll(s, ":", "-")
 	}
 	return a.Identifier
+}
+
+func getMacAddress() net.HardwareAddr {
+	index, err := net.Interfaces()
+	if err == nil {
+		maps := make(map[string]net.HardwareAddr, len(index))
+		for _, i := range index {
+			if i.HardwareAddr != nil && len(i.HardwareAddr) != 0 {
+				maps[i.Name] = i.HardwareAddr
+			}
+		}
+		for i := 0; i < len(maps); i++ {
+			if addr, ok := maps[fmt.Sprintf("en%v", i)]; ok {
+				return addr
+			}
+		}
+		for _, v := range maps {
+			return v
+		}
+	}
+	return nil
 }
 
 func (a *AppProfileV2) Save() error {
@@ -203,6 +223,14 @@ func (a *AppProfileV2) Save() error {
 	if _, err = os.Stat(a.dbPath); err != nil {
 		return errors.Wrap(err, "")
 	}
+	defer func() {
+		for _, profileV2 := range a.SvcProfile {
+			if len(profileV2.DevPortForwardList) != 0 {
+				ioutil.WriteFile(filepath.Join(filepath.Dir(a.dbPath), "portforward"), nil, 0644)
+				break
+			}
+		}
+	}()
 	return a.db.Put([]byte(ProfileV2Key(a.ns, a.appName)), bys)
 }
 
@@ -264,8 +292,11 @@ type SvcProfileV2 struct {
 	Possess bool `json:"possess" yaml:"possess"`
 
 	// LocalDevMode can be started in every local desktop and not influence each other
-	//DuplicateDevMode bool        `json:"duplicateDevMode" yaml:"duplicateDevMode"`
-	DevModeType DevModeType `json:"devModeType" yaml:"devModeType"`
+	DevModeType DevModeType `json:"devModeType" yaml:"devModeType"` // Used by ide plugin
+
+	// recorded the container that enter the devmode
+	// notice: exit devmode will not set this value to null
+	OriginDevContainer string `json:"originDevContainer" yaml:"originDevContainer"`
 }
 
 type ContainerProfileV2 struct {
@@ -346,7 +377,11 @@ func GetPortForwardForString(portStr string) (int, int, error) {
 		if port, err := strconv.Atoi(portStr); err != nil {
 			return 0, 0, errors.Wrap(err, fmt.Sprintf("Wrong format of port: %s.", portStr))
 		} else if port > 65535 || port < 0 {
-			return 0, 0, errors.New(fmt.Sprintf("The range of TCP port number is [0, 65535], wrong defined of port: %s.", portStr))
+			return 0, 0, errors.New(
+				fmt.Sprintf(
+					"The range of TCP port number is [0, 65535], wrong defined of port: %s.", portStr,
+				),
+			)
 		} else {
 			return port, port, nil
 		}
@@ -365,10 +400,18 @@ func GetPortForwardForString(portStr string) (int, int, error) {
 			return 0, 0, errors.Wrap(err, fmt.Sprintf("wrong format of remote port: %s, skipped", s[1]))
 		}
 		if localPort > 65535 || localPort < 0 {
-			return 0, 0, errors.New(fmt.Sprintf("The range of TCP port number is [0, 65535], wrong defined of local port: %s.", portStr))
+			return 0, 0, errors.New(
+				fmt.Sprintf(
+					"The range of TCP port number is [0, 65535], wrong defined of local port: %s.", portStr,
+				),
+			)
 		}
 		if remotePort > 65535 || localPort < 0 {
-			return 0, 0, errors.New(fmt.Sprintf("The range of TCP port number is [0, 65535], wrong defined of remote port: %s.", portStr))
+			return 0, 0, errors.New(
+				fmt.Sprintf(
+					"The range of TCP port number is [0, 65535], wrong defined of remote port: %s.", portStr,
+				),
+			)
 		}
 		return localPort, remotePort, nil
 	}

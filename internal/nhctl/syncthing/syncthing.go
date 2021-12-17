@@ -46,7 +46,6 @@ const (
 	IgnoredFIle      = ".nhignore"
 	syncthingPidFile = "syncthing.pid"
 
-
 	// Use to access syncthing API
 	DefaultAPIKey = "nocalhost"
 

@@ -1,15 +1,17 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package runner
 
 import (
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/homedir"
 	"math/rand"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"os/exec"
+	"path/filepath"
 	"sync"
 	"time"
 )
@@ -24,7 +26,7 @@ func NewNhctl(namespace, kubeconfig, suitName string) *CLI {
 	}
 	n, err := exec.LookPath("nhctl")
 	if err != nil {
-		c.cmd = "nhctl"
+		c.cmd = filepath.Join(homedir.HomeDir(), ".nh", "bin", "nhctl")
 	} else {
 		c.cmd = n
 	}
@@ -67,7 +69,7 @@ func (c *Conf) GetNamespace() string {
 func (c Conf) GetCmd() string {
 	return c.cmd
 }
-func (c Conf) SuitName()string{
+func (c Conf) SuitName() string {
 	return c.suitName
 }
 

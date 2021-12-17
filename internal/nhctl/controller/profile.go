@@ -8,6 +8,7 @@ package controller
 import (
 	"fmt"
 	"github.com/pkg/errors"
+	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/hub"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
@@ -37,6 +38,19 @@ func (c *Controller) GetAppProfile() (*profile.AppProfileV2, error) {
 	return nocalhost.GetProfileV2(c.NameSpace, c.AppName, c.AppMeta.NamespaceId)
 }
 
+func (c *Controller) IsPortForwarding() bool {
+	v2, err := nocalhost.GetProfileV2(c.NameSpace, c.AppName, c.AppMeta.NamespaceId)
+	if err != nil {
+		return true
+	}
+	for _, profileV2 := range v2.SvcProfile {
+		if len(profileV2.DevPortForwardList) != 0 {
+			return true
+		}
+	}
+	return false
+}
+
 func (c *Controller) GetProfile() (*profile.SvcProfileV2, error) {
 	p, err := c.GetAppProfile()
 	if err != nil {
@@ -56,10 +70,7 @@ func (c *Controller) LoadConfigFromHub() error {
 }
 
 func (c *Controller) LoadConfigFromHubC(container string) error {
-	p, err := c.GetConfig()
-	if err != nil {
-		return err
-	}
+	p := c.Config()
 
 	for _, cc := range p.ContainerConfigs {
 		if cc != nil && cc.Dev != nil && cc.Dev.Image != "" {
@@ -106,9 +117,6 @@ func (c *Controller) GetPortForwardForSync() (*profile.DevPortForward, error) {
 func (c *Controller) SetPortForwardedStatus(is bool) error {
 	return c.UpdateSvcProfile(
 		func(svcProfile *profile.SvcProfileV2) error {
-			if svcProfile == nil {
-				return errors.New("Failed to get controller profile")
-			}
 			svcProfile.PortForwarded = is
 			return nil
 		},
@@ -211,4 +219,15 @@ func UpdateSvcConfig(ns, appName, kubeconfig string, config *profile.ServiceConf
 	}
 	meta.Config.SetSvcConfigV2(*config)
 	return meta.Update()
+}
+
+func GetSvcConfig(ns, appName, svcName, kubeconfig string, svcType base.SvcType) (*profile.ServiceConfigV2, error) {
+	meta, err := nocalhost.GetApplicationMeta(appName, ns, kubeconfig)
+	if err != nil {
+		return nil, err
+	}
+	if !meta.IsInstalled() {
+		return nil, errors.New(fmt.Sprintf("AppMeta %s-%s is not installed", appName, ns))
+	}
+	return meta.Config.GetSvcConfigV2(svcName, svcType), nil
 }

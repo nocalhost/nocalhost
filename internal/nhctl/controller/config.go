@@ -10,9 +10,19 @@ import (
 )
 
 // GetConfig The result will not be nil
-func (c *Controller) GetConfig() (*profile.ServiceConfigV2, error) {
-	svcConfig := c.GetAppConfig().GetSvcConfigS(c.Name, c.Type)
-	return &svcConfig, nil
+//func (c *Controller) GetConfig() (*profile.ServiceConfigV2, error) {
+//	svcConfig := c.GetAppConfig().GetSvcConfigS(c.Name, c.Type)
+//	return &svcConfig, nil
+//}
+
+func (c *Controller) Config() *profile.ServiceConfigV2 {
+	return c.config
+}
+
+func (c *Controller) ReloadConfig() profile.ServiceConfigV2 {
+	config := c.AppMeta.Config.GetSvcConfigS(c.Name, c.Type)
+	c.config = &config
+	return config
 }
 
 func (c *Controller) GetAppConfig() *profile.NocalHostAppConfigV2 {
@@ -20,13 +30,18 @@ func (c *Controller) GetAppConfig() *profile.NocalHostAppConfigV2 {
 }
 
 func (c *Controller) UpdateConfig(config profile.ServiceConfigV2) error {
+	config.Name = c.Name
+	config.Type = string(c.Type)
 	c.AppMeta.Config.SetSvcConfigV2(config)
-	return c.AppMeta.Update()
+	if err := c.AppMeta.Update(); err != nil {
+		return err
+	}
+	c.config = &config
+	return nil
 }
 
 func (c *Controller) GetWorkDir(container string) string {
-	svcConfig, _ := c.GetConfig()
-	devConfig := svcConfig.GetContainerDevConfigOrDefault(container)
+	devConfig := c.config.GetContainerDevConfigOrDefault(container)
 	if devConfig != nil && devConfig.WorkDir != "" {
 		return devConfig.WorkDir
 	}
@@ -34,8 +49,7 @@ func (c *Controller) GetWorkDir(container string) string {
 }
 
 func (c *Controller) GetStorageClass(container string) string {
-	svcProfile, _ := c.GetConfig()
-	devConfig := svcProfile.GetContainerDevConfigOrDefault(container)
+	devConfig := c.config.GetContainerDevConfigOrDefault(container)
 	if devConfig != nil && devConfig.StorageClass != "" {
 		return devConfig.StorageClass
 	}
@@ -43,8 +57,7 @@ func (c *Controller) GetStorageClass(container string) string {
 }
 
 func (c *Controller) GetDevImage(container string) string {
-	svcProfile, _ := c.GetConfig()
-	devConfig := svcProfile.GetContainerDevConfigOrDefault(container)
+	devConfig := c.config.GetContainerDevConfigOrDefault(container)
 	if devConfig != nil && devConfig.Image != "" {
 		return devConfig.Image
 	}
@@ -52,8 +65,7 @@ func (c *Controller) GetDevImage(container string) string {
 }
 
 func (c *Controller) GetPersistentVolumeDirs(container string) []*profile.PersistentVolumeDir {
-	svcProfile, _ := c.GetConfig()
-	devConfig := svcProfile.GetContainerDevConfigOrDefault(container)
+	devConfig := c.config.GetContainerDevConfigOrDefault(container)
 	if devConfig != nil {
 		return devConfig.PersistentVolumeDirs
 	}
