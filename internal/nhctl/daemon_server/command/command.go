@@ -28,6 +28,7 @@ const (
 	KubeconfigOperation   DaemonCommandType = "KubeconfigOperationCommand"
 	CheckClusterStatus    DaemonCommandType = "CheckClusterStatus"
 	FlushDirMappingCache  DaemonCommandType = "FlushDirMappingCache"
+	AuthCheck             DaemonCommandType = "AuthCheck"
 
 	PREVIEW_VERSION = 0
 	SUCCESS         = 200
@@ -97,6 +98,16 @@ type GetResourceInfoCommand struct {
 	Resource     string            `json:"resource" yaml:"resource"`
 	ResourceName string            `json:"resourceName" yaml:"resourceName"`
 	Label        map[string]string `json:"label" yaml:"label"`
+	ShowHidden   bool              `json:"showHidden" yaml:"showHidden"`
+}
+
+type AuthCheckCommand struct {
+	CommandType DaemonCommandType
+	ClientStack string
+
+	KubeConfigContent string   `json:"kubeConfig" yaml:"kubeConfig"`
+	NameSpace         string   `json:"namespace" yaml:"namespace"`
+	NeedChecks        []string `json:"needChecks" yaml:"needChecks"`
 }
 
 type UpdateApplicationMetaCommand struct {

@@ -102,7 +102,6 @@ func getCachedDaemonClient(isSudoUser bool) (*DaemonClient, error) {
 	lock.Lock()
 	defer lock.Unlock()
 	if !isSudoUser && client != nil {
-		log.Log("Cached daemon client get")
 		return client, nil
 	}
 	if isSudoUser && sudoClient != nil {
@@ -265,6 +264,25 @@ func (d *DaemonClient) SendGetDaemonServerStatusCommand() (*daemon_common.Daemon
 	return status, nil
 }
 
+func (d *DaemonClient) SendAuthCheckCommand(ns, kubeConfigContent string, needChecks ...string) (bool, error) {
+	acCmd := &command.AuthCheckCommand{
+		CommandType: command.AuthCheck,
+		ClientStack: string(debug.Stack()),
+
+		NameSpace:         ns,
+		KubeConfigContent: kubeConfigContent,
+		NeedChecks:        needChecks,
+	}
+
+	bys, err := json.Marshal(acCmd)
+
+	var nothing interface{}
+	if err = d.sendAndWaitForResponse(bys, &nothing); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // the reason why return a interface is applicationMeta needs to using this client,
 // otherwise it will cause cycle import
 func (d *DaemonClient) SendGetApplicationMetaCommand(ns, appName, kubeConfigContent string) (interface{}, error) {
@@ -366,6 +384,7 @@ func (d *DaemonClient) SendGetResourceInfoCommand(
 	resource,
 	resourceName string,
 	label map[string]string,
+	showHidden bool,
 ) (interface{}, error) {
 	cmd := &command.GetResourceInfoCommand{
 		CommandType: command.GetResourceInfo,
@@ -377,6 +396,7 @@ func (d *DaemonClient) SendGetResourceInfoCommand(
 		Resource:     resource,
 		ResourceName: resourceName,
 		Label:        label,
+		ShowHidden:   showHidden,
 	}
 
 	bys, err := json.Marshal(cmd)

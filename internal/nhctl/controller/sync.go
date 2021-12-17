@@ -92,6 +92,7 @@ func (c *Controller) StopSyncAndPortForwardProcess(cleanRemoteSecret bool) error
 
 	// Clean up secret
 	svcProfile, _ := c.GetProfile()
+	svcProfile.DevModeType = c.AppMeta.GetCurrentDevModeTypeOfWorkload(c.Name, c.Type, c.Identifier)
 	if cleanRemoteSecret {
 		secretName := svcProfile.SyncthingSecret
 		if svcProfile.DevModeType.IsDuplicateDevMode() {
@@ -99,8 +100,7 @@ func (c *Controller) StopSyncAndPortForwardProcess(cleanRemoteSecret bool) error
 		}
 		if secretName != "" {
 			log.Debugf("Cleaning up secret %s", secretName)
-			err = c.Client.DeleteSecret(secretName)
-			if err != nil {
+			if err = c.Client.DeleteSecret(secretName); err != nil {
 				log.WarnE(err, "Failed to clean up syncthing secret")
 			}
 		}

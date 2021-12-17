@@ -32,15 +32,7 @@ func initAppMutate(appName string) error {
 		log.Logf("Get application %s on namespace %s occurs error: %v", appName, nameSpace, err)
 		// if default application not found, try to create one
 		if errors.Is(err, app.ErrNotFound) && appName == _const.DefaultNocalhostApplication {
-			// try init default application
-			if _, err := common.InitDefaultApplicationInCurrentNs(appName, nameSpace, kubeConfig); err != nil {
-				log.Logf(
-					"Error while init defualt application in ns %s app %s, Error %s",
-					nameSpace, appName, err.Error(),
-				)
-			}
-
-			nocalhostApp, err = app.NewFakeApplication(appName, nameSpace, kubeConfig, true)
+			nocalhostApp, err = common.InitDefaultApplicationInCurrentNs(appName, nameSpace, kubeConfig)
 			return err
 		} else {
 			return errors.New("Failed to get application info")

@@ -6,23 +6,31 @@
 package cmds
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"nocalhost/internal/nhctl/fp"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 )
 
 var (
 	contextSpecified []string
+	interactive      bool
 )
 
 func init() {
 	kubeconfigCmd.AddCommand(kubeconfigCheckCmd)
-	kubeconfigCheckCmd.Flags().StringArrayVarP(&contextSpecified,
+	kubeconfigCheckCmd.Flags().StringArrayVarP(
+		&contextSpecified,
 		"context", "c", []string{},
 		"By default, the current context is used. If there is no cluster scope permission, check the 'namespace' is specified",
+	)
+	kubeconfigCheckCmd.Flags().BoolVarP(
+		&interactive,
+		"interactive", "i", false, "return readable interactive result",
 	)
 }
 
@@ -39,37 +47,55 @@ var kubeconfigCheckCmd = &cobra.Command{
 			contextSpecified = append(contextSpecified, "")
 		}
 
+		checkInfos := make([]CheckInfo, 0)
+
 		notEmpty := false
 		warnMsg := "Your KubeConfig may illegal, please try to fix it by following the tips below: <br>"
 		for _, context := range contextSpecified {
+			checkInfo := CheckKubeconfig(kubeConfig, context)
+			checkInfos = append(checkInfos, checkInfo)
 
-			if tips := CheckKubeconfig(kubeConfig, context); tips != "" {
+			if checkInfo.Tips != "" {
 				notEmpty = true
-				warnMsg += fmt.Sprintf("%s <br>", tips)
+				warnMsg += fmt.Sprintf("%s <br>", checkInfo.Tips)
 			}
 		}
 
-		if notEmpty {
-			log.PWarn(warnMsg)
+		if interactive {
+			marshal, _ := json.Marshal(checkInfos)
+			fmt.Println(string(marshal))
+		} else {
+			if notEmpty {
+				log.PWarn(warnMsg)
+			}
 		}
 	},
 }
 
-func CheckKubeconfig(kubeconfigParams string, contextParam string) string {
+// # CheckKubeconfig return two strings
+// first is the complate guide
+// second is a simple msg
+func CheckKubeconfig(kubeconfigParams string, contextParam string) CheckInfo {
+	unexpectedErrFmt := "Please check if your cluster or kubeconfig is valid, Error: %v"
+	invalidNamespaceFmt := "Please check current namespace is valid, or make sure" +
+		" you have the correct permissions to access this namespace, Error: %v"
+
 	utils, err := clientgoutils.NewClientGoUtils(kubeconfigParams, "")
 	if err != nil {
-		return err.Error()
-
+		return CheckInfo{
+			FAIL, fmt.Sprintf(unexpectedErrFmt, err.Error()),
+		}
 	}
 
 	config, err := utils.NewFactory().ToRawKubeConfigLoader().RawConfig()
 	if err != nil {
-		return err.Error()
-
+		return CheckInfo{
+			FAIL, fmt.Sprintf(unexpectedErrFmt, err.Error()),
+		}
 	}
 
 	if len(config.Contexts) == 0 {
-		return "Please make sure your kubeconfig contains one context at least "
+		return CheckInfo{FAIL, "Please make sure your kubeconfig contains at least one context"}
 	}
 
 	if contextParam == "" {
@@ -82,33 +108,64 @@ func CheckKubeconfig(kubeconfigParams string, contextParam string) string {
 			set.Insert(validContext)
 		}
 
-		return fmt.Sprintf(
+		msg := fmt.Sprintf(
 			"Invalid context '%s',"+
 				" you should choose a correct one from below %v",
 			contextParam, set.UnsortedList(),
 		)
-
+		return CheckInfo{
+			FAIL, msg,
+		}
 	} else {
-		if ctx.Namespace == "" {
+		specifiedNs := ctx.Namespace == ""
+		_ = Prepare()
 
-			err := clientgoutils.DoAuthCheck(
-				utils, "", &clientgoutils.AuthChecker{
-					Verb:        []string{"list", "get", "watch"},
-					ResourceArg: "namespaces",
-				},
-			)
+		kubeCOnfigContent := fp.NewFilePath(kubeConfig).ReadFile()
 
+		err := clientgoutils.CheckForResource(
+			kubeCOnfigContent,
+			"",
+			[]string{"list", "get", "watch"}, "namespaces",
+		)
+
+		if err != nil {
 			if errors.Is(err, clientgoutils.PermissionDenied) {
-
-				return fmt.Sprintf(
+				msg := fmt.Sprintf(
 					"Context '%s' can not asscess the cluster scope resources, so you should specify a namespace by using "+
 						"'kubectl config set-context %s --namespace=${your_namespace} --kubeconfig=${your_kubeconfig}', or you can add"+
 						" a namespace to this context manually. ",
 					contextParam, contextParam,
 				)
-			}
-		}
-	}
 
-	return ""
+				if specifiedNs {
+					if err := clientgoutils.CheckForResource(
+						kubeCOnfigContent,
+						"",
+						[]string{"list"}, "pod",
+					); err != nil {
+						return CheckInfo{FAIL, fmt.Sprintf(invalidNamespaceFmt, err.Error())}
+					}
+					return CheckInfo{SUCCESS, ""}
+				}
+
+				return CheckInfo{FAIL, msg}
+			}
+			return CheckInfo{FAIL, fmt.Sprintf(unexpectedErrFmt, err.Error())}
+		}
+
+		// Success with cluster scope
+		return CheckInfo{SUCCESS, "Current context can list with cluster-scope resources"}
+	}
 }
+
+var (
+	SUCCESS CheckInfoStatus = "SUCCESS"
+	FAIL    CheckInfoStatus = "FAIL"
+)
+
+type CheckInfo struct {
+	Status CheckInfoStatus `json:"status" yaml:"status"`
+	Tips   string          `json:"tips" yaml:"tips"`
+}
+
+type CheckInfoStatus string
