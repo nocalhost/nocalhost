@@ -281,7 +281,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) (inte
 				availableData = append(availableData, datum)
 			}
 		}
-		if err != nil || len(availableData) == 0 {
+		if len(availableData) == 0 {
 			return nil, nil
 		}
 		if len(request.ResourceName) == 0 {
@@ -316,8 +316,8 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) (inte
 		// get all resource in namespace
 		if len(request.ResourceName) == 0 {
 			items, err := c.Query()
-			if err != nil || len(items) == 0 {
-				return nil, errors.New("No resource found")
+			if err != nil {
+				return nil, err
 			}
 			result := make([]item.Item, 0, len(items))
 			for _, i := range items {

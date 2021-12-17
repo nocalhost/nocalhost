@@ -23,6 +23,7 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
+	"runtime/debug"
 	"strconv"
 	"strings"
 )
@@ -277,5 +278,11 @@ func GetPortForwardForString(portStr string) (int, int, error) {
 			)
 		}
 		return localPort, remotePort, nil
+	}
+}
+
+func RecoverFromPanic() {
+	if r := recover(); r != nil {
+		log.Errorf("DAEMON-RECOVER: %s", string(debug.Stack()))
 	}
 }

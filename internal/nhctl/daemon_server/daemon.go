@@ -26,7 +26,6 @@ import (
 	"nocalhost/pkg/nhctl/clientgoutils"
 	k8sutil "nocalhost/pkg/nhctl/k8sutils"
 	"nocalhost/pkg/nhctl/log"
-	"runtime/debug"
 	"strings"
 	"time"
 )
@@ -152,7 +151,7 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 					if conn != nil {
 						_ = conn.Close()
 					}
-					recoverDaemonFromPanic()
+					utils.RecoverFromPanic()
 				}()
 
 				var err error
@@ -510,10 +509,4 @@ func handleStopPortForwardCommand(cmd *command.PortForwardCommand) error {
 // If a port-forward already exist, skip it(don't do anything), and return an error
 func handleStartPortForwardCommand(startCmd *command.PortForwardCommand) error {
 	return pfManager.StartPortForwardGoRoutine(startCmd, true)
-}
-
-func recoverDaemonFromPanic() {
-	if r := recover(); r != nil {
-		log.Errorf("DAEMON-RECOVER: %s", string(debug.Stack()))
-	}
 }
