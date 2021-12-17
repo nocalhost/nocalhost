@@ -167,17 +167,7 @@ func NewApplication(name string, ns string, kubeconfig string, initClient bool) 
 		return nil, err
 	}
 
-	// if appMeta is not installed but application installed in earlier version
-	// should make a fake installation and generate an application meta
-	//if app.generateSecretForEarlierVer() {
-	//
-	//	// load app meta if generate secret for earlier verion
-	//	if app.appMeta, err = nocalhost.GetApplicationMeta(app.Name, app.NameSpace, app.KubeConfig); err != nil {
-	//		return nil, err
-	//	}
-	//}
-
-	if !app.appMeta.IsInstalled() {
+	if app.appMeta.IsNotInstall() {
 		return nil, errors.Wrap(ErrNotFound, fmt.Sprintf("%s-%s not found", app.NameSpace, app.Name))
 	}
 
