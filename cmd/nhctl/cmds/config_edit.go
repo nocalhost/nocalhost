@@ -14,6 +14,7 @@ import (
 	"golang.org/x/text/transform"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
+	"nocalhost/internal/nhctl/config_validate"
 	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/profile"
@@ -122,8 +123,8 @@ var configEditCmd = &cobra.Command{
 		}
 
 		containers, _ := nocalhostSvc.GetOriginalContainers()
-		profile.PrepareForConfigurationValidate(nocalhostApp.GetClient(), containers)
-		if err := svcConfig.Validate(); err != nil {
+		config_validate.PrepareForConfigurationValidate(nocalhostApp.GetClient(), containers)
+		if err := config_validate.Validate(svcConfig); err != nil {
 			log.Fatal(err)
 		}
 

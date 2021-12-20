@@ -3,40 +3,48 @@ package utils
 import (
 	"context"
 	"sync"
+	"time"
 )
 
-func NewSpinnerExt(printer func(string)) *spinnerExt {
-	return &spinnerExt{
-		context.TODO(),
-		make(chan Msg, 10),
-		sync.Once{},
-		printer,
-	}
-}
-
-type spinnerExt struct {
+type Printer struct {
 	ctx              context.Context
-	statusNotifyChan chan Msg
+	statusNotifyChan chan string
+
+	sameContentBackOffSecond int
 
 	once    sync.Once
 	printer func(string)
 }
 
-func (se *spinnerExt) Start() {
-	se.once.Do(
+func NewPrinter(printerFunc func(string)) *Printer {
+	pr := &Printer{
+		context.TODO(),
+		make(chan string, 10),
+		60,
+		sync.Once{},
+		printerFunc,
+	}
+
+	pr.once.Do(
 		func() {
 			go func() {
+				someContentRecorder := make(map[string]int64, 0)
 
-				cache := make(map[string]string, 0)
 				running := true
 				for {
 					select {
-					case <-se.ctx.Done():
+					case <-pr.ctx.Done():
 						running = false
-					case c := <-se.statusNotifyChan:
-						if cache[c.Tag] != c.Content {
-							se.printer(c.Content)
-							cache[c.Tag] = c.Content
+
+					case c := <-pr.statusNotifyChan:
+						if nano, ok := someContentRecorder[c]; !ok ||
+							nano < time.Now().UnixNano() {
+							pr.printer(c)
+
+							someContentRecorder[c] = time.
+								Now().
+								Add(time.Second * time.Duration(pr.sameContentBackOffSecond)).
+								UnixNano()
 						}
 					}
 					if !running {
@@ -46,20 +54,20 @@ func (se *spinnerExt) Start() {
 			}()
 		},
 	)
+
+	return pr
 }
 
-func (se *spinnerExt) ChangeContent(tag, content string) {
+func (se *Printer) ChangeContent(content string) {
+	if se == nil {
+		return
+	}
 	select {
-	case se.statusNotifyChan <- Msg{tag, content}:
+	case se.statusNotifyChan <- content:
 	default:
 	}
 }
 
-func (se *spinnerExt) Done() {
+func (se *Printer) Done() {
 	se.ctx.Done()
-}
-
-type Msg struct {
-	Tag     string
-	Content string
 }

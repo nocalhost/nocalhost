@@ -161,8 +161,7 @@ var devStartCmd = &cobra.Command{
 			log.FatalE(err, "")
 		}
 
-		devPodName, err := nocalhostSvc.BuildPodController().
-			GetNocalhostDevContainerPod()
+		devPodName, err := nocalhostSvc.BuildPodController().GetNocalhostDevContainerPod()
 		must(err)
 
 		startPortForwardAfterDevStart(devPodName)
@@ -174,7 +173,7 @@ var devStartCmd = &cobra.Command{
 		}
 
 		if !devStartOps.NoTerminal || shell != "" {
-			must(nocalhostSvc.EnterPodTerminal(devPodName, devStartOps.Container, shell))
+			must(nocalhostSvc.EnterPodTerminal(devPodName, "nocalhost-dev", shell))
 		}
 
 	},
@@ -229,12 +228,12 @@ func loadLocalOrCmConfigIfValid() {
 
 		must(associatePath.Associate(svcPack, kubeConfig, true))
 
-		_ = nocalhostApp.ReloadSvcCfg(deployment, base.SvcTypeOf(serviceType), false, false)
+		_ = nocalhostApp.ReloadSvcCfg(deployment, base.SvcType(serviceType), false, false)
 	case 1:
 
 		must(dev_dir.DevPath(devStartOps.LocalSyncDir[0]).Associate(svcPack, kubeConfig, true))
 
-		_ = nocalhostApp.ReloadSvcCfg(deployment, base.SvcTypeOf(serviceType), false, false)
+		_ = nocalhostApp.ReloadSvcCfg(deployment, base.SvcType(serviceType), false, false)
 	default:
 		log.Fatal(errors.New("Can not define multi 'local-sync(-s)'"))
 	}
@@ -338,6 +337,8 @@ func enterDevMode(devModeType profile.DevModeType) error {
 	); err != nil {
 		return err
 	}
+
+	utils.Should(nocalhostSvc.IncreaseDevModeCount())
 
 	// mark dev start as true
 	devStartSuccess = true

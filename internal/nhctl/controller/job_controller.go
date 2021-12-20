@@ -11,40 +11,22 @@ import (
 	"nocalhost/internal/nhctl/model"
 )
 
-type JobController struct {
+type DefaultController struct {
 	*Controller
 }
 
-//const jobGeneratedJobPrefix = "job-generated-job-"
-
-func (j *JobController) GetNocalhostDevContainerPod() (string, error) {
-	checkPodsList, err := j.GetPodList()
-	if err != nil {
-		return "", err
-	}
-	return findDevPodName(checkPodsList)
+func (j *DefaultController) GetNocalhostDevContainerPod() (string, error) {
+	return j.GetDevModePodName()
 }
 
-//func (j *JobController) getGeneratedJobName() string {
-//	return fmt.Sprintf("%s%s", jobGeneratedJobPrefix, j.GetName())
-//}
-
-// ReplaceImage For Job, we can't replace the Job' image
-// but create a job with dev container instead
-func (j *JobController) ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error {
+func (j *DefaultController) ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error {
 	return j.PatchDevModeManifest(ctx, ops)
 }
 
-func (j *JobController) RollBack(reset bool) error {
+func (j *DefaultController) RollBack(reset bool) error {
 	return j.RollbackFromAnnotation()
 }
 
-// GetPodList
-// In DevMode, return pod list of generated Job.
-// Otherwise, return pod list of original Job
-func (j *JobController) GetPodList() ([]corev1.Pod, error) {
-	if j.IsInReplaceDevMode() {
-		return j.ListPodOfGeneratedDeployment()
-	}
+func (j *DefaultController) GetPodList() ([]corev1.Pod, error) {
 	return j.Controller.GetPodList()
 }

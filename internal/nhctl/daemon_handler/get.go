@@ -7,10 +7,13 @@ package daemon_handler
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/cache"
 	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/appmeta"
@@ -44,7 +47,7 @@ func getServiceProfile(ns, appName, nid string, kubeconfigBytes []byte) map[stri
 		for _, svcProfileV2 := range description.SvcProfile {
 			if svcProfileV2 != nil {
 				svcProfileV2.DevModeType = appMeta.GetCurrentDevModeTypeOfWorkload(
-					svcProfileV2.Name, base.SvcTypeOf(svcProfileV2.Type), description.Identifier,
+					svcProfileV2.Name, base.SvcType(svcProfileV2.Type), description.Identifier,
 				)
 				name := strings.ToLower(svcProfileV2.GetType()) + "s"
 				serviceMap[name+"/"+svcProfileV2.GetName()] = svcProfileV2
@@ -106,7 +109,7 @@ func GetDescriptionDaemon(ns, appName, nid string, kubeconfigBytes []byte) *prof
 
 			appmeta.FillingExtField(svcProfile, &meta, appName, ns, appProfile.Identifier)
 
-			if m := devMeta[base.SvcTypeOf(svcProfile.GetType()).Alias()]; m != nil {
+			if m := devMeta[base.SvcType(svcProfile.GetType()).Alias()]; m != nil {
 				delete(m, svcProfile.GetName())
 			}
 		}
@@ -189,11 +192,63 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			meta := appmeta_manager.GetApplicationMeta(ns, request.ResourceName, KubeConfigBytes)
 			return ParseApplicationsResult(ns, []*appmeta.ApplicationMeta{meta})
 		}
+	case "crd-list":
+		s, err := resouce_cache.GetSearcherWithLRU(KubeConfigBytes, ns)
+		if err != nil {
+			return errors.New("fail to get searcher")
+		}
+		data, err := s.Criteria().
+			ResourceType("crds").
+			Label(request.Label).
+			ShowHidden(request.ShowHidden).
+			Query()
+		if err != nil {
+			return err
+		}
 
+		type gvkr struct {
+			schema.GroupVersionKind
+			Resource   string
+			Namespaced bool
+		}
+
+		crdGvkList := make([]*gvkr, 0)
+		for _, datum := range data {
+			um, ok := datum.(*unstructured.Unstructured)
+			if !ok {
+				continue
+			}
+			crd, err := resouce_cache.ConvertRuntimeObjectToCRD(um)
+			if err != nil {
+				log.WarnE(err, "")
+				continue
+			}
+
+			ggwa, err := s.GetResourceInfo(crd.Spec.Names.Kind)
+			if err != nil {
+				log.WarnE(err, "")
+				continue
+			}
+			g := gvkr{}
+			g.GroupVersionKind = ggwa.Gvk
+			g.Resource = ggwa.Gvr.Resource
+			g.Namespaced = ggwa.Namespaced
+			crdGvkList = append(crdGvkList, &g)
+		}
+
+		if len(request.ResourceName) == 0 {
+			result := make([]item.Item, 0, len(crdGvkList))
+			for _, datum := range crdGvkList {
+				result = append(result, item.Item{Metadata: datum})
+			}
+			return result[0:]
+		} else {
+			return item.Item{Metadata: crdGvkList[0]}
+		}
 	case "ns", "namespace", "namespaces":
 		s, err := resouce_cache.GetSearcherWithLRU(KubeConfigBytes, ns)
 		if err != nil {
-			return nil
+			return errors.New("fail to get searcher")
 		}
 		data, err := s.Criteria().
 			ResourceType(request.Resource).
@@ -204,7 +259,19 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 		// resource namespace filter status is active
 		availableData := make([]interface{}, 0, 0)
 		for _, datum := range data {
-			if datum.(*v1.Namespace).Status.Phase == v1.NamespaceActive {
+			um, ok := datum.(*unstructured.Unstructured)
+			if !ok {
+				continue
+			}
+			j, err := um.MarshalJSON()
+			if err != nil {
+				continue
+			}
+			namespace := &v1.Namespace{}
+			if err = json.Unmarshal(j, namespace); err != nil {
+				continue
+			}
+			if namespace.Status.Phase == v1.NamespaceActive {
 				availableData = append(availableData, datum)
 			}
 		}
@@ -222,6 +289,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 		}
 
 	default:
+		request.ClientStack = ""
 		s, err := resouce_cache.GetSearcherWithLRU(KubeConfigBytes, ns)
 		if err != nil {
 			return nil
@@ -426,7 +494,7 @@ func GetAllValidApplicationWithDefaultApp(ns string, KubeConfigBytes []byte) []*
 
 	// then if meta from secret is installed, put it into result
 	for _, meta := range appFromMeta {
-		if meta.IsInstalled() {
+		if meta.IsInstalled() || meta.IsInstalling() {
 			result[meta.Application] = meta
 		}
 	}

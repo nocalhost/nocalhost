@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"k8s.io/api/batch/v1beta1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/watch"
@@ -18,6 +19,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/pkg/errors"
@@ -47,6 +49,7 @@ import (
 type ClientGoUtils struct {
 	kubeConfigFilePath      string
 	restConfig              *restclient.Config
+	restMapper              meta.RESTMapper
 	ClientSet               *kubernetes.Clientset
 	dynamicClient           dynamic.Interface //
 	ClientConfig            clientcmd.ClientConfig
@@ -55,6 +58,9 @@ type ClientGoUtils struct {
 	ctx                     context.Context
 	labels                  map[string]string
 	fieldSelector           string
+
+	gvrCache     map[string]schema.GroupVersionResource
+	gvrCacheLock sync.Mutex
 }
 
 type PortForwardAPodRequest struct {
@@ -107,13 +113,17 @@ func NewClientGoUtils(kubeConfigPath string, namespace string) (*ClientGoUtils, 
 	}
 
 	// set default rateLimiter to 100, in case of throttling request
-	client.restConfig.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(100, 200)
+	client.restConfig.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(1000, 2000)
 
 	if client.ClientSet, err = kubernetes.NewForConfig(client.restConfig); err != nil {
 		return nil, errors.Wrap(err, "")
 	}
 
 	if client.dynamicClient, err = dynamic.NewForConfig(client.restConfig); err != nil {
+		return nil, errors.Wrap(err, "")
+	}
+
+	if client.restMapper, err = client.NewFactory().ToRESTMapper(); err != nil {
 		return nil, errors.Wrap(err, "")
 	}
 
@@ -151,6 +161,10 @@ func (c *ClientGoUtils) KubeConfigFilePath() string {
 func (c *ClientGoUtils) NameSpace(namespace string) *ClientGoUtils {
 	c.namespace = namespace
 	return c
+}
+
+func (c *ClientGoUtils) GetNameSpace() string {
+	return c.namespace
 }
 
 // Context Set ClientGoUtils's Context
@@ -326,19 +340,23 @@ func (c *ClientGoUtils) CheckDeploymentReady(name string) (bool, error) {
 	return false, nil
 }
 
-// Notice: This may not list pods whose deployment is already deleted
 func (c *ClientGoUtils) ListPodsOfDeployment(deployName string) ([]corev1.Pod, error) {
 	podClient := c.GetPodClient()
 
 	podList, err := podClient.List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		return nil, errors.Wrap(err, "")
+		return nil, errors.WithStack(err)
 	}
 
 	result := make([]corev1.Pod, 0)
 
 OuterLoop:
 	for _, pod := range podList.Items {
+		if !c.includeDeletedResources {
+			if pod.DeletionTimestamp != nil {
+				continue
+			}
+		}
 		for _, ref := range pod.OwnerReferences {
 			if ref.Kind != "ReplicaSet" {
 				continue

@@ -6,13 +6,13 @@
 package controller
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"nocalhost/internal/nhctl/profile"
-	"nocalhost/internal/nhctl/utils"
+	"nocalhost/pkg/nhctl/clientgoutils"
 	"testing"
-	"time"
 )
 
 func TestIsResourcesLimitToLow(t *testing.T) {
@@ -33,49 +33,23 @@ func TestIsResourcesLimitToLow(t *testing.T) {
 	fmt.Println(IsResourcesLimitTooLow(rq))
 }
 
-//func TestDeploymentController_ReplaceImage(t *testing.T) {
-//	client, err := clientgoutils.NewClientGoUtils("", "nocalhost-test")
-//	objs, err := client.Get("deployment", "reviews")
-//	if err != nil {
-//		panic(err)
-//	}
-//
-//	obj := &unstructured.Unstructured{}
-//	obj.Object, err = runtime.DefaultUnstructuredConverter.ToUnstructured(objs[0])
-//	if err != nil {
-//		panic(err)
-//	}
-//
-//	podSpec, err := GetPodTemplateFromSpecPath("/spec/template/spec", obj.Object)
-//	if err != nil {
-//		panic(err)
-//	}
-//
-//	fmt.Printf("%v\n", podSpec)
-//}
-
-func TestPrintForPod(t *testing.T) {
-	ctx := context.TODO()
-	content := make(chan string, 0)
-
-	newSpinner := utils.NewSpinner("zzzzzzz")
-	newSpinner.Start()
-
-	breaking := false
-
-	for {
-		select {
-		case <-ctx.Done():
-			newSpinner.Stop()
-			breaking = true
-		case c := <-content:
-			newSpinner.Update(c)
-		}
-
-		if breaking {
-			break
-		}
+func TestDeploymentController_ReplaceImage(t *testing.T) {
+	client, err := clientgoutils.NewClientGoUtils("", "nocalhost-test")
+	objs, err := client.Get("deployment", "reviews")
+	if err != nil {
+		panic(err)
 	}
 
-	time.Sleep(time.Minute)
+	obj := &unstructured.Unstructured{}
+	obj.Object, err = runtime.DefaultUnstructuredConverter.ToUnstructured(objs)
+	if err != nil {
+		panic(err)
+	}
+
+	podSpec, err := GetPodTemplateFromSpecPath("/spec/template/spec", obj.Object)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("%v\n", podSpec)
 }

@@ -13,6 +13,7 @@ import (
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/common/base"
 	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/nocalhost"
@@ -35,10 +36,6 @@ var (
 	nocalhostApp *app.Application
 	nocalhostSvc *controller.Controller
 )
-
-type ConfigFile struct {
-	NhEsUrl string `json:"nh_es_url" yaml:"nh_es_url"`
-}
 
 func init() {
 	rootCmd.PersistentFlags().StringVarP(
@@ -85,7 +82,7 @@ var rootCmd = &cobra.Command{
 		var esUrl string
 		bys, err := ioutil.ReadFile(filepath.Join(nocalhost_path.GetNhctlHomeDir(), "config"))
 		if err == nil && len(bys) > 0 {
-			configFile := ConfigFile{}
+			configFile := base.ConfigFile{}
 			err = yaml.Unmarshal(bys, &configFile)
 			if err == nil && configFile.NhEsUrl != "" {
 				esUrl = configFile.NhEsUrl
@@ -105,14 +102,10 @@ var rootCmd = &cobra.Command{
 		serviceType = strings.ToLower(serviceType)
 
 		if authCheck {
-
 			must(Prepare())
-			client, err := clientgoutils.NewClientGoUtils(kubeConfig, nameSpace)
-			must(err)
-
-			must(clientgoutils.DoCheck(client, nameSpace, cmd))
-
-			fmt.Printf("yes")
+			if clientgoutils.AuthCheck(nameSpace, kubeConfig, cmd) {
+				fmt.Printf("yes")
+			}
 			os.Exit(0)
 			return
 		}

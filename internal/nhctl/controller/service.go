@@ -13,12 +13,17 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	kblabels "k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/common/base"
 	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/model"
+	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/utils"
+	"nocalhost/internal/nhctl/watcher"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"strconv"
@@ -38,8 +43,8 @@ type Controller struct {
 	Client           *clientgoutils.ClientGoUtils
 	AppMeta          *appmeta.ApplicationMeta
 	config           *profile.ServiceConfigV2
-	DevModeAction    DevModeAction
-	devModePodLabels map[string]string
+	DevModeAction    base.DevModeAction
+	devModePodLabels kblabels.Set
 }
 
 type jsonPatch struct {
@@ -60,9 +65,9 @@ func NewController(ns, name, appName, identifier string, svcType base.SvcType,
 		Identifier: identifier,
 	}
 	c.DevModeType = c.GetCurrentDevModeType()
-	da, err := GetDevModeActionBySvcType(svcType)
+	da, err := nocalhost.GetDevModeActionBySvcType(svcType)
 	if err == nil {
-		c.DevModeAction = da
+		c.DevModeAction = *da
 	}
 
 	a := c.GetAppConfig().GetSvcConfigS(c.Name, c.Type)
@@ -98,7 +103,9 @@ func (c *Controller) IsInDevModeStarting() bool {
 
 // IsProcessor Check if service is developing in this device
 func (c *Controller) IsProcessor() bool {
-	return c.AppMeta.SvcDevModePossessor(c.Name, c.Type, c.Identifier, profile.DuplicateDevMode) || c.AppMeta.SvcDevModePossessor(c.Name, c.Type, c.Identifier, profile.ReplaceDevMode)
+	return c.AppMeta.SvcDevModePossessor(
+		c.Name, c.Type, c.Identifier, profile.DuplicateDevMode,
+	) || c.AppMeta.SvcDevModePossessor(c.Name, c.Type, c.Identifier, profile.ReplaceDevMode)
 }
 
 func (c *Controller) GetCurrentDevModeType() profile.DevModeType {
@@ -108,14 +115,14 @@ func (c *Controller) GetCurrentDevModeType() profile.DevModeType {
 func CheckIfControllerTypeSupport(t string) bool {
 	tt := base.SvcType(t)
 	if tt == base.Deployment || tt == base.StatefulSet || tt == base.DaemonSet || tt == base.Job ||
-		tt == base.CronJob || tt == base.Pod {
+		tt == base.CronJob || tt == base.Pod || tt == base.CloneSetV1Alpha1 {
 		return true
 	}
 	return false
 }
 
 func (c *Controller) CheckIfExist() (bool, error) {
-	_, err := c.GetUnstructuredMap()
+	_, err := c.GetUnstructured()
 	if err != nil {
 		return false, err
 	}
@@ -128,21 +135,21 @@ func (c *Controller) GetOriginalContainers() ([]v1.Container, error) {
 
 func GetOriginalContainers(client *clientgoutils.ClientGoUtils, workloadType base.SvcType, workloadName, path string) ([]v1.Container, error) {
 	//var podSpec v1.PodSpec
-	um, err := client.GetUnstructuredMap(string(workloadType), workloadName)
+	um, err := client.GetUnstructured(string(workloadType), workloadName)
 	if err != nil {
 		return nil, err
 	}
 
-	var originalUm map[string]interface{}
-	od, err := GetAnnotationFromUnstructuredMap(um, _const.OriginWorkloadDefinition)
+	var originalUm *unstructured.Unstructured
+	od, err := GetAnnotationFromUnstructured(um, _const.OriginWorkloadDefinition)
 	if err == nil {
-		originalUm, _ = client.GetUnstructuredMapFromString(od)
+		originalUm, _ = client.GetUnstructuredFromString(od)
 	}
-	if len(originalUm) > 0 {
+	if originalUm != nil {
 		um = originalUm
 	}
 
-	pt, err := GetPodTemplateFromSpecPath(path, um)
+	pt, err := GetPodTemplateFromSpecPath(path, um.Object)
 	if err != nil {
 		return nil, err
 	}
@@ -238,27 +245,21 @@ func GetOriginalContainers(client *clientgoutils.ClientGoUtils, workloadType bas
 }
 
 func (c *Controller) GetTypeMeta() (metav1.TypeMeta, error) {
-	um, err := c.GetUnstructuredMap()
+	um, err := c.GetUnstructured()
 	if err != nil {
 		return metav1.TypeMeta{}, err
 	}
 
 	result := metav1.TypeMeta{}
 
-	k, ok := um["kind"]
-	if !ok {
+	k := um.GetKind()
+	if k == "" {
 		return result, errors.New("Can not find kind")
 	}
-	if result.Kind, ok = k.(string); !ok {
-		return result, errors.New("Kind is not a string ?")
-	}
 
-	a, ok := um["apiVersion"]
-	if !ok {
+	a := um.GetAPIVersion()
+	if a == "" {
 		return result, errors.New("Can not find apiVersion")
-	}
-	if result.APIVersion, ok = a.(string); !ok {
-		return result, errors.New("ApiVersion is not a string ?")
 	}
 	return result, nil
 }
@@ -317,57 +318,15 @@ func (c *Controller) GetContainerImage(container string) (string, error) {
 }
 
 func (c *Controller) GetContainers() ([]v1.Container, error) {
-	var podSpec v1.PodSpec
-	um, err := c.GetUnstructuredMap()
+	um, err := c.GetUnstructured()
 	if err != nil {
 		return nil, err
 	}
-	pt, err := GetPodTemplateFromSpecPath(c.DevModeAction.PodTemplatePath, um)
+	pt, err := GetPodTemplateFromSpecPath(c.DevModeAction.PodTemplatePath, um.Object)
 	if err != nil {
 		return nil, err
 	}
-
-	podSpec = pt.Spec
-	//switch c.Type {
-	//case base.Deployment:
-	//	d, err := c.Client.GetDeployment(c.Name)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	podSpec = d.Spec.Template.Spec
-	//case base.StatefulSet:
-	//	s, err := c.Client.GetStatefulSet(c.Name)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	podSpec = s.Spec.Template.Spec
-	//case base.DaemonSet:
-	//	d, err := c.Client.GetDaemonSet(c.Name)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	podSpec = d.Spec.Template.Spec
-	//case base.Job:
-	//	j, err := c.Client.GetJobs(c.Name)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	podSpec = j.Spec.Template.Spec
-	//case base.CronJob:
-	//	j, err := c.Client.GetCronJobs(c.Name)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	podSpec = j.Spec.JobTemplate.Spec.Template.Spec
-	//case base.Pod:
-	//	p, err := c.Client.GetPod(c.Name)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	podSpec = p.Spec
-	//}
-
-	return podSpec.Containers, nil
+	return pt.Spec.Containers, nil
 }
 
 func (c *Controller) GetDescription() *profile.SvcProfileV2 {
@@ -413,7 +372,7 @@ func (c *Controller) getDuplicateLabelsMap() (map[string]string, error) {
 }
 
 func (c *Controller) getDuplicateResourceName() string {
-	return strings.Join([]string{c.Name, string(c.Type), c.Identifier[0:5], strconv.Itoa(int(time.Now().Unix()))}, "-")
+	return strings.Join([]string{c.Name, c.Identifier[0:5], strconv.Itoa(int(time.Now().Unix()))}, "-")
 }
 
 func (c *Controller) patchAfterDevContainerReplaced(containerName, resourceType, resourceName string) {
@@ -468,7 +427,7 @@ func (c *Controller) getGeneratedDeploymentLabels() map[string]string {
 func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevStartOptions) error {
 	c.Client.Context(ctx)
 
-	unstructuredObj, err := c.GetUnstructuredMap()
+	unstructuredObj, err := c.GetUnstructured()
 	if err != nil {
 		return err
 	}
@@ -489,7 +448,7 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 	}
 	log.Info("Scale success")
 
-	podTemplate, err := GetPodTemplateFromSpecPath(c.DevModeAction.PodTemplatePath, unstructuredObj)
+	podTemplate, err := GetPodTemplateFromSpecPath(c.DevModeAction.PodTemplatePath, unstructuredObj.Object)
 	if err != nil {
 		return err
 	}
@@ -506,7 +465,7 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 
 	m := map[string]interface{}{"metadata": map[string]interface{}{"annotations": map[string]string{_const.OriginWorkloadDefinition: string(originalSpecJson)}}}
 	mBytes, _ := json.Marshal(m)
-	if err = c.Client.Patch(c.Type.String(), c.Name, string(mBytes), "strategic"); err != nil {
+	if err = c.Client.Patch(c.Type.String(), c.Name, string(mBytes), "merge"); err != nil {
 		return err
 	}
 	log.Info("Original manifest recorded")
@@ -516,11 +475,13 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 
 		specPath := c.DevModeAction.PodTemplatePath + "/spec"
 		jsonPatches := make([]jsonPatch, 0)
-		jsonPatches = append(jsonPatches, jsonPatch{
-			Op:    "replace",
-			Path:  specPath,
-			Value: podSpec,
-		})
+		jsonPatches = append(
+			jsonPatches, jsonPatch{
+				Op:    "replace",
+				Path:  specPath,
+				Value: podSpec,
+			},
+		)
 		bys, _ := json.Marshal(jsonPatches)
 
 		if err = c.Client.Patch(c.Type.String(), c.Name, string(bys), "json"); err != nil {
@@ -552,9 +513,51 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 	}
 
 	delete(podTemplate.Labels, "pod-template-hash")
-
 	c.devModePodLabels = podTemplate.Labels
-	return waitingPodToBeReady(c.CheckDevModePodIsRunning)
+
+	log.Infof("\nNow waiting dev mode to start...\n")
+
+	// start a watcher for dev pod until it running
+	//
+	// print it's status & container status
+	// the printer used to help filter the same content
+	//
+	// if a pod is being running, close the quitChan to stop block and informer
+	//
+	printer := utils.NewPrinter(
+		func(s string) {
+			log.Infof(s)
+		},
+	)
+	quitChan := watcher.NewSimpleWatcher(
+		c.Client,
+		"pod",
+		c.devModePodLabels.AsSelector().String(),
+		func(key string, object interface{}, quitChan chan struct{}) {
+			if us, ok := object.(*unstructured.Unstructured); ok {
+
+				var pod v1.Pod
+				if err := runtime.DefaultUnstructuredConverter.
+					FromUnstructured(us.UnstructuredContent(), &pod); err == nil {
+
+					containerStatusForDevPod(
+						&pod, func(status string, err error) {
+							printer.ChangeContent(status)
+						},
+					)
+
+					if _, err := findDevPodName(pod); err == nil {
+						close(quitChan)
+					}
+					return
+				}
+			}
+		},
+		nil,
+	)
+
+	<-quitChan
+	return nil
 }
 
 func (c *Controller) CheckDevModePodIsRunning() (string, error) {
@@ -562,5 +565,179 @@ func (c *Controller) CheckDevModePodIsRunning() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return findDevPodName(pods)
+	return findDevPodName(pods...)
+}
+
+// ReplaceDuplicateModeImage Create a duplicate deployment instead of replacing image
+func (c *Controller) ReplaceDuplicateModeImage(ctx context.Context, ops *model.DevStartOptions) error {
+	c.Client.Context(ctx)
+
+	um, err := c.GetUnstructured()
+	if err != nil {
+		return err
+	}
+
+	RemoveUselessInfo(um)
+
+	if c.IsInReplaceDevMode() {
+		od, err := GetAnnotationFromUnstructured(um, _const.OriginWorkloadDefinition)
+		if err != nil {
+			return err
+		}
+
+		if um, err = c.Client.GetUnstructuredFromString(od); err != nil {
+			return err
+		}
+	}
+
+	var ps *v1.PodTemplateSpec
+	if !c.DevModeAction.Create {
+		if err = c.PatchDuplicateInfo(um.Object); err != nil {
+			return err
+		}
+		if ps, err = GetPodTemplateFromSpecPath(c.DevModeAction.PodTemplatePath, um.Object); err != nil {
+			return err
+		}
+
+		devContainer, sideCarContainer, devModeVolumes, err :=
+			c.genContainersAndVolumes(&ps.Spec, ops.Container, ops.DevImage, ops.StorageClass, true)
+		if err != nil {
+			return err
+		}
+
+		patchDevContainerToPodSpec(&ps.Spec, ops.Container, devContainer, sideCarContainer, devModeVolumes)
+
+		// Set podTemplate
+		ptm, err := GetUnstructuredMapBySpecificPath(c.DevModeAction.PodTemplatePath, um.Object)
+		if err != nil {
+			return err
+		}
+
+		ptm["spec"] = &ps.Spec
+
+		jsonObj, err := json.Marshal(um)
+		if err != nil {
+			return errors.WithStack(err)
+		}
+
+		infos, err := c.Client.GetResourceInfoFromString(string(jsonObj), true)
+		if err != nil {
+			return err
+		}
+
+		if len(infos) != 1 {
+			return errors.New(fmt.Sprintf("ResourceInfo' num is %d(not 1?)", len(infos)))
+		}
+
+		log.Infof("Creating %s(%v)", infos[0].Name, infos[0].Object.GetObjectKind().GroupVersionKind())
+		err = c.Client.ApplyResourceInfo(infos[0], nil)
+		if err != nil {
+			return err
+		}
+
+		gvk := infos[0].Object.GetObjectKind().GroupVersionKind()
+		kind := gvk.Kind
+		if gvk.Version != "" {
+			kind += "." + gvk.Version
+		}
+		if gvk.Group != "" {
+			kind += "." + gvk.Group
+		}
+
+		for _, item := range c.DevModeAction.ScaleAction {
+			log.Infof("Patching %s", item.Patch)
+			if err = c.Client.Patch(kind, infos[0].Name, item.Patch, item.Type); err != nil {
+				return err
+			}
+		}
+
+		c.patchAfterDevContainerReplaced(ops.Container, kind, infos[0].Name)
+	} else {
+		labelsMap, err := c.getDuplicateLabelsMap()
+		if err != nil {
+			return err
+		}
+		if ps, err = GetPodTemplateFromSpecPath(c.DevModeAction.PodTemplatePath, um.Object); err != nil {
+			return err
+		}
+		generatedDeployment := &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   c.getDuplicateResourceName(),
+				Labels: labelsMap,
+			},
+			Spec: appsv1.DeploymentSpec{
+				Template: *ps,
+			},
+		}
+		generatedDeployment.Spec.Selector = &metav1.LabelSelector{MatchLabels: labelsMap}
+		generatedDeployment.Spec.Template.Labels = labelsMap
+		generatedDeployment.ResourceVersion = ""
+		generatedDeployment.Spec.Template.Spec.NodeName = ""
+
+		devContainer, sideCarContainer, devModeVolumes, err :=
+			c.genContainersAndVolumes(
+				&generatedDeployment.Spec.Template.Spec, ops.Container, ops.DevImage, ops.StorageClass, true,
+			)
+		if err != nil {
+			return err
+		}
+
+		patchDevContainerToPodSpec(
+			&generatedDeployment.Spec.Template.Spec, ops.Container, devContainer, sideCarContainer, devModeVolumes,
+		)
+
+		// Create generated deployment
+		if _, err = c.Client.CreateDeploymentAndWait(generatedDeployment); err != nil {
+			return err
+		}
+
+		c.patchAfterDevContainerReplaced(ops.Container, generatedDeployment.Kind, generatedDeployment.Name)
+	}
+
+	return waitingPodToBeReady(c.GetDuplicateDevModePodName)
+}
+
+func (c *Controller) GetDuplicateModePodList() ([]v1.Pod, error) {
+	labelsMap, err := c.getDuplicateLabelsMap()
+	if err != nil {
+		return nil, err
+	}
+	return c.Client.Labels(labelsMap).ListPods()
+}
+
+func (c *Controller) GetDevModePodName() (string, error) {
+	pods, err := c.GetPodList()
+	if err != nil {
+		return "", err
+	}
+	return findDevPodName(pods...)
+}
+
+func (c *Controller) GetDuplicateDevModePodName() (string, error) {
+	pods, err := c.GetDuplicateModePodList()
+	if err != nil {
+		return "", err
+	}
+	return findDevPodName(pods...)
+}
+
+func (c *Controller) DuplicateModeRollBack() error {
+	lmap, err := c.getDuplicateLabelsMap()
+	if err != nil {
+		return err
+	}
+	t := string(c.Type)
+	if c.DevModeAction.Create {
+		t = "deployment"
+	}
+	infos, err := c.Client.Labels(lmap).ListResourceInfo(t)
+	if err != nil {
+		return err
+	}
+
+	if len(infos) != 1 {
+		return errors.New(fmt.Sprintf("%d duplicate %s found?", len(infos), t))
+	}
+
+	return clientgoutils.DeleteResourceInfo(infos[0])
 }

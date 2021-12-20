@@ -21,11 +21,7 @@ type DuplicateRawPodController struct {
 }
 
 func (r *DuplicateRawPodController) GetNocalhostDevContainerPod() (string, error) {
-	pods, err := r.GetPodList()
-	if err != nil {
-		return "", err
-	}
-	return findDevPodName(pods)
+	return r.GetDuplicateDevModePodName()
 }
 
 func (r *DuplicateRawPodController) ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error {
@@ -111,9 +107,5 @@ func (r *DuplicateRawPodController) RollBack(reset bool) error {
 }
 
 func (r *DuplicateRawPodController) GetPodList() ([]corev1.Pod, error) {
-	labelsMap, err := r.getDuplicateLabelsMap()
-	if err != nil {
-		return nil, err
-	}
-	return r.Client.Labels(labelsMap).ListPods()
+	return r.GetDuplicateModePodList()
 }

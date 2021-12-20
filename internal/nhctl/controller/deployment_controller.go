@@ -25,11 +25,7 @@ type DeploymentController struct {
 }
 
 func (d *DeploymentController) GetNocalhostDevContainerPod() (string, error) {
-	ps, err := d.GetPodList()
-	if err != nil {
-		return "", err
-	}
-	return findDevPodName(ps)
+	return d.GetDevModePodName()
 }
 
 // ReplaceImage In DevMode, nhctl will replace the container of your workload with two containers:

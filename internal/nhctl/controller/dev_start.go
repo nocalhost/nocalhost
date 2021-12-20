@@ -510,14 +510,8 @@ func isContainerReadyAndRunning(containerName string, pod *corev1.Pod) bool {
 	return false
 }
 
-var printer = utils.NewSpinnerExt(
-	func(s string) {
-		log.Infof(s)
-	},
-)
-
 // Find Ready Dev Pod's name
-func findDevPodName(podList []corev1.Pod) (string, error) {
+func findDevPodName(podList ...corev1.Pod) (string, error) {
 	resultPodList := make([]corev1.Pod, 0)
 	for _, pod := range podList {
 		//if pod.Status.Phase == "Running" && pod.DeletionTimestamp == nil {
@@ -540,35 +534,67 @@ func findDevPodName(podList []corev1.Pod) (string, error) {
 			}
 		}
 
-		for _, status := range latestPod.Status.ContainerStatuses {
-			if status.Name != "nocalhost-dev" && status.Name != "nocalhost-sidecar" {
-				continue
-			}
-
-			tag := status.Name
-			msg := "Container: " + status.Name
-
-			if status.State.Running != nil {
-				msg += " is Running"
-			} else if status.State.Terminated != nil {
-				msg += " is Terminated"
-			} else if status.State.Waiting != nil {
-				msg += " is Waiting, Reason: " + status.State.Waiting.Reason
-				if status.State.Waiting.Message != "" {
-					msg += " Msg: " + status.State.Waiting.Message
-				}
-			}
-
-			printer.Start()
-			printer.ChangeContent(tag, msg)
-		}
-
 		if latestPod.Status.Phase == "Running" {
 			return latestPod.Name, nil
 		}
 		return "", errors.New("dev container has not be ready")
 	}
 	return "", errors.New("dev container not found")
+}
+
+// containerStatusForDevPod getting status msg for pod
+func containerStatusForDevPod(pod *corev1.Pod, consumeFun func(status string, err error)) {
+	if pod.GetDeletionTimestamp() != nil {
+		return
+	}
+
+	// dev container must have 2 containers: nocalhost-dev & nocalhost-sidecar
+
+	containerFoundCounter := 0
+	for _, container := range pod.Spec.Containers {
+		if container.Name == "nocalhost-dev" || container.Name == "nocalhost-sidecar" {
+			containerFoundCounter++
+		}
+	}
+
+	if containerFoundCounter < 2 {
+		return
+	}
+
+	head := fmt.Sprintf("Pod %s now %s", pod.Name, pod.Status.Phase)
+	conditionMsg := ""
+	msg := ""
+
+	if len(pod.Status.Conditions) > 0 {
+		for _, condition := range pod.Status.Conditions {
+			if condition.Status != "True" {
+				conditionMsg += "\n * Condition: " + condition.Reason + ", " + condition.Message
+			}
+		}
+	}
+
+	for _, status := range pod.Status.ContainerStatuses {
+		if status.Name != "nocalhost-dev" && status.Name != "nocalhost-sidecar" {
+			continue
+		}
+
+		msg += "\n >> Container: " + status.Name
+
+		if status.State.Running != nil {
+			msg += " is Running"
+		} else if status.State.Terminated != nil {
+			msg += " is Terminated"
+		} else if status.State.Waiting != nil {
+			msg += " is Waiting, Reason: " + status.State.Waiting.Reason
+			if status.State.Waiting.Message != "" {
+				msg += " Msg: " + status.State.Waiting.Message
+			}
+		}
+	}
+
+	if msg != "" || conditionMsg != "" {
+		consumeFun(head+conditionMsg+msg+"\n", nil)
+	}
 }
 
 func (c *Controller) genContainersAndVolumes(podSpec *corev1.PodSpec,

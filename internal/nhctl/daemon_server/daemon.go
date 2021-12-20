@@ -23,6 +23,7 @@ import (
 	"nocalhost/internal/nhctl/nocalhost_cleanup"
 	"nocalhost/internal/nhctl/syncthing/daemon"
 	"nocalhost/internal/nhctl/utils"
+	"nocalhost/pkg/nhctl/clientgoutils"
 	k8sutil "nocalhost/pkg/nhctl/k8sutils"
 	"nocalhost/pkg/nhctl/log"
 	"runtime/debug"
@@ -148,7 +149,9 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 
 			go func() {
 				defer func() {
-					_ = conn.Close()
+					if conn != nil {
+						_ = conn.Close()
+					}
 					recoverDaemonFromPanic()
 				}()
 
@@ -185,7 +188,7 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 					log.LogE(err)
 					return
 				}
-				log.Tracef("Handling %s command", cmdType)
+				//log.Tracef("Handling %s command", cmdType)
 				handleCommand(conn, bytes, cmdType, clientStack)
 				takes := time.Now().Sub(start).Seconds()
 				log.WriteToEsWithField(map[string]interface{}{"take": takes}, "%s command done", cmdType)
@@ -229,11 +232,9 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 
 func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType, clientStack string) {
 	var err error
-	defer func() {
-		if err != nil {
-			log.Log("Client Stack: " + clientStack)
-		}
-	}()
+	//defer func() {
+	//	recoverDaemonFromPanic()
+	//}()
 
 	// prevent elder version to send cmd to daemon
 	if clientStack == "" {
@@ -326,6 +327,21 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 				}, nil
 			},
 		)
+
+	case command.AuthCheck:
+		err = Process(
+			conn, func(conn net.Conn) (interface{}, error) {
+				acCmd := &command.AuthCheckCommand{}
+				if err = json.Unmarshal(bys, acCmd); err != nil {
+					return nil, err
+				}
+
+				return nil, clientgoutils.CheckForResource(
+					acCmd.KubeConfigContent,
+					acCmd.NameSpace,
+					nil,
+					acCmd.NeedChecks...)
+			})
 
 	case command.GetApplicationMeta:
 		err = Process(
