@@ -156,7 +156,7 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 
 				var err error
 
-				start := time.Now()
+				//start := time.Now()
 				errChan := make(chan error, 1)
 				bytesChan := make(chan []byte, 1)
 
@@ -189,8 +189,8 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 				}
 				//log.Tracef("Handling %s command", cmdType)
 				handleCommand(conn, bytes, cmdType, clientStack)
-				takes := time.Now().Sub(start).Seconds()
-				log.WriteToEsWithField(map[string]interface{}{"take": takes}, "%s command done", cmdType)
+				//takes := time.Now().Sub(start).Seconds()
+				//log.WriteToEsWithField(map[string]interface{}{"take": takes}, "%s command done", cmdType)
 			}()
 		}
 	}()

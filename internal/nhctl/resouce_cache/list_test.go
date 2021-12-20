@@ -137,20 +137,25 @@ func TestGetPods(t *testing.T) {
 
 func TestGetDefault(t *testing.T) {
 	//bytes, _ := ioutil.ReadFile("/tmp/test.txt")
-	bytes, _ := ioutil.ReadFile(path.Join(utils.GetHomePath(), ".kube/large-config"))
-	s, err := GetSearcherWithLRU(bytes, "nh2yunf")
-	if err != nil {
-		panic(err)
-	}
-	i, e := s.Criteria().ResourceType("pods").
-		ResourceName("").
-		//AppName("bookinfo").
-		Namespace("").Query()
-	if e != nil {
-		log.Error(e)
-	}
-	for _, dep := range i {
-		fmt.Println(dep.(metav1.Object).GetName())
+	bytes, _ := ioutil.ReadFile(path.Join(utils.GetHomePath(), ".kube/config"))
+	//s, err := GetSearcherWithLRU(bytes, "nh2yunf")
+	for ii := 0; ii < 100000; ii++ {
+		start := time.Now()
+		s, err := GetSearcherWithLRU(bytes, "nocalhost-test")
+		if err != nil {
+			panic(err)
+		}
+		i, e := s.Criteria().ResourceType("ns").
+			ResourceName("").
+			//AppName("bookinfo").
+			Namespace("").Query()
+		if e != nil {
+			log.Error(e)
+		}
+		//for _, dep := range i {
+		//	fmt.Println(dep.(metav1.Object).GetName())
+		//}
+		fmt.Printf("%d Get len %d, takes: %d ms\n", ii, len(i), start.Sub(time.Now()).Microseconds())
 	}
 
 	/*i, e = s.GetByAppAndNs(&v1.Deployment{}, "default.application", "default")

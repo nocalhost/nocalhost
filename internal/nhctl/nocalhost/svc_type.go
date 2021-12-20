@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/pkg/nhctl/log"
@@ -17,6 +18,7 @@ import (
 )
 
 var supportedSvcType map[base.SvcType]base.DevModeAction
+var buildInGvkList []*schema.GroupVersionKind
 
 const (
 	Deployment       base.SvcType = "deployment"
@@ -28,10 +30,19 @@ const (
 	CloneSetV1Alpha1 base.SvcType = "clonesets.v1alpha1.apps.kruise.io"
 )
 
-func SvcTypeIsBuildIn(svcType base.SvcType) bool {
-	if svcType == Deployment || svcType == StatefulSet || svcType == DaemonSet ||
-		svcType == Job || svcType == CronJob || svcType == Pod {
-		return true
+//func SvcTypeIsBuildIn(svcType base.SvcType) bool {
+//	if svcType == Deployment || svcType == StatefulSet || svcType == DaemonSet ||
+//		svcType == Job || svcType == CronJob || svcType == Pod {
+//		return true
+//	}
+//	return false
+//}
+
+func IsBuildInGvk(gvk *schema.GroupVersionKind) bool {
+	for _, kind := range buildInGvkList {
+		if gvk.Kind == kind.Kind && gvk.Version == kind.Version && gvk.Group == kind.Group {
+			return true
+		}
 	}
 	return false
 }
@@ -45,6 +56,15 @@ func init() {
 	supportedSvcType[CronJob] = CronJobDevModeAction
 	supportedSvcType[Pod] = DefaultDevModeAction // Todo
 	supportedSvcType[CloneSetV1Alpha1] = DefaultDevModeAction
+
+	buildInGvkList = []*schema.GroupVersionKind{
+		{Group: "apps", Version: "v1", Kind: "Deployment"},
+		{Group: "apps", Version: "v1", Kind: "StatefulSet"},
+		{Group: "apps", Version: "v1", Kind: "DaemonSet"},
+		{Group: "batch", Version: "v1", Kind: "Job"},
+		{Group: "batch", Version: "v1", Kind: "CronJob"},
+		{Group: "", Version: "v1", Kind: "Pod"},
+	}
 
 	bys, err := ioutil.ReadFile(filepath.Join(nocalhost_path.GetNhctlHomeDir(), "config"))
 	if err == nil && len(bys) > 0 {

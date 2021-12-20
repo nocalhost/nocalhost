@@ -35,19 +35,19 @@ import (
 
 var svcProfileCacheMap = cache.NewLRUExpireCache(10000)
 
-func getServiceProfile(ns, appName, nid string, kubeconfigBytes []byte) map[string]map[string]*profile.SvcProfileV2 {
+func getServiceProfile(ns, appName string, kubeconfigBytes []byte) map[string]map[string]*profile.SvcProfileV2 {
 	serviceProfileMap := make(map[string]map[string]*profile.SvcProfileV2)
 	if appName == "" || ns == "" {
 		return serviceProfileMap
 	}
-	description := GetDescriptionDaemon(ns, appName, nid, kubeconfigBytes)
+	description := GetDescriptionDaemon(ns, appName, kubeconfigBytes)
 	if description != nil {
-		appMeta := appmeta_manager.GetApplicationMeta(ns, appName, kubeconfigBytes)
+		//appMeta := appmeta_manager.GetApplicationMeta(ns, appName, kubeconfigBytes)
 		for _, svcProfileV2 := range description.SvcProfile {
 			if svcProfileV2 != nil {
-				svcProfileV2.DevModeType = appMeta.GetCurrentDevModeTypeOfWorkload(
-					svcProfileV2.Name, base.SvcType(svcProfileV2.Type), description.Identifier,
-				)
+				//svcProfileV2.DevModeType = appMeta.GetCurrentDevModeTypeOfWorkload(
+				//	svcProfileV2.Name, base.SvcType(svcProfileV2.Type), description.Identifier,
+				//)
 				//name := strings.ToLower(svcProfileV2.GetType()) + "s"
 				if len(serviceProfileMap[svcProfileV2.GetType()]) == 0 {
 					serviceProfileMap[svcProfileV2.GetType()] = map[string]*profile.SvcProfileV2{}
@@ -60,32 +60,33 @@ func getServiceProfile(ns, appName, nid string, kubeconfigBytes []byte) map[stri
 	return serviceProfileMap
 }
 
-func GetDescriptionDaemon(ns, appName, nid string, kubeconfigBytes []byte) *profile.AppProfileV2 {
+func GetDescriptionDaemon(ns, appName string, kubeconfigBytes []byte) *profile.AppProfileV2 {
 	var appProfile *profile.AppProfileV2
 	var err error
-	appProfileCache, found := svcProfileCacheMap.Get(fmt.Sprintf("%s/%s/%s", ns, nid, appName))
+	// deep copy
+	marshal, err := json.Marshal(appmeta_manager.GetApplicationMeta(ns, appName, kubeconfigBytes))
+	if err != nil {
+		return nil
+	}
+
+	var meta appmeta.ApplicationMeta
+	if err = json.Unmarshal(marshal, &meta); err != nil {
+		return nil
+	}
+
+	appProfileCache, found := svcProfileCacheMap.Get(fmt.Sprintf("%s/%s/%s", ns, meta.NamespaceId, appName))
 	if !found || appProfileCache == nil {
-		if appProfile, err = nocalhost.GetProfileV2(ns, appName, nid); err == nil {
-			svcProfileCacheMap.Add(fmt.Sprintf("%s/%s/%s", ns, nid, appName), appProfile, time.Second*2)
+		if appProfile, err = nocalhost.GetProfileV2(ns, appName, meta.NamespaceId); err == nil {
+			svcProfileCacheMap.Add(fmt.Sprintf("%s/%s/%s", ns, meta.NamespaceId, appName), appProfile, time.Second*2)
+		} else {
+			log.Error(err)
+			return nil
 		}
 	} else {
 		appProfile = appProfileCache.(*profile.AppProfileV2)
 	}
-	if err != nil {
-		log.Error(err)
-		return nil
-	}
-	if appProfile != nil {
-		// deep copy
-		marshal, err := json.Marshal(appmeta_manager.GetApplicationMeta(ns, appName, kubeconfigBytes))
-		if err != nil {
-			return nil
-		}
 
-		var meta appmeta.ApplicationMeta
-		if err = json.Unmarshal(marshal, &meta); err != nil {
-			return nil
-		}
+	if appProfile != nil {
 
 		appProfile.Installed = meta.IsInstalled()
 		devMeta := meta.DevMeta
@@ -95,6 +96,10 @@ func GetDescriptionDaemon(ns, appName, nid string, kubeconfigBytes []byte) *prof
 			if svcProfile == nil {
 				continue
 			}
+			svcProfile.DevModeType = meta.GetCurrentDevModeTypeOfWorkload(
+				svcProfile.Name, base.SvcType(svcProfile.Type), appProfile.Identifier,
+			)
+
 			if svcProfile.ServiceConfigV2 == nil {
 				svcProfile.ServiceConfigV2 = &profile.ServiceConfigV2{
 					Name: svcProfile.GetName(),
@@ -301,8 +306,8 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) (inte
 		}
 		serviceMap := make(map[string]map[string]*profile.SvcProfileV2)
 		if len(request.AppName) != 0 {
-			nid := getNidByAppName(ns, request.KubeConfig, request.AppName)
-			serviceMap = getServiceProfile(ns, request.AppName, nid, KubeConfigBytes)
+			//nid := getNidByAppName(ns, request.KubeConfig, request.AppName)
+			serviceMap = getServiceProfile(ns, request.AppName, KubeConfigBytes)
 		}
 
 		c := s.Criteria().
@@ -323,11 +328,12 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) (inte
 				tempItem := item.Item{Metadata: i}
 				if mapping, err := s.GetResourceInfo(request.Resource); err == nil {
 					var tt string
-					if nocalhost.SvcTypeIsBuildIn(base.SvcType(strings.ToLower(mapping.Gvk.Kind))) {
+					if nocalhost.IsBuildInGvk(&mapping.Gvk) {
 						tt = strings.ToLower(mapping.Gvk.Kind)
 					} else {
 						tt = fmt.Sprintf("%s.%s.%s", mapping.Gvr.Resource, mapping.Gvr.Version, mapping.Gvr.Group)
 					}
+					log.Infof("TTTest: getting description of %s", tt)
 					if tm, ok := serviceMap[tt]; ok {
 						if d, ok := tm[i.(metav1.Object).GetName()]; ok {
 							tempItem.Description = d
@@ -346,7 +352,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) (inte
 			i := item.Item{Metadata: one}
 			if mapping, err := s.GetResourceInfo(request.Resource); err == nil {
 				var tt string
-				if nocalhost.SvcTypeIsBuildIn(base.SvcType(strings.ToLower(mapping.Gvk.Kind))) {
+				if nocalhost.IsBuildInGvk(&mapping.Gvk) {
 					tt = strings.ToLower(mapping.Gvk.Kind)
 				} else {
 					tt = fmt.Sprintf("%s.%s.%s", mapping.Gvr.Resource, mapping.Gvr.Version, mapping.Gvr.Group)
@@ -486,11 +492,11 @@ type AppNameAndNid struct {
 	Nid  string
 }
 
-func getNidByAppName(namespace, kubeconfig, appName string) string {
-	kubeconfigBytes, _ := ioutil.ReadFile(kubeconfig)
-	meta := appmeta_manager.GetApplicationMeta(namespace, appName, kubeconfigBytes)
-	return meta.NamespaceId
-}
+//func getNidByAppName(namespace, kubeconfig, appName string) string {
+//	kubeconfigBytes, _ := ioutil.ReadFile(kubeconfig)
+//	meta := appmeta_manager.GetApplicationMeta(namespace, appName, kubeconfigBytes)
+//	return meta.NamespaceId
+//}
 
 func GetAllValidApplicationWithDefaultApp(ns string, KubeConfigBytes []byte) []*appmeta.ApplicationMeta {
 	result := make(map[string]*appmeta.ApplicationMeta, 0)

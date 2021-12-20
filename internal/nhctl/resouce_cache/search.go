@@ -326,6 +326,7 @@ func GetSearcherWithLRU(kubeconfigBytes []byte, namespace string) (search *Searc
 			return nil, err
 		}
 		log.Infof("Search map is len is %d", searchMap.Len()+1)
+		clusterKey = generateKey(kubeconfigBytes, namespace)
 		searchMap.Add(clusterKey, newSearcher)
 	}
 	if searcher, exist = searchMap.Get(clusterKey); exist && searcher != nil {
@@ -353,6 +354,7 @@ func generateKey(kubeconfigBytes []byte, namespace string) string {
 // initSearcher return a searcher which use informer to cache resource, without cache
 func initSearcher(kubeconfigBytes []byte, namespace string, clientUtils *clientgoutils.ClientGoUtils,
 	gr []*restmapper.APIGroupResources) (*Searcher, error) {
+	log.Infof("TTTest initSearcher for ns: %s", namespace)
 
 	//// default value is flowcontrol.NewTokenBucketRateLimiter(5, 10)
 	//config.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(10000, 10000)
@@ -605,8 +607,8 @@ func (c *criteria) Query() (data []interface{}, e error) {
 	}
 
 	if !mapping.Namespaced {
-		list := informer.Informer().GetIndexer().List()
-		//list := informer.Informer().GetStore().List()
+		//list := informer.Informer().GetIndexer().List()
+		list := informer.Informer().GetStore().List()
 		if len(c.resourceName) != 0 {
 			for _, i := range list {
 				if i.(metav1.Object).GetName() == c.resourceName {
@@ -642,8 +644,8 @@ func (c *criteria) Query() (data []interface{}, e error) {
 		return
 	}
 
-	//objs := informer.Informer().GetStore().List()
-	objs := informer.Informer().GetIndexer().List()
+	objs := informer.Informer().GetStore().List()
+	//objs := informer.Informer().GetIndexer().List()
 	iters := make([]interface{}, 0)
 	for _, obj := range objs {
 		iters = append(iters, obj)
