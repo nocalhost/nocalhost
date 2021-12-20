@@ -17,6 +17,7 @@ import (
 	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/nocalhost_path"
+	"nocalhost/internal/nhctl/vpn/util"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"os"
@@ -97,10 +98,11 @@ var rootCmd = &cobra.Command{
 		if esUrl != "" {
 			log.InitEs(esUrl)
 		}
-
-		err = nocalhost.Init()
-		if err != nil {
-			log.FatalE(err, "Fail to init nhctl")
+		if !util.IsAdmin() {
+			err = nocalhost.Init()
+			if err != nil {
+				log.FatalE(err, "Fail to init nhctl")
+			}
 		}
 		serviceType = strings.ToLower(serviceType)
 

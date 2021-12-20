@@ -33,6 +33,7 @@ import (
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_common"
+	"regexp"
 	"strconv"
 
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
@@ -453,7 +454,12 @@ func IsSudoDaemonServing() bool {
 	return true
 }
 
+var mac net.HardwareAddr
+
 func GetMacAddress() net.HardwareAddr {
+	if mac != nil {
+		return mac
+	}
 	var maps = make(map[string]net.HardwareAddr)
 	if interfaces, err := net.Interfaces(); err == nil {
 		for _, ifce := range interfaces {
@@ -463,15 +469,18 @@ func GetMacAddress() net.HardwareAddr {
 		}
 		for i := 0; i < 10; i++ {
 			if v, found := maps[fmt.Sprintf("en%v", i)]; found {
+				mac = v
 				return v
 			}
 		}
 		for k, addr := range maps {
 			if strings.Contains(k, "Ethernet") {
+				mac = addr
 				return addr
 			}
 		}
 		for _, addr := range maps {
+			mac = addr
 			return addr
 		}
 	}
@@ -498,12 +507,6 @@ type PatchOperation struct {
 	Op    string      `json:"op"`
 	Path  string      `json:"path"`
 	Value interface{} `json:"value,omitempty"`
-}
-
-func GenerateKey(ns string, kubeconfigBytes []byte) string {
-	h := sha1.New()
-	h.Write(kubeconfigBytes)
-	return string(h.Sum([]byte(ns)))
 }
 
 func GetContextWithLogger(writer io.WriteCloser) context.Context {
@@ -536,4 +539,13 @@ func GetClientSetByKubeconfigBytes(kubeconfigBytes []byte) (*kubernetes.Clientse
 		return nil, err
 	}
 	return kubernetes.NewForConfig(config)
+}
+
+var reg, _ = regexp.Compile("[\\s\\t\\n\\r]")
+
+// GenerateKey todo jetbrains rename will modify cluster name, it will make this function invalid
+func GenerateKey(kubeconfigBytes []byte, namespace string) string {
+	h := sha1.New()
+	h.Write(reg.ReplaceAll(kubeconfigBytes, []byte("")))
+	return string(h.Sum([]byte(namespace)))
 }

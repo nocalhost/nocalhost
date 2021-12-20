@@ -6,7 +6,6 @@
 package pkg
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -64,7 +63,8 @@ func (c *ConnectOptions) SetLogger(logger *log.Logger) {
 }
 
 func (c *ConnectOptions) IsSameKubeconfigAndNamespace(another *ConnectOptions) bool {
-	return bytes.Equal(c.KubeconfigBytes, another.KubeconfigBytes) && c.Namespace == another.Namespace
+	return util.GenerateKey(c.KubeconfigBytes, c.Namespace) ==
+		util.GenerateKey(another.KubeconfigBytes, another.Namespace)
 }
 
 func (c *ConnectOptions) GetClientSet() *kubernetes.Clientset {
@@ -231,7 +231,7 @@ func (c *ConnectOptions) heartbeats(ctx context.Context) {
 }
 
 func (c *ConnectOptions) portForward(ctx context.Context) {
-	var readyChanRef *chan struct{}
+	var readyChan chan struct{}
 	go func(ctx context.Context) {
 		for ctx.Err() == nil {
 			func() {
@@ -240,17 +240,22 @@ func (c *ConnectOptions) portForward(ctx context.Context) {
 						c.GetLogger().Warnf("recover error: %v, ignore", err)
 					}
 				}()
-				readChan := make(chan struct{})
-				stopChan := make(chan struct{})
-				remote.CancelFunctions = append(remote.CancelFunctions, func() { stopChan <- struct{}{} })
-				readyChanRef = &readChan
+				readyChan = make(chan struct{}, 1)
+				stopChan := make(chan struct{}, 1)
+				remote.CancelFunctions = append(remote.CancelFunctions, func() {
+					defer func() {
+						if err := recover(); err != nil {
+						}
+					}()
+					close(stopChan)
+				})
 				err := util.PortForwardPod(
 					c.config,
 					c.restclient,
 					util.TrafficManager,
 					c.Namespace,
 					"10800:10800",
-					readChan,
+					readyChan,
 					stopChan,
 				)
 				if apierrors.IsNotFound(err) {
@@ -264,11 +269,11 @@ func (c *ConnectOptions) portForward(ctx context.Context) {
 			}()
 		}
 	}(ctx)
-	for readyChanRef == nil {
+	for readyChan == nil {
 	}
 	c.GetLogger().Infoln("port-forwarding...")
 	select {
-	case <-*readyChanRef:
+	case <-readyChan:
 		c.GetLogger().Infoln("port forward 10800:10800 ready")
 	case <-time.Tick(time.Minute * 5):
 		c.GetLogger().Errorln("wait port forward 10800:10800 to be ready timeout")
@@ -342,12 +347,20 @@ func Start(ctx context.Context, r Route) (chan error, error) {
 		return nil, errors.New("invalid config")
 	}
 	c := make(chan error, len(routers))
-	remote.CancelFunctions = append(remote.CancelFunctions, func() { c <- errors.New("exit") })
+	remote.CancelFunctions = append(remote.CancelFunctions, func() {
+		select {
+		case c <- errors.New("cancelled"):
+		default:
+		}
+	})
 	for i := range routers {
 		go func(ctx context.Context, i int, c chan error) {
 			if err = routers[i].Serve(ctx); err != nil {
 				log.Debugln(err)
-				c <- err
+				select {
+				case c <- err:
+				default:
+				}
 			}
 		}(ctx, i, c)
 	}
@@ -488,11 +501,14 @@ func (c *ConnectOptions) ReverePingLocal() bool {
 	return err == nil
 }
 
-func (c *ConnectOptions) Shell(context.Context) (string, error) {
-	tuple, parsed, err2 := util.SplitResourceTypeName(c.Workloads[0])
-	if !parsed || err2 != nil {
+func (c *ConnectOptions) Shell(_ context.Context, workload string) (string, error) {
+	if len(workload) == 0 {
+		workload = c.Workloads[0]
+	}
+	tuple, parsed, err := util.SplitResourceTypeName(workload)
+	if !parsed || err != nil {
 		return "", errors.New("not need")
 	}
-	newName := ToInboundPodName(tuple.Resource, tuple.Name)
-	return util.Shell(c.clientset, c.restclient, c.config, newName, c.Namespace, "ping -c 4 "+c.localTunIP.IP.String())
+	podName := ToInboundPodName(tuple.Resource, tuple.Name)
+	return util.Shell(c.clientset, c.restclient, c.config, podName, c.Namespace, "ping -c 4 "+c.localTunIP.IP.String())
 }

@@ -24,6 +24,7 @@ import (
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/resouce_cache"
+	"nocalhost/internal/nhctl/vpn/util"
 	k8sutil "nocalhost/pkg/nhctl/k8sutils"
 	"nocalhost/pkg/nhctl/log"
 	"sort"
@@ -244,7 +245,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 		}
 		var belongsToMe = NewSet()
 		var reverseReversed = sets.NewString()
-		if load, ok := GetReverseInfo().Load(generateKey(KubeConfigBytes, ns)); ok {
+		if load, ok := GetReverseInfo().Load(util.GenerateKey(KubeConfigBytes, ns)); ok {
 			belongsToMe.Insert(load.(*name).resources.GetBelongToMeResources().List()...)
 			reverseReversed.Insert(load.(*name).resources.ReversedResource().List()...)
 		}

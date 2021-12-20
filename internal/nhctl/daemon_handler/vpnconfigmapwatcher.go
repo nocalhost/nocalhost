@@ -1,9 +1,7 @@
 package daemon_handler
 
 import (
-	"bytes"
 	"context"
-	"crypto/sha1"
 	"fmt"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -15,7 +13,7 @@ import (
 	"nocalhost/internal/nhctl/vpn/util"
 	"nocalhost/pkg/nhctl/k8sutils"
 	"os/exec"
-	"regexp"
+	"runtime/debug"
 	"sync"
 	"time"
 )
@@ -26,7 +24,7 @@ var watchersLock = &sync.Mutex{}
 func ReleaseWatcher(kubeconfigBytes []byte, namespace string) {
 	watchersLock.Lock()
 	defer watchersLock.Unlock()
-	k := generateKey(kubeconfigBytes, namespace)
+	k := util.GenerateKey(kubeconfigBytes, namespace)
 	if v, ok := watchers[k]; ok && v != nil {
 		v.Stop()
 		delete(watchers, k)
@@ -36,7 +34,7 @@ func ReleaseWatcher(kubeconfigBytes []byte, namespace string) {
 func GetOrGenerateConfigMapWatcher(kubeconfigBytes []byte, namespace string, getter cache.Getter) *ConfigMapWatcher {
 	watchersLock.Lock()
 	defer watchersLock.Unlock()
-	k := generateKey(kubeconfigBytes, namespace)
+	k := util.GenerateKey(kubeconfigBytes, namespace)
 	if v, ok := watchers[k]; ok && v != nil {
 		return v
 	} else {
@@ -72,7 +70,7 @@ type name struct {
 func (n *name) getMacByResource(resource string) string {
 	reverseInfoLock.Lock()
 	defer reverseInfoLock.Unlock()
-	if load, ok := reverseInfo.Load(generateKey(n.kubeconfigBytes, n.namespace)); ok {
+	if load, ok := reverseInfo.Load(util.GenerateKey(n.kubeconfigBytes, n.namespace)); ok {
 		for k, v := range load.(*name).resources.ele {
 			if v.HasKey(resource) {
 				return k
@@ -85,7 +83,7 @@ func (n *name) getMacByResource(resource string) string {
 func (n *name) deleteByResource(resource string) {
 	reverseInfoLock.Lock()
 	defer reverseInfoLock.Unlock()
-	if load, ok := reverseInfo.Load(generateKey(n.kubeconfigBytes, n.namespace)); ok {
+	if load, ok := reverseInfo.Load(util.GenerateKey(n.kubeconfigBytes, n.namespace)); ok {
 		for _, v := range load.(*name).resources.ele {
 			v.DeleteByKeys(resource)
 		}
@@ -125,7 +123,7 @@ type ConnectInfo struct {
 }
 
 func (c ConnectInfo) toKey() string {
-	return generateKey(c.kubeconfigBytes, c.namespace)
+	return util.GenerateKey(c.kubeconfigBytes, c.namespace)
 }
 
 func (c ConnectInfo) Status() string {
@@ -143,11 +141,11 @@ func (c *ConnectInfo) IsEmpty() bool {
 }
 
 func (c *ConnectInfo) IsSame(kubeconfigBytes []byte, namespace string) bool {
-	return string(kubeconfigBytes) == string(c.kubeconfigBytes) && namespace == c.namespace
+	return util.GenerateKey(c.kubeconfigBytes, c.namespace) == util.GenerateKey(kubeconfigBytes, namespace)
 }
 
 func (c *ConnectInfo) IsSameCluster(kubeconfigBytes []byte) bool {
-	return string(kubeconfigBytes) == string(c.kubeconfigBytes)
+	return util.GenerateKey(kubeconfigBytes, "") == util.GenerateKey(c.kubeconfigBytes, "")
 }
 
 func (c *ConnectInfo) getIPIfIsMe(kubeconfigBytes []byte, namespace string) (ip string) {
@@ -211,7 +209,7 @@ type resourceHandler struct {
 }
 
 func (h *resourceHandler) toKey() string {
-	return generateKey(h.kubeconfigBytes, h.namespace)
+	return util.GenerateKey(h.kubeconfigBytes, h.namespace)
 }
 
 func (h *resourceHandler) OnAdd(obj interface{}) {
@@ -269,16 +267,35 @@ func (h *resourceHandler) OnUpdate(oldObj, newObj interface{}) {
 	modifyReverseInfo(h, newStatus)
 }
 
+func (h *resourceHandler) OnDelete(obj interface{}) {
+	h.reverseInfoLock.Lock()
+	defer h.reverseInfoLock.Unlock()
+
+	configMap := obj.(*corev1.ConfigMap)
+	status := ToStatus(configMap.Data)
+	h.reverseInfo.Delete(h.toKey())
+	if status.Connect.IsConnected() && connectInfo.IsSame(h.kubeconfigBytes, h.namespace) {
+		connectInfo.cleanup()
+		notifySudoDaemonToDisConnect(h.kubeconfigBytes, h.namespace)
+	}
+}
+
 // release resource handler will stop watcher
 func release(kubeconfigBytes []byte, namespace string) {
+	debug.PrintStack()
 	// needs to notify sudo daemon to update connect namespace
 	fmt.Println("needs to notify sudo daemon to update connect namespace, this should not to be happen")
+	fmt.Printf("current: %s, to be releaded: %s\n", connectInfo.namespace, namespace)
+	fmt.Printf("current: %s, to be releaded: %s\n", string(connectInfo.kubeconfigBytes), string(kubeconfigBytes))
+	fmt.Printf("value: %s, value: %s, is same: %v\n", connectInfo.toKey(), util.GenerateKey(kubeconfigBytes, namespace),
+		connectInfo.toKey() == util.GenerateKey(kubeconfigBytes, namespace))
+
 	//ReleaseWatcher(kubeconfigBytes, namespace)
 	if clientset, err := util.GetClientSetByKubeconfigBytes(kubeconfigBytes); err == nil {
 		_ = UpdateConnect(clientset, namespace, func(list sets.String, item string) {
 			list.Delete(item)
 		})
-		if value, found := GetReverseInfo().Load(generateKey(kubeconfigBytes, namespace)); found {
+		if value, found := GetReverseInfo().Load(util.GenerateKey(kubeconfigBytes, namespace)); found {
 			for _, s := range value.(*name).resources.LoadAndDeleteBelongToMeResources().KeySet() {
 				_ = UpdateReverseConfigMap(clientset, namespace, s,
 					func(r *ReverseTotal, record ReverseRecord) {
@@ -333,25 +350,16 @@ func modifyReverseInfo(h *resourceHandler, latest VPNStatus) {
 	}
 }
 
-func (h *resourceHandler) OnDelete(obj interface{}) {
-	h.reverseInfoLock.Lock()
-	defer h.reverseInfoLock.Unlock()
-
-	configMap := obj.(*corev1.ConfigMap)
-	status := ToStatus(configMap.Data)
-	if status.Connect.IsConnected() && connectInfo.IsSame(h.kubeconfigBytes, h.namespace) {
-		connectInfo.cleanup()
-		h.reverseInfo.Delete(h.toKey())
-	}
-}
-
 func notifySudoDaemonToConnect(kubeconfigBytes []byte, namespace string) {
 	client, err := daemon_client.GetDaemonClient(true)
 	if err != nil {
 		return
 	}
 	path := k8sutils.GetOrGenKubeConfigPath(string(kubeconfigBytes))
-	client.SendSudoVPNOperateCommand(path, namespace, command.Connect, "")
+	readCloser, err := client.SendSudoVPNOperateCommand(path, namespace, command.Connect, "")
+	if err == nil && readCloser != nil {
+		_ = readCloser.Close()
+	}
 }
 
 func notifySudoDaemonToDisConnect(kubeconfigBytes []byte, namespace string) {
@@ -360,17 +368,10 @@ func notifySudoDaemonToDisConnect(kubeconfigBytes []byte, namespace string) {
 		return
 	}
 	path := k8sutils.GetOrGenKubeConfigPath(string(kubeconfigBytes))
-	client.SendSudoVPNOperateCommand(path, namespace, command.DisConnect, "")
-}
-
-func generateKey(kubeconfigBytes []byte, namespace string) string {
-	h := sha1.New()
-	if reg, err := regexp.Compile("[\\s\\t\\n\\r]"); err == nil {
-		h.Write(reg.ReplaceAll(kubeconfigBytes, []byte("")))
-	} else {
-		h.Write(kubeconfigBytes)
+	readCloser, err := client.SendSudoVPNOperateCommand(path, namespace, command.DisConnect, "")
+	if err == nil && readCloser != nil {
+		_ = readCloser.Close()
 	}
-	return string(h.Sum([]byte(namespace)))
 }
 
 // connection healthy and reverse healthy
@@ -394,9 +395,9 @@ func init() {
 
 func checkConnect() {
 	if !connectInfo.IsEmpty() {
-		cancel, cancelFunc := context.WithTimeout(context.TODO(), time.Second*5)
+		ctx, cancelFunc := context.WithTimeout(context.TODO(), time.Second*5)
 		defer cancelFunc()
-		cmd := exec.CommandContext(cancel, "ping", "-c", "4", util.IpRange.String())
+		cmd := exec.CommandContext(ctx, "ping", "-c", "4", util.IpRange.String())
 		_ = cmd.Run()
 		if cmd.ProcessState.Success() {
 			connectInfo.health = Healthy
@@ -411,7 +412,7 @@ func checkReverse() {
 		return
 	}
 	GetReverseInfo().Range(func(key, value interface{}) bool {
-		if !bytes.Equal(value.(*name).kubeconfigBytes, connectInfo.kubeconfigBytes) {
+		if !connectInfo.IsSameCluster(value.(*name).kubeconfigBytes) {
 			return true
 		}
 		path := k8sutils.GetOrGenKubeConfigPath(string(value.(*name).kubeconfigBytes))
@@ -427,14 +428,13 @@ func checkReverse() {
 			return true
 		}
 		value.(*name).resources.GetBelongToMeResources().ForEach(func(k string, v *resourceInfo) {
-			go func(k string, info *resourceInfo) {
-				connect.Workloads = []string{k}
-				if _, err := connect.Shell(context.TODO()); err != nil {
+			go func(connect *pkg.ConnectOptions, workload string, info *resourceInfo) {
+				if _, err := connect.Shell(context.TODO(), workload); err != nil {
 					info.Health = UnHealthy
 				} else {
 					info.Health = Healthy
 				}
-			}(k, v)
+			}(connect, k, v)
 		})
 		return true
 	})

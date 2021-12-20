@@ -53,7 +53,7 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 	switch cmd.Action {
 	case command.Connect:
 		// pre-check if resource already in reversing mode
-		if load, ok := GetReverseInfo().Load(generateKey(connect.KubeconfigBytes, connect.Namespace)); ok {
+		if load, ok := GetReverseInfo().Load(util.GenerateKey(connect.KubeconfigBytes, connect.Namespace)); ok {
 			if mac := load.(*name).getMacByResource(cmd.Resource); len(mac) != 0 {
 				if mac == util.GetMacAddress().String() {
 					err = fmt.Errorf("resource: %s is already in reversing mode by yourself", cmd.Resource)
@@ -158,7 +158,7 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 	case command.DisConnect:
 		defer writer.Close()
 		if len(cmd.Resource) != 0 {
-			load, ok := GetReverseInfo().Load(generateKey(connect.KubeconfigBytes, connect.Namespace))
+			load, ok := GetReverseInfo().Load(util.GenerateKey(connect.KubeconfigBytes, connect.Namespace))
 			if !ok {
 				logger.Infof("can not found reverse info in namespace: %s, no need to cancel it\n", connect.Namespace)
 				return nil
@@ -181,7 +181,7 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 			}
 
 			// if cancel last reverse resources, needs to close connect
-			if value, found := GetReverseInfo().Load(generateKey(connect.KubeconfigBytes, connect.Namespace)); found {
+			if value, found := GetReverseInfo().Load(util.GenerateKey(connect.KubeconfigBytes, connect.Namespace)); found {
 				if value.(*name).resources.GetBelongToMeResources().Len() == 0 {
 					_ = UpdateConnect(connect.GetClientSet(), cmd.Namespace, func(list sets.String, address string) {
 						list.Delete(address)
@@ -199,7 +199,7 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 			_ = UpdateConnect(connect.GetClientSet(), cmd.Namespace, func(list sets.String, address string) {
 				list.Delete(address)
 			})
-			value, loaded := GetReverseInfo().Load(generateKey(connect.KubeconfigBytes, connect.Namespace))
+			value, loaded := GetReverseInfo().Load(util.GenerateKey(connect.KubeconfigBytes, connect.Namespace))
 			if loaded {
 				clientset, err := util.GetClientSetByKubeconfigBytes(value.(*name).kubeconfigBytes)
 				if err != nil {
@@ -262,15 +262,15 @@ func UpdateConnect(clientSet *kubernetes.Clientset, namespace string, f func(con
 	//	// todo
 	//	return nil
 	//}
-	get, err := clientSet.CoreV1().ConfigMaps(namespace).Get(context.TODO(), util.TrafficManager, v1.GetOptions{})
+	configMap, err := clientSet.CoreV1().ConfigMaps(namespace).Get(context.TODO(), util.TrafficManager, v1.GetOptions{})
 	if err != nil {
 		log.Warn(err)
 		return err
 	}
-	t := FromStrToConnectTotal(get.Data[util.Connect])
+	t := FromStrToConnectTotal(configMap.Data[util.Connect])
 	f(t.list, util.GetMacAddress().String())
-	get.Data[util.Connect] = t.ToString()
-	_, err = clientSet.CoreV1().ConfigMaps(namespace).Update(context.TODO(), get, v1.UpdateOptions{})
+	configMap.Data[util.Connect] = t.ToString()
+	_, err = clientSet.CoreV1().ConfigMaps(namespace).Update(context.TODO(), configMap, v1.UpdateOptions{})
 	return err
 }
 
