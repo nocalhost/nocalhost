@@ -7,9 +7,15 @@ package service_account
 
 import (
 	"fmt"
+	"sort"
+	"sync"
+
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapiv1 "k8s.io/client-go/tools/clientcmd/api/v1"
+
 	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/internal/nocalhost-api/model"
@@ -23,9 +29,6 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 	"nocalhost/pkg/nocalhost-api/pkg/manager/vcluster"
 	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
-	"sort"
-
-	"sync"
 )
 
 // the user that has all verbs with all cluster resources
@@ -65,11 +68,6 @@ func ListAuthorization(c *gin.Context) {
 		return
 	}
 
-	devSpaces, _ := service.Svc.ClusterUser().GetList(c, model.ClusterUserModel{
-		UserId:       userId,
-		DevSpaceType: model.VirtualClusterType},
-	)
-
 	result := make([]*ServiceAccountModel, 0, len(clusters))
 	var lock sync.Mutex
 	wg := sync.WaitGroup{}
@@ -107,36 +105,16 @@ func ListAuthorization(c *gin.Context) {
 		}()
 	}
 
+	wg.Wait()
+
+	devSpaces, _ := service.Svc.ClusterUser().GetList(c, model.ClusterUserModel{
+		UserId:       userId,
+		DevSpaceType: model.VirtualClusterType},
+	)
+
+	// add vcluster kubeconfig to result
 	if len(devSpaces) != 0 {
-		for _, space := range devSpaces {
-			clusterKubeConfig := ""
-			for i2, cluster := range clusters {
-				if cluster.ID == space.ClusterId {
-					clusterKubeConfig = clusters[i2].GetKubeConfig()
-					break
-				}
-
-			}
-			if clusterKubeConfig == "" {
-				continue
-			}
-
-			GenVirtualClusterKubeconfig(clusterKubeConfig, space.SpaceName, space.Namespace, func(kubeConfig string) {
-				if kubeConfig == "" {
-					return
-				}
-				result = append(result, &ServiceAccountModel{
-					ClusterId:     space.ID + 1<<16,
-					KubeConfig:    kubeConfig,
-					StorageClass:  "",
-					NS:            []NS{},
-					Privilege:     true,
-					PrivilegeType: CLUSTER_ADMIN,
-					DevSpaceType:  model.VirtualClusterType,
-				})
-			})
-		}
-
+		result = setVClusterKubeConfig(devSpaces, clusters, result)
 	}
 
 	sort.Slice(
@@ -148,7 +126,6 @@ func ListAuthorization(c *gin.Context) {
 		},
 	)
 
-	wg.Wait()
 	api.SendResponse(c, nil, result)
 }
 
@@ -309,17 +286,17 @@ func GenKubeconfig(
 	then(nss, privilegeType, kubeConfig)
 }
 
-func GenVirtualClusterKubeconfig(clusterKubeConfig, spaceName, namespace string, f func(kubeConfig string)) {
+func GenVirtualClusterKubeConfig(clusterKubeConfig, spaceName, namespace string, f func(kubeConfig string, serviceType string)) {
 
 	factory := vcluster.GetSharedManagerFactory()
 	vcManager, err := factory.Manager(clusterKubeConfig)
 	if err != nil {
-		f("")
+		f("", "")
 		return
 	}
 
-	kubeConfig, _ := vcManager.GetKubeConfig(global.VClusterPrefix+namespace, namespace)
-	f(kubeConfig)
+	kubeConfig, serviceType, _ := vcManager.GetKubeConfig(global.VClusterPrefix+namespace, namespace)
+	f(kubeConfig, serviceType)
 }
 
 func getServiceAccountKubeConfigReader(
@@ -343,14 +320,137 @@ func getServiceAccountKubeConfigReader(
 	return cr
 }
 
+func setVClusterKubeConfig(
+	devSpaces []*model.ClusterUserModel, clusters []*model.ClusterList, result []*ServiceAccountModel) []*ServiceAccountModel {
+
+	clustersMap := make(map[uint64]*model.ClusterList)
+	for _, cluster := range clusters {
+		clustersMap[cluster.ID] = cluster
+	}
+
+	accountMaps := make(map[uint64]*ServiceAccountModel)
+	for i, accountModel := range result {
+		accountMaps[accountModel.ClusterId] = result[i]
+	}
+	wg := sync.WaitGroup{}
+	mu := sync.Mutex{}
+	for _, space := range devSpaces {
+		clusterKubeConfig := clustersMap[space.ClusterId].GetKubeConfig()
+		if clusterKubeConfig == "" {
+			continue
+		}
+
+		space := space
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			GenVirtualClusterKubeConfig(clusterKubeConfig, space.SpaceName, space.Namespace, func(
+				kubeConfig, serviceType string) {
+				if kubeConfig == "" {
+					log.Error("get kube config failed")
+					return
+				}
+				hostClusterContext, virtualClusterContext := "", ""
+				if serviceType == string(corev1.ServiceTypeClusterIP) {
+					var err error
+					kubeConfig, hostClusterContext, virtualClusterContext, err = addHostContextIntoKubeConfig(kubeConfig, space, accountMaps)
+					if err != nil {
+						log.Error(err)
+						return
+					}
+				}
+
+				mu.Lock()
+				result = append(result, &ServiceAccountModel{
+					ClusterId:      space.ID + 1<<16,
+					KubeConfig:     kubeConfig,
+					StorageClass:   "",
+					NS:             []NS{},
+					Privilege:      true,
+					PrivilegeType:  CLUSTER_ADMIN,
+					DevSpaceType:   model.VirtualClusterType,
+					KubeConfigType: "vcluster",
+					VirtualCluster: VirtualCluster{
+						ServiceType:           serviceType,
+						ServicePort:           "8443",
+						ServiceAddress:        "service/" + global.VClusterPrefix + space.Namespace,
+						ServiceNamespace:      space.Namespace,
+						HostClusterContext:    hostClusterContext,
+						VirtualClusterContext: virtualClusterContext,
+					},
+				})
+				mu.Unlock()
+			})
+		}()
+	}
+	wg.Wait()
+	return result
+}
+
+func addHostContextIntoKubeConfig(
+	kubeConfig string, space *model.ClusterUserModel, accountMaps map[uint64]*ServiceAccountModel) (
+	newKubeConfig, hostClusterContext, virtualClusterContext string, err error) {
+
+	hostAccount := accountMaps[space.ClusterId]
+	if hostAccount == nil {
+		err = errors.Errorf("get host cluster kubeconfig failed, cluster id: %d", space.ClusterId)
+		return
+	}
+
+	clusterKC, err := clientcmd.Load([]byte(hostAccount.KubeConfig))
+	if err != nil {
+		err = errors.Errorf("load host cluster kubeconfig failed, cluster id: %d, err: %v", space.ClusterId, err)
+		return
+	}
+
+	hostClusterContext = clusterKC.CurrentContext
+	hostCtx := clusterKC.Contexts[hostClusterContext]
+	if hostCtx == nil {
+		err = errors.Errorf("get host cluster kubeconfig context failed, cluster id: %d", space.ClusterId)
+		return
+	}
+
+	hostCluster := clusterKC.Clusters[hostCtx.Cluster]
+	if hostCluster == nil {
+		err = errors.Errorf("get host cluster kubeconfig failed, cluster id: %d", space.ClusterId)
+		return
+	}
+	hostAuth := clusterKC.AuthInfos[hostCtx.AuthInfo]
+	if hostAuth == nil {
+		err = errors.Errorf("get host cluster kubeconfig failed, cluster id: %d", space.ClusterId)
+		return
+	}
+
+	kc, err := clientcmd.Load([]byte(kubeConfig))
+	if err != nil {
+		log.Errorf("load kubeconfig error: %s", err)
+		return
+	}
+	virtualClusterContext = kc.CurrentContext
+	kc.Contexts[hostClusterContext] = hostCtx
+	kc.Clusters[hostCtx.Cluster] = hostCluster
+	kc.AuthInfos[hostCtx.AuthInfo] = hostAuth
+
+	kubeConfigByte, err := clientcmd.Write(*kc)
+	if err != nil {
+		log.Errorf("write kubeconfig error: %s", err)
+		return
+	}
+	newKubeConfig = string(kubeConfigByte)
+	return
+}
+
 type ServiceAccountModel struct {
-	ClusterId     uint64        `json:"cluster_id"`
-	KubeConfig    string        `json:"kubeconfig"`
-	StorageClass  string        `json:"storage_class"`
-	NS            []NS          `json:"namespace_packs"`
-	Privilege     bool          `json:"privilege"`
-	PrivilegeType PrivilegeType `json:"privilege_type"`
-	DevSpaceType  uint64        `json:"dev_space_type"`
+	ClusterId      uint64         `json:"cluster_id"`
+	KubeConfig     string         `json:"kubeconfig"`
+	StorageClass   string         `json:"storage_class"`
+	NS             []NS           `json:"namespace_packs"`
+	Privilege      bool           `json:"privilege"`
+	PrivilegeType  PrivilegeType  `json:"privilege_type"`
+	DevSpaceType   uint64         `json:"dev_space_type"`
+	KubeConfigType string         `json:"kubeconfig_type"`
+	VirtualCluster VirtualCluster `json:"virtual_cluster"`
 }
 
 type NS struct {
@@ -359,4 +459,13 @@ type NS struct {
 	SpaceName    string `json:"spacename"`
 	SleepStatus  string `json:"sleep_status"`
 	SpaceOwnType string `json:"space_own_type"`
+}
+
+type VirtualCluster struct {
+	ServiceType           string `json:"service_type"`
+	ServicePort           string `json:"service_port"`
+	ServiceAddress        string `json:"service_address"`
+	ServiceNamespace      string `json:"service_namespace"`
+	HostClusterContext    string `json:"host_cluster_context"`
+	VirtualClusterContext string `json:"virtual_cluster_context"`
 }

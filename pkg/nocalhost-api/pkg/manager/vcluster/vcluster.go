@@ -29,7 +29,7 @@ const (
 
 type Manager interface {
 	GetInfo(name, namespace string) (model.VirtualClusterInfo, error)
-	GetKubeConfig(name, namespace string) (string, error)
+	GetKubeConfig(name, namespace string) (string, string, error)
 	close()
 }
 
@@ -56,16 +56,17 @@ func (m *manager) GetInfo(name, namespace string) (model.VirtualClusterInfo, err
 	return info, nil
 }
 
-func (m *manager) GetKubeConfig(name, namespace string) (string, error) {
+func (m *manager) GetKubeConfig(name, namespace string) (string, string, error) {
 	vc, err := m.getVirtualCluster(name, namespace)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	kubeConfig, err := base64.StdEncoding.DecodeString(vc.Status.AuthConfig)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
-	return string(kubeConfig), nil
+	serviceType := vc.GetServiceType()
+	return string(kubeConfig), serviceType, nil
 }
 
 func (m *manager) vcInformer() informers.GenericInformer {

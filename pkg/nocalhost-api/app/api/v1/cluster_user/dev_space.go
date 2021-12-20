@@ -147,11 +147,6 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 	if d.DevSpaceParams.BaseDevSpaceId > 0 {
 		if clusterUserModel, err = d.initMeshDevSpace(&clusterRecord, clusterUserModel, baseClusterUser); err != nil {
 			log.Error(err)
-			// rollback
-			d.KubeConfig = []byte(clusterRecord.GetKubeConfig())
-			d.DevSpaceParams.NameSpace = clusterUserModel.Namespace
-			d.DevSpaceParams.ID = &clusterUserModel.ID
-			_ = d.Delete()
 			return nil, errno.ErrInitMeshSpaceFailed
 		}
 	}
@@ -161,6 +156,7 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 		if err := d.initVirtualCluster(&clusterRecord, clusterUserModel); err != nil {
 			log.Error(err)
 			// rollback
+			log.Debugf("rollback dev space %s", clusterUserModel.SpaceName)
 			d.KubeConfig = []byte(clusterRecord.GetKubeConfig())
 			d.DevSpaceParams.NameSpace = clusterUserModel.Namespace
 			d.DevSpaceParams.ID = &clusterUserModel.ID

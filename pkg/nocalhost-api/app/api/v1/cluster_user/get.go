@@ -291,8 +291,8 @@ func GetJoinClusterAndAppAndUserDetail(c *gin.Context) {
 		pack := <-clusterChan
 
 		if result.DevSpaceType == model.VirtualClusterType {
-			service_account.GenVirtualClusterKubeconfig(pack.GetKubeConfig(), result.SpaceName, result.Namespace,
-				func(kubeConfig string) {
+			service_account.GenVirtualClusterKubeConfig(pack.GetKubeConfig(), result.SpaceName, result.Namespace,
+				func(kubeConfig, serviceType string) {
 					configMapChan <- kubeConfig
 				})
 			return
