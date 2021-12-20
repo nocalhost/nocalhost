@@ -61,6 +61,10 @@ type Searcher struct {
 	lastUsedTime time.Time
 }
 
+func (s *Searcher) GetSupportSchema() *sync.Map {
+	return s.supportSchema
+}
+
 type GvkGvrWithAlias struct {
 	Gvr   schema.GroupVersionResource
 	Gvk   schema.GroupVersionKind
@@ -72,7 +76,7 @@ type GvkGvrWithAlias struct {
 // getSupportedSchema return restMapping of each resource, [string]*meta.RESTMapping
 // Key: resourceType
 func getSupportedSchema(apiResources []*restmapper.APIGroupResources) ([]GvkGvrWithAlias, error) {
-	var resourceNeeded = map[string]string{"namespaces": "namespaces"} // deployment/statefulset...
+	var resourceNeeded = map[string]string{"namespaces": "Namespace.v1"} // deployment/statefulset...
 	for _, v := range GroupToTypeMap {
 		for _, s := range v.V {
 			resourceNeeded[s] = s
@@ -80,34 +84,67 @@ func getSupportedSchema(apiResources []*restmapper.APIGroupResources) ([]GvkGvrW
 	}
 
 	nameToMapping := make([]GvkGvrWithAlias, 0) // []GvkGvrWithAlias
-	for _, resourceList := range apiResources {
-		for version, resource := range resourceList.VersionedResources {
-			for _, apiResource := range resource {
-				if _, need := resourceNeeded[apiResource.Name]; need {
-					r := GvkGvrWithAlias{
-						Gvr: schema.GroupVersionResource{
-							Group:    resourceList.Group.Name,
-							Version:  version,
-							Resource: apiResource.Name,
-						},
-						Gvk: schema.GroupVersionKind{
-							Group:   resourceList.Group.Name,
-							Version: version,
-							Kind:    apiResource.Kind,
-						},
-						alias:      []string{},
-						Namespaced: apiResource.Namespaced,
-					}
-					if apiResource.ShortNames != nil {
-						r.alias = append(r.alias, apiResource.ShortNames...)
-					}
-					r.alias = append(r.alias, strings.ToLower(apiResource.Kind))
-					r.alias = append(r.alias, strings.ToLower(apiResource.Name))
-					nameToMapping = append(nameToMapping, r)
+
+	for _, s := range resourceNeeded {
+		gvk := schema.GroupVersionKind{}
+		gvkStrs := strings.Split(s, ".")
+		if len(gvkStrs) > 0 {
+			gvk.Kind = gvkStrs[0]
+			if len(gvkStrs) > 1 {
+				gvk.Version = gvkStrs[1]
+				if len(gvkStrs) > 2 {
+					gvk.Group = gvkStrs[2]
 				}
 			}
 		}
+
+		apiR, err := ConvertGvkToApiResource(&gvk, apiResources)
+		if err == nil {
+			ggwa := GvkGvrWithAlias{
+				Gvr: schema.GroupVersionResource{
+					Group:    gvk.Group,
+					Version:  gvk.Version,
+					Resource: apiR.Name,
+				},
+				Gvk: gvk,
+				alias: []string{
+					apiR.Name, apiR.SingularName, strings.ToLower(apiR.Kind),
+				},
+				Namespaced: apiR.Namespaced,
+			}
+			ggwa.alias = append(ggwa.alias, apiR.ShortNames...)
+			nameToMapping = append(nameToMapping, ggwa)
+		}
 	}
+
+	//for _, resourceList := range apiResources {
+	//	for version, resource := range resourceList.VersionedResources {
+	//		for _, apiResource := range resource {
+	//			if _, need := resourceNeeded[apiResource.Name]; need {
+	//				r := GvkGvrWithAlias{
+	//					Gvr: schema.GroupVersionResource{
+	//						Group:    resourceList.Group.Name,
+	//						Version:  version,
+	//						Resource: apiResource.Name,
+	//					},
+	//					Gvk: schema.GroupVersionKind{
+	//						Group:   resourceList.Group.Name,
+	//						Version: version,
+	//						Kind:    apiResource.Kind,
+	//					},
+	//					alias:      []string{},
+	//					Namespaced: apiResource.Namespaced,
+	//				}
+	//				if apiResource.ShortNames != nil {
+	//					r.alias = append(r.alias, apiResource.ShortNames...)
+	//				}
+	//				r.alias = append(r.alias, strings.ToLower(apiResource.Kind))
+	//				r.alias = append(r.alias, strings.ToLower(apiResource.Name))
+	//				nameToMapping = append(nameToMapping, r)
+	//			}
+	//		}
+	//	}
+	//}
 	if len(nameToMapping) == 0 {
 		return nil, errors.New("RestMapping is empty, this should not happened")
 	}
@@ -156,7 +193,7 @@ func getCrdSchema(client *clientgoutils.ClientGoUtils, apiGroupResources []*rest
 		Version: "v1",
 		Kind:    "CustomResourceDefinition",
 	}
-	apiR, err := convertGvkToApiResource(&crdGvk, apiGroupResources)
+	apiR, err := ConvertGvkToApiResource(&crdGvk, apiGroupResources)
 	if err != nil {
 		log.Warnf("Failed to convert gvk %v to apiResource", crdGvk)
 	} else {
@@ -195,7 +232,7 @@ func ConvertCRDToGgwa(crdObj *apiextensions.CustomResourceDefinition, agrs []*re
 			alias:      []string{},
 			Namespaced: crdObj.Spec.Scope == apiextensions.NamespaceScoped,
 		}
-		apiR, err := convertGvkToApiResource(&ggwa.Gvk, agrs)
+		apiR, err := ConvertGvkToApiResource(&ggwa.Gvk, agrs)
 		if err != nil {
 			log.Warnf("Failed to convert gvk %v to apiResource", ggwa.Gvk)
 			continue
@@ -211,7 +248,7 @@ func ConvertCRDToGgwa(crdObj *apiextensions.CustomResourceDefinition, agrs []*re
 	return result
 }
 
-func convertGvkToApiResource(gvk *schema.GroupVersionKind, grs []*restmapper.APIGroupResources) (*metav1.APIResource, error) {
+func ConvertGvkToApiResource(gvk *schema.GroupVersionKind, grs []*restmapper.APIGroupResources) (*metav1.APIResource, error) {
 	for _, grList := range grs {
 		if grList.Group.Name != gvk.Group {
 			continue

@@ -137,12 +137,12 @@ func TestGetPods(t *testing.T) {
 
 func TestGetDefault(t *testing.T) {
 	//bytes, _ := ioutil.ReadFile("/tmp/test.txt")
-	bytes, _ := ioutil.ReadFile(path.Join(utils.GetHomePath(), ".kube/config"))
-	s, err := GetSearcherWithLRU(bytes, "nocalhost-test")
+	bytes, _ := ioutil.ReadFile(path.Join(utils.GetHomePath(), ".kube/large-config"))
+	s, err := GetSearcherWithLRU(bytes, "nh2yunf")
 	if err != nil {
 		panic(err)
 	}
-	i, e := s.Criteria().ResourceType("crds").
+	i, e := s.Criteria().ResourceType("pods").
 		ResourceName("").
 		//AppName("bookinfo").
 		Namespace("").Query()

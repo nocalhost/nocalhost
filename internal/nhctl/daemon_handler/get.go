@@ -30,7 +30,6 @@ import (
 	"nocalhost/pkg/nhctl/log"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -377,64 +376,64 @@ func getNamespace(namespace string, kubeconfigBytes []byte) (ns string) {
 	return ""
 }
 
-func getApplicationByNs(namespace, kubeconfigPath string, search *resouce_cache.Searcher, label map[string]string, showHidden bool) item.Result {
-	result := item.Result{Namespace: namespace}
-	nameAndNidList := GetAllApplicationWithDefaultApp(namespace, kubeconfigPath)
-	okChan := make(chan struct{}, 2)
-	go func() {
-		time.Sleep(time.Second * 10)
-		okChan <- struct{}{}
-	}()
-	var wg sync.WaitGroup
-	var lock sync.Mutex
-	for _, name := range nameAndNidList {
-		wg.Add(1)
-		go func(finalName, nid string) {
-			app := getApp(namespace, finalName, nid, search, label, showHidden)
-			lock.Lock()
-			result.Application = append(result.Application, app)
-			lock.Unlock()
-			wg.Done()
-		}(name.Application, name.NamespaceId)
-	}
-	go func() {
-		wg.Wait()
-		okChan <- struct{}{}
-	}()
-	<-okChan
-	return result
-}
+//func getApplicationByNs(namespace, kubeconfigPath string, search *resouce_cache.Searcher, label map[string]string, showHidden bool) item.Result {
+//	result := item.Result{Namespace: namespace}
+//	nameAndNidList := GetAllApplicationWithDefaultApp(namespace, kubeconfigPath)
+//	okChan := make(chan struct{}, 2)
+//	go func() {
+//		time.Sleep(time.Second * 10)
+//		okChan <- struct{}{}
+//	}()
+//	var wg sync.WaitGroup
+//	var lock sync.Mutex
+//	for _, name := range nameAndNidList {
+//		wg.Add(1)
+//		go func(finalName, nid string) {
+//			app := getApp(namespace, finalName, nid, search, label, showHidden)
+//			lock.Lock()
+//			result.Application = append(result.Application, app)
+//			lock.Unlock()
+//			wg.Done()
+//		}(name.Application, name.NamespaceId)
+//	}
+//	go func() {
+//		wg.Wait()
+//		okChan <- struct{}{}
+//	}()
+//	<-okChan
+//	return result
+//}
 
-func getApp(namespace, appName, nid string, search *resouce_cache.Searcher, label map[string]string, showHidden bool) item.App {
-	result := item.App{Name: appName}
-	//profileMap := getServiceProfile(namespace, appName, nid, search.GetKubeconfigBytes())
-	for _, entry := range resouce_cache.GroupToTypeMap {
-		resources := make([]item.Resource, 0, len(entry.V))
-		for _, resource := range entry.V {
-			resourceList, err := search.Criteria().
-				ResourceType(resource).
-				AppName(appName).
-				Namespace(namespace).
-				Label(label).
-				ShowHidden(showHidden).
-				Query()
-			if err == nil {
-				items := make([]item.Item, 0, len(resourceList))
-				for _, v := range resourceList {
-					items = append(
-						items, item.Item{
-							//Metadata: v, Description: profileMap[resource+"/"+v.(metav1.Object).GetName()],
-							Metadata: v,
-						},
-					)
-				}
-				resources = append(resources, item.Resource{Name: resource, List: items})
-			}
-		}
-		result.Groups = append(result.Groups, item.Group{GroupName: entry.K, List: resources})
-	}
-	return result
-}
+//func getApp(namespace, appName, nid string, search *resouce_cache.Searcher, label map[string]string, showHidden bool) item.App {
+//	result := item.App{Name: appName}
+//	//profileMap := getServiceProfile(namespace, appName, nid, search.GetKubeconfigBytes())
+//	for _, entry := range resouce_cache.GroupToTypeMap {
+//		resources := make([]item.Resource, 0, len(entry.V))
+//		for _, resource := range entry.V {
+//			resourceList, err := search.Criteria().
+//				ResourceType(resource).
+//				AppName(appName).
+//				Namespace(namespace).
+//				Label(label).
+//				ShowHidden(showHidden).
+//				Query()
+//			if err == nil {
+//				items := make([]item.Item, 0, len(resourceList))
+//				for _, v := range resourceList {
+//					items = append(
+//						items, item.Item{
+//							//Metadata: v, Description: profileMap[resource+"/"+v.(metav1.Object).GetName()],
+//							Metadata: v,
+//						},
+//					)
+//				}
+//				resources = append(resources, item.Resource{Name: resource, List: items})
+//			}
+//		}
+//		result.Groups = append(result.Groups, item.Group{GroupName: entry.K, List: resources})
+//	}
+//	return result
+//}
 
 func SortApplication(metas []*appmeta.ApplicationMeta) {
 	if metas == nil {

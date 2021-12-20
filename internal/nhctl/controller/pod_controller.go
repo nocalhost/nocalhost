@@ -36,5 +36,5 @@ func (c *Controller) BuildPodController() pod_controller.PodController {
 		}
 		return &RawPodController{Controller: c}
 	}
-	return nil
+	return &DefaultController{Controller: c}
 }
