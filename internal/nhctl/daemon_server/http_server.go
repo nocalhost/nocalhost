@@ -15,10 +15,12 @@ import (
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/controller"
+	"nocalhost/internal/nhctl/daemon_common"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"runtime/debug"
+	"strconv"
 	"strings"
 )
 
@@ -51,7 +53,7 @@ func startHttpServer() {
 	http.HandleFunc("/config-save", handlingConfigSave)
 	http.HandleFunc("/config-get", handlingConfigGet)
 
-	err := http.ListenAndServe("127.0.0.1:30125", nil)
+	err := http.ListenAndServe("127.0.0.1:"+strconv.Itoa(daemon_common.DaemonHttpPort), nil)
 	if err != nil {
 		log.ErrorE(err, "Http Server occur errors")
 	}

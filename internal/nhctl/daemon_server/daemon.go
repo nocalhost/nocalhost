@@ -13,6 +13,8 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
+	"net/http"
+	_ "net/http/pprof"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/appmeta_manager"
@@ -29,6 +31,7 @@ import (
 	k8sutil "nocalhost/pkg/nhctl/k8sutils"
 	"nocalhost/pkg/nhctl/log"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -128,7 +131,13 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 		// update nocalhost-hub
 		go cronJobForUpdatingHub()
 		// Listen http
-		go startHttpServer()
+		go func() {
+			if isSudo {
+				startHttpServer()
+			} else {
+				_ = http.ListenAndServe("127.0.0.1:"+strconv.Itoa(daemon_common.SudoDaemonHttpPort), nil)
+			}
+		}()
 
 		go checkClusterStatusCronJob()
 
