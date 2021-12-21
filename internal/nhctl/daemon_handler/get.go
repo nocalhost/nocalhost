@@ -6,10 +6,10 @@
 package daemon_handler
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/cache"
 	"k8s.io/client-go/tools/clientcmd"
@@ -146,35 +146,24 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			nsObjectList, err := s.Criteria().ResourceType("namespaces").Query()
 			if err == nil && nsObjectList != nil && len(nsObjectList) > 0 {
 				result := make([]item.Result, 0, len(nsObjectList))
-				//// try to init a cluster level searcher
-				//searcher, err2 := resouce_cache.GetSearcher(KubeConfigBytes, "")
-				//if err2 != nil {
-				//	return nil
-				//}
-				okChan := make(chan struct{}, 2)
-				go func() {
-					time.Sleep(time.Second * 10)
-					okChan <- struct{}{}
-				}()
-				var wg sync.WaitGroup
-				var lock sync.Mutex
+				ctx, cancelFunc := context.WithTimeout(context.TODO(), time.Second*10)
+				wg := &sync.WaitGroup{}
+				lock := &sync.Mutex{}
 				for _, nsObject := range nsObjectList {
 					wg.Add(1)
-					go func(finalNs metav1.Object) {
-						app := getApplicationByNs(
-							finalNs.GetName(), request.KubeConfig, s, request.Label, request.ShowHidden,
-						)
+					go func(finalNs string) {
+						defer wg.Done()
+						app := getApplicationByNs(finalNs, request.KubeConfig, s, request.Label, request.ShowHidden)
 						lock.Lock()
 						result = append(result, app)
 						lock.Unlock()
-						wg.Done()
-					}(nsObject.(metav1.Object))
+					}(nsObject.(metav1.Object).GetName())
 				}
 				go func() {
 					wg.Wait()
-					okChan <- struct{}{}
+					cancelFunc()
 				}()
-				<-okChan
+				<-ctx.Done()
 				return result
 			}
 		}
@@ -182,8 +171,8 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 
 	case "app", "application":
 		// init searcher for cache async
-		go func() { _, _ = resouce_cache.GetSearcherWithLRU(KubeConfigBytes, ns) }()
-		if request.ResourceName == "" {
+		go resouce_cache.GetSearcherWithLRU(KubeConfigBytes, ns)
+		if len(request.ResourceName) == 0 {
 			return ParseApplicationsResult(ns, GetAllValidApplicationWithDefaultApp(ns, KubeConfigBytes))
 		} else {
 			meta := appmeta_manager.GetApplicationMeta(ns, request.ResourceName, KubeConfigBytes)
@@ -201,24 +190,23 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			Label(request.Label).
 			ShowHidden(request.ShowHidden).
 			Query()
+		if err != nil || len(data) == 0 {
+			return nil
+		}
 		// resource namespace filter status is active
-		availableData := make([]interface{}, 0, 0)
+		result := make([]item.Item, 0, 0)
 		for _, datum := range data {
-			if datum.(*v1.Namespace).Status.Phase == v1.NamespaceActive {
-				availableData = append(availableData, datum)
+			if datum.(metav1.Object).GetDeletionTimestamp() == nil {
+				result = append(result, item.Item{Metadata: datum})
 			}
 		}
-		if err != nil || len(availableData) == 0 {
+		if err != nil || len(result) == 0 {
 			return nil
 		}
 		if len(request.ResourceName) == 0 {
-			result := make([]item.Item, 0, len(availableData))
-			for _, datum := range availableData {
-				result = append(result, item.Item{Metadata: datum})
-			}
 			return result[0:]
 		} else {
-			return item.Item{Metadata: availableData[0]}
+			return result[0]
 		}
 
 	default:
@@ -232,39 +220,30 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			serviceMap = getServiceProfile(ns, request.AppName, nid, KubeConfigBytes)
 		}
 
-		c := s.Criteria().
+		items, err := s.Criteria().
 			ResourceType(request.Resource).
 			ResourceName(request.ResourceName).
 			AppName(request.AppName).
 			Namespace(ns).
 			ShowHidden(request.ShowHidden).
-			Label(request.Label)
+			Label(request.Label).
+			Query()
+		if err != nil || len(items) == 0 {
+			return nil
+		}
+		result := make([]item.Item, 0, len(items))
+		for _, i := range items {
+			tempItem := item.Item{Metadata: i}
+			if mapping, err := s.GetResourceInfo(request.Resource); err == nil {
+				tempItem.Description = serviceMap[mapping.Gvr.Resource+"/"+i.(metav1.Object).GetName()]
+			}
+			result = append(result, tempItem)
+		}
 		// get all resource in namespace
 		if len(request.ResourceName) == 0 {
-			items, err := c.Query()
-			if err != nil || len(items) == 0 {
-				return nil
-			}
-			result := make([]item.Item, 0, len(items))
-			for _, i := range items {
-				tempItem := item.Item{Metadata: i}
-				if mapping, err := s.GetResourceInfo(request.Resource); err == nil {
-					tempItem.Description = serviceMap[mapping.Gvr.Resource+"/"+i.(metav1.Object).GetName()]
-				}
-				result = append(result, tempItem)
-			}
 			return result
 		} else {
-			// get specify resource name in namespace
-			one, err := c.QueryOne()
-			if err != nil || one == nil {
-				return nil
-			}
-			i := item.Item{Metadata: one}
-			if mapping, err := s.GetResourceInfo(request.Resource); err == nil {
-				i.Description = serviceMap[mapping.Gvr.Resource+"/"+one.(metav1.Object).GetName()]
-			}
-			return i
+			return result[0]
 		}
 	}
 }
@@ -285,28 +264,25 @@ func getNamespace(namespace string, kubeconfigBytes []byte) (ns string) {
 func getApplicationByNs(namespace, kubeconfigPath string, search *resouce_cache.Searcher, label map[string]string, showHidden bool) item.Result {
 	result := item.Result{Namespace: namespace}
 	nameAndNidList := GetAllApplicationWithDefaultApp(namespace, kubeconfigPath)
-	okChan := make(chan struct{}, 2)
-	go func() {
-		time.Sleep(time.Second * 10)
-		okChan <- struct{}{}
-	}()
-	var wg sync.WaitGroup
-	var lock sync.Mutex
+	ctx, cancelFunc := context.WithTimeout(context.TODO(), time.Second*10)
+
+	wg := sync.WaitGroup{}
+	lock := sync.Mutex{}
 	for _, name := range nameAndNidList {
 		wg.Add(1)
 		go func(finalName, nid string) {
+			defer wg.Done()
 			app := getApp(namespace, finalName, nid, search, label, showHidden)
 			lock.Lock()
 			result.Application = append(result.Application, app)
 			lock.Unlock()
-			wg.Done()
 		}(name.Application, name.NamespaceId)
 	}
 	go func() {
 		wg.Wait()
-		okChan <- struct{}{}
+		cancelFunc()
 	}()
-	<-okChan
+	<-ctx.Done()
 	return result
 }
 
