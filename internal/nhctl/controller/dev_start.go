@@ -543,9 +543,10 @@ func findDevPodName(podList ...corev1.Pod) (string, error) {
 }
 
 // containerStatusForDevPod getting status msg for pod
-func containerStatusForDevPod(pod *corev1.Pod, consumeFun func(status string, err error)) {
+// return true if current pod is dev pod
+func containerStatusForDevPod(pod *corev1.Pod, consumeFun func(status string, err error)) bool {
 	if pod.GetDeletionTimestamp() != nil {
-		return
+		return false
 	}
 
 	// dev container must have 2 containers: nocalhost-dev & nocalhost-sidecar
@@ -558,7 +559,7 @@ func containerStatusForDevPod(pod *corev1.Pod, consumeFun func(status string, er
 	}
 
 	if containerFoundCounter < 2 {
-		return
+		return false
 	}
 
 	head := fmt.Sprintf("Pod %s now %s", pod.Name, pod.Status.Phase)
@@ -595,6 +596,8 @@ func containerStatusForDevPod(pod *corev1.Pod, consumeFun func(status string, er
 	if msg != "" || conditionMsg != "" {
 		consumeFun(head+conditionMsg+msg+"\n", nil)
 	}
+
+	return true
 }
 
 func (c *Controller) genContainersAndVolumes(podSpec *corev1.PodSpec,

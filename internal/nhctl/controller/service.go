@@ -28,6 +28,7 @@ import (
 	"nocalhost/pkg/nhctl/log"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -515,7 +516,15 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 	delete(podTemplate.Labels, "pod-template-hash")
 	c.devModePodLabels = podTemplate.Labels
 
-	log.Infof("\nNow waiting dev mode to start...\n")
+	gvr := c.Client.ResourceFor("pod", false)
+	gvk, gvkErr := c.Client.KindFor(gvr)
+	if gvkErr != nil {
+		log.Infof(
+			"(Can Be Ignore, does not affect the actual function) "+
+				"Error to find workload's GVK "+
+				"(Event Watcher when dev start will be invalid), Error:%s", gvk,
+		)
+	}
 
 	// start a watcher for dev pod until it running
 	//
@@ -529,6 +538,9 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 			log.Infof(s)
 		},
 	)
+
+	var currentPod atomic.Value
+
 	quitChan := watcher.NewSimpleWatcher(
 		c.Client,
 		"pod",
@@ -540,11 +552,13 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 				if err := runtime.DefaultUnstructuredConverter.
 					FromUnstructured(us.UnstructuredContent(), &pod); err == nil {
 
-					containerStatusForDevPod(
+					if containerStatusForDevPod(
 						&pod, func(status string, err error) {
 							printer.ChangeContent(status)
 						},
-					)
+					) {
+						currentPod.Store(pod.Name)
+					}
 
 					if _, err := findDevPodName(pod); err == nil {
 						close(quitChan)
@@ -556,6 +570,41 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 		nil,
 	)
 
+	if gvkErr == nil && !gvk.Empty() {
+		apiVersion, kind := gvk.ToAPIVersionAndKind()
+
+		c := watcher.NewSimpleWatcher(
+			c.Client,
+			"event",
+			"",
+			func(key string, object interface{}, quitChan chan struct{}) {
+				if us, ok := object.(*unstructured.Unstructured); ok {
+
+					var event v1.Event
+					if err := runtime.DefaultUnstructuredConverter.
+						FromUnstructured(us.UnstructuredContent(), &event); err == nil {
+
+						podName := currentPod.Load()
+
+						if podName == nil ||
+							event.Type == "Normal" ||
+							event.InvolvedObject.Kind != kind ||
+							event.InvolvedObject.APIVersion != apiVersion ||
+							podName.(string) != event.InvolvedObject.Name {
+							return
+						}
+
+						printer.ChangeContent(fmt.Sprintf("### Notable events: %s: %s ###", event.Reason, event.Message))
+						return
+					}
+				}
+			},
+			nil,
+		)
+		defer close(c)
+	}
+
+	log.Infof("Now waiting dev mode to start...")
 	<-quitChan
 	return nil
 }
