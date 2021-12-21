@@ -9,7 +9,6 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/daemon_client"
-	"nocalhost/internal/nhctl/vpn/driver"
 	"nocalhost/internal/nhctl/vpn/util"
 	"nocalhost/pkg/nhctl/log"
 	"sigs.k8s.io/yaml"
@@ -27,12 +26,6 @@ var vpnStatusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "status",
 	Long:  `status`,
-	PreRun: func(*cobra.Command, []string) {
-		util.InitLogger(util.Debug)
-		if util.IsWindows() {
-			driver.InstallWireGuardTunDriver()
-		}
-	},
 	Run: func(cmd *cobra.Command, args []string) {
 		client, err := daemon_client.GetDaemonClient(false)
 		if err != nil {

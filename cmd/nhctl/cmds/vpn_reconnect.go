@@ -42,7 +42,6 @@ var reconnectCmd = &cobra.Command{
 		// if not sudo and sudo daemon is not running, needs sudo permission
 		if !util.IsAdmin() && !util.IsSudoDaemonServing() {
 			util.RunWithElevated()
-			return
 		}
 		_, err := daemon_client.GetDaemonClient(true)
 		if err != nil {
