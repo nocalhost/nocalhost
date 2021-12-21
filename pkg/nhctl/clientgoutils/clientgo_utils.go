@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"k8s.io/api/batch/v1beta1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/watch"
@@ -18,6 +19,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/pkg/errors"
@@ -47,6 +49,7 @@ import (
 type ClientGoUtils struct {
 	kubeConfigFilePath      string
 	restConfig              *restclient.Config
+	restMapper              meta.RESTMapper
 	ClientSet               *kubernetes.Clientset
 	dynamicClient           dynamic.Interface //
 	ClientConfig            clientcmd.ClientConfig
@@ -55,6 +58,9 @@ type ClientGoUtils struct {
 	ctx                     context.Context
 	labels                  map[string]string
 	fieldSelector           string
+
+	gvrCache     map[string]schema.GroupVersionResource
+	gvrCacheLock sync.Mutex
 }
 
 type PortForwardAPodRequest struct {
@@ -117,6 +123,10 @@ func NewClientGoUtils(kubeConfigPath string, namespace string) (*ClientGoUtils, 
 		return nil, errors.Wrap(err, "")
 	}
 
+	if client.restMapper, err = client.NewFactory().ToRESTMapper(); err != nil {
+		return nil, errors.Wrap(err, "")
+	}
+
 	if client.namespace == "" {
 		client.namespace, err = client.GetDefaultNamespace()
 		if err != nil {
@@ -151,6 +161,10 @@ func (c *ClientGoUtils) KubeConfigFilePath() string {
 func (c *ClientGoUtils) NameSpace(namespace string) *ClientGoUtils {
 	c.namespace = namespace
 	return c
+}
+
+func (c *ClientGoUtils) GetNameSpace() string {
+	return c.namespace
 }
 
 // Context Set ClientGoUtils's Context

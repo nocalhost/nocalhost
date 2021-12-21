@@ -14,6 +14,8 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	kblabels "k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/common/base"
 	_const "nocalhost/internal/nhctl/const"
@@ -21,6 +23,7 @@ import (
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/utils"
+	"nocalhost/internal/nhctl/watcher"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"strconv"
@@ -41,7 +44,7 @@ type Controller struct {
 	AppMeta          *appmeta.ApplicationMeta
 	config           *profile.ServiceConfigV2
 	DevModeAction    base.DevModeAction
-	devModePodLabels map[string]string
+	devModePodLabels kblabels.Set
 }
 
 type jsonPatch struct {
@@ -100,7 +103,9 @@ func (c *Controller) IsInDevModeStarting() bool {
 
 // IsProcessor Check if service is developing in this device
 func (c *Controller) IsProcessor() bool {
-	return c.AppMeta.SvcDevModePossessor(c.Name, c.Type, c.Identifier, profile.DuplicateDevMode) || c.AppMeta.SvcDevModePossessor(c.Name, c.Type, c.Identifier, profile.ReplaceDevMode)
+	return c.AppMeta.SvcDevModePossessor(
+		c.Name, c.Type, c.Identifier, profile.DuplicateDevMode,
+	) || c.AppMeta.SvcDevModePossessor(c.Name, c.Type, c.Identifier, profile.ReplaceDevMode)
 }
 
 func (c *Controller) GetCurrentDevModeType() profile.DevModeType {
@@ -470,11 +475,13 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 
 		specPath := c.DevModeAction.PodTemplatePath + "/spec"
 		jsonPatches := make([]jsonPatch, 0)
-		jsonPatches = append(jsonPatches, jsonPatch{
-			Op:    "replace",
-			Path:  specPath,
-			Value: podSpec,
-		})
+		jsonPatches = append(
+			jsonPatches, jsonPatch{
+				Op:    "replace",
+				Path:  specPath,
+				Value: podSpec,
+			},
+		)
 		bys, _ := json.Marshal(jsonPatches)
 
 		if err = c.Client.Patch(c.Type.String(), c.Name, string(bys), "json"); err != nil {
@@ -506,9 +513,51 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 	}
 
 	delete(podTemplate.Labels, "pod-template-hash")
-
 	c.devModePodLabels = podTemplate.Labels
-	return waitingPodToBeReady(c.CheckDevModePodIsRunning)
+
+	log.Infof("\nNow waiting dev mode to start...\n")
+
+	// start a watcher for dev pod until it running
+	//
+	// print it's status & container status
+	// the printer used to help filter the same content
+	//
+	// if a pod is being running, close the quitChan to stop block and informer
+	//
+	printer := utils.NewPrinter(
+		func(s string) {
+			log.Infof(s)
+		},
+	)
+	quitChan := watcher.NewSimpleWatcher(
+		c.Client,
+		"pod",
+		c.devModePodLabels.AsSelector().String(),
+		func(key string, object interface{}, quitChan chan struct{}) {
+			if us, ok := object.(*unstructured.Unstructured); ok {
+
+				var pod v1.Pod
+				if err := runtime.DefaultUnstructuredConverter.
+					FromUnstructured(us.UnstructuredContent(), &pod); err == nil {
+
+					containerStatusForDevPod(
+						&pod, func(status string, err error) {
+							printer.ChangeContent(status)
+						},
+					)
+
+					if _, err := findDevPodName(pod); err == nil {
+						close(quitChan)
+					}
+					return
+				}
+			}
+		},
+		nil,
+	)
+
+	<-quitChan
+	return nil
 }
 
 func (c *Controller) CheckDevModePodIsRunning() (string, error) {
@@ -516,7 +565,7 @@ func (c *Controller) CheckDevModePodIsRunning() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return findDevPodName(pods)
+	return findDevPodName(pods...)
 }
 
 // ReplaceDuplicateModeImage Create a duplicate deployment instead of replacing image
@@ -626,12 +675,16 @@ func (c *Controller) ReplaceDuplicateModeImage(ctx context.Context, ops *model.D
 		generatedDeployment.Spec.Template.Spec.NodeName = ""
 
 		devContainer, sideCarContainer, devModeVolumes, err :=
-			c.genContainersAndVolumes(&generatedDeployment.Spec.Template.Spec, ops.Container, ops.DevImage, ops.StorageClass, true)
+			c.genContainersAndVolumes(
+				&generatedDeployment.Spec.Template.Spec, ops.Container, ops.DevImage, ops.StorageClass, true,
+			)
 		if err != nil {
 			return err
 		}
 
-		patchDevContainerToPodSpec(&generatedDeployment.Spec.Template.Spec, ops.Container, devContainer, sideCarContainer, devModeVolumes)
+		patchDevContainerToPodSpec(
+			&generatedDeployment.Spec.Template.Spec, ops.Container, devContainer, sideCarContainer, devModeVolumes,
+		)
 
 		// Create generated deployment
 		if _, err = c.Client.CreateDeploymentAndWait(generatedDeployment); err != nil {
@@ -657,7 +710,7 @@ func (c *Controller) GetDevModePodName() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return findDevPodName(pods)
+	return findDevPodName(pods...)
 }
 
 func (c *Controller) GetDuplicateDevModePodName() (string, error) {
@@ -665,7 +718,7 @@ func (c *Controller) GetDuplicateDevModePodName() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return findDevPodName(pods)
+	return findDevPodName(pods...)
 }
 
 func (c *Controller) DuplicateModeRollBack() error {
