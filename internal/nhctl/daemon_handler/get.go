@@ -62,7 +62,6 @@ func getServiceProfile(ns, appName string, kubeconfigBytes []byte) map[string]ma
 
 func GetDescriptionDaemon(ns, appName string, kubeconfigBytes []byte) *profile.AppProfileV2 {
 	var appProfile *profile.AppProfileV2
-	var err error
 	// deep copy
 	marshal, err := json.Marshal(appmeta_manager.GetApplicationMeta(ns, appName, kubeconfigBytes))
 	if err != nil {
@@ -137,7 +136,11 @@ func GetDescriptionDaemon(ns, appName string, kubeconfigBytes []byte) *profile.A
 }
 
 func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) (interface{}, error) {
-	KubeConfigBytes, _ := ioutil.ReadFile(request.KubeConfig)
+	KubeConfigBytes, err := ioutil.ReadFile(request.KubeConfig)
+	if err != nil {
+		return nil, err
+	}
+
 	ns := getNamespace(request.Namespace, KubeConfigBytes)
 	switch request.Resource {
 	//case "all":

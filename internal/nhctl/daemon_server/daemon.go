@@ -77,6 +77,12 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 		appmeta_manager.Init()
 		appmeta_manager.RegisterListener(
 			func(pack *appmeta_manager.ApplicationEventPack) error {
+
+				if strings.Contains(pack.Event.ResourceName, appmeta.DEV_STARTING_SUFFIX) {
+					log.Infof("Ignore event %s", pack.Event.ResourceName)
+					return nil
+				}
+
 				kubeconfig := k8sutil.GetOrGenKubeConfigPath(string(pack.KubeConfigBytes))
 				nhApp, err := app.NewApplication(pack.AppName, pack.Ns, kubeconfig, true)
 				if err != nil {
@@ -102,7 +108,10 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 
 					_ = nhController.StopSyncAndPortForwardProcess(true)
 				} else if pack.Event.EventType == appmeta.DEV_STA {
-					profile, _ := nhApp.GetProfile()
+					profile, err := nhApp.GetProfile()
+					if err != nil {
+						return nil
+					}
 
 					// ignore the event from local
 					if profile.Identifier == pack.Event.Identifier {

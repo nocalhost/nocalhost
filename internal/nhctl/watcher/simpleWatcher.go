@@ -6,6 +6,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"nocalhost/pkg/nhctl/clientgoutils"
+	"sync"
 	"time"
 )
 
@@ -24,8 +25,8 @@ type SimpleWatcher struct {
 // the quitChan in createOrUpdateFunc, deleteFunc and returns is the same
 func NewSimpleWatcher(
 	cgu *clientgoutils.ClientGoUtils, resource, labelSelector string,
-	createOrUpdate func(key string, object interface{}, quitChan chan struct{}),
-	delete func(key string, quitChan chan struct{}),
+	createOrUpdateFun func(key string, object interface{}, quitChan chan struct{}),
+	deleteFun func(key string, quitChan chan struct{}),
 ) chan struct{} {
 	gvr := cgu.ResourceFor(resource, false)
 	var lofun dynamicinformer.TweakListOptionsFunc = nil
@@ -45,15 +46,19 @@ func NewSimpleWatcher(
 	stopCh := make(chan struct{})
 
 	informer := dynamicInformerFactory.ForResource(gvr)
+	lock := sync.Mutex{}
 	fun := func(key string) {
+		lock.Lock()
+		defer lock.Unlock()
+
 		if obj, exists, err := informer.Informer().GetIndexer().GetByKey(key); err == nil {
 			if exists {
-				if createOrUpdate != nil {
-					createOrUpdate(key, obj, stopCh)
+				if createOrUpdateFun != nil {
+					createOrUpdateFun(key, obj, stopCh)
 				}
 			} else {
-				if delete != nil {
-					delete(key, stopCh)
+				if deleteFun != nil {
+					deleteFun(key, stopCh)
 				}
 			}
 		}
