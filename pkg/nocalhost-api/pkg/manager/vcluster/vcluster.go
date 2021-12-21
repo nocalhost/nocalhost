@@ -61,6 +61,11 @@ func (m *manager) GetKubeConfig(name, namespace string) (string, string, error) 
 	if err != nil {
 		return "", "", err
 	}
+
+	if vc.Status.Phase != helmv1alpha1.Ready {
+		return "", "", errors.New("virtual cluster is not ready")
+	}
+
 	kubeConfig, err := base64.StdEncoding.DecodeString(vc.Status.AuthConfig)
 	if err != nil {
 		return "", "", err

@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -444,8 +445,11 @@ func (d *DevSpace) initVirtualCluster(clusterRecord *model.ClusterModel, cluster
 	annotations := map[string]string{
 		v1alpha1.ServiceTypeKey: string(v.ServiceType),
 		v1alpha1.SpaceName:      clusterUser.SpaceName,
+		v1alpha1.Timestamp:      strconv.Itoa(int(time.Now().UnixNano())),
 	}
 	vc.SetAnnotations(annotations)
+
+	vc.Status.Phase = v1alpha1.Upgrading
 
 	goClient, err := clientgo.NewAdminGoClient([]byte(clusterRecord.KubeConfig))
 	if err != nil {
