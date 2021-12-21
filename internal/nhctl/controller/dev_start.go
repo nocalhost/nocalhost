@@ -61,55 +61,55 @@ func (c *Controller) GetDevSidecarImage(container string) string {
 	return ""
 }
 
-func (c *Controller) markReplicaSetRevision() error {
+//func (c *Controller) markReplicaSetRevision() error {
+//
+//	dep0, err := c.Client.GetDeployment(c.Name)
+//	if err != nil {
+//		return err
+//	}
+//
+//	// Mark current revision for rollback
+//	rss, err := c.Client.GetSortedReplicaSetsByDeployment(c.Name)
+//	if err != nil {
+//		return err
+//	}
+//	if len(rss) > 0 {
+//		// Recording original pod replicas for dev end to recover
+//		originalPodReplicas := 1
+//		if dep0.Spec.Replicas != nil {
+//			originalPodReplicas = int(*dep0.Spec.Replicas)
+//		}
+//		for _, rs := range rss {
+//			if _, ok := rs.Annotations[_const.DevImageRevisionAnnotationKey]; ok {
+//				// already marked
+//				return nil
+//			}
+//		}
+//		rs := rss[0]
+//		retryTimes := 5
+//		for i := 0; i < retryTimes; i++ {
+//			time.Sleep(time.Second * 1)
+//			if err = c.Client.Patch(
+//				"ReplicaSet", rs.Name,
+//				fmt.Sprintf(
+//					`{"metadata":{"annotations":{"%s":"%d", "%s":"%s"}}}`,
+//					_const.DevImageOriginalPodReplicasAnnotationKey, originalPodReplicas,
+//					_const.DevImageRevisionAnnotationKey, _const.DevImageRevisionAnnotationValue,
+//				), "",
+//			); err == nil {
+//				break
+//			}
+//		}
+//		if err != nil {
+//			return errors.New("Failed to update rs's annotation :" + err.Error())
+//		}
+//		log.Infof("%s has been marked as first revision", rs.Name)
+//	}
+//	return nil
+//}
 
-	dep0, err := c.Client.GetDeployment(c.Name)
-	if err != nil {
-		return err
-	}
-
-	// Mark current revision for rollback
-	rss, err := c.Client.GetSortedReplicaSetsByDeployment(c.Name)
-	if err != nil {
-		return err
-	}
-	if len(rss) > 0 {
-		// Recording original pod replicas for dev end to recover
-		originalPodReplicas := 1
-		if dep0.Spec.Replicas != nil {
-			originalPodReplicas = int(*dep0.Spec.Replicas)
-		}
-		for _, rs := range rss {
-			if _, ok := rs.Annotations[_const.DevImageRevisionAnnotationKey]; ok {
-				// already marked
-				return nil
-			}
-		}
-		rs := rss[0]
-		retryTimes := 5
-		for i := 0; i < retryTimes; i++ {
-			time.Sleep(time.Second * 1)
-			if err = c.Client.Patch(
-				"ReplicaSet", rs.Name,
-				fmt.Sprintf(
-					`{"metadata":{"annotations":{"%s":"%d", "%s":"%s"}}}`,
-					_const.DevImageOriginalPodReplicasAnnotationKey, originalPodReplicas,
-					_const.DevImageRevisionAnnotationKey, _const.DevImageRevisionAnnotationValue,
-				), "",
-			); err == nil {
-				break
-			}
-		}
-		if err != nil {
-			return errors.New("Failed to update rs's annotation :" + err.Error())
-		}
-		log.Infof("%s has been marked as first revision", rs.Name)
-	}
-	return nil
-}
-
-func (c *Controller) GetSyncThingSecretName(duplicateDevMode bool) string {
-	if duplicateDevMode {
+func (c *Controller) GetSyncThingSecretName() string {
+	if c.DevModeType.IsDuplicateDevMode() {
 		return strings.Join([]string{c.Name, c.Type.String(), secret_config.SecretName, "dup", c.Identifier}, "-")
 	}
 	return strings.Join([]string{c.Name, c.Type.String(), secret_config.SecretName}, "-")
@@ -131,7 +131,7 @@ func (c *Controller) generateSyncVolumesAndMounts(duplicateDevMode bool) ([]core
 		},
 	}
 
-	secretName := c.GetSyncThingSecretName(duplicateDevMode)
+	secretName := c.GetSyncThingSecretName()
 	defaultMode := int32(_const.DefaultNewFilePermission)
 	syncthingSecretVol := corev1.Volume{
 		Name: secret_config.SecretName,

@@ -495,13 +495,13 @@ func nsResource(ns, resourceName string) string {
 	return fmt.Sprintf("%s/%s", ns, resourceName)
 }
 
-func SortByNameAsc(item []interface{}) {
-	sort.SliceStable(
-		item, func(i, j int) bool {
-			return item[i].(metav1.Object).GetName() < item[j].(metav1.Object).GetName()
-		},
-	)
-}
+//func SortByNameAsc(item []interface{}) {
+//	sort.SliceStable(
+//		item, func(i, j int) bool {
+//			return item[i].(*unstructured.Unstructured).DeepCopy().GetName() < item[j].(metav1.Object).GetName()
+//		},
+//	)
+//}
 
 func (s *Searcher) Criteria() *criteria {
 	return newCriteria(s)
@@ -621,7 +621,7 @@ func (c *criteria) Query() (data []interface{}, e error) {
 		for _, object := range list {
 			iters = append(iters, object)
 		}
-		SortByNameAsc(iters)
+		//SortByNameAsc(iters)
 		return iters, nil
 	}
 
