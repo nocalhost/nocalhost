@@ -115,6 +115,28 @@ func ListAuthorization(c *gin.Context) {
 	// add vcluster kubeconfig to result
 	if len(devSpaces) != 0 {
 		result = setVClusterKubeConfig(devSpaces, clusters, result)
+
+		// remove namespace form vcluster devspace
+		nsMap := make(map[string]struct{})
+		for _, devSpace := range devSpaces {
+			nsMap[devSpace.Namespace] = struct{}{}
+		}
+		for i := 0; i < len(result); i++ {
+			ns := result[i].NS
+			for j := 0; j < len(ns); j++ {
+				if _, ok := nsMap[ns[j].Namespace]; !ok {
+					continue
+				}
+				ns = ns[:j+copy(ns[j:], ns[j+1:])]
+				j--
+			}
+			if len(ns) == 0 && !result[i].Privilege {
+				result = result[:i+copy(result[i:], result[i+1:])]
+				i--
+				continue
+			}
+			result[i].NS = ns
+		}
 	}
 
 	sort.Slice(
