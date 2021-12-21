@@ -495,13 +495,13 @@ func nsResource(ns, resourceName string) string {
 	return fmt.Sprintf("%s/%s", ns, resourceName)
 }
 
-func SortByNameAsc(item []interface{}) {
-	sort.SliceStable(
-		item, func(i, j int) bool {
-			return item[i].(metav1.Object).GetName() < item[j].(metav1.Object).GetName()
-		},
-	)
-}
+//func SortByNameAsc(item []interface{}) {
+//	sort.SliceStable(
+//		item, func(i, j int) bool {
+//			return item[i].(*unstructured.Unstructured).DeepCopy().GetName() < item[j].(metav1.Object).GetName()
+//		},
+//	)
+//}
 
 func (s *Searcher) Criteria() *criteria {
 	return newCriteria(s)
@@ -567,7 +567,6 @@ func (c *criteria) Consume(consumer func([]interface{}) error) error {
 	if err != nil {
 		return err
 	}
-
 	return consumer(query)
 }
 
@@ -575,11 +574,22 @@ func (c *criteria) Consume(consumer func([]interface{}) error) error {
 func (c *criteria) Query() (data []interface{}, e error) {
 	defer func() {
 		if err := recover(); err != nil {
+			fmt.Println("Recover in query")
 			e = err.(error)
 		}
 		if mapping, errs := c.search.GetResourceInfo(c.resourceType); errs == nil {
-			for _, d := range data {
-				d.(runtime.Object).GetObjectKind().SetGroupVersionKind(mapping.Gvk)
+			for i, d := range data {
+				dd := d.(runtime.Object).GetObjectKind()
+				if dd.GroupVersionKind().Empty() {
+					if ddd, ok := d.(*unstructured.Unstructured); ok {
+						deepCopy := ddd.DeepCopy()
+						deepCopy.GetObjectKind().SetGroupVersionKind(mapping.Gvk)
+						data[i] = deepCopy
+						dd.SetGroupVersionKind(mapping.Gvk)
+					} else {
+						dd.SetGroupVersionKind(mapping.Gvk)
+					}
+				}
 			}
 		}
 	}()
@@ -621,7 +631,7 @@ func (c *criteria) Query() (data []interface{}, e error) {
 		for _, object := range list {
 			iters = append(iters, object)
 		}
-		SortByNameAsc(iters)
+		//SortByNameAsc(iters)
 		return iters, nil
 	}
 

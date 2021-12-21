@@ -24,6 +24,7 @@ import (
 	"nocalhost/pkg/nhctl/log"
 	"path"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 )
@@ -127,7 +128,7 @@ func TestGetPods(t *testing.T) {
 	for _, dep := range i {
 		fmt.Println(dep.(metav1.Object).GetName())
 	}
-	SortByNameAsc(i)
+	//SortByNameAsc(i)
 	fmt.Println("after sort by create timestamp asc")
 	for _, dep := range i {
 		fmt.Println(dep.(metav1.Object).GetName())
@@ -139,23 +140,37 @@ func TestGetDefault(t *testing.T) {
 	//bytes, _ := ioutil.ReadFile("/tmp/test.txt")
 	bytes, _ := ioutil.ReadFile(path.Join(utils.GetHomePath(), ".kube/config"))
 	//s, err := GetSearcherWithLRU(bytes, "nh2yunf")
-	for ii := 0; ii < 100000; ii++ {
-		start := time.Now()
-		s, err := GetSearcherWithLRU(bytes, "nocalhost-test")
-		if err != nil {
-			panic(err)
-		}
-		i, e := s.Criteria().ResourceType("ns").
-			ResourceName("").
-			//AppName("bookinfo").
-			Namespace("").Query()
-		if e != nil {
-			log.Error(e)
-		}
-		//for _, dep := range i {
-		//	fmt.Println(dep.(metav1.Object).GetName())
-		//}
-		fmt.Printf("%d Get len %d, takes: %d ms\n", ii, len(i), start.Sub(time.Now()).Microseconds())
+	_, _ = GetSearcherWithLRU(bytes, "nocalhost-test")
+	time.Sleep(3 * time.Second)
+
+	wg := sync.WaitGroup{}
+	//for ii := 0; ii < 10000; ii++ {
+	for ii := 0; ii < 1000000; ii++ {
+		wg.Add(1)
+		go func() {
+			//start := time.Now()
+			defer func() {
+				if err := recover(); err != nil {
+					fmt.Println("recovering")
+				}
+			}()
+			s, err := GetSearcherWithLRU(bytes, "nocalhost-test")
+			if err != nil {
+				//panic(err)
+				return
+			}
+			i, e := s.Criteria().ResourceType("crds").
+				ResourceName("").
+				//AppName("bookinfo").
+				Namespace("").Query()
+			if e != nil {
+				e.Error()
+			}
+			for _, dep := range i {
+				dep.(metav1.Object).GetName()
+			}
+			//fmt.Printf("%d Get len %d, takes: %d ms\n", ii, len(i), start.Sub(time.Now()).Microseconds())
+		}()
 	}
 
 	/*i, e = s.GetByAppAndNs(&v1.Deployment{}, "default.application", "default")

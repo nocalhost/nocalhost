@@ -336,7 +336,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) (inte
 					} else {
 						tt = fmt.Sprintf("%s.%s.%s", mapping.Gvr.Resource, mapping.Gvr.Version, mapping.Gvr.Group)
 					}
-					log.Infof("TTTest: getting description of %s", tt)
+					//log.Infof("TTTest: getting description of %s", tt)
 					if tm, ok := serviceMap[tt]; ok {
 						if d, ok := tm[i.(metav1.Object).GetName()]; ok {
 							tempItem.Description = d

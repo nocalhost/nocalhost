@@ -240,9 +240,9 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 
 func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType, clientStack string) {
 	var err error
-	//defer func() {
-	//	recoverDaemonFromPanic()
-	//}()
+	defer func() {
+		utils.RecoverFromPanic()
+	}()
 
 	// prevent elder version to send cmd to daemon
 	if clientStack == "" {

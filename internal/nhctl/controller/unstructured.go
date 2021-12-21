@@ -21,6 +21,10 @@ import (
 	"time"
 )
 
+const (
+	OriginSpecJson = "nocalhost.origin.spec.json" // deprecated
+)
+
 func (c *Controller) GetUnstructured() (unstructuredMap *unstructured.Unstructured, err error) {
 	return c.Client.GetUnstructured(string(c.Type), c.Name)
 }
@@ -252,20 +256,9 @@ func RemoveUselessInfo(u *unstructured.Unstructured) {
 
 	delete(u.Object, "status")
 
-	//metaM, ok := u.Object["metadata"]
-	//if !ok {
-	//	return
-	//}
-	//mm, ok := metaM.(map[string]interface{})
-	//if !ok {
-	//	return
-	//}
 	u.SetManagedFields(nil)
-	//delete(mm, "resourceVersion")
 	u.SetResourceVersion("")
-	//delete(mm, "creationTimestamp")
 	u.SetCreationTimestamp(metav1.NewTime(time.Time{}))
-	//delete(mm, "managedFields")
 	u.SetManagedFields(nil)
 	u.SetUID("")
 	u.SetGeneration(0)
@@ -319,15 +312,10 @@ func (c *Controller) PatchDuplicateInfo(u map[string]interface{}) error {
 
 	//dep.Name = d.getDuplicateResourceName()
 	mm["name"] = c.getDuplicateResourceName()
-
-	//dep.Labels = labelsMap
 	mm["labels"] = labelsMap
 
-	//dep.ResourceVersion = ""
-	delete(mm, "resourceVersion")
-
-	//dep.Status = appsv1.DeploymentStatus{}
-	delete(u, "status")
+	delete(mm, "resourceVersion") //dep.ResourceVersion = ""
+	delete(u, "status")           //dep.Status = appsv1.DeploymentStatus{}
 
 	// todo
 	//dep.Spec.Selector = &metav1.LabelSelector{MatchLabels: labelsMap}

@@ -257,54 +257,17 @@ func (c *Controller) GetTypeMeta() (metav1.TypeMeta, error) {
 	if k == "" {
 		return result, errors.New("Can not find kind")
 	}
+	result.Kind = k
 
 	a := um.GetAPIVersion()
 	if a == "" {
 		return result, errors.New("Can not find apiVersion")
 	}
+	result.APIVersion = a
 	return result, nil
 }
 
 func (c *Controller) GetContainerImage(container string) (string, error) {
-	//var podSpec v1.PodSpec
-	//switch c.Type {
-	//case base.Deployment:
-	//	d, err := c.Client.GetDeployment(c.Name)
-	//	if err != nil {
-	//		return "", err
-	//	}
-	//	podSpec = d.Spec.Template.Spec
-	//case base.StatefulSet:
-	//	s, err := c.Client.GetStatefulSet(c.Name)
-	//	if err != nil {
-	//		return "", err
-	//	}
-	//	podSpec = s.Spec.Template.Spec
-	//case base.DaemonSet:
-	//	d, err := c.Client.GetDaemonSet(c.Name)
-	//	if err != nil {
-	//		return "", err
-	//	}
-	//	podSpec = d.Spec.Template.Spec
-	//case base.Job:
-	//	j, err := c.Client.GetJobs(c.Name)
-	//	if err != nil {
-	//		return "", err
-	//	}
-	//	podSpec = j.Spec.Template.Spec
-	//case base.CronJob:
-	//	j, err := c.Client.GetCronJobs(c.Name)
-	//	if err != nil {
-	//		return "", err
-	//	}
-	//	podSpec = j.Spec.JobTemplate.Spec.Template.Spec
-	//case base.Pod:
-	//	p, err := c.Client.GetPod(c.Name)
-	//	if err != nil {
-	//		return "", err
-	//	}
-	//	podSpec = p.Spec
-	//}
 	cs, err := c.GetContainers()
 	if err != nil {
 		return "", err
@@ -526,6 +489,8 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 		)
 	}
 
+	log.Infof("\nNow waiting dev mode to start...\n")
+
 	// start a watcher for dev pod until it running
 	//
 	// print it's status & container status
@@ -604,7 +569,6 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 		defer close(c)
 	}
 
-	log.Infof("Now waiting dev mode to start...")
 	<-quitChan
 	return nil
 }
