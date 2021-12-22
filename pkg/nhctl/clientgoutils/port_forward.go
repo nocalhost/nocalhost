@@ -28,11 +28,19 @@ type PortForwardFlags struct {
 	ReadyChannel  chan struct{}
 }
 
-type clientgoPortForwarder struct {
+type ClientgoPortForwarder struct {
 	genericclioptions.IOStreams
+	pw *PortForwarder
 }
 
-func (f *clientgoPortForwarder) ForwardPorts(method string, url *url.URL, opts portforward.PortForwardOptions) error {
+func (f ClientgoPortForwarder) GetPorts() ([]ForwardedPort, error) {
+	if f.pw != nil {
+		return f.pw.GetPorts()
+	}
+	return nil, errors.New("port is nil")
+}
+
+func (f *ClientgoPortForwarder) ForwardPorts(method string, url *url.URL, opts portforward.PortForwardOptions) error {
 	transport, upgrader, err := spdy.RoundTripperFor(opts.Config)
 	if err != nil {
 		return err
@@ -42,6 +50,7 @@ func (f *clientgoPortForwarder) ForwardPorts(method string, url *url.URL, opts p
 	if err != nil {
 		return err
 	}
+	f.pw = fw
 	return fw.ForwardPorts()
 }
 
@@ -59,7 +68,7 @@ func (c *ClientGoUtils) PortForward(af *PortForwardFlags) error {
 
 	var err error
 	o := &portforward.PortForwardOptions{
-		PortForwarder: &clientgoPortForwarder{
+		PortForwarder: &ClientgoPortForwarder{
 			IOStreams: af.Streams,
 		},
 	}
