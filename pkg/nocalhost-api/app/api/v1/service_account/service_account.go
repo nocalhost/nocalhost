@@ -395,7 +395,7 @@ func setVClusterKubeConfig(
 					KubeConfigType: "vcluster",
 					VirtualCluster: VirtualCluster{
 						ServiceType:           serviceType,
-						ServicePort:           "8443",
+						ServicePort:           "443",
 						ServiceAddress:        "service/" + global.VClusterPrefix + space.Namespace,
 						ServiceNamespace:      space.Namespace,
 						HostClusterContext:    hostClusterContext,
