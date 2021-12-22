@@ -10,10 +10,15 @@ import (
 	"errors"
 	"fmt"
 	"github.com/spf13/cobra"
+	"golang.org/x/text/encoding/unicode"
+	"golang.org/x/text/transform"
+	"io/ioutil"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/pkg/nhctl/clientgoutils"
+	"nocalhost/pkg/nhctl/k8sutils"
 	"nocalhost/pkg/nhctl/log"
+	"os"
 )
 
 var (
@@ -45,6 +50,19 @@ var kubeconfigCheckCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(contextSpecified) == 0 {
 			contextSpecified = append(contextSpecified, "")
+		}
+
+		if kubeConfig == "-" { // from sdtin
+
+			// TODO: Consider adding a flag to force to UTF16, apparently some
+			// Windows tools don't write the BOM
+			utf16bom := unicode.BOMOverride(unicode.UTF8.NewDecoder())
+			reader := transform.NewReader(os.Stdin, utf16bom)
+
+			content, err := ioutil.ReadAll(reader)
+			must(err)
+
+			kubeConfig = k8sutils.GetOrGenKubeConfigPath(string(content))
 		}
 
 		checkInfos := make([]CheckInfo, 0)
