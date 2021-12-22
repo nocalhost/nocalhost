@@ -7,12 +7,13 @@ package clientgoutils
 
 import (
 	"fmt"
+	"k8s.io/apimachinery/pkg/fields"
 	"testing"
 )
 
 //
 func getClient() *ClientGoUtils {
-	client, err := NewClientGoUtils("", "nh6xury")
+	client, err := NewClientGoUtils("", "")
 	if err != nil {
 		panic(err)
 	}
@@ -58,3 +59,24 @@ func TestClientGoUtils_GetDeployment(t *testing.T) {
 //		fmt.Println("not ok")
 //	}
 //}
+
+func TestClientGoUtils_ListHPA(t *testing.T) {
+	c, err := NewClientGoUtils("", "nocalhost-test")
+	if err != nil {
+		panic(err)
+	}
+	hs, err := c.FieldSelector(
+		fields.AndSelectors(
+			fields.OneTermEqualSelector("spec.scaleTargetRef.apiVersion", "apps/v1"),
+			fields.OneTermEqualSelector("spec.scaleTargetRef.kind", "Deployment"),
+			fields.OneTermEqualSelector("spec.scaleTargetRef.name", "reviews"),
+			//fields.OneTermEqualSelector("metadata.name", "reviews"),
+		).String(),
+	).ListHPA()
+	if err != nil {
+		panic(err)
+	}
+	for _, h := range hs {
+		fmt.Println(h.Name)
+	}
+}
