@@ -214,7 +214,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) (inte
 			ShowHidden(request.ShowHidden).
 			Query()
 		if err != nil {
-			return nil, err
+			return nil, nil
 		}
 
 		type gvkr struct {
