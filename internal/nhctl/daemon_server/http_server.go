@@ -165,7 +165,7 @@ func handlingConfigSave(w http.ResponseWriter, r *http.Request) {
 
 	ot := svcConfig.Type
 	svcConfig.Type = strings.ToLower(svcConfig.Type)
-	if !controller.CheckIfControllerTypeSupport(svcConfig.Type) {
+	if !nocalhost.CheckIfResourceTypeIsSupported(base.SvcType(svcConfig.Type)) {
 		fail(w, fmt.Sprintf("Service Type %s is unsupported", ot))
 		return
 	}

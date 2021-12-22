@@ -113,14 +113,14 @@ func (c *Controller) GetCurrentDevModeType() profile.DevModeType {
 	return c.AppMeta.GetCurrentDevModeTypeOfWorkload(c.Name, c.Type, c.Identifier)
 }
 
-func CheckIfControllerTypeSupport(t string) bool {
-	tt := base.SvcType(t)
-	if tt == base.Deployment || tt == base.StatefulSet || tt == base.DaemonSet || tt == base.Job ||
-		tt == base.CronJob || tt == base.Pod || tt == base.CloneSetV1Alpha1 {
-		return true
-	}
-	return false
-}
+//func CheckIfControllerTypeSupport(t string) bool {
+//	tt := base.SvcType(t)
+//	if tt == base.Deployment || tt == base.StatefulSet || tt == base.DaemonSet || tt == base.Job ||
+//		tt == base.CronJob || tt == base.Pod || tt == base.CloneSetV1Alpha1 {
+//		return true
+//	}
+//	return false
+//}
 
 func (c *Controller) CheckIfExist() (bool, error) {
 	_, err := c.GetUnstructured()

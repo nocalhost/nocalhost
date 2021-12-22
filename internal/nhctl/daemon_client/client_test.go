@@ -69,5 +69,4 @@ func TestDaemonClient_SendGetResourceInfoCommand(t *testing.T) {
 		//fmt.Printf("%s\n", resp)
 	}
 	wg.Wait()
-
 }

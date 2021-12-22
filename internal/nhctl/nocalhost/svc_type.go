@@ -88,6 +88,13 @@ func GetDevModeActionBySvcType(svcType base.SvcType) (*base.DevModeAction, error
 	return nil, errors.New(fmt.Sprintf("Workload Type %s is unsupported", svcType))
 }
 
+func CheckIfResourceTypeIsSupported(svcType base.SvcType) bool {
+	if _, ok := supportedSvcType[svcType]; ok {
+		return true
+	}
+	return false
+}
+
 func SvcTypeOfMutate(svcType string) (base.SvcType, error) {
 	_, err := GetDevModeActionBySvcType(base.SvcType(svcType))
 	return base.SvcType(svcType), err
