@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -147,11 +148,6 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 	if d.DevSpaceParams.BaseDevSpaceId > 0 {
 		if clusterUserModel, err = d.initMeshDevSpace(&clusterRecord, clusterUserModel, baseClusterUser); err != nil {
 			log.Error(err)
-			// rollback
-			d.KubeConfig = []byte(clusterRecord.GetKubeConfig())
-			d.DevSpaceParams.NameSpace = clusterUserModel.Namespace
-			d.DevSpaceParams.ID = &clusterUserModel.ID
-			_ = d.Delete()
 			return nil, errno.ErrInitMeshSpaceFailed
 		}
 	}
@@ -161,6 +157,7 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 		if err := d.initVirtualCluster(&clusterRecord, clusterUserModel); err != nil {
 			log.Error(err)
 			// rollback
+			log.Debugf("rollback dev space %s", clusterUserModel.SpaceName)
 			d.KubeConfig = []byte(clusterRecord.GetKubeConfig())
 			d.DevSpaceParams.NameSpace = clusterUserModel.Namespace
 			d.DevSpaceParams.ID = &clusterUserModel.ID
@@ -448,8 +445,11 @@ func (d *DevSpace) initVirtualCluster(clusterRecord *model.ClusterModel, cluster
 	annotations := map[string]string{
 		v1alpha1.ServiceTypeKey: string(v.ServiceType),
 		v1alpha1.SpaceName:      clusterUser.SpaceName,
+		v1alpha1.Timestamp:      strconv.Itoa(int(time.Now().UnixNano())),
 	}
 	vc.SetAnnotations(annotations)
+
+	vc.Status.Phase = v1alpha1.Upgrading
 
 	goClient, err := clientgo.NewAdminGoClient([]byte(clusterRecord.KubeConfig))
 	if err != nil {

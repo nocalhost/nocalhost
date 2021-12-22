@@ -15,6 +15,7 @@ const (
 	DefaultVersion = "0.4.5"
 	ServiceTypeKey = "vcluster.nocalhost.dev/service_type"
 	SpaceName      = "vcluster.nocalhost.dev/space_name"
+	Timestamp      = "vcluster.nocalhost.dev/timestamp"
 )
 
 // VirtualClusterSpec defines the desired state of VirtualCluster

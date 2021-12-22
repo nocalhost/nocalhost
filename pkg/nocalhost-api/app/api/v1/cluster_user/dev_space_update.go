@@ -7,7 +7,8 @@ package cluster_user
 
 import (
 	"context"
-	"nocalhost/internal/nocalhost-api/global"
+	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
@@ -15,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
+	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	helmv1alpha1 "nocalhost/internal/nocalhost-dep/controllers/vcluster/api/v1alpha1"
@@ -65,6 +67,7 @@ func (d *DevSpaceUpdate) UpdateVirtualCluster(cu model.ClusterUserModel) error {
 	vc.SetChartVersion(v.Version)
 	annotations := vc.GetAnnotations()
 	annotations[helmv1alpha1.ServiceTypeKey] = string(v.ServiceType)
+	annotations[helmv1alpha1.Timestamp] = strconv.Itoa(int(time.Now().UnixNano()))
 	vc.SetAnnotations(annotations)
 	vc.SetManagedFields(nil)
 
