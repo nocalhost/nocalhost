@@ -85,9 +85,23 @@ func (c *Controller) IncreaseDevModeCount() error {
 		count++
 	}
 
-	m := map[string]interface{}{"metadata": map[string]interface{}{"annotations": map[string]string{_const.DevModeCount: fmt.Sprintf("%d", count)}}}
-	mBytes, _ := json.Marshal(m)
-	return c.Client.Patch(c.Type.String(), c.Name, string(mBytes), "strategic")
+	// strategic patch don't work in CRD
+	//m := map[string]interface{}{"metadata": map[string]interface{}{"annotations": map[string]string{_const.DevModeCount: fmt.Sprintf("%d", count)}}}
+	//mBytes, _ := json.Marshal(m)
+	//return c.Client.Patch(c.Type.String(), c.Name, string(mBytes), "strategic")
+
+	specPath := "/metadata/annotations/" + strings.ReplaceAll(_const.DevModeCount, "/", "~1")
+	jsonPatches := make([]jsonPatch, 0)
+	jsonPatches = append(
+		jsonPatches, jsonPatch{
+			Op:    "add",
+			Path:  specPath,
+			Value: fmt.Sprintf("%d", count),
+		},
+	)
+	bys, _ := json.Marshal(jsonPatches)
+
+	return c.Client.Patch(c.Type.String(), c.Name, string(bys), "json")
 }
 
 func (c *Controller) DecreaseDevModeCount() error {
@@ -103,9 +117,20 @@ func (c *Controller) DecreaseDevModeCount() error {
 	if count > 0 {
 		count--
 	}
-	m := map[string]interface{}{"metadata": map[string]interface{}{"annotations": map[string]string{_const.DevModeCount: fmt.Sprintf("%d", count)}}}
-	mBytes, _ := json.Marshal(m)
-	return c.Client.Patch(c.Type.String(), c.Name, string(mBytes), "strategic")
+
+	// https://stackoverflow.com/questions/55573724/create-a-patch-to-add-a-kubernetes-annotation/60402927
+	specPath := "/metadata/annotations/" + strings.ReplaceAll(_const.DevModeCount, "/", "~1")
+	jsonPatches := make([]jsonPatch, 0)
+	jsonPatches = append(
+		jsonPatches, jsonPatch{
+			Op:    "add",
+			Path:  specPath,
+			Value: fmt.Sprintf("%d", count),
+		},
+	)
+	bys, _ := json.Marshal(jsonPatches)
+
+	return c.Client.Patch(c.Type.String(), c.Name, string(bys), "json")
 }
 
 func (c *Controller) RollbackFromAnnotation() error {
@@ -178,22 +203,63 @@ func (c *Controller) RollbackFromAnnotation() error {
 	//return c.Client.Patch(c.Type.String(), c.Name, string(bys), "json")
 }
 
+// GetUnstructuredMapBySpecificPath Path must be like: /spec/template
 func GetUnstructuredMapBySpecificPath(path string, u map[string]interface{}) (map[string]interface{}, error) {
+	if strings.HasPrefix(path, "\\/") {
+		return nil, errors.New(fmt.Sprintf("Path %s invalid. It must be like: /spec/template, and start with /", path))
+	}
+	path = strings.TrimPrefix(path, "/")
 	pathItems := strings.Split(path, "/")
-	currentPathMap := u
-	for _, item := range pathItems {
-		if item != "" {
-			if m, ok := currentPathMap[item]; ok {
-				currentPathMap, ok = m.(map[string]interface{})
-				if !ok {
-					return nil, errors.New(fmt.Sprintf("Invalid path: %s", item))
-				}
-			} else {
-				return nil, errors.New(fmt.Sprintf("Invalid path: %s", item))
-			}
+	arrayIndex := -1
+	splitIndex := -1
+	for i, item := range pathItems {
+		if item == "" {
+			continue
+		}
+		index, err := strconv.Atoi(item)
+		if err == nil { // There is a slice
+			splitIndex = i
+			arrayIndex = index
+			break
 		}
 	}
-	return currentPathMap, nil
+
+	if splitIndex == -1 {
+		result, ok, err := unstructured.NestedMap(u, pathItems...)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+		if !ok {
+			return nil, errors.New(fmt.Sprintf("PodTemplate path %s not found", path))
+		}
+		return result, nil
+	}
+
+	mapSlice, ok, err := unstructured.NestedSlice(u, pathItems[0:splitIndex]...)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to find nested slice in unstructured map")
+	}
+	if !ok {
+		return nil, errors.New(fmt.Sprintf("PodTemplate path %s not found", path))
+	}
+
+	if len(mapSlice) < arrayIndex+1 {
+		return nil, errors.New(fmt.Sprintf("Array index %d in path %s is out of boundary", arrayIndex, path))
+	}
+
+	p, ok := mapSlice[arrayIndex].(map[string]interface{})
+	if !ok {
+		return nil, errors.New(fmt.Sprintf("Slice item in path %s is not a unstructured map?", path))
+	}
+
+	secondMap, ok, err := unstructured.NestedMap(p, pathItems[splitIndex+1:]...)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	if !ok {
+		return nil, errors.New(fmt.Sprintf("PodTemplate path %s not found", path))
+	}
+	return secondMap, nil
 }
 
 func GetPodTemplateFromSpecPath(path string, unstructuredObj map[string]interface{}) (*corev1.PodTemplateSpec, error) {
@@ -212,27 +278,6 @@ func GetPodTemplateFromSpecPath(path string, unstructuredObj map[string]interfac
 	} else {
 		return p, nil
 	}
-}
-
-func UnmarshalFromUnstructuredMapBySpecPath(path string, unstructuredObj map[string]interface{}, obj interface{}) error {
-	pathItems := strings.Split(path, "/")
-	currentPathMap := unstructuredObj
-	for _, item := range pathItems {
-		if item != "" {
-			if m, ok := currentPathMap[item]; ok {
-				currentPathMap = m.(map[string]interface{})
-			} else {
-				return errors.New(fmt.Sprintf("Invalid path: %s", item))
-			}
-		}
-	}
-
-	jsonBytes, err := json.Marshal(currentPathMap)
-	if err != nil {
-		return errors.WithStack(err)
-	}
-
-	return errors.WithStack(json.Unmarshal(jsonBytes, obj))
 }
 
 // GetAnnotationFromUnstructured get annotation from unstructured

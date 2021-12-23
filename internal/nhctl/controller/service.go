@@ -286,6 +286,7 @@ func (c *Controller) GetContainers() ([]v1.Container, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	pt, err := GetPodTemplateFromSpecPath(c.DevModeAction.PodTemplatePath, um.Object)
 	if err != nil {
 		return nil, err
