@@ -13,6 +13,7 @@ const (
 	REVERSE        string = "REVERSE"
 	Connect        string = "Connect"
 	MacToIP        string = "MAC_TO_IP"
+	DHCP           string = "DHCP"
 	Splitter       string = "#"
 	EndSignOK      string = "EndSignOk"
 	EndSignFailed  string = "EndSignFailed"

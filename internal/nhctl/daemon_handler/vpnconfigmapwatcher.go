@@ -10,10 +10,10 @@ import (
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/vpn/pkg"
+	"nocalhost/internal/nhctl/vpn/remote"
 	"nocalhost/internal/nhctl/vpn/util"
 	"nocalhost/pkg/nhctl/k8sutils"
 	"os/exec"
-	"runtime/debug"
 	"sync"
 	"time"
 )
@@ -282,13 +282,9 @@ func (h *resourceHandler) OnDelete(obj interface{}) {
 
 // release resource handler will stop watcher
 func release(kubeconfigBytes []byte, namespace string) {
-	debug.PrintStack()
 	// needs to notify sudo daemon to update connect namespace
 	fmt.Println("needs to notify sudo daemon to update connect namespace, this should not to be happen")
-	fmt.Printf("current: %s, to be releaded: %s\n", connectInfo.namespace, namespace)
-	fmt.Printf("current: %s, to be releaded: %s\n", string(connectInfo.kubeconfigBytes), string(kubeconfigBytes))
-	fmt.Printf("value: %s, value: %s, is same: %v\n", connectInfo.toKey(), util.GenerateKey(kubeconfigBytes, namespace),
-		connectInfo.toKey() == util.GenerateKey(kubeconfigBytes, namespace))
+	fmt.Printf("current ns: %s, to be repleaded: %s\n", connectInfo.namespace, namespace)
 
 	//ReleaseWatcher(kubeconfigBytes, namespace)
 	if clientset, err := util.GetClientSetByKubeconfigBytes(kubeconfigBytes); err == nil {
@@ -383,10 +379,12 @@ func init() {
 			case <-tick:
 				func() {
 					defer func() {
-						recover()
+						if err := recover(); err != nil {
+						}
 					}()
 					go checkConnect()
-					checkReverse()
+					go checkReverse()
+					go communicateEachOther()
 				}()
 			}
 		}
@@ -438,4 +436,23 @@ func checkReverse() {
 		})
 		return true
 	})
+}
+
+func communicateEachOther() {
+	if connectInfo.IsEmpty() {
+		return
+	}
+	watcher := GetOrGenerateConfigMapWatcher(connectInfo.kubeconfigBytes, connectInfo.namespace, nil)
+	if watcher != nil {
+		for _, i := range watcher.informer.GetStore().List() {
+			if cm, ok := i.(*corev1.ConfigMap); ok {
+				fromString := remote.FromString(cm.Data[util.DHCP])
+				if v, found := fromString[util.GetMacAddress().String()]; found {
+					for _, ip := range v.List() {
+						_, _ = util.Ping(fmt.Sprintf("223.254.254.%v", ip))
+					}
+				}
+			}
+		}
+	}
 }

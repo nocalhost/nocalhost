@@ -72,20 +72,12 @@ func (c *ConnectOptions) GetClientSet() *kubernetes.Clientset {
 }
 
 func (c *ConnectOptions) RentIP(random bool) (ip *net.IPNet, err error) {
-	if random {
-		for i := 0; i < 5; i++ {
-			if ip, err = c.dhcp.RentIPRandom(); err == nil {
-				return ip, nil
-			}
+	for i := 0; i < 5; i++ {
+		if ip, err = c.dhcp.RentIP(random); err == nil {
+			return
 		}
-		return nil, err
 	}
-	ip, err = c.dhcp.RentIPBaseNICAddress()
-	if err != nil {
-		return
-	}
-	c.ipUsed = append(c.ipUsed, ip)
-	return
+	return nil, errors.New("can not rent ip")
 }
 
 func (c *ConnectOptions) ReleaseIP() error {
@@ -458,7 +450,7 @@ func (c *ConnectOptions) GenerateTunIP(ctx context.Context) error {
 		c.localTunIP = &net.IPNet{IP: net.ParseIP(ip), Mask: net.CIDRMask(24, 32)}
 		return nil
 	}
-	c.localTunIP, err = c.dhcp.RentIPBaseNICAddress()
+	c.localTunIP, err = c.dhcp.RentIP(false)
 	if err != nil {
 		return err
 	}

@@ -15,6 +15,8 @@ import (
 	dockerterm "github.com/moby/term"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/net/icmp"
+	"golang.org/x/net/ipv4"
 	"io"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	"k8s.io/api/core/v1"
@@ -548,4 +550,44 @@ func GenerateKey(kubeconfigBytes []byte, namespace string) string {
 	h := sha1.New()
 	h.Write(reg.ReplaceAll(kubeconfigBytes, []byte("")))
 	return string(h.Sum([]byte(namespace)))
+}
+
+func Ping(targetIP string) (bool, error) {
+	conn, err := icmp.ListenPacket("ip4:icmp", "0.0.0.0")
+	if err != nil {
+		return false, err
+	}
+	defer conn.Close()
+
+	message := icmp.Message{
+		Type: ipv4.ICMPTypeEcho, Code: 0,
+		Body: &icmp.Echo{
+			ID:   os.Getpid() & 0xffff,
+			Seq:  1,
+			Data: []byte("HELLO-R-U-THERE"),
+		},
+	}
+	data, err := message.Marshal(nil)
+	if err != nil {
+		return false, nil
+	}
+	if _, err = conn.WriteTo(data, &net.IPAddr{IP: net.ParseIP(targetIP)}); err != nil {
+		return false, err
+	}
+
+	rb := make([]byte, 1500)
+	n, _, err := conn.ReadFrom(rb)
+	if err != nil {
+		return false, err
+	}
+	rm, err := icmp.ParseMessage(ipv4.ICMPTypeEchoReply.Protocol(), rb[:n])
+	if err != nil {
+		return false, err
+	}
+	switch rm.Type {
+	case ipv4.ICMPTypeEchoReply:
+		return true, nil
+	default:
+		return false, nil
+	}
 }
