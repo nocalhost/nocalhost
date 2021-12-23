@@ -19,7 +19,7 @@ const (
 	defaultCIDRIndex = "The range of valid IPs is"
 )
 
-func GetCIDR(config *rest.Config, namespace string) string {
+func getCIDR(config *rest.Config, namespace string) string {
 	clientSet, err := kubernetes.NewForConfig(config)
 
 	svc := &corev1.Service{

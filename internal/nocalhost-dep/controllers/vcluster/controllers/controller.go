@@ -9,10 +9,9 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+
 	"github.com/pkg/errors"
-	"helm.sh/helm/v3/pkg/chartutil"
 	"helm.sh/helm/v3/pkg/storage/driver"
-	"helm.sh/helm/v3/pkg/strvals"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -96,7 +95,7 @@ func (r *Reconciler) reconcile(ctx context.Context, vc *helmv1alpha1.VirtualClus
 		if err := r.patchStatus(ctx, vc); err != nil {
 			return err
 		}
-		values, err := r.extraValues(ctx, vc)
+		values, err := helper.ExtraValues(r.Config, vc)
 		if err != nil {
 			return err
 		}
@@ -111,7 +110,7 @@ func (r *Reconciler) reconcile(ctx context.Context, vc *helmv1alpha1.VirtualClus
 		if err := r.patchStatus(ctx, vc); err != nil {
 			return err
 		}
-		values, err := r.extraValues(ctx, vc)
+		values, err := helper.ExtraValues(r.Config, vc)
 		if err != nil {
 			return err
 		}
@@ -163,35 +162,6 @@ func (r *Reconciler) patchStatus(ctx context.Context, vc *helmv1alpha1.VirtualCl
 	}
 	lg.Info(fmt.Sprintf("update status for %s/%s", vc.GetNamespace(), vc.GetReleaseName()))
 	return r.Client.Status().Patch(ctx, vc, client.MergeFrom(latest.DeepCopy()))
-}
-
-func (r *Reconciler) extraValues(ctx context.Context, vc *helmv1alpha1.VirtualCluster) (map[string]interface{}, error) {
-	cidr := helper.GetCIDR(r.Config, vc.GetNamespace())
-	rel, err := defaultValues()
-	if err != nil {
-		return nil, err
-	}
-	extraVals := fmt.Sprintf("vcluster.extraArgs={--service-cidr=%s}", cidr)
-	svcType := vc.GetServiceType()
-	if svcType != "" {
-		svcVal := fmt.Sprintf("service.type=%s", svcType)
-		err = strvals.ParseInto(svcVal, rel)
-		if err != nil {
-			return nil, err
-		}
-	}
-	err = strvals.ParseInto(extraVals, rel)
-	return rel, err
-}
-
-func defaultValues() (map[string]interface{}, error) {
-	vals := `
-storage:
-  size: 10Gi
-syncer:
-  extraArgs: ["--disable-sync-resources=ingresses"]
-`
-	return chartutil.ReadValues([]byte(vals))
 }
 
 // SetupWithManager sets up the controller with the Manager.
