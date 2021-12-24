@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
+	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/appmeta_manager"
 	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/controller"
@@ -131,6 +132,9 @@ func reconnectedSyncthingIfNeeded() {
 			continue
 		}
 		for _, svcProfile := range appProfile.SvcProfile {
+			if svcProfile == nil || appmeta.HasDevStartingSuffix(svcProfile.Name) {
+				continue
+			}
 			svcType, err1 := nocalhost.SvcTypeOfMutate(svcProfile.GetType())
 			if err1 != nil {
 				continue

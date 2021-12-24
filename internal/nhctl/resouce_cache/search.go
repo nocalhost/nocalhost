@@ -299,42 +299,52 @@ func GetSearcherWithLRU(kubeconfigBytes []byte, namespace string) (search *Searc
 	}()
 	clusterKey := generateKey(kubeconfigBytes, namespace)
 	searchMapLock.Lock()
-	defer searchMapLock.Unlock()
 	searcher, exist := searchMap.Get(clusterKey)
-	if !exist || searcher == nil {
-		kubeconfigPath := k8sutils.GetOrGenKubeConfigPath(string(kubeconfigBytes))
-		clientUtils, err := clientgoutils.NewClientGoUtils(kubeconfigPath, namespace)
-		if err != nil {
-			return nil, err
-		}
-
-		var gr []*restmapper.APIGroupResources
-		v, ok := apiGroupResourcesMap.Load(clusterKey)
-		if !ok {
-			if gr, err = clientUtils.GetAPIGroupResources(); err != nil {
-				return nil, err
-			}
-			apiGroupResourcesMap.Store(clusterKey, gr)
-		} else {
-			if gr, ok = v.([]*restmapper.APIGroupResources); !ok {
-				return nil, errors.New("apiGroupResourcesMap value is not []*restmapper.APIGroupResources")
-			}
-		}
-
-		newSearcher, err := initSearcher(kubeconfigBytes, namespace, clientUtils, gr)
-		if err != nil {
-			return nil, err
-		}
-		log.Infof("Search map is len is %d", searchMap.Len()+1)
-		clusterKey = generateKey(kubeconfigBytes, namespace)
-		searchMap.Add(clusterKey, newSearcher)
-	}
-	if searcher, exist = searchMap.Get(clusterKey); exist && searcher != nil {
+	searchMapLock.Unlock()
+	if exist && searcher != nil {
 		search, _ = searcher.(*Searcher)
 		err = nil
 		return
 	}
-	return nil, errors.New("Error occurs while init informer searcher")
+	kubeconfigPath := k8sutils.GetOrGenKubeConfigPath(string(kubeconfigBytes))
+	clientUtils, err := clientgoutils.NewClientGoUtils(kubeconfigPath, namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	var gr []*restmapper.APIGroupResources
+	v, ok := apiGroupResourcesMap.Load(clusterKey)
+	if !ok {
+		if gr, err = clientUtils.GetAPIGroupResources(); err != nil {
+			return nil, err
+		}
+		apiGroupResourcesMap.Store(clusterKey, gr)
+	} else {
+		if gr, ok = v.([]*restmapper.APIGroupResources); !ok {
+			return nil, errors.New("apiGroupResourcesMap value is not []*restmapper.APIGroupResources")
+		}
+	}
+
+	newSearcher, err := initSearcher(kubeconfigBytes, namespace, clientUtils, gr)
+	if err != nil {
+		return nil, err
+	}
+	log.Infof("Search map is len is %d", searchMap.Len()+1)
+	//clusterKey = generateKey(kubeconfigBytes, namespace)
+	//searchMap.Add(clusterKey, newSearcher)
+	searchMapLock.Lock()
+	defer searchMapLock.Unlock()
+	if searcher, exist = searchMap.Get(clusterKey); exist && searcher != nil {
+		search, _ = searcher.(*Searcher)
+		err = nil
+		newSearcher.Stop()
+		return
+	} else {
+		searchMap.Add(clusterKey, newSearcher)
+		search = newSearcher
+		err = nil
+		return
+	}
 }
 
 // calculate kubeconfig content's sha value as unique cluster id

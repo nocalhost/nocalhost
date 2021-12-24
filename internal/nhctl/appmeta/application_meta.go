@@ -681,6 +681,8 @@ func (a *ApplicationMeta) SvcDevStartComplete(name string, svcType base.SvcType,
 	}
 
 	m[name] = identifier
+	inDevStartingMark := devStartMarkSign(name)
+	delete(m, inDevStartingMark)
 	return a.Update()
 }
 

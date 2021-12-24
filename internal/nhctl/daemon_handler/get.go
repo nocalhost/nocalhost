@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -273,20 +272,10 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) (inte
 		availableData := make([]interface{}, 0, 0)
 		for _, datum := range data {
 			um, ok := datum.(*unstructured.Unstructured)
-			if !ok {
+			if !ok || um.GetDeletionTimestamp() != nil {
 				continue
 			}
-			j, err := um.MarshalJSON()
-			if err != nil {
-				continue
-			}
-			namespace := &v1.Namespace{}
-			if err = json.Unmarshal(j, namespace); err != nil {
-				continue
-			}
-			if namespace.Status.Phase == v1.NamespaceActive {
-				availableData = append(availableData, datum)
-			}
+			availableData = append(availableData, datum)
 		}
 		if len(availableData) == 0 {
 			return nil, nil
