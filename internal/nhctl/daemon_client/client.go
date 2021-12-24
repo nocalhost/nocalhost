@@ -406,7 +406,7 @@ func (d *DaemonClient) SendGetResourceInfoCommand(
 	}
 
 	var result interface{}
-	if err := d.sendAndWaitForResponse(bys, &result); err != nil {
+	if err = d.sendAndWaitForResponse(bys, &result); err != nil {
 		return nil, err
 	}
 	return result, nil

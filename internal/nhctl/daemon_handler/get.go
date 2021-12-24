@@ -6,6 +6,7 @@
 package daemon_handler
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -148,35 +149,24 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			nsObjectList, err := s.Criteria().ResourceType("namespaces").Query()
 			if err == nil && nsObjectList != nil && len(nsObjectList) > 0 {
 				result := make([]item.Result, 0, len(nsObjectList))
-				//// try to init a cluster level searcher
-				//searcher, err2 := resouce_cache.GetSearcher(KubeConfigBytes, "")
-				//if err2 != nil {
-				//	return nil
-				//}
-				okChan := make(chan struct{}, 2)
-				go func() {
-					time.Sleep(time.Second * 10)
-					okChan <- struct{}{}
-				}()
-				var wg sync.WaitGroup
-				var lock sync.Mutex
+				ctx, cancelFunc := context.WithTimeout(context.TODO(), time.Second*10)
+				wg := &sync.WaitGroup{}
+				lock := &sync.Mutex{}
 				for _, nsObject := range nsObjectList {
 					wg.Add(1)
-					go func(finalNs metav1.Object) {
-						app := getApplicationByNs(
-							finalNs.GetName(), request.KubeConfig, s, request.Label, request.ShowHidden,
-						)
+					go func(finalNs string) {
+						defer wg.Done()
+						app := getApplicationByNs(finalNs, request.KubeConfig, s, request.Label, request.ShowHidden)
 						lock.Lock()
 						result = append(result, app)
 						lock.Unlock()
-						wg.Done()
-					}(nsObject.(metav1.Object))
+					}(nsObject.(metav1.Object).GetName())
 				}
 				go func() {
 					wg.Wait()
-					okChan <- struct{}{}
+					cancelFunc()
 				}()
-				<-okChan
+				<-ctx.Done()
 				return result
 			}
 		}
@@ -184,8 +174,8 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 
 	case "app", "application":
 		// init searcher for cache async
-		go func() { _, _ = resouce_cache.GetSearcherWithLRU(KubeConfigBytes, ns) }()
-		if request.ResourceName == "" {
+		go resouce_cache.GetSearcherWithLRU(KubeConfigBytes, ns)
+		if len(request.ResourceName) == 0 {
 			return ParseApplicationsResult(ns, GetAllValidApplicationWithDefaultApp(ns, KubeConfigBytes))
 		} else {
 			meta := appmeta_manager.GetApplicationMeta(ns, request.ResourceName, KubeConfigBytes)
@@ -203,20 +193,21 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 			Label(request.Label).
 			ShowHidden(request.ShowHidden).
 			Query()
+		if err != nil {
+			return nil
+		}
 		// resource namespace filter status is active
-		availableData := make([]interface{}, 0, 0)
+		result := make([]item.Item, 0, 0)
 		for _, datum := range data {
-			if datum.(*v1.Namespace).Status.Phase == v1.NamespaceActive {
-				availableData = append(availableData, datum)
+			if datum.(metav1.Object).GetDeletionTimestamp() == nil {
+				result = append(result, item.Item{Metadata: datum})
 			}
 		}
 		// add default namespace if can't list namespace
-		if len(availableData) == 0 {
-			availableData = append(availableData, &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: ns}})
+		if len(result) == 0 {
+			result = append(result, item.Item{Metadata: &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: ns}}})
 		}
-		result := make([]item.Item, 0, len(availableData))
-		for _, datum := range availableData {
-			i := item.Item{Metadata: datum}
+		for _, i := range result {
 			if connectInfo.IsSameCluster(KubeConfigBytes) {
 				i.VPN = &item.VPNInfo{
 					Mode:   ConnectMode.String(),
@@ -224,7 +215,6 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 					IP:     connectInfo.getIPIfIsMe(KubeConfigBytes, ns),
 				}
 			}
-			result = append(result, i)
 		}
 		if len(request.ResourceName) == 0 {
 			return result
@@ -304,28 +294,25 @@ func getNamespace(namespace string, kubeconfigBytes []byte) (ns string) {
 func getApplicationByNs(namespace, kubeconfigPath string, search *resouce_cache.Searcher, label map[string]string, showHidden bool) item.Result {
 	result := item.Result{Namespace: namespace}
 	nameAndNidList := GetAllApplicationWithDefaultApp(namespace, kubeconfigPath)
-	okChan := make(chan struct{}, 2)
-	go func() {
-		time.Sleep(time.Second * 10)
-		okChan <- struct{}{}
-	}()
-	var wg sync.WaitGroup
-	var lock sync.Mutex
+	ctx, cancelFunc := context.WithTimeout(context.TODO(), time.Second*10)
+
+	wg := sync.WaitGroup{}
+	lock := sync.Mutex{}
 	for _, name := range nameAndNidList {
 		wg.Add(1)
 		go func(finalName, nid string) {
+			defer wg.Done()
 			app := getApp(namespace, finalName, nid, search, label, showHidden)
 			lock.Lock()
 			result.Application = append(result.Application, app)
 			lock.Unlock()
-			wg.Done()
 		}(name.Application, name.NamespaceId)
 	}
 	go func() {
 		wg.Wait()
-		okChan <- struct{}{}
+		cancelFunc()
 	}()
-	<-okChan
+	<-ctx.Done()
 	return result
 }
 

@@ -97,7 +97,8 @@ nhctl get service serviceName [-n namespace] --kubeconfig=kubeconfigfile
 			kubeConfig, nameSpace, appName, resourceType, resourceName, label, false,
 		)
 		if err != nil {
-			log.FatalE(err, "")
+			log.Error(err)
+			return
 		}
 		if data == nil {
 			return
@@ -111,7 +112,8 @@ nhctl get service serviceName [-n namespace] --kubeconfig=kubeconfigfile
 		default:
 			bytes, err := json.Marshal(data)
 			if err != nil {
-				log.Fatal(err)
+				log.Error(err)
+				return
 			}
 			switch resourceType {
 			case "all":
@@ -184,8 +186,8 @@ func printResult(results []item.Result) {
 			for _, group := range app.Groups {
 				for _, list := range group.List {
 					for _, omItem := range list.List {
-						_, name, err2 := k8sutil.GetNamespaceAndNameFromObjectMeta(omItem.Metadata)
-						if err2 == nil {
+						_, name, err := k8sutil.GetNamespaceAndNameFromObjectMeta(omItem.Metadata)
+						if err == nil {
 							needsToComplete = false
 							row := []string{r.Namespace, app.Name, group.GroupName, list.Name + "/" + name}
 							rows = append(rows, row)
@@ -214,8 +216,8 @@ func printItem(items []item.Item) {
 func printMeta(metas []*model.Namespace) {
 	var rows [][]string
 	for _, e := range metas {
-		for _, info := range e.Application {
-			rows = append(rows, []string{e.Namespace, info.Name, info.Type})
+		for _, appInfo := range e.Application {
+			rows = append(rows, []string{e.Namespace, appInfo.Name, appInfo.Type})
 		}
 	}
 	write([]string{"namespace", "name", "type"}, rows)
