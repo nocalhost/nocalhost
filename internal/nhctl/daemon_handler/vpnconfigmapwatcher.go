@@ -55,16 +55,16 @@ func GetOrGenerateConfigMapWatcher(kubeconfigBytes []byte, namespace string, get
 }
 
 var connectInfo = &ConnectInfo{}
-var reverseInfoLock = &sync.Mutex{}
+var statusInfoLock = &sync.Mutex{}
 
 // kubeconfig+ns --> name
-var reverseInfo = &sync.Map{}
+var statusInfo = &sync.Map{}
 
 type status struct {
 	kubeconfigBytes []byte
 	namespace       string
 	// mac --> resources, this machine reverse those resources
-	resources *ReverseTotal
+	reverse *ReverseTotal
 	// connection info, which machine connect to this namespace
 	connect *ConnectTotal
 	// mac to ip mapping
@@ -74,10 +74,10 @@ type status struct {
 }
 
 func (n *status) getMacByResource(resource string) string {
-	reverseInfoLock.Lock()
-	defer reverseInfoLock.Unlock()
-	if load, ok := reverseInfo.Load(util.GenerateKey(n.kubeconfigBytes, n.namespace)); ok {
-		for k, v := range load.(*status).resources.ele {
+	statusInfoLock.Lock()
+	defer statusInfoLock.Unlock()
+	if load, ok := statusInfo.Load(util.GenerateKey(n.kubeconfigBytes, n.namespace)); ok {
+		for k, v := range load.(*status).reverse.resources {
 			if v.HasKey(resource) {
 				return k
 			}
@@ -87,10 +87,10 @@ func (n *status) getMacByResource(resource string) string {
 }
 
 func (n *status) deleteByResource(resource string) {
-	reverseInfoLock.Lock()
-	defer reverseInfoLock.Unlock()
-	if load, ok := reverseInfo.Load(util.GenerateKey(n.kubeconfigBytes, n.namespace)); ok {
-		for _, v := range load.(*status).resources.ele {
+	statusInfoLock.Lock()
+	defer statusInfoLock.Unlock()
+	if load, ok := statusInfo.Load(util.GenerateKey(n.kubeconfigBytes, n.namespace)); ok {
+		for _, v := range load.(*status).reverse.resources {
 			v.DeleteByKeys(resource)
 		}
 	}
@@ -118,7 +118,7 @@ func (n *status) isReversingByOther(resource string) bool {
 }
 
 func GetReverseInfo() *sync.Map {
-	return reverseInfo
+	return statusInfo
 }
 
 type ConnectInfo struct {
@@ -182,8 +182,8 @@ func NewConfigMapWatcher(kubeconfigBytes []byte, namespace string, getter cache.
 	informer.AddEventHandler(&resourceHandler{
 		namespace:       namespace,
 		kubeconfigBytes: kubeconfigBytes,
-		reverseInfoLock: reverseInfoLock,
-		reverseInfo:     reverseInfo,
+		statusInfoLock:  statusInfoLock,
+		statusInfo:      statusInfo,
 	})
 	return &ConfigMapWatcher{
 		informer:        informer,
@@ -210,8 +210,8 @@ func (w *ConfigMapWatcher) Stop() {
 type resourceHandler struct {
 	namespace       string
 	kubeconfigBytes []byte
-	reverseInfoLock *sync.Mutex
-	reverseInfo     *sync.Map
+	statusInfoLock  *sync.Mutex
+	statusInfo      *sync.Map
 }
 
 func (h *resourceHandler) toKey() string {
@@ -219,8 +219,8 @@ func (h *resourceHandler) toKey() string {
 }
 
 func (h *resourceHandler) OnAdd(obj interface{}) {
-	h.reverseInfoLock.Lock()
-	defer h.reverseInfoLock.Unlock()
+	h.statusInfoLock.Lock()
+	defer h.statusInfoLock.Unlock()
 
 	configMap := obj.(*corev1.ConfigMap)
 	status := ToStatus(configMap.Data)
@@ -243,8 +243,8 @@ func (h *resourceHandler) OnAdd(obj interface{}) {
 }
 
 func (h *resourceHandler) OnUpdate(oldObj, newObj interface{}) {
-	h.reverseInfoLock.Lock()
-	defer h.reverseInfoLock.Unlock()
+	h.statusInfoLock.Lock()
+	defer h.statusInfoLock.Unlock()
 
 	oldStatus := ToStatus(oldObj.(*corev1.ConfigMap).Data)
 	newStatus := ToStatus(newObj.(*corev1.ConfigMap).Data)
@@ -274,12 +274,12 @@ func (h *resourceHandler) OnUpdate(oldObj, newObj interface{}) {
 }
 
 func (h *resourceHandler) OnDelete(obj interface{}) {
-	h.reverseInfoLock.Lock()
-	defer h.reverseInfoLock.Unlock()
+	h.statusInfoLock.Lock()
+	defer h.statusInfoLock.Unlock()
 
 	configMap := obj.(*corev1.ConfigMap)
 	status := ToStatus(configMap.Data)
-	h.reverseInfo.Delete(h.toKey())
+	h.statusInfo.Delete(h.toKey())
 	if status.connect.IsConnected() && connectInfo.IsSame(h.kubeconfigBytes, h.namespace) {
 		connectInfo.cleanup()
 		notifySudoDaemonToDisConnect(h.kubeconfigBytes, h.namespace)
@@ -298,7 +298,7 @@ func release(kubeconfigBytes []byte, namespace string) {
 			list.Delete(item)
 		})
 		if value, found := GetReverseInfo().Load(util.GenerateKey(kubeconfigBytes, namespace)); found {
-			for _, s := range value.(*status).resources.LoadAndDeleteBelongToMeResources().KeySet() {
+			for _, s := range value.(*status).reverse.LoadAndDeleteBelongToMeResources().KeySet() {
 				_ = UpdateReverseConfigMap(clientset, namespace, s,
 					func(r *ReverseTotal, record ReverseRecord) {
 						r.RemoveRecord(record)
@@ -314,18 +314,18 @@ func release(kubeconfigBytes []byte, namespace string) {
 func modifyReverseInfo(h *resourceHandler, latest *status) {
 	// using same reference, because health check will modify status
 
-	local, ok := h.reverseInfo.Load(h.toKey())
+	local, ok := h.statusInfo.Load(h.toKey())
 	if !ok {
-		h.reverseInfo.Store(h.toKey(), &status{
+		h.statusInfo.Store(h.toKey(), &status{
 			kubeconfigBytes: h.kubeconfigBytes,
 			namespace:       h.namespace,
-			resources:       latest.resources,
+			reverse:         latest.reverse,
 		})
 		return
 	}
 	// add missing
-	for macAddress, latestResources := range latest.resources.ele {
-		if localResource, found := local.(*status).resources.ele[macAddress]; found {
+	for macAddress, latestResources := range latest.reverse.resources {
+		if localResource, found := local.(*status).reverse.resources[macAddress]; found {
 			for _, resource := range latestResources.KeySet() {
 				// if resource is not reversing, needs to delete it
 				if !localResource.HasKey(resource) {
@@ -334,14 +334,14 @@ func modifyReverseInfo(h *resourceHandler, latest *status) {
 			}
 		} else {
 			// if latest status contains mac address that local cache not contains, needs to add it
-			local.(*status).resources.ele[macAddress] = latestResources
+			local.(*status).reverse.resources[macAddress] = latestResources
 		}
 	}
 
 	// remove useless
-	for macAddress, localResources := range local.(*status).resources.ele {
-		if latestResource, found := latest.resources.ele[macAddress]; !found {
-			delete(local.(*status).resources.ele, macAddress)
+	for macAddress, localResources := range local.(*status).reverse.resources {
+		if latestResource, found := latest.reverse.resources[macAddress]; !found {
+			delete(local.(*status).reverse.resources, macAddress)
 		} else {
 			for _, resource := range localResources.KeySet() {
 				if !latestResource.HasKey(resource) {
@@ -431,7 +431,7 @@ func checkReverse() {
 		if err := connect.Prepare(context.TODO()); err != nil {
 			return true
 		}
-		value.(*status).resources.GetBelongToMeResources().ForEach(func(k string, v *resourceInfo) {
+		value.(*status).reverse.GetBelongToMeResources().ForEach(func(k string, v *resourceInfo) {
 			go func(connect *pkg.ConnectOptions, workload string, info *resourceInfo) {
 				if _, err := connect.Shell(context.TODO(), workload); err != nil {
 					info.Health = UnHealthy

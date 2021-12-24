@@ -49,13 +49,13 @@ type Func struct {
 
 type ReverseTotal struct {
 	// mac address --> resources
-	ele map[string]Set
+	resources map[string]Set
 }
 
 func (t *ReverseTotal) ReversedResource() sets.String {
 	result := sets.NewString()
-	if t != nil && t.ele != nil {
-		for _, v := range t.ele {
+	if t != nil && t.resources != nil {
+		for _, v := range t.resources {
 			result.Insert(v.KeySet()...)
 		}
 	}
@@ -107,27 +107,27 @@ func (c *ConnectTotal) ToString() string {
 
 func ToStatus(m map[string]string) *status {
 	return &status{
-		resources: FromStringToReverseTotal(m[util.REVERSE]),
-		connect:   FromStrToConnectTotal(m[util.Connect]),
-		mac2ip:    remote.ToDHCP(m[util.MacToIP]).MacToIP(),
-		dhcp:      remote.FromString(m[util.DHCP]),
+		reverse: FromStringToReverseTotal(m[util.REVERSE]),
+		connect: FromStrToConnectTotal(m[util.Connect]),
+		mac2ip:  remote.ToDHCP(m[util.MacToIP]).MacToIP(),
+		dhcp:    remote.FromString(m[util.DHCP]),
 	}
 }
 
 func (t *ReverseTotal) AddRecord(r ReverseRecord) *ReverseTotal {
-	if m, _ := t.ele[r.MacAddress]; m != nil {
+	if m, _ := t.resources[r.MacAddress]; m != nil {
 		m.InsertByKeys(r.Resources.List()...)
 	} else {
-		t.ele[r.MacAddress] = NewSetByKeys(r.Resources.List()...)
+		t.resources[r.MacAddress] = NewSetByKeys(r.Resources.List()...)
 	}
 	return t
 }
 
 func (t *ReverseTotal) RemoveRecord(r ReverseRecord) *ReverseTotal {
-	if m, _ := t.ele[r.MacAddress]; m != nil {
+	if m, _ := t.resources[r.MacAddress]; m != nil {
 		m.DeleteByKeys(r.Resources.List()...)
 		if m.Len() == 0 {
-			delete(t.ele, r.MacAddress)
+			delete(t.resources, r.MacAddress)
 		}
 	}
 	return t
@@ -153,7 +153,7 @@ func NewReverseRecordWithWorkloads(workloads string) ReverseRecord {
 }
 
 func FromStringToReverseTotal(s string) (t *ReverseTotal) {
-	t = &ReverseTotal{ele: map[string]Set{}}
+	t = &ReverseTotal{resources: map[string]Set{}}
 	if len(s) == 0 {
 		return
 	}
@@ -169,17 +169,17 @@ func FromStringToReverseTotal(s string) (t *ReverseTotal) {
 
 func (t *ReverseTotal) ToString() string {
 	var sb strings.Builder
-	for k, v := range t.ele {
+	for k, v := range t.resources {
 		sb.WriteString(fmt.Sprintf("%s%s%s\n", k, util.Splitter, strings.Join(v.KeySet(), ",")))
 	}
 	return sb.String()
 }
 
 func (t *ReverseTotal) GetBelongToMeResources() Set {
-	if t.ele == nil {
+	if t.resources == nil {
 		return NewSet()
 	}
-	s := t.ele[util.GetMacAddress().String()]
+	s := t.resources[util.GetMacAddress().String()]
 	if s != nil {
 		return s
 	}
@@ -187,12 +187,12 @@ func (t *ReverseTotal) GetBelongToMeResources() Set {
 }
 
 func (t *ReverseTotal) LoadAndDeleteBelongToMeResources() Set {
-	if t.ele == nil {
+	if t.resources == nil {
 		return NewSet()
 	}
 	mac := util.GetMacAddress().String()
-	defer delete(t.ele, mac)
-	s := t.ele[mac]
+	defer delete(t.resources, mac)
+	s := t.resources[mac]
 	if s != nil {
 		return s
 	}

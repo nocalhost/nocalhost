@@ -47,15 +47,15 @@ func TestVPNStatus(t *testing.T) {
 	GetOrGenerateConfigMapWatcher(file, "naison", nil)
 	time.Sleep(time.Second * 5)
 	load, _ := GetReverseInfo().Load(util.GenerateKey(file, "naison"))
-	resources := load.(*status).resources.GetBelongToMeResources().List()
+	resources := load.(*status).reverse.GetBelongToMeResources().List()
 	for {
 		time.Sleep(time.Second * 1)
 		GetReverseInfo().Range(func(key, value interface{}) bool {
-			value.(*status).resources.GetBelongToMeResources().ForEach(func(k string, v *resourceInfo) {
+			value.(*status).reverse.GetBelongToMeResources().ForEach(func(k string, v *resourceInfo) {
 				fmt.Printf("%s is %s\n", k, v.Health)
 				return
 			})
-			meResources := value.(*status).resources.GetBelongToMeResources().List()
+			meResources := value.(*status).reverse.GetBelongToMeResources().List()
 			if len(resources) != len(meResources) {
 				fmt.Println("nooooo size")
 			}
