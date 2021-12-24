@@ -8,7 +8,6 @@ package base
 import (
 	"fmt"
 	"github.com/pkg/errors"
-	"nocalhost/pkg/nhctl/log"
 	"strings"
 )
 
@@ -28,7 +27,8 @@ const (
 func SvcTypeOf(svcType string) SvcType {
 	mutate, err := SvcTypeOfMutate(svcType)
 	if err != nil {
-		log.Fatal(err)
+		//log.Fatal(err)
+		return Deployment
 	}
 	return mutate
 }

@@ -182,7 +182,7 @@ func (c *Controller) generateSyncVolumesAndMounts(duplicateDevMode bool) ([]core
 // If PVC exists, use it directly
 // If PVC not exists, try to create one
 // If PVC failed to create, the whole process of entering DevMode will fail
-func (c *Controller) genWorkDirAndPVAndMounts(container, storageClass string, duplicateDevMode bool) (
+func (c *Controller) genWorkDirAndPVAndMounts(container, storageClass string, ignoreWorkDir, duplicateDevMode bool) (
 	[]corev1.Volume, []corev1.VolumeMount, error) {
 
 	volumes := make([]corev1.Volume, 0)
@@ -292,7 +292,7 @@ func (c *Controller) genWorkDirAndPVAndMounts(container, storageClass string, du
 		log.Infof("%s mounts a pvc successfully", persistentVolume.Path)
 	}
 
-	if workDirDefinedInPersistVolume || !workDirResideInPersistVolumeDirs {
+	if (workDirDefinedInPersistVolume || !workDirResideInPersistVolumeDirs) && !ignoreWorkDir {
 		if workDirDefinedInPersistVolume {
 			log.Info("Mount workDir to persist volume")
 		} else {
@@ -544,21 +544,31 @@ func (c *Controller) genContainersAndVolumes(podSpec *corev1.PodSpec,
 	devModeVolumes := make([]corev1.Volume, 0)
 	devModeMounts := make([]corev1.VolumeMount, 0)
 
+	workDir := c.GetWorkDir(containerName)
+	// Check if workDir already mounts a volume
+	var workDirAlreadyMounted bool
+	var workDirVolumeMount corev1.VolumeMount
+	for _, mount := range devContainer.VolumeMounts {
+		if mount.MountPath == workDir {
+			log.Info("WorkDir already mounted, don't mount a emptyDir again")
+			workDirAlreadyMounted = true
+			workDirVolumeMount = mount
+		}
+	}
+
 	// Set volumes
 	syncthingVolumes, syncthingVolumeMounts := c.generateSyncVolumesAndMounts(duplicateDevMode)
 	devModeVolumes = append(devModeVolumes, syncthingVolumes...)
 	devModeMounts = append(devModeMounts, syncthingVolumeMounts...)
 
 	workDirAndPersistVolumes, workDirAndPersistVolumeMounts, err := c.genWorkDirAndPVAndMounts(
-		containerName, storageClass, duplicateDevMode)
+		containerName, storageClass, workDirAlreadyMounted, duplicateDevMode)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
 	devModeVolumes = append(devModeVolumes, workDirAndPersistVolumes...)
 	devModeMounts = append(devModeMounts, workDirAndPersistVolumeMounts...)
-
-	workDir := c.GetWorkDir(containerName)
 
 	if devImage == "" {
 		devImage = c.GetDevImage(containerName) // Default : replace the first container
@@ -585,6 +595,9 @@ func (c *Controller) genContainersAndVolumes(podSpec *corev1.PodSpec,
 	// Add volumeMounts to containers
 	devContainer.VolumeMounts = append(devContainer.VolumeMounts, devModeMounts...)
 	sideCarContainer.VolumeMounts = append(sideCarContainer.VolumeMounts, devModeMounts...)
+	if workDirAlreadyMounted {
+		sideCarContainer.VolumeMounts = append(sideCarContainer.VolumeMounts, workDirVolumeMount)
+	}
 
 	requirements := c.genResourceReq(containerName)
 	if requirements != nil {

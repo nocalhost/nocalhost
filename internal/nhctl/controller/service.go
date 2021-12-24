@@ -224,17 +224,39 @@ func GetOriginalContainers(client *clientgoutils.ClientGoUtils, workloadType bas
 func (c *Controller) GetTypeMeta() (metav1.TypeMeta, error) {
 	switch c.Type {
 	case base.Deployment:
-		return appsv1.Deployment{}.TypeMeta, nil
+		return metav1.TypeMeta{
+			Kind:       "Deployment",
+			APIVersion: "apps/v1",
+		}, nil
 	case base.StatefulSet:
-		return appsv1.StatefulSet{}.TypeMeta, nil
+		return metav1.TypeMeta{
+			Kind:       "StatefulSet",
+			APIVersion: "apps/v1",
+		}, nil
+		//return appsv1.StatefulSet{}.TypeMeta, nil
 	case base.DaemonSet:
-		return appsv1.DaemonSet{}.TypeMeta, nil
+		return metav1.TypeMeta{
+			Kind:       "DaemonSet",
+			APIVersion: "apps/v1",
+		}, nil
+		//return appsv1.DaemonSet{}.TypeMeta, nil
 	case base.Job:
-		return batchv1.Job{}.TypeMeta, nil
+		return metav1.TypeMeta{
+			Kind:       "Job",
+			APIVersion: "batch/v1",
+		}, nil
+		//return batchv1.Job{}.TypeMeta, nil
 	case base.CronJob:
-		return batchv1beta1.CronJob{}.TypeMeta, nil
+		return metav1.TypeMeta{
+			Kind:       "CronJob",
+			APIVersion: "batch/v1beta1",
+		}, nil
+		//return batchv1beta1.CronJob{}.TypeMeta, nil
 	case base.Pod:
-		return v1.Pod{}.TypeMeta, nil
+		return metav1.TypeMeta{
+			Kind:       "Pod",
+			APIVersion: "v1",
+		}, nil
 	default:
 		return metav1.TypeMeta{}, errors.New("unsupported controller type")
 	}
