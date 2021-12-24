@@ -55,6 +55,9 @@ var disconnectCmd = &cobra.Command{
 			if line, _, err := stream.ReadLine(); errors.Is(err, io.EOF) {
 				return
 			} else {
+				if len(line) == 0 {
+					continue
+				}
 				if strings.Contains(string(line), util.EndSignOK) {
 					readClose.Close()
 					return
