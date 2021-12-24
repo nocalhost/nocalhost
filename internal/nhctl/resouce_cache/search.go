@@ -33,25 +33,23 @@ import (
 )
 
 // cache Searcher for each kubeconfig
-var searchMap, _ = simplelru.NewLRU(
-	20, func(_ interface{}, value interface{}) {
-		if value != nil {
-			if s, ok := value.(*Searcher); ok && s != nil {
-				go func() { s.Stop() }()
-			}
+var searchMap, _ = simplelru.NewLRU(20, func(_ interface{}, value interface{}) {
+	if value != nil {
+		if s, ok := value.(*Searcher); ok && s != nil {
+			s.Stop()
 		}
-	},
-)
-var lock sync.Mutex
+	}
+})
+var lock = &sync.Mutex{}
 var clusterMap = make(map[string]bool)
-var clusterMapLock sync.Mutex
+var clusterMapLock = &sync.Mutex{}
 
 type Searcher struct {
 	kubeconfigBytes []byte
 	informerFactory informers.SharedInformerFactory
 	// [string]*meta.RESTMapping
 	supportSchema *sync.Map
-	stopChannel   chan struct{}
+	stopChan      chan struct{}
 	// last used this searcher, for release informer resource
 	lastUsedTime time.Time
 }
@@ -120,22 +118,31 @@ func GetSearcherWithLRU(kubeconfigBytes []byte, namespace string) (search *Searc
 			search.lastUsedTime = time.Now()
 		}
 	}()
+	var exist bool
+	key := generateKey(kubeconfigBytes, namespace)
+	// first detect
 	lock.Lock()
-	defer lock.Unlock()
-	searcher, exist := searchMap.Get(generateKey(kubeconfigBytes, namespace))
-	if !exist || searcher == nil {
-		newSearcher, err := initSearcher(kubeconfigBytes, namespace)
-		if err != nil {
-			return nil, err
-		}
-		searchMap.Add(generateKey(kubeconfigBytes, namespace), newSearcher)
-	}
-	if searcher, exist = searchMap.Get(generateKey(kubeconfigBytes, namespace)); exist && searcher != nil {
+	searcher, exist := searchMap.Get(key)
+	lock.Unlock()
+	if exist && searcher != nil {
 		search = searcher.(*Searcher)
-		err = nil
 		return
 	}
-	return nil, errors.New("Error occurs while init informer searcher")
+	searcherT, err := initSearcher(kubeconfigBytes, namespace)
+	if err != nil {
+		return
+	}
+	lock.Lock()
+	defer lock.Unlock()
+	if searcher, exist = searchMap.Get(key); exist && searcher != nil {
+		searcherT.Stop()
+		search = searcher.(*Searcher)
+		return
+	} else {
+		searchMap.Add(key, searcherT)
+		search = searcherT
+		return
+	}
 }
 
 // calculate kubeconfig content's sha value as unique cluster id
@@ -216,39 +223,34 @@ func initSearcher(kubeconfigBytes []byte, namespace string) (*Searcher, error) {
 			log.Warnf("Can't create informer for resource: %v, this should not happened", name)
 		}
 	}
-	stopChannel := make(chan struct{}, len(restMappingList))
-	firstSyncChannel := make(chan struct{}, 2)
-	informerFactory.Start(stopChannel)
-	go func() {
-		informerFactory.WaitForCacheSync(firstSyncChannel)
-		firstSyncChannel <- struct{}{}
-	}()
-	go func() {
-		t := time.NewTicker(time.Second * 3)
-		<-t.C
-		firstSyncChannel <- struct{}{}
-	}()
-	<-firstSyncChannel
+	stopChan := make(chan struct{}, 1)
+	informerFactory.Start(stopChan)
+
+	ctx, cancelFunc := context.WithTimeout(context.TODO(), time.Second*3)
+	defer cancelFunc()
+	informerFactory.WaitForCacheSync(ctx.Done())
 
 	newSearcher := &Searcher{
 		kubeconfigBytes: kubeconfigBytes,
 		informerFactory: informerFactory,
 		supportSchema:   &result,
-		stopChannel:     stopChannel,
+		stopChan:        stopChan,
 	}
 	return newSearcher, nil
 }
 
 // Start wait searcher to close
 func (s *Searcher) Start() {
-	<-s.stopChannel
+	<-s.stopChan
 }
 
 // Stop to stop the searcher
 func (s *Searcher) Stop() {
-	for i := 0; i < cap(s.stopChannel); i++ {
-		s.stopChannel <- struct{}{}
-	}
+	defer func() {
+		if err := recover(); err != nil {
+		}
+	}()
+	close(s.stopChan)
 }
 
 func (s *Searcher) GetKubeconfigBytes() []byte {
@@ -388,6 +390,7 @@ func (c *criteria) Query() (data []interface{}, e error) {
 		if mapping, errs := c.search.GetResourceInfo(c.resourceType); errs == nil {
 			for _, d := range data {
 				d.(runtime.Object).GetObjectKind().SetGroupVersionKind(mapping.Gvk)
+				d.(metav1.Object).SetManagedFields(nil)
 			}
 		}
 	}()
@@ -586,7 +589,7 @@ func removeInformer(key string) {
 	lock.Lock()
 	lock.Unlock()
 	if searcher, exist := searchMap.Get(key); exist && searcher != nil {
-		go func() { searcher.(*Searcher).Stop() }()
+		searcher.(*Searcher).Stop()
 		searchMap.Remove(key)
 	}
 }
@@ -623,7 +626,7 @@ func init() {
 								if s, ok := get.(*Searcher); ok && s != nil {
 									t := time.Time{}
 									if s.lastUsedTime != t && time.Now().Sub(s.lastUsedTime).Hours() >= 24 {
-										go func() { s.Stop() }()
+										s.Stop()
 										searchMap.Remove(key)
 									}
 								}
