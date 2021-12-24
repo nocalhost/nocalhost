@@ -29,7 +29,7 @@ func (r *RawPodController) GetNocalhostDevContainerPod() (string, error) {
 		return "", err
 	}
 	checkPodsList := []corev1.Pod{*pod}
-	return findDevPodName(checkPodsList)
+	return findDevPodName(checkPodsList...)
 }
 
 func (r *RawPodController) ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error {

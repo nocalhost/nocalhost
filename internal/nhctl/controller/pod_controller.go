@@ -36,5 +36,8 @@ func (c *Controller) BuildPodController() pod_controller.PodController {
 		}
 		return &RawPodController{Controller: c}
 	}
-	return nil
+	if c.DevModeType == profile.DuplicateDevMode {
+		return &DuplicateDevModeController{c}
+	}
+	return &DefaultController{Controller: c}
 }

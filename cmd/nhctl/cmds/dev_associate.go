@@ -75,7 +75,7 @@ var devAssociateCmd = &cobra.Command{
 		svcPack := dev_dir.NewSvcPack(
 			nameSpace,
 			commonFlags.AppName,
-			base.SvcTypeOf(serviceType),
+			base.SvcType(serviceType),
 			commonFlags.SvcName,
 			container,
 		)
@@ -110,7 +110,7 @@ var devAssociateCmd = &cobra.Command{
 					svcPack = dev_dir.NewSvcPack(
 						nameSpace,
 						commonFlags.AppName,
-						base.SvcTypeOf(serviceType),
+						base.SvcType(serviceType),
 						commonFlags.SvcName,
 						profile.OriginDevContainer,
 					)

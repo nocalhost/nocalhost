@@ -14,16 +14,21 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	kblabels "k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/common/base"
 	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/model"
+	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/utils"
+	"nocalhost/internal/nhctl/watcher"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -39,8 +44,8 @@ type Controller struct {
 	Client           *clientgoutils.ClientGoUtils
 	AppMeta          *appmeta.ApplicationMeta
 	config           *profile.ServiceConfigV2
-	DevModeAction    DevModeAction
-	devModePodLabels map[string]string
+	DevModeAction    base.DevModeAction
+	devModePodLabels kblabels.Set
 }
 
 type jsonPatch struct {
@@ -61,9 +66,9 @@ func NewController(ns, name, appName, identifier string, svcType base.SvcType,
 		Identifier: identifier,
 	}
 	c.DevModeType = c.GetCurrentDevModeType()
-	da, err := GetDevModeActionBySvcType(svcType)
+	da, err := nocalhost.GetDevModeActionBySvcType(svcType)
 	if err == nil {
-		c.DevModeAction = da
+		c.DevModeAction = *da
 	}
 
 	a := c.GetAppConfig().GetSvcConfigS(c.Name, c.Type)
@@ -99,21 +104,23 @@ func (c *Controller) IsInDevModeStarting() bool {
 
 // IsProcessor Check if service is developing in this device
 func (c *Controller) IsProcessor() bool {
-	return c.AppMeta.SvcDevModePossessor(c.Name, c.Type, c.Identifier, profile.DuplicateDevMode) || c.AppMeta.SvcDevModePossessor(c.Name, c.Type, c.Identifier, profile.ReplaceDevMode)
+	return c.AppMeta.SvcDevModePossessor(
+		c.Name, c.Type, c.Identifier, profile.DuplicateDevMode,
+	) || c.AppMeta.SvcDevModePossessor(c.Name, c.Type, c.Identifier, profile.ReplaceDevMode)
 }
 
 func (c *Controller) GetCurrentDevModeType() profile.DevModeType {
 	return c.AppMeta.GetCurrentDevModeTypeOfWorkload(c.Name, c.Type, c.Identifier)
 }
 
-func CheckIfControllerTypeSupport(t string) bool {
-	tt := base.SvcType(t)
-	if tt == base.Deployment || tt == base.StatefulSet || tt == base.DaemonSet || tt == base.Job ||
-		tt == base.CronJob || tt == base.Pod || tt == base.CloneSetV1Alpha1 {
-		return true
-	}
-	return false
-}
+//func CheckIfControllerTypeSupport(t string) bool {
+//	tt := base.SvcType(t)
+//	if tt == base.Deployment || tt == base.StatefulSet || tt == base.DaemonSet || tt == base.Job ||
+//		tt == base.CronJob || tt == base.Pod || tt == base.CloneSetV1Alpha1 {
+//		return true
+//	}
+//	return false
+//}
 
 func (c *Controller) CheckIfExist() (bool, error) {
 	_, err := c.GetUnstructured()
@@ -135,7 +142,7 @@ func GetOriginalContainers(client *clientgoutils.ClientGoUtils, workloadType bas
 	}
 
 	var originalUm *unstructured.Unstructured
-	od, err := GetAnnotationFromUnstructuredMap(um, _const.OriginWorkloadDefinition)
+	od, err := GetAnnotationFromUnstructured(um, _const.OriginWorkloadDefinition)
 	if err == nil {
 		originalUm, _ = client.GetUnstructuredFromString(od)
 	}
@@ -254,54 +261,17 @@ func (c *Controller) GetTypeMeta() (metav1.TypeMeta, error) {
 	if k == "" {
 		return result, errors.New("Can not find kind")
 	}
+	result.Kind = k
 
 	a := um.GetAPIVersion()
 	if a == "" {
 		return result, errors.New("Can not find apiVersion")
 	}
+	result.APIVersion = a
 	return result, nil
 }
 
 func (c *Controller) GetContainerImage(container string) (string, error) {
-	//var podSpec v1.PodSpec
-	//switch c.Type {
-	//case base.Deployment:
-	//	d, err := c.Client.GetDeployment(c.Name)
-	//	if err != nil {
-	//		return "", err
-	//	}
-	//	podSpec = d.Spec.Template.Spec
-	//case base.StatefulSet:
-	//	s, err := c.Client.GetStatefulSet(c.Name)
-	//	if err != nil {
-	//		return "", err
-	//	}
-	//	podSpec = s.Spec.Template.Spec
-	//case base.DaemonSet:
-	//	d, err := c.Client.GetDaemonSet(c.Name)
-	//	if err != nil {
-	//		return "", err
-	//	}
-	//	podSpec = d.Spec.Template.Spec
-	//case base.Job:
-	//	j, err := c.Client.GetJobs(c.Name)
-	//	if err != nil {
-	//		return "", err
-	//	}
-	//	podSpec = j.Spec.Template.Spec
-	//case base.CronJob:
-	//	j, err := c.Client.GetCronJobs(c.Name)
-	//	if err != nil {
-	//		return "", err
-	//	}
-	//	podSpec = j.Spec.JobTemplate.Spec.Template.Spec
-	//case base.Pod:
-	//	p, err := c.Client.GetPod(c.Name)
-	//	if err != nil {
-	//		return "", err
-	//	}
-	//	podSpec = p.Spec
-	//}
 	cs, err := c.GetContainers()
 	if err != nil {
 		return "", err
@@ -320,6 +290,7 @@ func (c *Controller) GetContainers() ([]v1.Container, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	pt, err := GetPodTemplateFromSpecPath(c.DevModeAction.PodTemplatePath, um.Object)
 	if err != nil {
 		return nil, err
@@ -438,7 +409,7 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 	}
 
 	log.Infof("Scale %s(%s) to 1", c.Name, c.Type.String())
-	for _, item := range c.DevModeAction.ScaleAction {
+	for _, item := range c.DevModeAction.ScalePatches {
 		log.Infof("Patching %s", item.Patch)
 		if err := c.Client.Patch(c.Type.String(), c.Name, item.Patch, item.Type); err != nil {
 			return err
@@ -473,11 +444,13 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 
 		specPath := c.DevModeAction.PodTemplatePath + "/spec"
 		jsonPatches := make([]jsonPatch, 0)
-		jsonPatches = append(jsonPatches, jsonPatch{
-			Op:    "replace",
-			Path:  specPath,
-			Value: podSpec,
-		})
+		jsonPatches = append(
+			jsonPatches, jsonPatch{
+				Op:    "replace",
+				Path:  specPath,
+				Value: podSpec,
+			},
+		)
 		bys, _ := json.Marshal(jsonPatches)
 
 		if err = c.Client.Patch(c.Type.String(), c.Name, string(bys), "json"); err != nil {
@@ -509,9 +482,100 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 	}
 
 	delete(podTemplate.Labels, "pod-template-hash")
-
 	c.devModePodLabels = podTemplate.Labels
-	return waitingPodToBeReady(c.CheckDevModePodIsRunning)
+
+	gvr := c.Client.ResourceFor("pod", false)
+	gvk, gvkErr := c.Client.KindFor(gvr)
+	if gvkErr != nil {
+		log.Infof(
+			"(Can Be Ignore, does not affect the actual function) "+
+				"Error to find workload's GVK "+
+				"(Event Watcher when dev start will be invalid), Error:%s", gvk,
+		)
+	}
+
+	log.Infof("\nNow waiting dev mode to start...\n")
+
+	// start a watcher for dev pod until it running
+	//
+	// print it's status & container status
+	// the printer used to help filter the same content
+	//
+	// if a pod is being running, close the quitChan to stop block and informer
+	//
+	printer := utils.NewPrinter(
+		func(s string) {
+			log.Infof(s)
+		},
+	)
+
+	var currentPod atomic.Value
+
+	quitChan := watcher.NewSimpleWatcher(
+		c.Client,
+		"pod",
+		c.devModePodLabels.AsSelector().String(),
+		func(key string, object interface{}, quitChan chan struct{}) {
+			if us, ok := object.(*unstructured.Unstructured); ok {
+
+				var pod v1.Pod
+				if err := runtime.DefaultUnstructuredConverter.
+					FromUnstructured(us.UnstructuredContent(), &pod); err == nil {
+
+					if containerStatusForDevPod(
+						&pod, func(status string, err error) {
+							printer.ChangeContent(status)
+						},
+					) {
+						currentPod.Store(pod.Name)
+					}
+
+					if _, err := findDevPodName(pod); err == nil {
+						close(quitChan)
+					}
+					return
+				}
+			}
+		},
+		nil,
+	)
+
+	if gvkErr == nil && !gvk.Empty() {
+		apiVersion, kind := gvk.ToAPIVersionAndKind()
+
+		c := watcher.NewSimpleWatcher(
+			c.Client,
+			"event",
+			"",
+			func(key string, object interface{}, quitChan chan struct{}) {
+				if us, ok := object.(*unstructured.Unstructured); ok {
+
+					var event v1.Event
+					if err := runtime.DefaultUnstructuredConverter.
+						FromUnstructured(us.UnstructuredContent(), &event); err == nil {
+
+						podName := currentPod.Load()
+
+						if podName == nil ||
+							event.Type == "Normal" ||
+							event.InvolvedObject.Kind != kind ||
+							event.InvolvedObject.APIVersion != apiVersion ||
+							podName.(string) != event.InvolvedObject.Name {
+							return
+						}
+
+						printer.ChangeContent(fmt.Sprintf("### Notable events: %s: %s ###", event.Reason, event.Message))
+						return
+					}
+				}
+			},
+			nil,
+		)
+		defer close(c)
+	}
+
+	<-quitChan
+	return nil
 }
 
 func (c *Controller) CheckDevModePodIsRunning() (string, error) {
@@ -519,7 +583,7 @@ func (c *Controller) CheckDevModePodIsRunning() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return findDevPodName(pods)
+	return findDevPodName(pods...)
 }
 
 // ReplaceDuplicateModeImage Create a duplicate deployment instead of replacing image
@@ -534,7 +598,7 @@ func (c *Controller) ReplaceDuplicateModeImage(ctx context.Context, ops *model.D
 	RemoveUselessInfo(um)
 
 	if c.IsInReplaceDevMode() {
-		od, err := GetAnnotationFromUnstructuredMap(um, _const.OriginWorkloadDefinition)
+		od, err := GetAnnotationFromUnstructured(um, _const.OriginWorkloadDefinition)
 		if err != nil {
 			return err
 		}
@@ -598,7 +662,7 @@ func (c *Controller) ReplaceDuplicateModeImage(ctx context.Context, ops *model.D
 			kind += "." + gvk.Group
 		}
 
-		for _, item := range c.DevModeAction.ScaleAction {
+		for _, item := range c.DevModeAction.ScalePatches {
 			log.Infof("Patching %s", item.Patch)
 			if err = c.Client.Patch(kind, infos[0].Name, item.Patch, item.Type); err != nil {
 				return err
@@ -629,12 +693,16 @@ func (c *Controller) ReplaceDuplicateModeImage(ctx context.Context, ops *model.D
 		generatedDeployment.Spec.Template.Spec.NodeName = ""
 
 		devContainer, sideCarContainer, devModeVolumes, err :=
-			c.genContainersAndVolumes(&generatedDeployment.Spec.Template.Spec, ops.Container, ops.DevImage, ops.StorageClass, true)
+			c.genContainersAndVolumes(
+				&generatedDeployment.Spec.Template.Spec, ops.Container, ops.DevImage, ops.StorageClass, true,
+			)
 		if err != nil {
 			return err
 		}
 
-		patchDevContainerToPodSpec(&generatedDeployment.Spec.Template.Spec, ops.Container, devContainer, sideCarContainer, devModeVolumes)
+		patchDevContainerToPodSpec(
+			&generatedDeployment.Spec.Template.Spec, ops.Container, devContainer, sideCarContainer, devModeVolumes,
+		)
 
 		// Create generated deployment
 		if _, err = c.Client.CreateDeploymentAndWait(generatedDeployment); err != nil {
@@ -660,7 +728,7 @@ func (c *Controller) GetDevModePodName() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return findDevPodName(pods)
+	return findDevPodName(pods...)
 }
 
 func (c *Controller) GetDuplicateDevModePodName() (string, error) {
@@ -668,7 +736,7 @@ func (c *Controller) GetDuplicateDevModePodName() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return findDevPodName(pods)
+	return findDevPodName(pods...)
 }
 
 func (c *Controller) DuplicateModeRollBack() error {

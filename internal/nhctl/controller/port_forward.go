@@ -147,7 +147,7 @@ func (c *Controller) PortForwardAfterDevStart(podName, containerName string) err
 	}
 
 	for _, pf := range cc.PortForward {
-		lPort, rPort, err := profile.GetPortForwardForString(pf)
+		lPort, rPort, err := utils.GetPortForwardForString(pf)
 		if err != nil {
 			log.WarnE(err, "")
 			continue

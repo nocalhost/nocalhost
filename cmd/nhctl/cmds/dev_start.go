@@ -153,6 +153,7 @@ func startDev() {
 		log.Fatal("'local-sync(-s)' must be specified")
 	}
 
+	nocalhostSvc.DevModeType = dt
 	if !nocalhostApp.GetAppMeta().IsInstalled() {
 		log.Fatal(nocalhostApp.GetAppMeta().NotInstallTips())
 	}
@@ -267,12 +268,12 @@ func loadLocalOrCmConfigIfValid() {
 
 		must(associatePath.Associate(svcPack, kubeConfig, true))
 
-		_ = nocalhostApp.ReloadSvcCfg(deployment, base.SvcTypeOf(serviceType), false, false)
+		_ = nocalhostApp.ReloadSvcCfg(deployment, base.SvcType(serviceType), false, false)
 	case 1:
 
 		must(dev_dir.DevPath(devStartOps.LocalSyncDir[0]).Associate(svcPack, kubeConfig, true))
 
-		_ = nocalhostApp.ReloadSvcCfg(deployment, base.SvcTypeOf(serviceType), false, false)
+		_ = nocalhostApp.ReloadSvcCfg(deployment, base.SvcType(serviceType), false, false)
 	default:
 		log.Fatal(errors.New("Can not define multi 'local-sync(-s)'"))
 	}
@@ -309,7 +310,6 @@ func enterDevMode(devModeType profile.DevModeType) error {
 			nocalhostApp.Identifier, devModeType),
 	)
 	must(nocalhostSvc.UpdateSvcProfile(func(v2 *profile.SvcProfileV2) error {
-		//v2.DevModeType = devModeType
 		v2.OriginDevContainer = devStartOps.Container
 		return nil
 	}))
@@ -320,13 +320,6 @@ func enterDevMode(devModeType profile.DevModeType) error {
 	defer func() {
 		if !devStartSuccess {
 			log.Infof("Roll backing dev mode...")
-			//if devModeType != "" {
-			//	err = nocalhostSvc.UpdateSvcProfile(func(v2 *profile.SvcProfileV2) error {
-			//		//v2.DevModeType = ""
-			//		return nil
-			//	})
-			//	log.WarnE(err, "")
-			//}
 			_ = nocalhostSvc.AppMeta.SvcDevEnd(nocalhostSvc.Name, nocalhostSvc.Identifier, nocalhostSvc.Type, devModeType)
 		}
 	}()
@@ -360,7 +353,7 @@ func enterDevMode(devModeType profile.DevModeType) error {
 		}
 	}
 
-	nocalhostSvc.DevModeType = devModeType
+	//nocalhostSvc.DevModeType = devModeType
 	if err = nocalhostSvc.BuildPodController().ReplaceImage(context.TODO(), devStartOps); err != nil {
 		log.WarnE(err, "Failed to replace dev container")
 		log.Info("Resetting workload...")

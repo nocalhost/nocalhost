@@ -346,9 +346,9 @@ func Decode(secret *corev1.Secret) (*ApplicationMeta, error) {
 }
 
 func FillingExtField(s *profile2.SvcProfileV2, meta *ApplicationMeta, appName, ns, identifier string) {
-	svcType := base.SvcTypeOf(s.GetType())
+	svcType := base.SvcType(s.GetType())
 
-	s.DevModeType = meta.GetCurrentDevModeTypeOfWorkload(s.GetName(), base.SvcTypeOf(s.GetType()), identifier)
+	s.DevModeType = meta.GetCurrentDevModeTypeOfWorkload(s.GetName(), base.SvcType(s.GetType()), identifier)
 	devStatus := meta.CheckIfSvcDeveloping(s.GetName(), identifier, svcType, s.DevModeType)
 
 	pack := dev_dir.NewSvcPack(
@@ -951,7 +951,6 @@ func (a *ApplicationMeta) Delete() error {
 	a.PostDeleteManifest = ""
 	a.Manifest = ""
 	a.DevMeta = map[base.SvcType]map[string]string{}
-	a.Config = &profile2.NocalHostAppConfigV2{}
 	a.UninstallBackOff = time.Now().Add(time.Second * 10).UnixNano()
 
 	return a.Update()
