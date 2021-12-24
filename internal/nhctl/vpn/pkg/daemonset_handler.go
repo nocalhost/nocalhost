@@ -14,15 +14,15 @@ import (
 	"nocalhost/internal/nhctl/vpn/util"
 )
 
-type DaemonSetController struct {
+type DaemonSetHandler struct {
 	factory   cmdutil.Factory
 	clientset *kubernetes.Clientset
 	namespace string
 	name      string
 }
 
-func NewDaemonSetController(factory cmdutil.Factory, clientset *kubernetes.Clientset, namespace, name string) *DaemonSetController {
-	return &DaemonSetController{
+func NewDaemonSetHandler(factory cmdutil.Factory, clientset *kubernetes.Clientset, namespace, name string) *DaemonSetHandler {
+	return &DaemonSetHandler{
 		factory:   factory,
 		clientset: clientset,
 		namespace: namespace,
@@ -31,7 +31,7 @@ func NewDaemonSetController(factory cmdutil.Factory, clientset *kubernetes.Clien
 }
 
 // ScaleToZero update DaemonSet spec nodeName to a not exist one, then create a new pod
-func (d *DaemonSetController) ScaleToZero() (map[string]string, []v1.ContainerPort, string, error) {
+func (d *DaemonSetHandler) ScaleToZero() (map[string]string, []v1.ContainerPort, string, error) {
 	daemonSet, err := d.clientset.AppsV1().DaemonSets(d.namespace).Get(context.TODO(), d.name, metav1.GetOptions{})
 	if err != nil {
 		return nil, nil, "", err
@@ -42,15 +42,15 @@ func (d *DaemonSetController) ScaleToZero() (map[string]string, []v1.ContainerPo
 	return update.Spec.Template.GetLabels(), update.Spec.Template.Spec.Containers[0].Ports, s, nil
 }
 
-func (d *DaemonSetController) Cancel() error {
+func (d *DaemonSetHandler) Cancel() error {
 	return d.Reset()
 }
 
-func (d *DaemonSetController) getResource() string {
+func (d *DaemonSetHandler) getResource() string {
 	return "daemonsets"
 }
 
-func (d *DaemonSetController) Reset() error {
+func (d *DaemonSetHandler) Reset() error {
 	pod, err := d.clientset.CoreV1().
 		Pods(d.namespace).
 		Get(context.TODO(), ToInboundPodName(d.getResource(), d.name), metav1.GetOptions{})

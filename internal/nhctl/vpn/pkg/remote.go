@@ -140,19 +140,19 @@ func CreateInboundPod(
 	var sc Scalable
 	switch strings.ToLower(tuple.Resource) {
 	case "deployment", "deployments":
-		sc = NewDeploymentController(factory, clientset, namespace, tuple.Name)
+		sc = NewDeploymentHandler(factory, clientset, namespace, tuple.Name)
 	case "statefulset", "statefulsets":
-		sc = NewStatefulsetController(factory, clientset, namespace, tuple.Name)
+		sc = NewStatefulsetHandler(factory, clientset, namespace, tuple.Name)
 	case "replicaset", "replicasets":
-		sc = NewReplicasController(factory, clientset, namespace, tuple.Name)
+		sc = NewReplicasHandler(factory, clientset, namespace, tuple.Name)
 	case "service", "services":
-		sc = NewServiceController(factory, clientset, namespace, tuple.Name)
+		sc = NewServiceHandler(factory, clientset, namespace, tuple.Name)
 	case "pod", "pods":
-		sc = NewPodController(factory, clientset, namespace, tuple.Name)
+		sc = NewPodHandler(factory, clientset, namespace, tuple.Name)
 	case "daemonset", "daemonsets":
-		sc = NewDaemonSetController(factory, clientset, namespace, tuple.Name)
+		sc = NewDaemonSetHandler(factory, clientset, namespace, tuple.Name)
 	default:
-		sc = NewCustomResourceDefinitionController(factory, clientset, namespace, tuple.Resource, tuple.Name)
+		sc = NewCustomResourceDefinitionHandler(factory, clientset, namespace, tuple.Resource, tuple.Name)
 	}
 	util.GetLoggerFromContext(ctx).Infoln("scaling workloads to 0...")
 	labels, ports, str, err := sc.ScaleToZero()

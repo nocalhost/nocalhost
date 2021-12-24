@@ -15,15 +15,15 @@ import (
 	"strconv"
 )
 
-type StatefulsetController struct {
+type ReplicasHandler struct {
 	factory   cmdutil.Factory
 	clientset *kubernetes.Clientset
 	namespace string
 	name      string
 }
 
-func NewStatefulsetController(factory cmdutil.Factory, clientset *kubernetes.Clientset, namespace, name string) *StatefulsetController {
-	return &StatefulsetController{
+func NewReplicasHandler(factory cmdutil.Factory, clientset *kubernetes.Clientset, namespace, name string) *ReplicasHandler {
+	return &ReplicasHandler{
 		factory:   factory,
 		clientset: clientset,
 		namespace: namespace,
@@ -31,8 +31,8 @@ func NewStatefulsetController(factory cmdutil.Factory, clientset *kubernetes.Cli
 	}
 }
 
-func (c *StatefulsetController) ScaleToZero() (map[string]string, []v1.ContainerPort, string, error) {
-	scale, err := c.clientset.AppsV1().StatefulSets(c.namespace).Get(context.TODO(), c.name, metav1.GetOptions{})
+func (c *ReplicasHandler) ScaleToZero() (map[string]string, []v1.ContainerPort, string, error) {
+	replicaSet, err := c.clientset.AppsV1().ReplicaSets(c.namespace).Get(context.TODO(), c.name, metav1.GetOptions{})
 	if err != nil {
 		return nil, nil, "", err
 	}
@@ -43,19 +43,19 @@ func (c *StatefulsetController) ScaleToZero() (map[string]string, []v1.Container
 	}); err != nil {
 		return nil, nil, "", err
 	}
-	formatInt := strconv.FormatInt(int64(*scale.Spec.Replicas), 10)
-	return scale.Spec.Template.Labels, scale.Spec.Template.Spec.Containers[0].Ports, formatInt, nil
+	formatInt := strconv.FormatInt(int64(*replicaSet.Spec.Replicas), 10)
+	return replicaSet.Spec.Template.Labels, replicaSet.Spec.Template.Spec.Containers[0].Ports, formatInt, nil
 }
 
-func (c *StatefulsetController) Cancel() error {
+func (c *ReplicasHandler) Cancel() error {
 	return c.Reset()
 }
 
-func (c *StatefulsetController) getResource() string {
-	return "statefulsets"
+func (c *ReplicasHandler) getResource() string {
+	return "replicasets"
 }
 
-func (c *StatefulsetController) Reset() error {
+func (c *ReplicasHandler) Reset() error {
 	get, err := c.clientset.CoreV1().
 		Pods(c.namespace).
 		Get(context.TODO(), ToInboundPodName(c.getResource(), c.name), metav1.GetOptions{})

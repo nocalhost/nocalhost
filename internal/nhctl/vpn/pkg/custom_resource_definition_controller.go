@@ -20,7 +20,7 @@ import (
 	"strings"
 )
 
-type CustomResourceDefinitionController struct {
+type CustomResourceDefinitionHandler struct {
 	factory   cmdutil.Factory
 	clientset *kubernetes.Clientset
 	namespace string
@@ -28,8 +28,8 @@ type CustomResourceDefinitionController struct {
 	name      string
 }
 
-func NewCustomResourceDefinitionController(factory cmdutil.Factory, clientset *kubernetes.Clientset, namespace, resource, name string) *CustomResourceDefinitionController {
-	return &CustomResourceDefinitionController{
+func NewCustomResourceDefinitionHandler(factory cmdutil.Factory, clientset *kubernetes.Clientset, namespace, resource, name string) *CustomResourceDefinitionHandler {
+	return &CustomResourceDefinitionHandler{
 		factory:   factory,
 		clientset: clientset,
 		namespace: namespace,
@@ -39,7 +39,7 @@ func NewCustomResourceDefinitionController(factory cmdutil.Factory, clientset *k
 }
 
 // ScaleToZero TODO needs to create a same pod name, but with different labels for using to click
-func (crd *CustomResourceDefinitionController) ScaleToZero() (map[string]string, []v1.ContainerPort, string, error) {
+func (crd *CustomResourceDefinitionHandler) ScaleToZero() (map[string]string, []v1.ContainerPort, string, error) {
 	//topController := util.GetTopController(crd.factory, crd.clientset, crd.namespace, fmt.Sprintf("%s/%s", crd.getResource(), crd.name))
 	info, err := util.GetUnstructuredObject(crd.factory, crd.namespace, fmt.Sprintf("%s/%s", crd.getResource(), crd.name))
 	if err != nil {
@@ -57,15 +57,15 @@ func (crd *CustomResourceDefinitionController) ScaleToZero() (map[string]string,
 	return util.GetLabelSelector(info.Object).MatchLabels, util.GetPorts(info.Object), string(bytes), err
 }
 
-func (crd *CustomResourceDefinitionController) Cancel() error {
+func (crd *CustomResourceDefinitionHandler) Cancel() error {
 	return crd.Reset()
 }
 
-func (crd CustomResourceDefinitionController) getResource() string {
+func (crd CustomResourceDefinitionHandler) getResource() string {
 	return crd.resource
 }
 
-func (crd *CustomResourceDefinitionController) Reset() error {
+func (crd *CustomResourceDefinitionHandler) Reset() error {
 	get, err := crd.clientset.CoreV1().
 		Pods(crd.namespace).
 		Get(context.TODO(), ToInboundPodName(crd.getResource(), crd.name), metav1.GetOptions{})

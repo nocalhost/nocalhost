@@ -20,15 +20,15 @@ import (
 	"strings"
 )
 
-type PodController struct {
+type PodHandler struct {
 	factory   cmdutil.Factory
 	clientset *kubernetes.Clientset
 	namespace string
 	name      string
 }
 
-func NewPodController(factory cmdutil.Factory, clientset *kubernetes.Clientset, namespace, name string) *PodController {
-	return &PodController{
+func NewPodHandler(factory cmdutil.Factory, clientset *kubernetes.Clientset, namespace, name string) *PodHandler {
+	return &PodHandler{
 		factory:   factory,
 		clientset: clientset,
 		namespace: namespace,
@@ -37,7 +37,7 @@ func NewPodController(factory cmdutil.Factory, clientset *kubernetes.Clientset, 
 }
 
 // ScaleToZero TODO needs to create a same pod name, but with different labels for using to click
-func (pod *PodController) ScaleToZero() (map[string]string, []v1.ContainerPort, string, error) {
+func (pod *PodHandler) ScaleToZero() (map[string]string, []v1.ContainerPort, string, error) {
 	topController := util.GetTopController(pod.factory, pod.clientset, pod.namespace, fmt.Sprintf("%s/%s", pod.getResource(), pod.name))
 	// controllerBy is empty
 	if len(topController.Name) == 0 || len(topController.Resource) == 0 {
@@ -66,15 +66,15 @@ func (pod *PodController) ScaleToZero() (map[string]string, []v1.ContainerPort, 
 	return util.GetLabelSelector(object.Object).MatchLabels, util.GetPorts(object.Object), string(bytes), err
 }
 
-func (pod *PodController) Cancel() error {
+func (pod *PodHandler) Cancel() error {
 	return pod.Reset()
 }
 
-func (pod PodController) getResource() string {
+func (pod PodHandler) getResource() string {
 	return "pods"
 }
 
-func (pod *PodController) Reset() error {
+func (pod *PodHandler) Reset() error {
 	get, err := pod.clientset.CoreV1().
 		Pods(pod.namespace).
 		Get(context.TODO(), ToInboundPodName(pod.getResource(), pod.name), metav1.GetOptions{})

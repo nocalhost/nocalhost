@@ -20,15 +20,15 @@ import (
 	"strings"
 )
 
-type ServiceController struct {
+type ServiceHandler struct {
 	factory   cmdutil.Factory
 	clientset *kubernetes.Clientset
 	namespace string
 	name      string
 }
 
-func NewServiceController(factory cmdutil.Factory, clientset *kubernetes.Clientset, namespace, name string) *ServiceController {
-	return &ServiceController{
+func NewServiceHandler(factory cmdutil.Factory, clientset *kubernetes.Clientset, namespace, name string) *ServiceHandler {
+	return &ServiceHandler{
 		factory:   factory,
 		clientset: clientset,
 		namespace: namespace,
@@ -37,7 +37,7 @@ func NewServiceController(factory cmdutil.Factory, clientset *kubernetes.Clients
 }
 
 // ScaleToZero get deployment, statefulset, replicaset, otherwise delete it
-func (s *ServiceController) ScaleToZero() (map[string]string, []v1.ContainerPort, string, error) {
+func (s *ServiceHandler) ScaleToZero() (map[string]string, []v1.ContainerPort, string, error) {
 	service, err := s.clientset.CoreV1().Services(s.namespace).Get(context.TODO(), s.name, metav1.GetOptions{})
 	if err != nil {
 		return nil, nil, "", err
@@ -98,15 +98,15 @@ func (s *ServiceController) ScaleToZero() (map[string]string, []v1.ContainerPort
 	}
 }
 
-func (s *ServiceController) Cancel() error {
+func (s *ServiceHandler) Cancel() error {
 	return s.Reset()
 }
 
-func (s ServiceController) getResource() string {
+func (s ServiceHandler) getResource() string {
 	return "services"
 }
 
-func (s *ServiceController) Reset() error {
+func (s *ServiceHandler) Reset() error {
 	get, err := s.clientset.CoreV1().
 		Pods(s.namespace).
 		Get(context.TODO(), ToInboundPodName(s.getResource(), s.name), metav1.GetOptions{})

@@ -141,19 +141,19 @@ func (c *ConnectOptions) RemoveInboundPod() error {
 	var sc Scalable
 	switch strings.ToLower(tuple.Resource) {
 	case "deployment", "deployments":
-		sc = NewDeploymentController(c.factory, c.clientset, c.Namespace, tuple.Name)
+		sc = NewDeploymentHandler(c.factory, c.clientset, c.Namespace, tuple.Name)
 	case "statefulset", "statefulsets":
-		sc = NewStatefulsetController(c.factory, c.clientset, c.Namespace, tuple.Name)
+		sc = NewStatefulsetHandler(c.factory, c.clientset, c.Namespace, tuple.Name)
 	case "replicaset", "replicasets":
-		sc = NewReplicasController(c.factory, c.clientset, c.Namespace, tuple.Name)
+		sc = NewReplicasHandler(c.factory, c.clientset, c.Namespace, tuple.Name)
 	case "service", "services":
-		sc = NewServiceController(c.factory, c.clientset, c.Namespace, tuple.Name)
+		sc = NewServiceHandler(c.factory, c.clientset, c.Namespace, tuple.Name)
 	case "pod", "pods":
-		sc = NewPodController(c.factory, c.clientset, c.Namespace, tuple.Name)
+		sc = NewPodHandler(c.factory, c.clientset, c.Namespace, tuple.Name)
 	case "daemonset", "daemonsets":
-		sc = NewDaemonSetController(c.factory, c.clientset, c.Namespace, tuple.Name)
+		sc = NewDaemonSetHandler(c.factory, c.clientset, c.Namespace, tuple.Name)
 	default:
-		sc = NewCustomResourceDefinitionController(c.factory, c.clientset, c.Namespace, tuple.Resource, tuple.Name)
+		sc = NewCustomResourceDefinitionHandler(c.factory, c.clientset, c.Namespace, tuple.Resource, tuple.Name)
 	}
 	if err := sc.Cancel(); err != nil {
 		log.Warnln(err)
