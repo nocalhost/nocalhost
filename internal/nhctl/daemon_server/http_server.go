@@ -14,7 +14,9 @@ import (
 	_ "net/http/pprof"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/common/base"
+	"nocalhost/internal/nhctl/config_validate"
 	"nocalhost/internal/nhctl/controller"
+	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
@@ -148,22 +150,22 @@ func handlingConfigSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// todo: by hxx
-	devAction, _ := controller.GetDevModeActionBySvcType(base.SvcTypeOf(csp.Type))
+	devAction, _ := nocalhost.GetDevModeActionBySvcType(base.SvcType(csp.Type))
 	containers, err := controller.GetOriginalContainers(client, base.SvcType(csp.Type), csp.Name, devAction.PodTemplatePath)
 	if err != nil {
 		fail(w, err.Error())
 		return
 	}
 
-	profile.PrepareForConfigurationValidate(client, containers)
-	if err := svcConfig.Validate(); err != nil {
+	config_validate.PrepareForConfigurationValidate(client, containers)
+	if err := config_validate.Validate(svcConfig); err != nil {
 		fail(w, err.Error())
 		return
 	}
 
 	ot := svcConfig.Type
 	svcConfig.Type = strings.ToLower(svcConfig.Type)
-	if !controller.CheckIfControllerTypeSupport(svcConfig.Type) {
+	if !nocalhost.CheckIfResourceTypeIsSupported(base.SvcType(svcConfig.Type)) {
 		fail(w, fmt.Sprintf("Service Type %s is unsupported", ot))
 		return
 	}
@@ -244,7 +246,7 @@ func handlingConfigGet(w http.ResponseWriter, r *http.Request) {
 
 	_ = nhSvc.LoadConfigFromHub()
 	// need to load latest config
-	_ = nhApp.ReloadSvcCfg(csp.Name, base.SvcTypeOf(csp.Type), false, true)
+	_ = nhApp.ReloadSvcCfg(csp.Name, base.SvcType(csp.Type), false, true)
 	nhSvc.ReloadConfig()
 
 	c := nhSvc.Config()

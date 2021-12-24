@@ -104,6 +104,5 @@ func (c *ClientGoUtils) GetUnstructuredFromString(str string) (*unstructured.Uns
 	if !ok {
 		return nil, errors.New("can not convert to unstructured")
 	}
-	//originUnstructuredMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(infos[0].Object)
 	return obj, err
 }

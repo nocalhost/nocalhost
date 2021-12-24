@@ -171,6 +171,7 @@ func (c *ClientGoUtils) generateCompletedApplyOption(af *ApplyFlags) (*apply.App
 	return o, nil
 }
 
+// GetResourceInfoFromString Str is in json format (Can be a yaml ?)
 func (c *ClientGoUtils) GetResourceInfoFromString(str string, continueOnError bool) ([]*resource.Info, error) {
 	return c.GetResourceInfoFromReader(bytes.NewBufferString(str), continueOnError)
 }

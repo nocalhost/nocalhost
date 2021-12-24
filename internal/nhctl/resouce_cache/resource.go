@@ -15,39 +15,39 @@ var GroupToTypeMap = []struct {
 	{
 		K: "Workloads",
 		V: []string{
-			"deployments",
-			"statefulsets",
-			"daemonsets",
-			"jobs",
-			"cronjobs",
-			"pods",
+			"Deployment.v1.apps", // Kind.Version.Group
+			"StatefulSet.v1.apps",
+			"DaemonSet.v1.apps",
+			"Job.v1.batch",
+			"CronJob.v1.batch",
+			"Pod.v1",
 		},
 	},
 	{
 		K: "Networks",
 		V: []string{
-			"services",
-			"endpoints",
-			"ingresses",
-			"networkpolicies",
+			"Service.v1",
+			"Endpoints.v1",
+			"Ingress.v1.networking.k8s.io",
+			"NetworkPolicy.v1.networking.k8s.io",
 		},
 	},
 	{
 		K: "Configurations",
 		V: []string{
-			"configmaps",
-			"secrets",
-			"horizontalpodautoscalers",
-			"resourcequotas",
-			"poddisruptionbudgets",
+			"ConfigMap.v1",
+			"Secret.v1",
+			"HorizontalPodAutoscaler.v1.autoscaling",
+			"ResourceQuota.v1",
+			"PodDisruptionBudget.v1.policy",
 		},
 	},
 	{
 		K: "Storages",
 		V: []string{
-			"persistentvolumes",
-			"persistentvolumeclaims",
-			"storageclasses",
+			"PersistentVolume.v1",
+			"PersistentVolumeClaim.v1",
+			"StorageClass.v1.storage.k8s.io",
 		},
 	},
 }

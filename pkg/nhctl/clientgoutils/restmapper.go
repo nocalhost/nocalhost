@@ -10,7 +10,10 @@ import (
 	"github.com/pkg/errors"
 	authorizationv1 "k8s.io/api/authorization/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/restmapper"
+	"nocalhost/pkg/nhctl/log"
+	"strings"
 )
 
 func (c *ClientGoUtils) GetAPIGroupResources() ([]*restmapper.APIGroupResources, error) {
@@ -40,4 +43,53 @@ func (c *ClientGoUtils) IsClusterAdmin() bool {
 		return false
 	}
 	return response.Status.Allowed
+}
+
+func (c *ClientGoUtils) ResourceFor(resourceArg string, tryLoadFromCache bool) schema.GroupVersionResource {
+	c.gvrCacheLock.Lock()
+	if c.gvrCache == nil {
+		c.gvrCache = map[string]schema.GroupVersionResource{}
+	}
+
+	if resource, ok := c.gvrCache[resourceArg]; ok && tryLoadFromCache {
+		c.gvrCacheLock.Unlock()
+		return resource
+	}
+	c.gvrCacheLock.Unlock()
+
+	if resourceArg == "*" {
+		return schema.GroupVersionResource{Resource: resourceArg}
+	}
+
+	fullySpecifiedGVR, groupResource := schema.ParseResourceArg(strings.ToLower(resourceArg))
+	gvr := schema.GroupVersionResource{}
+	if fullySpecifiedGVR != nil {
+		gvr, _ = c.restMapper.ResourceFor(*fullySpecifiedGVR)
+	}
+	if gvr.Empty() {
+		var err error
+		gvr, err = c.restMapper.ResourceFor(groupResource.WithVersion(""))
+		if err != nil {
+			if !nonStandardResourceNames.Has(groupResource.String()) {
+				if len(groupResource.Group) == 0 {
+					log.Logf("Warning: the server doesn't have a resource type '%s'\n", groupResource.Resource)
+				} else {
+					log.Logf(
+						"Warning: the server doesn't have a resource type '%s' in group '%s'\n", groupResource.Resource,
+						groupResource.Group,
+					)
+				}
+			}
+			return schema.GroupVersionResource{Resource: resourceArg}
+		}
+	}
+
+	c.gvrCacheLock.Lock()
+	c.gvrCache[resourceArg] = gvr
+	c.gvrCacheLock.Unlock()
+	return gvr
+}
+
+func (c *ClientGoUtils) KindFor(resource schema.GroupVersionResource) (schema.GroupVersionKind, error){
+	return c.restMapper.KindFor(resource)
 }

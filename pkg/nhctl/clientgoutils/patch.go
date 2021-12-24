@@ -19,9 +19,9 @@ func (c *ClientGoUtils) Patch(resourceType string, name string, patchContent str
 	o := patch.NewPatchOptions(ioStreams)
 	cmd := patch.NewCmdPatch(c.NewFactory(), ioStreams)
 	if err := o.Complete(c.NewFactory(), cmd, []string{resourceType, name}); err != nil {
-		return errors.Wrap(err, "")
+		return errors.WithStack(err)
 	}
 	o.Patch = patchContent
 	o.PatchType = pathType
-	return errors.Wrap(o.RunPatch(), "")
+	return errors.WithStack(o.RunPatch())
 }

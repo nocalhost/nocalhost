@@ -3,13 +3,14 @@
 * This source code is licensed under the Apache License Version 2.0.
  */
 
-package profile
+package config_validate
 
 import (
 	"errors"
 	"github.com/go-playground/validator/v10"
 	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/fp"
+	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"os"
@@ -17,19 +18,19 @@ import (
 )
 
 func TestBinding(t *testing.T) {
-	if err := validateStructAndExpectFor(&ServiceConfigV2{
+	if err := validateStructAndExpectFor(&profile.ServiceConfigV2{
 		Name: "nocalhost",
 		Type: "deployment",
-		ContainerConfigs: []*ContainerConfig{
+		ContainerConfigs: []*profile.ContainerConfig{
 			{
 				Name: "nocalhost",
-				Dev: &ContainerDevConfig{
-					DevContainerResources: &ResourceQuota{
-						Limits: &QuotaList{
+				Dev: &profile.ContainerDevConfig{
+					DevContainerResources: &profile.ResourceQuota{
+						Limits: &profile.QuotaList{
 							Memory: "100Mi",
 							Cpu:    "1",
 						},
-						Requests: &QuotaList{
+						Requests: &profile.QuotaList{
 							Memory: "50Gi",
 							Cpu:    "500Ti",
 						},
@@ -39,11 +40,11 @@ func TestBinding(t *testing.T) {
 						"8888:8889",
 						":8080",
 					},
-					DebugConfig: &DebugConfig{RemoteDebugPort: 9999},
-					PersistentVolumeDirs: []*PersistentVolumeDir{
+					DebugConfig: &profile.DebugConfig{RemoteDebugPort: 9999},
+					PersistentVolumeDirs: []*profile.PersistentVolumeDir{
 						{Path: "/path", Capacity: "10Gi"},
 					},
-					Sync: &SyncConfig{
+					Sync: &profile.SyncConfig{
 						Type: _const.DefaultSyncType,
 						Mode: _const.GitIgnoreMode,
 					},
@@ -57,15 +58,15 @@ func TestBinding(t *testing.T) {
 }
 
 func TestQuantity(t *testing.T) {
-	if err := validateStructAndExpectFor(&ServiceConfigV2{
+	if err := validateStructAndExpectFor(&profile.ServiceConfigV2{
 		Name: "nocalhost-api",
 		Type: "Deployment",
-		ContainerConfigs: []*ContainerConfig{
+		ContainerConfigs: []*profile.ContainerConfig{
 			{
 				Name: "nocalhost",
-				Dev: &ContainerDevConfig{
-					DevContainerResources: &ResourceQuota{
-						Limits: &QuotaList{
+				Dev: &profile.ContainerDevConfig{
+					DevContainerResources: &profile.ResourceQuota{
+						Limits: &profile.QuotaList{
 							Memory: "100Mii",
 						},
 					},
@@ -76,15 +77,15 @@ func TestQuantity(t *testing.T) {
 		t.Error(err)
 	}
 
-	if err := validateStructAndExpectFor(&ServiceConfigV2{
+	if err := validateStructAndExpectFor(&profile.ServiceConfigV2{
 		Name: "nocalhost-api",
 		Type: "Deployment",
-		ContainerConfigs: []*ContainerConfig{
+		ContainerConfigs: []*profile.ContainerConfig{
 			{
 				Name: "nocalhost",
-				Dev: &ContainerDevConfig{
-					DevContainerResources: &ResourceQuota{
-						Limits: &QuotaList{
+				Dev: &profile.ContainerDevConfig{
+					DevContainerResources: &profile.ResourceQuota{
+						Limits: &profile.QuotaList{
 							Cpu: "1GG",
 						},
 					},
@@ -95,15 +96,15 @@ func TestQuantity(t *testing.T) {
 		t.Error(err)
 	}
 
-	if err := validateStructAndExpectFor(&ServiceConfigV2{
+	if err := validateStructAndExpectFor(&profile.ServiceConfigV2{
 		Name: "nocalhost-api",
 		Type: "Deployment",
-		ContainerConfigs: []*ContainerConfig{
+		ContainerConfigs: []*profile.ContainerConfig{
 			{
 				Name: "nocalhost",
-				Dev: &ContainerDevConfig{
-					DevContainerResources: &ResourceQuota{
-						Requests: &QuotaList{
+				Dev: &profile.ContainerDevConfig{
+					DevContainerResources: &profile.ResourceQuota{
+						Requests: &profile.QuotaList{
 							Memory: "50GGi",
 						},
 					},
@@ -114,15 +115,15 @@ func TestQuantity(t *testing.T) {
 		t.Error(err)
 	}
 
-	if err := validateStructAndExpectFor(&ServiceConfigV2{
+	if err := validateStructAndExpectFor(&profile.ServiceConfigV2{
 		Name: "nocalhost-api",
 		Type: "Deployment",
-		ContainerConfigs: []*ContainerConfig{
+		ContainerConfigs: []*profile.ContainerConfig{
 			{
 				Name: "nocalhost",
-				Dev: &ContainerDevConfig{
-					DevContainerResources: &ResourceQuota{
-						Requests: &QuotaList{
+				Dev: &profile.ContainerDevConfig{
+					DevContainerResources: &profile.ResourceQuota{
+						Requests: &profile.QuotaList{
 							Cpu: "500TTi",
 						},
 					},
@@ -133,14 +134,14 @@ func TestQuantity(t *testing.T) {
 		t.Error(err)
 	}
 
-	if err := validateStructAndExpectFor(&ServiceConfigV2{
+	if err := validateStructAndExpectFor(&profile.ServiceConfigV2{
 		Name: "nocalhost-api",
 		Type: "Deployment",
-		ContainerConfigs: []*ContainerConfig{
+		ContainerConfigs: []*profile.ContainerConfig{
 			{
 				Name: "nocalhost",
-				Dev: &ContainerDevConfig{
-					PersistentVolumeDirs: []*PersistentVolumeDir{
+				Dev: &profile.ContainerDevConfig{
+					PersistentVolumeDirs: []*profile.PersistentVolumeDir{
 						{Path: "/path", Capacity: "10zGi"},
 					},
 				},
@@ -152,14 +153,14 @@ func TestQuantity(t *testing.T) {
 }
 
 func TestSyncMode(t *testing.T) {
-	if err := validateStructAndExpectFor(&ServiceConfigV2{
+	if err := validateStructAndExpectFor(&profile.ServiceConfigV2{
 		Name: "nocalhost-api",
 		Type: "Deployment",
-		ContainerConfigs: []*ContainerConfig{
+		ContainerConfigs: []*profile.ContainerConfig{
 			{
 				Name: "nocalhost",
-				Dev: &ContainerDevConfig{
-					Sync: &SyncConfig{
+				Dev: &profile.ContainerDevConfig{
+					Sync: &profile.SyncConfig{
 						Mode: "SEND",
 					},
 				},
@@ -171,13 +172,13 @@ func TestSyncMode(t *testing.T) {
 }
 
 func TestPortForward(t *testing.T) {
-	if err := validateStructAndExpectFor(&ServiceConfigV2{
+	if err := validateStructAndExpectFor(&profile.ServiceConfigV2{
 		Name: "nocalhost-api",
 		Type: "Deployment",
-		ContainerConfigs: []*ContainerConfig{
+		ContainerConfigs: []*profile.ContainerConfig{
 			{
 				Name: "nocalhost",
-				Dev: &ContainerDevConfig{
+				Dev: &profile.ContainerDevConfig{
 					PortForward: []string{
 						"99999",
 					},
@@ -188,13 +189,13 @@ func TestPortForward(t *testing.T) {
 		t.Error(err)
 	}
 
-	if err := validateStructAndExpectFor(&ServiceConfigV2{
+	if err := validateStructAndExpectFor(&profile.ServiceConfigV2{
 		Name: "nocalhost-api",
 		Type: "Deployment",
-		ContainerConfigs: []*ContainerConfig{
+		ContainerConfigs: []*profile.ContainerConfig{
 			{
 				Name: "nocalhost",
-				Dev: &ContainerDevConfig{
+				Dev: &profile.ContainerDevConfig{
 					PortForward: []string{
 						"-1",
 					},
@@ -207,14 +208,14 @@ func TestPortForward(t *testing.T) {
 }
 
 func TestPort(t *testing.T) {
-	if err := validateStructAndExpectFor(&ServiceConfigV2{
+	if err := validateStructAndExpectFor(&profile.ServiceConfigV2{
 		Name: "nocalhost-api",
 		Type: "Deployment",
-		ContainerConfigs: []*ContainerConfig{
+		ContainerConfigs: []*profile.ContainerConfig{
 			{
 				Name: "nocalhost",
-				Dev: &ContainerDevConfig{
-					DebugConfig: &DebugConfig{RemoteDebugPort: -1},
+				Dev: &profile.ContainerDevConfig{
+					DebugConfig: &profile.DebugConfig{RemoteDebugPort: -1},
 				},
 			},
 		},
@@ -222,14 +223,14 @@ func TestPort(t *testing.T) {
 		t.Error(err)
 	}
 
-	if err := validateStructAndExpectFor(&ServiceConfigV2{
+	if err := validateStructAndExpectFor(&profile.ServiceConfigV2{
 		Name: "nocalhost-api",
 		Type: "Deployment",
-		ContainerConfigs: []*ContainerConfig{
+		ContainerConfigs: []*profile.ContainerConfig{
 			{
 				Name: "nocalhost",
-				Dev: &ContainerDevConfig{
-					DebugConfig: &DebugConfig{RemoteDebugPort: 99999},
+				Dev: &profile.ContainerDevConfig{
+					DebugConfig: &profile.DebugConfig{RemoteDebugPort: 99999},
 				},
 			},
 		},
@@ -239,14 +240,14 @@ func TestPort(t *testing.T) {
 }
 
 func TestSyncType(t *testing.T) {
-	if err := validateStructAndExpectFor(&ServiceConfigV2{
+	if err := validateStructAndExpectFor(&profile.ServiceConfigV2{
 		Name: "nocalhost-api",
 		Type: "Deployment",
-		ContainerConfigs: []*ContainerConfig{
+		ContainerConfigs: []*profile.ContainerConfig{
 			{
 				Name: "nocalhost",
-				Dev: &ContainerDevConfig{
-					Sync: &SyncConfig{
+				Dev: &profile.ContainerDevConfig{
+					Sync: &profile.SyncConfig{
 						Type: "SEND",
 					},
 				},
@@ -258,28 +259,28 @@ func TestSyncType(t *testing.T) {
 }
 
 func TestWorkloads(t *testing.T) {
-	if err := validateStructAndExpectFor(&ServiceConfigV2{
+	if err := validateStructAndExpectFor(&profile.ServiceConfigV2{
 		Name: "nocalhost-api",
 		Type: "Deployment",
 	}, ""); err != nil {
 		t.Error(err)
 	}
 
-	if err := validateStructAndExpectFor(&ServiceConfigV2{
+	if err := validateStructAndExpectFor(&profile.ServiceConfigV2{
 		Name: "nocalhost-web",
 		Type: "deployment",
 	}, ""); err != nil {
 		t.Error(err)
 	}
 
-	if err := validateStructAndExpectFor(&ServiceConfigV2{
+	if err := validateStructAndExpectFor(&profile.ServiceConfigV2{
 		Name: "nocalhost-web",
 		Type: "pod",
 	}, ""); err != nil {
 		t.Error(err)
 	}
 
-	if err := validateStructAndExpectFor(&ServiceConfigV2{
+	if err := validateStructAndExpectFor(&profile.ServiceConfigV2{
 		Name: "nocalhost-dep",
 		Type: "dep",
 	}, WorkLoads); err != nil {
@@ -288,24 +289,24 @@ func TestWorkloads(t *testing.T) {
 }
 
 func TestDNS1123(t *testing.T) {
-	if err := validateStructAndExpectFor(&ServiceConfigV2{
+	if err := validateStructAndExpectFor(&profile.ServiceConfigV2{
 		Name: "nocalhost_",
 		Type: "deployment",
 	}, DNS1123); err != nil {
 		t.Error(err)
 	}
 
-	if err := validateStructAndExpectFor(&ServiceConfigV2{
+	if err := validateStructAndExpectFor(&profile.ServiceConfigV2{
 		Name: "!nocalhost",
 		Type: "deployment",
 	}, DNS1123); err != nil {
 		t.Error(err)
 	}
 
-	if err := validateStructAndExpectFor(&ServiceConfigV2{
+	if err := validateStructAndExpectFor(&profile.ServiceConfigV2{
 		Name: "nocalhost",
 		Type: "deployment",
-		ContainerConfigs: []*ContainerConfig{
+		ContainerConfigs: []*profile.ContainerConfig{
 			{
 				Name: "-nocalhost",
 			},
@@ -314,10 +315,10 @@ func TestDNS1123(t *testing.T) {
 		t.Error(err)
 	}
 
-	if err := validateStructAndExpectFor(&ServiceConfigV2{
+	if err := validateStructAndExpectFor(&profile.ServiceConfigV2{
 		Name: "nocalhost",
 		Type: "deployment",
-		ContainerConfigs: []*ContainerConfig{
+		ContainerConfigs: []*profile.ContainerConfig{
 			{
 				Name: "nocalhost-",
 			},
@@ -327,7 +328,7 @@ func TestDNS1123(t *testing.T) {
 	}
 }
 
-func validateStructAndExpectFor(svcConfig *ServiceConfigV2, expectErrorTag string) error {
+func validateStructAndExpectFor(svcConfig *profile.ServiceConfigV2, expectErrorTag string) error {
 	prepare()
 
 	// returns nil or ValidationErrors ( []FieldError )

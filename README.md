@@ -3,6 +3,7 @@
 ![nhctl](https://github.com/nocalhost/nocalhost/workflows/nhctl/badge.svg?branch=main)
 [![Go Report Card](https://goreportcard.com/badge/github.com/nocalhost/nocalhost)](https://goreportcard.com/report/github.com/nocalhost/nocalhost)
 [![LICENSE](https://img.shields.io/github/license/nocalhost/nocalhost)](https://github.com/nocalhost/nocalhost/blob/main/LICENSE)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fnocalhost%2Fnocalhost.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fnocalhost%2Fnocalhost?ref=badge_shield)
 
 <p align="center">
     <a href="https://nocalhost.dev">
@@ -52,8 +53,8 @@ Full documentation is available on the [Nocalhost](https://nocalhost.dev/)
 
 ## Community
 
-* Slack: [Nocalhost Slack Channel](https://cloud-native.slack.com/archives/C02MNCR8R5H)
-* WeChat: Scan the QR Code to add CODING assistance with note "Nocalhost", assistance will add you into our WeChat group
+* Slack(English): [CNCF Slack](https://slack.cncf.io/) #nocalhost channel
+* WeChat(Chinese): Scan the QR Code to add CODING assistance with note "Nocalhost", assistance will add you into our WeChat group
 
 ![nocal-host-wechat](https://user-images.githubusercontent.com/3713305/123894953-a2d0a480-d991-11eb-88af-9082d14b0c2c.png)
 
