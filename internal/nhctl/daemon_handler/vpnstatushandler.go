@@ -47,12 +47,6 @@ type Func struct {
 	f      context.CancelFunc
 }
 
-type VPNStatus struct {
-	Reverse *ReverseTotal
-	Connect *ConnectTotal
-	MacToIP map[string]string
-}
-
 type ReverseTotal struct {
 	// mac address --> resources
 	ele map[string]Set
@@ -111,11 +105,12 @@ func (c *ConnectTotal) ToString() string {
 	return sb.String()
 }
 
-func ToStatus(m map[string]string) VPNStatus {
-	return VPNStatus{
-		Reverse: FromStringToReverseTotal(m[util.REVERSE]),
-		Connect: FromStrToConnectTotal(m[util.Connect]),
-		MacToIP: remote.ToDHCP(m[util.MacToIP]).MacToIP(),
+func ToStatus(m map[string]string) *status {
+	return &status{
+		resources: FromStringToReverseTotal(m[util.REVERSE]),
+		connect:   FromStrToConnectTotal(m[util.Connect]),
+		mac2ip:    remote.ToDHCP(m[util.MacToIP]).MacToIP(),
+		dhcp:      remote.FromString(m[util.DHCP]),
 	}
 }
 

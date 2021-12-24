@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/daemon_server/command"
+	"nocalhost/internal/nhctl/vpn/util"
 	"sync"
 	"testing"
 	"time"
@@ -45,16 +46,16 @@ func TestVPNStatus(t *testing.T) {
 	file, _ := ioutil.ReadFile(clientcmd.RecommendedHomeFile)
 	GetOrGenerateConfigMapWatcher(file, "naison", nil)
 	time.Sleep(time.Second * 5)
-	load, _ := GetReverseInfo().Load(generateKey(file, "naison"))
-	resources := load.(*name).resources.GetBelongToMeResources().List()
+	load, _ := GetReverseInfo().Load(util.GenerateKey(file, "naison"))
+	resources := load.(*status).resources.GetBelongToMeResources().List()
 	for {
 		time.Sleep(time.Second * 1)
 		GetReverseInfo().Range(func(key, value interface{}) bool {
-			value.(*name).resources.GetBelongToMeResources().ForEach(func(k string, v *resourceInfo) {
+			value.(*status).resources.GetBelongToMeResources().ForEach(func(k string, v *resourceInfo) {
 				fmt.Printf("%s is %s\n", k, v.Health)
 				return
 			})
-			meResources := value.(*name).resources.GetBelongToMeResources().List()
+			meResources := value.(*status).resources.GetBelongToMeResources().List()
 			if len(resources) != len(meResources) {
 				fmt.Println("nooooo size")
 			}

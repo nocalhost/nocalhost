@@ -236,8 +236,8 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) inter
 		var belongsToMe = NewSet()
 		var reverseReversed = sets.NewString()
 		if load, ok := GetReverseInfo().Load(util.GenerateKey(KubeConfigBytes, ns)); ok {
-			belongsToMe.Insert(load.(*name).resources.GetBelongToMeResources().List()...)
-			reverseReversed.Insert(load.(*name).resources.ReversedResource().List()...)
+			belongsToMe.Insert(load.(*status).resources.GetBelongToMeResources().List()...)
+			reverseReversed.Insert(load.(*status).resources.ReversedResource().List()...)
 		}
 
 		items, err := s.Criteria().

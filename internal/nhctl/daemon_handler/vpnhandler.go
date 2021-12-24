@@ -54,7 +54,7 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 	case command.Connect:
 		// pre-check if resource already in reversing mode
 		if load, ok := GetReverseInfo().Load(util.GenerateKey(connect.KubeconfigBytes, connect.Namespace)); ok {
-			if mac := load.(*name).getMacByResource(cmd.Resource); len(mac) != 0 {
+			if mac := load.(*status).getMacByResource(cmd.Resource); len(mac) != 0 {
 				if mac == util.GetMacAddress().String() {
 					err = fmt.Errorf("resource: %s is already in reversing mode by yourself", cmd.Resource)
 				} else {
@@ -85,7 +85,7 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 				if err = connectOptions.InitClient(context.TODO()); err != nil {
 					break
 				}
-				for _, d := range value.(*name).resources.LoadAndDeleteBelongToMeResources().KeySet() {
+				for _, d := range value.(*status).resources.LoadAndDeleteBelongToMeResources().KeySet() {
 					_ = UpdateReverseConfigMap(clientset, connectInfo.namespace, d,
 						func(r *ReverseTotal, record ReverseRecord) {
 							r.RemoveRecord(record)
@@ -163,9 +163,9 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 				logger.Infof("can not found reverse info in namespace: %s, no need to cancel it\n", connect.Namespace)
 				return nil
 			}
-			address := load.(*name).getMacByResource(cmd.Resource)
+			address := load.(*status).getMacByResource(cmd.Resource)
 			// update reverse data immediately
-			load.(*name).deleteByResource(cmd.Resource)
+			load.(*status).deleteByResource(cmd.Resource)
 			_ = UpdateReverseConfigMap(connect.GetClientSet(), cmd.Namespace, cmd.Resource,
 				func(r *ReverseTotal, record ReverseRecord) {
 					record.MacAddress = address
@@ -182,7 +182,7 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 
 			// if cancel last reverse resources, needs to close connect
 			if value, found := GetReverseInfo().Load(util.GenerateKey(connect.KubeconfigBytes, connect.Namespace)); found {
-				if value.(*name).resources.GetBelongToMeResources().Len() == 0 {
+				if value.(*status).resources.GetBelongToMeResources().Len() == 0 {
 					_ = UpdateConnect(connect.GetClientSet(), cmd.Namespace, func(list sets.String, address string) {
 						list.Delete(address)
 					})
@@ -201,23 +201,23 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 			})
 			value, loaded := GetReverseInfo().Load(util.GenerateKey(connect.KubeconfigBytes, connect.Namespace))
 			if loaded {
-				clientset, err := util.GetClientSetByKubeconfigBytes(value.(*name).kubeconfigBytes)
+				clientset, err := util.GetClientSetByKubeconfigBytes(value.(*status).kubeconfigBytes)
 				if err != nil {
 					break
 				}
-				path := k8sutils.GetOrGenKubeConfigPath(string(value.(*name).kubeconfigBytes))
+				path := k8sutils.GetOrGenKubeConfigPath(string(value.(*status).kubeconfigBytes))
 				temp := &pkg.ConnectOptions{
 					Ctx:            logCtx,
 					KubeconfigPath: path,
-					Namespace:      value.(*name).namespace,
+					Namespace:      value.(*status).namespace,
 					Workloads:      []string{},
 				}
 				if err = temp.InitClient(context.TODO()); err != nil {
 					break
 				}
-				for _, resource := range value.(*name).resources.LoadAndDeleteBelongToMeResources().KeySet() {
+				for _, resource := range value.(*status).resources.LoadAndDeleteBelongToMeResources().KeySet() {
 					_ = UpdateReverseConfigMap(clientset,
-						value.(*name).namespace,
+						value.(*status).namespace,
 						resource,
 						func(r *ReverseTotal, record ReverseRecord) {
 							r.RemoveRecord(record)

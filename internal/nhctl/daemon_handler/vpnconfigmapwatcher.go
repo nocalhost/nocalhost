@@ -60,18 +60,24 @@ var reverseInfoLock = &sync.Mutex{}
 // kubeconfig+ns --> name
 var reverseInfo = &sync.Map{}
 
-type name struct {
+type status struct {
 	kubeconfigBytes []byte
 	namespace       string
-	// mac --> resources
+	// mac --> resources, this machine reverse those resources
 	resources *ReverseTotal
+	// connection info, which machine connect to this namespace
+	connect *ConnectTotal
+	// mac to ip mapping
+	mac2ip map[string]string
+	// mac --> ips, this mac address rent those ip, needs to release ips while disconnect
+	dhcp map[string]sets.Int
 }
 
-func (n *name) getMacByResource(resource string) string {
+func (n *status) getMacByResource(resource string) string {
 	reverseInfoLock.Lock()
 	defer reverseInfoLock.Unlock()
 	if load, ok := reverseInfo.Load(util.GenerateKey(n.kubeconfigBytes, n.namespace)); ok {
-		for k, v := range load.(*name).resources.ele {
+		for k, v := range load.(*status).resources.ele {
 			if v.HasKey(resource) {
 				return k
 			}
@@ -80,17 +86,17 @@ func (n *name) getMacByResource(resource string) string {
 	return ""
 }
 
-func (n *name) deleteByResource(resource string) {
+func (n *status) deleteByResource(resource string) {
 	reverseInfoLock.Lock()
 	defer reverseInfoLock.Unlock()
 	if load, ok := reverseInfo.Load(util.GenerateKey(n.kubeconfigBytes, n.namespace)); ok {
-		for _, v := range load.(*name).resources.ele {
+		for _, v := range load.(*status).resources.ele {
 			v.DeleteByKeys(resource)
 		}
 	}
 }
 
-func (n *name) isReversingByMe(resource string) bool {
+func (n *status) isReversingByMe(resource string) bool {
 	if a := n.getMacByResource(resource); len(a) != 0 {
 		if util.GetMacAddress().String() == a {
 			return true
@@ -99,7 +105,7 @@ func (n *name) isReversingByMe(resource string) bool {
 	return false
 }
 
-func (n *name) isReversingByOther(resource string) bool {
+func (n *status) isReversingByOther(resource string) bool {
 	if n.isReversingByMe(resource) {
 		return false
 	}
@@ -218,7 +224,7 @@ func (h *resourceHandler) OnAdd(obj interface{}) {
 
 	configMap := obj.(*corev1.ConfigMap)
 	status := ToStatus(configMap.Data)
-	if status.Connect.IsConnected() {
+	if status.connect.IsConnected() {
 		if !connectInfo.IsEmpty() && !connectInfo.IsSame(h.kubeconfigBytes, h.namespace) {
 			// todo someone already connected, release others or myself
 			// release others
@@ -230,7 +236,7 @@ func (h *resourceHandler) OnAdd(obj interface{}) {
 
 			connectInfo.namespace = h.namespace
 			connectInfo.kubeconfigBytes = h.kubeconfigBytes
-			connectInfo.ip = status.MacToIP[util.GetMacAddress().String()]
+			connectInfo.ip = status.mac2ip[util.GetMacAddress().String()]
 		}
 	}
 	modifyReverseInfo(h, status)
@@ -242,7 +248,7 @@ func (h *resourceHandler) OnUpdate(oldObj, newObj interface{}) {
 
 	oldStatus := ToStatus(oldObj.(*corev1.ConfigMap).Data)
 	newStatus := ToStatus(newObj.(*corev1.ConfigMap).Data)
-	if newStatus.Connect.IsConnected() {
+	if newStatus.connect.IsConnected() {
 		if !connectInfo.IsEmpty() && !connectInfo.IsSame(h.kubeconfigBytes, h.namespace) {
 			// todo someone already connected, release others or myself
 			// release others
@@ -254,11 +260,11 @@ func (h *resourceHandler) OnUpdate(oldObj, newObj interface{}) {
 			go notifySudoDaemonToConnect(h.kubeconfigBytes, h.namespace)
 			connectInfo.namespace = h.namespace
 			connectInfo.kubeconfigBytes = h.kubeconfigBytes
-			connectInfo.ip = newStatus.MacToIP[util.GetMacAddress().String()]
+			connectInfo.ip = newStatus.mac2ip[util.GetMacAddress().String()]
 		}
 	}
 	// if connected --> disconnected, needs to notify sudo daemon to connect
-	if oldStatus.Connect.IsConnected() && !newStatus.Connect.IsConnected() {
+	if oldStatus.connect.IsConnected() && !newStatus.connect.IsConnected() {
 		if connectInfo.IsSame(h.kubeconfigBytes, h.namespace) {
 			connectInfo.cleanup()
 			go notifySudoDaemonToDisConnect(h.kubeconfigBytes, h.namespace)
@@ -274,7 +280,7 @@ func (h *resourceHandler) OnDelete(obj interface{}) {
 	configMap := obj.(*corev1.ConfigMap)
 	status := ToStatus(configMap.Data)
 	h.reverseInfo.Delete(h.toKey())
-	if status.Connect.IsConnected() && connectInfo.IsSame(h.kubeconfigBytes, h.namespace) {
+	if status.connect.IsConnected() && connectInfo.IsSame(h.kubeconfigBytes, h.namespace) {
 		connectInfo.cleanup()
 		notifySudoDaemonToDisConnect(h.kubeconfigBytes, h.namespace)
 	}
@@ -292,7 +298,7 @@ func release(kubeconfigBytes []byte, namespace string) {
 			list.Delete(item)
 		})
 		if value, found := GetReverseInfo().Load(util.GenerateKey(kubeconfigBytes, namespace)); found {
-			for _, s := range value.(*name).resources.LoadAndDeleteBelongToMeResources().KeySet() {
+			for _, s := range value.(*status).resources.LoadAndDeleteBelongToMeResources().KeySet() {
 				_ = UpdateReverseConfigMap(clientset, namespace, s,
 					func(r *ReverseTotal, record ReverseRecord) {
 						r.RemoveRecord(record)
@@ -305,21 +311,21 @@ func release(kubeconfigBytes []byte, namespace string) {
 
 // modifyReverseInfo modify reverse info using latest vpn status
 // iterator latest vpn status and delete resource which not exist
-func modifyReverseInfo(h *resourceHandler, latest VPNStatus) {
+func modifyReverseInfo(h *resourceHandler, latest *status) {
 	// using same reference, because health check will modify status
 
 	local, ok := h.reverseInfo.Load(h.toKey())
 	if !ok {
-		h.reverseInfo.Store(h.toKey(), &name{
+		h.reverseInfo.Store(h.toKey(), &status{
 			kubeconfigBytes: h.kubeconfigBytes,
 			namespace:       h.namespace,
-			resources:       latest.Reverse,
+			resources:       latest.resources,
 		})
 		return
 	}
 	// add missing
-	for macAddress, latestResources := range latest.Reverse.ele {
-		if localResource, found := local.(*name).resources.ele[macAddress]; found {
+	for macAddress, latestResources := range latest.resources.ele {
+		if localResource, found := local.(*status).resources.ele[macAddress]; found {
 			for _, resource := range latestResources.KeySet() {
 				// if resource is not reversing, needs to delete it
 				if !localResource.HasKey(resource) {
@@ -328,14 +334,14 @@ func modifyReverseInfo(h *resourceHandler, latest VPNStatus) {
 			}
 		} else {
 			// if latest status contains mac address that local cache not contains, needs to add it
-			local.(*name).resources.ele[macAddress] = latestResources
+			local.(*status).resources.ele[macAddress] = latestResources
 		}
 	}
 
 	// remove useless
-	for macAddress, localResources := range local.(*name).resources.ele {
-		if latestResource, found := latest.Reverse.ele[macAddress]; !found {
-			delete(local.(*name).resources.ele, macAddress)
+	for macAddress, localResources := range local.(*status).resources.ele {
+		if latestResource, found := latest.resources.ele[macAddress]; !found {
+			delete(local.(*status).resources.ele, macAddress)
 		} else {
 			for _, resource := range localResources.KeySet() {
 				if !latestResource.HasKey(resource) {
@@ -410,13 +416,13 @@ func checkReverse() {
 		return
 	}
 	GetReverseInfo().Range(func(key, value interface{}) bool {
-		if !connectInfo.IsSameCluster(value.(*name).kubeconfigBytes) {
+		if !connectInfo.IsSameCluster(value.(*status).kubeconfigBytes) {
 			return true
 		}
-		path := k8sutils.GetOrGenKubeConfigPath(string(value.(*name).kubeconfigBytes))
+		path := k8sutils.GetOrGenKubeConfigPath(string(value.(*status).kubeconfigBytes))
 		connect := &pkg.ConnectOptions{
 			KubeconfigPath: path,
-			Namespace:      value.(*name).namespace,
+			Namespace:      value.(*status).namespace,
 			Workloads:      []string{},
 		}
 		if err := connect.InitClient(context.TODO()); err != nil {
@@ -425,7 +431,7 @@ func checkReverse() {
 		if err := connect.Prepare(context.TODO()); err != nil {
 			return true
 		}
-		value.(*name).resources.GetBelongToMeResources().ForEach(func(k string, v *resourceInfo) {
+		value.(*status).resources.GetBelongToMeResources().ForEach(func(k string, v *resourceInfo) {
 			go func(connect *pkg.ConnectOptions, workload string, info *resourceInfo) {
 				if _, err := connect.Shell(context.TODO(), workload); err != nil {
 					info.Health = UnHealthy
