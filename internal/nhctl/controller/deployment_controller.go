@@ -7,6 +7,7 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/apps/v1"
@@ -15,7 +16,6 @@ import (
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/pod_controller"
 	"nocalhost/pkg/nhctl/log"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -47,40 +47,52 @@ func (d *DeploymentController) RollBack(reset bool) error {
 	}
 
 	log.Warn(err.Error())
-	log.Info("Annotation nocalhost.origin.spec.json not found, try to find it from rs")
-	rss, _ := clientUtils.GetSortedReplicaSetsByDeployment(d.GetName())
-	if len(rss) >= 1 {
-		var r *v1.ReplicaSet
-		var originalPodReplicas *int32
-		for _, rs := range rss {
-			if rs.Annotations == nil {
-				continue
-			}
-			// Mark the original revision
-			if rs.Annotations[_const.DevImageRevisionAnnotationKey] == _const.DevImageRevisionAnnotationValue {
-				r = rs
-				if rs.Annotations[_const.DevImageOriginalPodReplicasAnnotationKey] != "" {
-					podReplicas, _ := strconv.Atoi(rs.Annotations[_const.DevImageOriginalPodReplicasAnnotationKey])
-					podReplicas32 := int32(podReplicas)
-					originalPodReplicas = &podReplicas32
-				}
-			}
+	//log.Info("Annotation nocalhost.origin.spec.json not found, try to find it from rs")
+	//rss, _ := clientUtils.GetSortedReplicaSetsByDeployment(d.GetName())
+	//if len(rss) >= 1 {
+	//	var r *v1.ReplicaSet
+	//	var originalPodReplicas *int32
+	//	for _, rs := range rss {
+	//		if rs.Annotations == nil {
+	//			continue
+	//		}
+	//		// Mark the original revision
+	//		if rs.Annotations[_const.DevImageRevisionAnnotationKey] == _const.DevImageRevisionAnnotationValue {
+	//			r = rs
+	//			if rs.Annotations[_const.DevImageOriginalPodReplicasAnnotationKey] != "" {
+	//				podReplicas, _ := strconv.Atoi(rs.Annotations[_const.DevImageOriginalPodReplicasAnnotationKey])
+	//				podReplicas32 := int32(podReplicas)
+	//				originalPodReplicas = &podReplicas32
+	//			}
+	//		}
+	//	}
+	//
+	//	if r == nil && reset {
+	//		r = rss[0]
+	//	}
+	//
+	//	if r != nil {
+	//		dep.Spec.Template = r.Spec.Template
+	//		if originalPodReplicas != nil {
+	//			dep.Spec.Replicas = originalPodReplicas
+	//		}
+	//	} else {
+	//		return errors.New("Failed to find revision to rollout")
+	//	}
+	//} else {
+	//	return errors.New("Failed to find revision to rollout(no rs found)")
+	//}
+	osj, ok := dep.Annotations[OriginSpecJson]
+	if ok {
+		log.Info("Annotation nocalhost.origin.spec.json found, use it")
+		dep.Spec = v1.DeploymentSpec{}
+		if err = json.Unmarshal([]byte(osj), &dep.Spec); err != nil {
+			return errors.Wrap(err, "")
 		}
 
-		if r == nil && reset {
-			r = rss[0]
+		if len(dep.Annotations) == 0 {
+			dep.Annotations = make(map[string]string, 0)
 		}
-
-		if r != nil {
-			dep.Spec.Template = r.Spec.Template
-			if originalPodReplicas != nil {
-				dep.Spec.Replicas = originalPodReplicas
-			}
-		} else {
-			return errors.New("Failed to find revision to rollout")
-		}
-	} else {
-		return errors.New("Failed to find revision to rollout(no rs found)")
 	}
 
 	log.Info(" Deleting current revision...")

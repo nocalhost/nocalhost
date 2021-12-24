@@ -9,10 +9,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
+	"github.com/tidwall/sjson"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/cli-runtime/pkg/resource"
 	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
@@ -151,13 +153,31 @@ func (c *Controller) RollbackFromAnnotation() error {
 		return err
 	}
 
+	var originalWorkload []*resource.Info
 	osj, err := GetAnnotationFromUnstructured(devModeWorkload, _const.OriginWorkloadDefinition)
 	if err != nil {
-		return err
-	}
-	log.Infof("Annotation %s found, use it", _const.OriginWorkloadDefinition)
+		// For compatibility
+		log.Infof("Annotation %s not found, finding %s", _const.OriginWorkloadDefinition, OriginSpecJson)
+		osj2, err := GetAnnotationFromUnstructured(devModeWorkload, OriginSpecJson)
+		if err != nil {
+			return err
+		}
 
-	originalWorkload, err := c.Client.GetResourceInfoFromString(osj, true)
+		osj2 = strings.Trim(osj2, "\"")
+
+		mj, err := devModeWorkload.MarshalJSON()
+		if err != nil {
+			return err
+		}
+		osj = string(mj)
+		if osj, err = sjson.SetRaw(osj, "spec", osj2); err != nil {
+			return errors.WithStack(err)
+		}
+	} else {
+		log.Infof("Annotation %s found, use it", _const.OriginWorkloadDefinition)
+	}
+
+	originalWorkload, err = c.Client.GetResourceInfoFromString(osj, true)
 	if err != nil {
 		return err
 	}
@@ -181,26 +201,6 @@ func (c *Controller) RollbackFromAnnotation() error {
 	}
 
 	return c.Client.ApplyResourceInfo(originalWorkload[0], nil)
-
-	//originalWorkload, err := c.Client.GetUnstructuredFromString(osj)
-	//if err != nil {
-	//	return err
-	//}
-
-	//specMap, ok := originalWorkload.Object["spec"]
-	//if !ok {
-	//	return errors.New("Spec not found in workload definition")
-	//}
-	//
-	//jsonPatches := make([]jsonPatch, 0)
-	//jsonPatches = append(jsonPatches, jsonPatch{
-	//	Op:    "replace",
-	//	Path:  "/spec",
-	//	Value: specMap,
-	//})
-	//
-	//bys, _ := json.Marshal(jsonPatches)
-	//return c.Client.Patch(c.Type.String(), c.Name, string(bys), "json")
 }
 
 // GetUnstructuredMapBySpecificPath Path must be like: /spec/template

@@ -357,6 +357,15 @@ github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/tke/v20180525
 # github.com/teris-io/shortid v0.0.0-20171029131806-771a37caa5cf
 ## explicit
 github.com/teris-io/shortid
+# github.com/tidwall/gjson v1.12.1
+github.com/tidwall/gjson
+# github.com/tidwall/match v1.1.1
+github.com/tidwall/match
+# github.com/tidwall/pretty v1.2.0
+github.com/tidwall/pretty
+# github.com/tidwall/sjson v1.2.4
+## explicit
+github.com/tidwall/sjson
 # github.com/toolkits/net v0.0.0-20160910085801-3f39ab6fe3ce
 ## explicit
 github.com/toolkits/net

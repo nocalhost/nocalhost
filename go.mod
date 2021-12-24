@@ -56,6 +56,7 @@ require (
 	github.com/tebeka/strftime v0.1.5 // indirect
 	github.com/tencentcloud/tencentcloud-sdk-go v1.0.148
 	github.com/teris-io/shortid v0.0.0-20171029131806-771a37caa5cf
+	github.com/tidwall/sjson v1.2.4
 	github.com/toolkits/net v0.0.0-20160910085801-3f39ab6fe3ce
 	github.com/ulikunitz/xz v0.5.8
 	github.com/vmihailenco/msgpack v4.0.4+incompatible
