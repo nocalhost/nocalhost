@@ -10,7 +10,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
-	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/internal/nocalhost-api/service/cooperator/cluster_scope"
@@ -19,7 +18,7 @@ import (
 	"nocalhost/pkg/nocalhost-api/app/router/ginbase"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
-	"nocalhost/pkg/nocalhost-api/pkg/manager/vcluster"
+	"nocalhost/pkg/nocalhost-api/pkg/manager"
 	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
 )
 
@@ -262,12 +261,12 @@ func setVClusterInfoIntoDevSpace(devSpace *DevSpace, cluster *model.ClusterModel
 	if devSpace.DevSpaceParams.DevSpaceType != model.VirtualClusterType {
 		return errors.New("devSpace type is not virtual cluster")
 	}
-	f := vcluster.GetSharedManagerFactory()
+	f := manager.VClusterSharedManagerFactory
 	m, err := f.Manager(cluster.KubeConfig)
 	if err != nil {
 		return err
 	}
-	v, err := m.GetInfo(global.VClusterPrefix+clusterUser.Namespace, clusterUser.Namespace)
+	v, err := m.GetInfo(clusterUser.SpaceName, clusterUser.Namespace)
 	if err != nil {
 		return err
 	}

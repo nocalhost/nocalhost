@@ -6,21 +6,12 @@
 package cluster_user
 
 import (
-	"context"
-	"strconv"
-	"time"
-
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
-	helmv1alpha1 "nocalhost/internal/nocalhost-dep/controllers/vcluster/api/v1alpha1"
-	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
+	"nocalhost/pkg/nocalhost-api/pkg/manager"
 )
 
 type DevSpaceUpdate struct {
@@ -43,44 +34,12 @@ func (d *DevSpaceUpdate) UpdateVirtualCluster(cu model.ClusterUserModel) error {
 		return err
 	}
 
-	goClient, err := clientgo.NewAdminGoClient([]byte(cluster.KubeConfig))
+	f := manager.VClusterSharedManagerFactory
+	m, err := f.Manager(cluster.GetKubeConfig())
 	if err != nil {
 		return err
 	}
-
-	obj, err := goClient.DynamicClient.Resource(schema.GroupVersionResource{
-		Group:    "helm.nocalhost.dev",
-		Version:  "v1alpha1",
-		Resource: "virtualclusters",
-	}).Namespace(space.Namespace).Get(context.TODO(), global.VClusterPrefix+space.Namespace, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
-
-	vc := &helmv1alpha1.VirtualCluster{}
-	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(
-		obj.UnstructuredContent(), vc); err != nil {
-		return errors.WithStack(err)
-	}
-
-	if vc.GetValues() == v.Values &&
-		vc.GetChartName() == string(v.ServiceType) &&
-		vc.GetChartVersion() == v.Version &&
-		vc.GetSpaceName() == cu.SpaceName {
-		return nil
-	}
-
-	vc.SetValues(v.Values)
-	vc.SetChartVersion(v.Version)
-	annotations := vc.GetAnnotations()
-	annotations[helmv1alpha1.ServiceTypeKey] = string(v.ServiceType)
-	annotations[helmv1alpha1.Timestamp] = strconv.Itoa(int(time.Now().UnixNano()))
-	annotations[helmv1alpha1.SpaceName] = cu.SpaceName
-	vc.SetAnnotations(annotations)
-	vc.SetManagedFields(nil)
-
-	_, err = goClient.Apply(vc)
-	return err
+	return m.Update(cu.SpaceName, space.Namespace, cluster.GetClusterName(), v)
 }
 
 func NewDecSpaceUpdater(request DevSpaceRequest, c *gin.Context) *DevSpaceUpdate {

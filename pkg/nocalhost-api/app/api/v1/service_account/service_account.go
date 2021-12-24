@@ -27,7 +27,7 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
-	"nocalhost/pkg/nocalhost-api/pkg/manager/vcluster"
+	"nocalhost/pkg/nocalhost-api/pkg/manager"
 	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
 )
 
@@ -310,14 +310,14 @@ func GenKubeconfig(
 
 func GenVirtualClusterKubeConfig(clusterKubeConfig, spaceName, namespace string, f func(kubeConfig string, serviceType string)) {
 
-	factory := vcluster.GetSharedManagerFactory()
+	factory := manager.VClusterSharedManagerFactory
 	vcManager, err := factory.Manager(clusterKubeConfig)
 	if err != nil {
 		f("", "")
 		return
 	}
 
-	kubeConfig, serviceType, _ := vcManager.GetKubeConfig(global.VClusterPrefix+namespace, namespace)
+	kubeConfig, serviceType, _ := vcManager.GetKubeConfig(spaceName, namespace)
 	f(kubeConfig, serviceType)
 }
 

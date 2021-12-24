@@ -130,6 +130,7 @@ func (r *Reconciler) reconcile(ctx context.Context, vc *helmv1alpha1.VirtualClus
 		if vc.Status.Manifest != rel.Manifest {
 			var opts []helper.UpgradeOption
 			rel, err = ac.Upgrade(vc.GetReleaseName(), vc.GetNamespace(), values, opts...)
+			vc.Status.Manifest = rel.Manifest
 			if err := r.patchStatus(ctx, vc, "update manifest"); err != nil {
 				return err
 			}

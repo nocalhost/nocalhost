@@ -15,6 +15,7 @@ const (
 	DefaultVersion = "0.4.5"
 	ServiceTypeKey = "vcluster.nocalhost.dev/service_type"
 	SpaceName      = "vcluster.nocalhost.dev/space_name"
+	ClusterName    = "vcluster.nocalhost.dev/cluster_name"
 	Timestamp      = "vcluster.nocalhost.dev/timestamp"
 )
 

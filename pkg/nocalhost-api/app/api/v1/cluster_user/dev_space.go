@@ -11,21 +11,18 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
-	"nocalhost/internal/nocalhost-dep/controllers/vcluster/api/v1alpha1"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
+	"nocalhost/pkg/nocalhost-api/pkg/manager"
 	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
 )
 
@@ -429,33 +426,10 @@ func (d *DevSpace) initVirtualCluster(clusterRecord *model.ClusterModel, cluster
 	if v == nil {
 		return errors.New("can not find virtual cluster info")
 	}
-
-	vc := &v1alpha1.VirtualCluster{}
-	vc.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   "helm.nocalhost.dev",
-		Version: "v1alpha1",
-		Kind:    "VirtualCluster",
-	})
-	vc.SetName(global.VClusterPrefix + clusterUser.Namespace)
-	vc.SetNamespace(clusterUser.Namespace)
-	vc.SetValues(v.Values)
-	vc.SetChartName("vcluster")
-	vc.SetChartRepo(global.NocalhostChartRepository)
-	vc.SetChartVersion(v.Version)
-	annotations := map[string]string{
-		v1alpha1.ServiceTypeKey: string(v.ServiceType),
-		v1alpha1.SpaceName:      clusterUser.SpaceName,
-		v1alpha1.Timestamp:      strconv.Itoa(int(time.Now().UnixNano())),
-	}
-	vc.SetAnnotations(annotations)
-
-	vc.Status.Phase = v1alpha1.Upgrading
-
-	goClient, err := clientgo.NewAdminGoClient([]byte(clusterRecord.KubeConfig))
+	f := manager.VClusterSharedManagerFactory
+	m, err := f.Manager(clusterRecord.GetKubeConfig())
 	if err != nil {
 		return err
 	}
-
-	_, err = goClient.Apply(vc)
-	return err
+	return m.Create(clusterUser.SpaceName, clusterUser.Namespace, clusterRecord.GetClusterName(), v)
 }
