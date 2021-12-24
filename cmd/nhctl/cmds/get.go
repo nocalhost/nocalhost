@@ -97,7 +97,7 @@ nhctl get service serviceName [-n namespace] --kubeconfig=kubeconfigfile
 			kubeConfig, nameSpace, appName, resourceType, resourceName, label, false,
 		)
 		if err != nil {
-			log.Error(err)
+			log.Log(err)
 			return
 		}
 		if data == nil {
@@ -112,7 +112,7 @@ nhctl get service serviceName [-n namespace] --kubeconfig=kubeconfigfile
 		default:
 			bytes, err := json.Marshal(data)
 			if err != nil {
-				log.Error(err)
+				log.Log(err)
 				return
 			}
 			switch resourceType {
