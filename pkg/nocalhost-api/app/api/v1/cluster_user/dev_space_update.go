@@ -34,7 +34,7 @@ func (d *DevSpaceUpdate) UpdateVirtualCluster(cu model.ClusterUserModel) error {
 	}
 	v := d.Params.VirtualCluster
 
-	space, err := service.Svc.ClusterUser().GetFirst(d.c, cu)
+	space, err := service.Svc.ClusterUser().GetFirst(d.c, model.ClusterUserModel{ID: cu.ID})
 	if err != nil {
 		return err
 	}
@@ -63,11 +63,19 @@ func (d *DevSpaceUpdate) UpdateVirtualCluster(cu model.ClusterUserModel) error {
 		return errors.WithStack(err)
 	}
 
+	if vc.GetValues() == v.Values &&
+		vc.GetChartName() == string(v.ServiceType) &&
+		vc.GetChartVersion() == v.Version &&
+		vc.GetSpaceName() == cu.SpaceName {
+		return nil
+	}
+
 	vc.SetValues(v.Values)
 	vc.SetChartVersion(v.Version)
 	annotations := vc.GetAnnotations()
 	annotations[helmv1alpha1.ServiceTypeKey] = string(v.ServiceType)
 	annotations[helmv1alpha1.Timestamp] = strconv.Itoa(int(time.Now().UnixNano()))
+	annotations[helmv1alpha1.SpaceName] = cu.SpaceName
 	vc.SetAnnotations(annotations)
 	vc.SetManagedFields(nil)
 
