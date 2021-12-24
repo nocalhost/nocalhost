@@ -33,7 +33,7 @@ var kubeconfigAddCmd = &cobra.Command{
 		}
 		if bytes, err := ioutil.ReadFile(kubeConfig); err == nil {
 			if err = daemonClient.SendKubeconfigOperationCommand(bytes, nameSpace, command.OperationAdd); err != nil {
-				log.Info(err)
+				log.Log(err)
 			}
 		}
 	},

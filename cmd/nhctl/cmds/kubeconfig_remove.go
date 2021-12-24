@@ -38,7 +38,7 @@ var kubeconfigRemoveCmd = &cobra.Command{
 		}
 		if bytes, err := ioutil.ReadFile(kubeConfig); err == nil {
 			if err = daemonClient.SendKubeconfigOperationCommand(bytes, nameSpace, command.OperationRemove); err != nil {
-				log.Info(err)
+				log.Log(err)
 			}
 		}
 	},
