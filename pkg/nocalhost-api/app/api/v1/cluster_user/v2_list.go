@@ -8,8 +8,6 @@ package cluster_user
 import (
 	"context"
 	"encoding/json"
-	"nocalhost/internal/nocalhost-api/global"
-	"nocalhost/internal/nocalhost-dep/controllers/vcluster/api/v1alpha1"
 	"sort"
 	"sync"
 
@@ -19,11 +17,12 @@ import (
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/internal/nocalhost-api/service/cooperator/cluster_scope"
 	"nocalhost/internal/nocalhost-api/service/cooperator/ns_scope"
+	"nocalhost/internal/nocalhost-dep/controllers/vcluster/api/v1alpha1"
 	"nocalhost/pkg/nocalhost-api/app/api"
 	"nocalhost/pkg/nocalhost-api/app/router/ginbase"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
-	"nocalhost/pkg/nocalhost-api/pkg/manager/vcluster"
+	"nocalhost/pkg/nocalhost-api/pkg/manager"
 )
 
 func GetV2(c *gin.Context) {
@@ -451,7 +450,7 @@ func setVClusterInfoInto(cu []*model.ClusterUserV2) {
 	for _, l := range list {
 		clusterMap[l.ID] = l
 	}
-	factory := vcluster.GetSharedManagerFactory()
+	factory := manager.VClusterSharedManagerFactory
 	g := sync.WaitGroup{}
 	for i := 0; i < len(cu); i++ {
 		if cu[i].DevSpaceType == model.VirtualClusterType {
@@ -468,7 +467,7 @@ func setVClusterInfoInto(cu []*model.ClusterUserV2) {
 					return
 				}
 
-				info, _ := vcManager.GetInfo(global.VClusterPrefix+cu[i].Namespace, cu[i].Namespace)
+				info, _ := vcManager.GetInfo(cu[i].SpaceName, cu[i].Namespace)
 				cu[i].VirtualClusterInfo = &info
 			}()
 		}

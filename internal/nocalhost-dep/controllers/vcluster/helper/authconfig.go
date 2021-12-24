@@ -182,6 +182,8 @@ func (a *authConfig) Get(vc *v1alpha1.VirtualCluster) (string, error) {
 	for _, cluster := range kubeConfig.Clusters {
 		if addr != "" && port != "" {
 			cluster.Server = fmt.Sprintf("https://%s:%s", addr, port)
+		} else {
+			cluster.Server = fmt.Sprintf("https://%s:%s", "127.0.0.1", "8443")
 		}
 		cluster.InsecureSkipTLSVerify = true
 		cluster.CertificateAuthorityData = nil

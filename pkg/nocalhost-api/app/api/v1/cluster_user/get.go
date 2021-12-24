@@ -22,7 +22,7 @@ import (
 	"nocalhost/pkg/nocalhost-api/app/router/ginbase"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
-	"nocalhost/pkg/nocalhost-api/pkg/manager/vcluster"
+	"nocalhost/pkg/nocalhost-api/pkg/manager"
 	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
 )
 
@@ -470,7 +470,7 @@ func setVClusterInfoIntoSpaceStatus(cu []*DevSpaceStatus) {
 	for _, l := range list {
 		clusterMap[l.ID] = l
 	}
-	factory := vcluster.GetSharedManagerFactory()
+	factory := manager.VClusterSharedManagerFactory
 	g := sync.WaitGroup{}
 	for i := 0; i < len(cu); i++ {
 		if cu[i].DevSpaceType == model.VirtualClusterType {
@@ -487,7 +487,7 @@ func setVClusterInfoIntoSpaceStatus(cu []*DevSpaceStatus) {
 					return
 				}
 
-				info, _ := vcManager.GetInfo(global.VClusterPrefix+cu[i].Namespace, cu[i].Namespace)
+				info, _ := vcManager.GetInfo(cu[i].SpaceName, cu[i].Namespace)
 				cu[i].VirtualCluster = info
 			}()
 		}

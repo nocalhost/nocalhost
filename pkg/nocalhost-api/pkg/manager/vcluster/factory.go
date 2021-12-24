@@ -12,12 +12,6 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 )
 
-var sharedManagerFactoryCache = NewSharedManagerFactory()
-
-func GetSharedManagerFactory() SharedManagerFactory {
-	return sharedManagerFactoryCache
-}
-
 type SharedManagerFactory interface {
 	Manager(string) (Manager, error)
 	Delete(string)

@@ -9,10 +9,10 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+
 	"github.com/pkg/errors"
-	"helm.sh/helm/v3/pkg/chartutil"
+	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/storage/driver"
-	"helm.sh/helm/v3/pkg/strvals"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -63,7 +63,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if controllerutil.ContainsFinalizer(vc, helmv1alpha1.Finalizer) {
 			lg.Info(fmt.Sprintf("deleting release: %s/%s", vc.GetNamespace(), vc.GetReleaseName()))
 			vc.Status.Phase = helmv1alpha1.Deleting
-			if err := r.patchStatus(ctx, vc); err != nil {
+			if err := r.patchStatus(ctx, vc, fmt.Sprintf("update phase to %s", helmv1alpha1.Deleting)); err != nil {
 				return ctrl.Result{}, err
 			}
 			if err := r.delete(ctx, vc, ac); err != nil {
@@ -93,36 +93,55 @@ func (r *Reconciler) reconcile(ctx context.Context, vc *helmv1alpha1.VirtualClus
 		var opts []helper.InstallOption
 		lg.Info(fmt.Sprintf("installing release: %s/%s", vc.GetNamespace(), vc.GetReleaseName()))
 		vc.Status.Phase = helmv1alpha1.Installing
-		if err := r.patchStatus(ctx, vc); err != nil {
+		if err := r.patchStatus(ctx, vc, fmt.Sprintf("update phase to %s", helmv1alpha1.Installing)); err != nil {
 			return err
 		}
-		values, err := r.extraValues(ctx, vc)
+		values, err := helper.ExtraValues(r.Config, vc)
 		if err != nil {
 			return err
 		}
-		_, err = ac.Install(vc.GetReleaseName(), vc.GetNamespace(), values, opts...)
+		rel, err := ac.Install(vc.GetReleaseName(), vc.GetNamespace(), values, opts...)
 		if err != nil {
+			return err
+		}
+		vc.Status.Manifest = rel.Manifest
+		if err := r.patchStatus(ctx, vc, "update manifest"); err != nil {
 			return err
 		}
 	case helper.ActionUpgrade:
 		var opts []helper.UpgradeOption
 		lg.Info(fmt.Sprintf("upgrading release: %s/%s", vc.GetNamespace(), vc.GetReleaseName()))
 		vc.Status.Phase = helmv1alpha1.Upgrading
-		if err := r.patchStatus(ctx, vc); err != nil {
+		if err := r.patchStatus(ctx, vc, fmt.Sprintf("update phase to %s", helmv1alpha1.Upgrading)); err != nil {
 			return err
 		}
-		values, err := r.extraValues(ctx, vc)
+		values, err := helper.ExtraValues(r.Config, vc)
 		if err != nil {
 			return err
 		}
-		_, err = ac.Upgrade(vc.GetReleaseName(), vc.GetNamespace(), values, opts...)
+		opts = append(opts, func(u *action.Upgrade) error {
+			u.DryRun = true
+			return nil
+		})
+		rel, err := ac.Upgrade(vc.GetReleaseName(), vc.GetNamespace(), values, opts...)
 		if err != nil {
 			return err
+		}
+		if vc.Status.Manifest != rel.Manifest {
+			var opts []helper.UpgradeOption
+			rel, err = ac.Upgrade(vc.GetReleaseName(), vc.GetNamespace(), values, opts...)
+			vc.Status.Manifest = rel.Manifest
+			if err := r.patchStatus(ctx, vc, "update manifest"); err != nil {
+				return err
+			}
+		} else {
+			lg.Info(fmt.Sprintf("manifest has not changed, ignore upgrad release: %s/%s",
+				vc.GetNamespace(), vc.GetReleaseName()))
 		}
 	case helper.ActionError:
 		lg.Error(errors.New(fmt.Sprintf("release %s/%s is in error state", vc.GetNamespace(), vc.GetReleaseName())), "")
 		vc.Status.Phase = helmv1alpha1.Failed
-		if err := r.patchStatus(ctx, vc); err != nil {
+		if err := r.patchStatus(ctx, vc, fmt.Sprintf("update phase to %s", helmv1alpha1.Failed)); err != nil {
 			return err
 		}
 		return errors.New(fmt.Sprintf("release %s/%s is in error state", vc.GetNamespace(), vc.GetReleaseName()))
@@ -137,7 +156,7 @@ func (r *Reconciler) reconcile(ctx context.Context, vc *helmv1alpha1.VirtualClus
 
 	vc.Status.AuthConfig = base64.StdEncoding.EncodeToString([]byte(config))
 	vc.Status.Phase = helmv1alpha1.Ready
-	if err := r.patchStatus(ctx, vc); err != nil {
+	if err := r.patchStatus(ctx, vc, fmt.Sprintf("update phase to %s", helmv1alpha1.Ready)); err != nil {
 		return err
 	}
 	return nil
@@ -154,44 +173,15 @@ func (r *Reconciler) delete(ctx context.Context, vc *helmv1alpha1.VirtualCluster
 	return err
 }
 
-func (r *Reconciler) patchStatus(ctx context.Context, vc *helmv1alpha1.VirtualCluster) error {
+func (r *Reconciler) patchStatus(ctx context.Context, vc *helmv1alpha1.VirtualCluster, msg string) error {
 	lg := log.FromContext(ctx)
 	key := client.ObjectKeyFromObject(vc)
 	latest := &helmv1alpha1.VirtualCluster{}
 	if err := r.Client.Get(ctx, key, latest); err != nil {
 		return err
 	}
-	lg.Info(fmt.Sprintf("update status for %s/%s", vc.GetNamespace(), vc.GetReleaseName()))
+	lg.Info(fmt.Sprintf("update status for %s/%s: %s", vc.GetNamespace(), vc.GetReleaseName(), msg))
 	return r.Client.Status().Patch(ctx, vc, client.MergeFrom(latest.DeepCopy()))
-}
-
-func (r *Reconciler) extraValues(ctx context.Context, vc *helmv1alpha1.VirtualCluster) (map[string]interface{}, error) {
-	cidr := helper.GetCIDR(r.Config, vc.GetNamespace())
-	rel, err := defaultValues()
-	if err != nil {
-		return nil, err
-	}
-	extraVals := fmt.Sprintf("vcluster.extraArgs={--service-cidr=%s}", cidr)
-	svcType := vc.GetServiceType()
-	if svcType != "" {
-		svcVal := fmt.Sprintf("service.type=%s", svcType)
-		err = strvals.ParseInto(svcVal, rel)
-		if err != nil {
-			return nil, err
-		}
-	}
-	err = strvals.ParseInto(extraVals, rel)
-	return rel, err
-}
-
-func defaultValues() (map[string]interface{}, error) {
-	vals := `
-storage:
-  size: 10Gi
-syncer:
-  extraArgs: ["--disable-sync-resources=ingresses"]
-`
-	return chartutil.ReadValues([]byte(vals))
 }
 
 // SetupWithManager sets up the controller with the Manager.
