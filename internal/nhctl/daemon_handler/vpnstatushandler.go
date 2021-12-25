@@ -87,7 +87,7 @@ func HandleVPNStatus(cmd *command.VPNOperateCommand) (interface{}, error) {
 	return nil, nil
 }
 
-func FromStrToConnectTotal(string2 string) *ConnectTotal {
+func FromStringToConnectInfo(string2 string) *ConnectTotal {
 	result := &ConnectTotal{list: sets.NewString()}
 	for _, s := range strings.Split(string2, "\n") {
 		if len(s) != 0 {
@@ -108,9 +108,9 @@ func (c *ConnectTotal) ToString() string {
 func ToStatus(m map[string]string) *status {
 	return &status{
 		reverse: FromStringToReverseTotal(m[util.REVERSE]),
-		connect: FromStrToConnectTotal(m[util.Connect]),
-		mac2ip:  remote.ToDHCP(m[util.MacToIP]).MacToIP(),
-		dhcp:    remote.FromString(m[util.DHCP]),
+		connect: FromStringToConnectInfo(m[util.Connect]),
+		mac2ip:  remote.FromStringToMac2IP(m[util.MacToIP]),
+		dhcp:    remote.FromStringToDHCP(m[util.DHCP]),
 	}
 }
 

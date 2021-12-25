@@ -267,7 +267,7 @@ func UpdateConnect(clientSet *kubernetes.Clientset, namespace string, f func(con
 		log.Warn(err)
 		return err
 	}
-	t := FromStrToConnectTotal(configMap.Data[util.Connect])
+	t := FromStringToConnectInfo(configMap.Data[util.Connect])
 	f(t.list, util.GetMacAddress().String())
 	configMap.Data[util.Connect] = t.ToString()
 	_, err = clientSet.CoreV1().ConfigMaps(namespace).Update(context.TODO(), configMap, v1.UpdateOptions{})

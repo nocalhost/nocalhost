@@ -68,7 +68,7 @@ type status struct {
 	// connection info, which machine connect to this namespace
 	connect *ConnectTotal
 	// mac to ip mapping
-	mac2ip map[string]string
+	mac2ip remote.DHCPRecordMap
 	// mac --> ips, this mac address rent those ip, needs to release ips while disconnect
 	dhcp map[string]sets.Int
 }
@@ -236,7 +236,7 @@ func (h *resourceHandler) OnAdd(obj interface{}) {
 
 			connectInfo.namespace = h.namespace
 			connectInfo.kubeconfigBytes = h.kubeconfigBytes
-			connectInfo.ip = status.mac2ip[util.GetMacAddress().String()]
+			connectInfo.ip = status.mac2ip.GetIPByMac(util.GetMacAddress().String())
 		}
 	}
 	modifyReverseInfo(h, status)
@@ -260,7 +260,7 @@ func (h *resourceHandler) OnUpdate(oldObj, newObj interface{}) {
 			go notifySudoDaemonToConnect(h.kubeconfigBytes, h.namespace)
 			connectInfo.namespace = h.namespace
 			connectInfo.kubeconfigBytes = h.kubeconfigBytes
-			connectInfo.ip = newStatus.mac2ip[util.GetMacAddress().String()]
+			connectInfo.ip = newStatus.mac2ip.GetIPByMac(util.GetMacAddress().String())
 		}
 	}
 	// if connected --> disconnected, needs to notify sudo daemon to connect
@@ -452,7 +452,7 @@ func communicateEachOther() {
 	if watcher != nil {
 		for _, i := range watcher.informer.GetStore().List() {
 			if cm, ok := i.(*corev1.ConfigMap); ok {
-				fromString := remote.FromString(cm.Data[util.DHCP])
+				fromString := remote.FromStringToDHCP(cm.Data[util.DHCP])
 				if v, found := fromString[util.GetMacAddress().String()]; found {
 					for _, ip := range v.List() {
 						_, _ = util.Ping(fmt.Sprintf("223.254.254.%v", ip))

@@ -23,11 +23,6 @@ import (
 	"time"
 )
 
-type DHCP interface {
-	RentIP() net.IPNet
-	ReleaseIP(ip net.IPNet)
-}
-
 type DHCPManager struct {
 	client    *kubernetes.Clientset
 	namespace string
@@ -81,7 +76,7 @@ func ToString(m map[string]sets.Int) string {
 	return sb.String()
 }
 
-func FromString(str string) map[string]sets.Int {
+func FromStringToDHCP(str string) map[string]sets.Int {
 	var result = make(map[string]sets.Int)
 	for _, line := range strings.Split(str, "\n") {
 		if split := strings.Split(line, util.Splitter); len(split) == 2 {
@@ -105,7 +100,8 @@ func GetAvailableIPs(m map[string]sets.Int) sets.Int {
 	available := sets.NewInt()
 	// network mask is 24, so available ip is from 223.254.254.2 - 223.254.254.254
 	for i := 2; i < 254; i++ {
-		if !used.Has(i) {
+		// 223.254.254.100 is reserved ip
+		if !used.Has(i) && i != 100 {
 			available.Insert(i)
 		}
 	}
@@ -119,7 +115,7 @@ func (d *DHCPManager) RentIP(random bool) (*net.IPNet, error) {
 		return nil, err
 	}
 	//split := strings.Split(get.Data["DHCP"], ",")
-	used := FromString(configMap.Data[util.DHCP])
+	used := FromStringToDHCP(configMap.Data[util.DHCP])
 	ps := GetAvailableIPs(used)
 	var ip int
 	if random {
@@ -193,15 +189,18 @@ func sortString(m []string) []string {
 	return s
 }
 
-func (d *DHCPManager) ReleaseIpToDHCP(ip *net.IPNet) error {
+func (d *DHCPManager) ReleaseIP(ips ...int) error {
 	configMap, err := d.client.CoreV1().ConfigMaps(d.namespace).Get(context.Background(), util.TrafficManager, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("failed to get dhcp, err: %v", err)
 		return err
 	}
-	used := FromString(configMap.Data[util.DHCP])
-	for k := range used {
-		used[k].Delete(int(ip.IP.To4()[3]))
+	used := FromStringToDHCP(configMap.Data[util.DHCP])
+	for _, ip := range ips {
+		for k := range used {
+			//used[k].Delete(int(ip.IP.To4()[3]))
+			used[k].Delete(ip)
+		}
 	}
 	configMap.Data[util.DHCP] = ToString(used)
 	_, err = d.client.CoreV1().ConfigMaps(d.namespace).Update(context.Background(), configMap, metav1.UpdateOptions{})
@@ -216,13 +215,13 @@ type DHCPRecordMap struct {
 	innerMap map[string]DHCPRecord
 }
 
-func (maps DHCPRecordMap) MacToIP() map[string]string {
-	result := make(map[string]string)
-	for _, record := range maps.innerMap {
-		result[record.Mac] = record.IP
-	}
-	return result
-}
+//func (maps DHCPRecordMap) MacToIP() map[string]string {
+//	result := make(map[string]string)
+//	for _, record := range maps.innerMap {
+//		result[record.Mac] = record.IP
+//	}
+//	return result
+//}
 
 type DHCPRecord struct {
 	Mac      string
@@ -230,8 +229,8 @@ type DHCPRecord struct {
 	Deadline time.Time
 }
 
-// ToDHCP Mac --> DHCPRecord
-func ToDHCP(str string) (result DHCPRecordMap) {
+// FromStringToMac2IP Mac --> DHCPRecord
+func FromStringToMac2IP(str string) (result DHCPRecordMap) {
 	result.innerMap = map[string]DHCPRecord{}
 	for _, s := range strings.Split(str, "\n") {
 		// mac:ip:deadline
@@ -256,24 +255,26 @@ func (maps *DHCPRecordMap) ToString() string {
 	return sb.String()
 }
 
-func (maps *DHCPRecordMap) GetIP() (ip string) {
-	if record, ok := maps.innerMap[util.GetMacAddress().String()]; ok {
+func (maps *DHCPRecordMap) ToMac2IPMap() map[string]string {
+	var result = make(map[string]string)
+	for _, record := range maps.innerMap {
+		result[record.Mac] = record.IP
+	}
+	return result
+}
+
+func (maps *DHCPRecordMap) GetIPByMac(mac string) (ip string) {
+	if record, ok := maps.innerMap[mac]; ok {
 		return record.IP
 	}
 	return
 }
 
-func (maps *DHCPRecordMap) RentIP(ip net.IP) *DHCPRecordMap {
-	s := util.GetMacAddress().String()
-	maps.innerMap[s] = DHCPRecord{
-		Mac:      s,
+func (maps *DHCPRecordMap) AddMacToIPRecord(mac string, ip net.IP) *DHCPRecordMap {
+	maps.innerMap[mac] = DHCPRecord{
+		Mac:      mac,
 		IP:       ip.String(),
 		Deadline: time.Now().Add(time.Second * 30),
 	}
 	return maps
-}
-
-// TODO rent ip daadline
-func (maps *DHCPRecordMap) RentDeadline(duration time.Duration) {
-
 }

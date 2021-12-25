@@ -46,7 +46,6 @@ type ConnectOptions struct {
 	localTunIP       *net.IPNet
 	trafficManagerIP string
 	dhcp             *remote.DHCPManager
-	ipUsed           []*net.IPNet
 	log              *log.Logger
 }
 
@@ -84,16 +83,21 @@ func (c *ConnectOptions) RentIP(random bool) (ip *net.IPNet, err error) {
 }
 
 func (c *ConnectOptions) ReleaseIP() error {
-	if c.ipUsed == nil {
-		return nil
+	configMap, err := c.clientset.CoreV1().ConfigMaps(c.Namespace).Get(context.Background(), util.TrafficManager, metav1.GetOptions{})
+	if err != nil {
+		return err
 	}
-	var err error
-	for _, ip := range c.ipUsed {
-		if err = c.dhcp.ReleaseIpToDHCP(ip); err != nil {
+	//split := strings.Split(get.Data["DHCP"], ",")
+	used := remote.FromStringToDHCP(configMap.Data[util.DHCP])
+	if rentips, found := used[util.GetMacAddress().String()]; found {
+		if err = c.dhcp.ReleaseIP(rentips.List()...); err != nil {
 			return err
 		}
 	}
-	return nil
+	delete(used, util.GetMacAddress().String())
+	configMap.Data[util.DHCP] = remote.ToString(used)
+	_, err = c.clientset.CoreV1().ConfigMaps(c.Namespace).Update(context.Background(), configMap, metav1.UpdateOptions{})
+	return err
 }
 
 func (c *ConnectOptions) createRemoteInboundPod() error {
@@ -456,12 +460,12 @@ func (c *ConnectOptions) GenerateTunIP(ctx context.Context) error {
 			}
 		}
 	}()
-	get, err := c.clientset.CoreV1().ConfigMaps(c.Namespace).Get(context.TODO(), util.TrafficManager, metav1.GetOptions{})
+	get, err := c.clientset.CoreV1().ConfigMaps(c.Namespace).Get(ctx, util.TrafficManager, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
-	dhcp := remote.ToDHCP(get.Data[util.MacToIP])
-	if ip := dhcp.GetIP(); len(ip) != 0 {
+	mac2IP := remote.FromStringToMac2IP(get.Data[util.MacToIP])
+	if ip := mac2IP.GetIPByMac(util.GetMacAddress().String()); len(ip) != 0 {
 		c.localTunIP = &net.IPNet{IP: net.ParseIP(ip), Mask: net.CIDRMask(24, 32)}
 		return nil
 	}
@@ -473,7 +477,7 @@ func (c *ConnectOptions) GenerateTunIP(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	get.Data[util.MacToIP] = dhcp.RentIP(c.localTunIP.IP).ToString()
+	get.Data[util.MacToIP] = mac2IP.AddMacToIPRecord(util.GetMacAddress().String(), c.localTunIP.IP).ToString()
 	if _, err = c.clientset.CoreV1().ConfigMaps(c.Namespace).Update(context.TODO(), get, metav1.UpdateOptions{}); err != nil {
 		return err
 	}
