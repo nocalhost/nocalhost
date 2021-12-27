@@ -7,6 +7,7 @@ package pkg
 
 import (
 	"context"
+	"fmt"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -42,18 +43,18 @@ func (d *DaemonSetHandler) ScaleToZero() (map[string]string, []v1.ContainerPort,
 	return update.Spec.Template.GetLabels(), update.Spec.Template.Spec.Containers[0].Ports, s, nil
 }
 
-func (d *DaemonSetHandler) Cancel() error {
-	return d.Reset()
-}
-
 func (d *DaemonSetHandler) getResource() string {
 	return "daemonsets"
+}
+
+func (d DaemonSetHandler) ToInboundPodName() string {
+	return fmt.Sprintf("%s-%s-shadow", d.getResource(), d.name)
 }
 
 func (d *DaemonSetHandler) Reset() error {
 	pod, err := d.clientset.CoreV1().
 		Pods(d.namespace).
-		Get(context.TODO(), ToInboundPodName(d.getResource(), d.name), metav1.GetOptions{})
+		Get(context.TODO(), d.ToInboundPodName(), metav1.GetOptions{})
 	if err != nil {
 		return err
 	}

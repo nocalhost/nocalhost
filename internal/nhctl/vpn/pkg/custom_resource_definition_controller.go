@@ -57,18 +57,18 @@ func (crd *CustomResourceDefinitionHandler) ScaleToZero() (map[string]string, []
 	return util.GetLabelSelector(info.Object).MatchLabels, util.GetPorts(info.Object), string(bytes), err
 }
 
-func (crd *CustomResourceDefinitionHandler) Cancel() error {
-	return crd.Reset()
-}
-
 func (crd CustomResourceDefinitionHandler) getResource() string {
 	return crd.resource
+}
+
+func (crd CustomResourceDefinitionHandler) ToInboundPodName() string {
+	return fmt.Sprintf("%s-%s-shadow", crd.getResource(), crd.name)
 }
 
 func (crd *CustomResourceDefinitionHandler) Reset() error {
 	get, err := crd.clientset.CoreV1().
 		Pods(crd.namespace).
-		Get(context.TODO(), ToInboundPodName(crd.getResource(), crd.name), metav1.GetOptions{})
+		Get(context.TODO(), crd.ToInboundPodName(), metav1.GetOptions{})
 	if err != nil {
 		return err
 	}

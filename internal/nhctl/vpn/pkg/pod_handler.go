@@ -66,18 +66,18 @@ func (pod *PodHandler) ScaleToZero() (map[string]string, []v1.ContainerPort, str
 	return util.GetLabelSelector(object.Object).MatchLabels, util.GetPorts(object.Object), string(bytes), err
 }
 
-func (pod *PodHandler) Cancel() error {
-	return pod.Reset()
-}
-
 func (pod PodHandler) getResource() string {
 	return "pods"
+}
+
+func (pod PodHandler) ToInboundPodName() string {
+	return pod.name
 }
 
 func (pod *PodHandler) Reset() error {
 	get, err := pod.clientset.CoreV1().
 		Pods(pod.namespace).
-		Get(context.TODO(), ToInboundPodName(pod.getResource(), pod.name), metav1.GetOptions{})
+		Get(context.TODO(), pod.ToInboundPodName(), metav1.GetOptions{})
 	if err != nil {
 		return err
 	}

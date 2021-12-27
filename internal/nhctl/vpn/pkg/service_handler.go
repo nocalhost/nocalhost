@@ -8,6 +8,7 @@ package pkg
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -98,18 +99,18 @@ func (s *ServiceHandler) ScaleToZero() (map[string]string, []v1.ContainerPort, s
 	}
 }
 
-func (s *ServiceHandler) Cancel() error {
-	return s.Reset()
-}
-
 func (s ServiceHandler) getResource() string {
 	return "services"
+}
+
+func (s ServiceHandler) ToInboundPodName() string {
+	return fmt.Sprintf("%s-%s-shadow", s.getResource(), s.name)
 }
 
 func (s *ServiceHandler) Reset() error {
 	get, err := s.clientset.CoreV1().
 		Pods(s.namespace).
-		Get(context.TODO(), ToInboundPodName(s.getResource(), s.name), metav1.GetOptions{})
+		Get(context.TODO(), s.ToInboundPodName(), metav1.GetOptions{})
 	if err != nil {
 		return err
 	}

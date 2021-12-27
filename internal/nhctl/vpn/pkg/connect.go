@@ -137,34 +137,41 @@ func (c *ConnectOptions) createRemoteInboundPod() error {
 }
 
 func (c *ConnectOptions) RemoveInboundPod() error {
-	tuple, parsed, err2 := util.SplitResourceTypeName(c.Workloads[0])
-	if !parsed || err2 != nil {
-		return errors.New("not need")
+	sc, err := getHandler(c.factory, c.clientset, c.Namespace, c.Workloads[0])
+	if err != nil {
+		return err
 	}
-	newName := ToInboundPodName(tuple.Resource, tuple.Name)
-	var sc Scalable
-	switch strings.ToLower(tuple.Resource) {
-	case "deployment", "deployments":
-		sc = NewDeploymentHandler(c.factory, c.clientset, c.Namespace, tuple.Name)
-	case "statefulset", "statefulsets":
-		sc = NewStatefulsetHandler(c.factory, c.clientset, c.Namespace, tuple.Name)
-	case "replicaset", "replicasets":
-		sc = NewReplicasHandler(c.factory, c.clientset, c.Namespace, tuple.Name)
-	case "service", "services":
-		sc = NewServiceHandler(c.factory, c.clientset, c.Namespace, tuple.Name)
-	case "pod", "pods":
-		sc = NewPodHandler(c.factory, c.clientset, c.Namespace, tuple.Name)
-	case "daemonset", "daemonsets":
-		sc = NewDaemonSetHandler(c.factory, c.clientset, c.Namespace, tuple.Name)
-	default:
-		sc = NewCustomResourceDefinitionHandler(c.factory, c.clientset, c.Namespace, tuple.Resource, tuple.Name)
-	}
-	if err := sc.Cancel(); err != nil {
+	if err = sc.Reset(); err != nil {
 		log.Warnln(err)
 		return err
 	}
-	util.DeletePod(c.clientset, c.Namespace, newName)
+	util.DeletePod(c.clientset, c.Namespace, sc.ToInboundPodName())
 	return nil
+}
+
+func getHandler(factory cmdutil.Factory, clientset *kubernetes.Clientset, namespace, workload string) (Scalable, error) {
+	tuple, parsed, err2 := util.SplitResourceTypeName(workload)
+	if !parsed || err2 != nil {
+		return nil, errors.New("not need")
+	}
+	var sc Scalable
+	switch strings.ToLower(tuple.Resource) {
+	case "deployment", "deployments":
+		sc = NewDeploymentHandler(factory, clientset, namespace, tuple.Name)
+	case "statefulset", "statefulsets":
+		sc = NewStatefulsetHandler(factory, clientset, namespace, tuple.Name)
+	case "replicaset", "replicasets":
+		sc = NewReplicasHandler(factory, clientset, namespace, tuple.Name)
+	case "service", "services":
+		sc = NewServiceHandler(factory, clientset, namespace, tuple.Name)
+	case "pod", "pods":
+		sc = NewPodHandler(factory, clientset, namespace, tuple.Name)
+	case "daemonset", "daemonsets":
+		sc = NewDaemonSetHandler(factory, clientset, namespace, tuple.Name)
+	default:
+		sc = NewCustomResourceDefinitionHandler(factory, clientset, namespace, tuple.Resource, tuple.Name)
+	}
+	return sc, nil
 }
 
 func (c *ConnectOptions) InitDHCP(ctx context.Context) error {
@@ -500,12 +507,15 @@ func (c *ConnectOptions) ConnectPingRemote() bool {
 }
 
 func (c *ConnectOptions) ReverePingLocal() bool {
-	tuple, _, _ := util.SplitResourceTypeName(c.Workloads[0])
-	_, err := util.Shell(
+	handler, err := getHandler(c.factory, c.clientset, c.Namespace, c.Workloads[0])
+	if err != nil {
+		return false
+	}
+	_, err = util.Shell(
 		c.clientset,
 		c.restclient,
 		c.config,
-		ToInboundPodName(tuple.Resource, tuple.Name),
+		handler.ToInboundPodName(),
 		c.Namespace,
 		fmt.Sprintf("ping %s -c 4", c.localTunIP),
 	)
@@ -516,10 +526,16 @@ func (c *ConnectOptions) Shell(_ context.Context, workload string) (string, erro
 	if len(workload) == 0 {
 		workload = c.Workloads[0]
 	}
-	tuple, parsed, err := util.SplitResourceTypeName(workload)
-	if !parsed || err != nil {
-		return "", errors.New("not need")
+	handler, err := getHandler(c.factory, c.clientset, c.Namespace, workload)
+	if err != nil {
+		return "", err
 	}
-	podName := ToInboundPodName(tuple.Resource, tuple.Name)
-	return util.Shell(c.clientset, c.restclient, c.config, podName, c.Namespace, "ping -c 4 "+c.localTunIP.IP.String())
+	return util.Shell(
+		c.clientset,
+		c.restclient,
+		c.config,
+		handler.ToInboundPodName(),
+		c.Namespace,
+		"ping -c 4 "+c.localTunIP.IP.String(),
+	)
 }

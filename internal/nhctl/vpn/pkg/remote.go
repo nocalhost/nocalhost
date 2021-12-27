@@ -131,28 +131,10 @@ func CreateInboundPod(
 	shadowTunIP,
 	routes string,
 ) error {
-	tuple, parsed, err := util.SplitResourceTypeName(workloads)
-	if !parsed || err != nil {
-		return errors.New("not need")
-	}
-	newName := ToInboundPodName(tuple.Resource, tuple.Name)
-	util.DeletePod(clientset, namespace, newName)
 	var sc Scalable
-	switch strings.ToLower(tuple.Resource) {
-	case "deployment", "deployments":
-		sc = NewDeploymentHandler(factory, clientset, namespace, tuple.Name)
-	case "statefulset", "statefulsets":
-		sc = NewStatefulsetHandler(factory, clientset, namespace, tuple.Name)
-	case "replicaset", "replicasets":
-		sc = NewReplicasHandler(factory, clientset, namespace, tuple.Name)
-	case "service", "services":
-		sc = NewServiceHandler(factory, clientset, namespace, tuple.Name)
-	case "pod", "pods":
-		sc = NewPodHandler(factory, clientset, namespace, tuple.Name)
-	case "daemonset", "daemonsets":
-		sc = NewDaemonSetHandler(factory, clientset, namespace, tuple.Name)
-	default:
-		sc = NewCustomResourceDefinitionHandler(factory, clientset, namespace, tuple.Resource, tuple.Name)
+	sc, err := getHandler(factory, clientset, namespace, workloads)
+	if err != nil {
+		return err
 	}
 	util.GetLoggerFromContext(ctx).Infoln("scaling workloads to 0...")
 	labels, ports, str, err := sc.ScaleToZero()
@@ -164,7 +146,7 @@ func CreateInboundPod(
 	zero := int64(0)
 	pod := v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      newName,
+			Name:      sc.ToInboundPodName(),
 			Namespace: namespace,
 			Labels:    labels,
 			// for restore
@@ -217,6 +199,7 @@ func CreateInboundPod(
 			PriorityClassName: "system-cluster-critical",
 		},
 	}
+	newName := sc.ToInboundPodName()
 	if _, err = clientset.CoreV1().Pods(namespace).Create(context.TODO(), &pod, metav1.CreateOptions{}); err != nil {
 		return err
 	}
