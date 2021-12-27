@@ -23,7 +23,6 @@ import (
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/const"
-	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/k8sutils"
 	"nocalhost/pkg/nhctl/log"
@@ -34,18 +33,17 @@ import (
 )
 
 // cache Searcher for each kubeconfig
-var searchMap, _ = simplelru.NewLRU(
-	20, func(_ interface{}, value interface{}) {
-		if value != nil {
-			if s, ok := value.(*Searcher); ok && s != nil {
-				go func() { s.Stop() }()
-			}
+var searchMap, _ = simplelru.NewLRU(20, func(_ interface{}, value interface{}) {
+	if value != nil {
+		if s, ok := value.(*Searcher); ok && s != nil {
+			s.Stop()
 		}
-	},
-)
-var searchMapLock sync.Mutex
+	}
+})
+var searchMapLock = &sync.Mutex{}
+
 var clusterMap = make(map[string]bool)
-var clusterMapLock sync.Mutex
+var clusterMapLock = &sync.Mutex{}
 
 // key: generateKey(kubeconfigBytes, namespace) value: []*restmapper.APIGroupResources
 var apiGroupResourcesMap sync.Map
@@ -56,7 +54,7 @@ type Searcher struct {
 	dynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory
 	// [string]*meta.RESTMapping
 	supportSchema *sync.Map // ResourceType: GvkGvrWithAlias
-	stopChannel   chan struct{}
+	stopChan      chan struct{}
 	// last used this searcher, for release informer resource
 	lastUsedTime time.Time
 }
@@ -299,8 +297,8 @@ func GetSearcherWithLRU(kubeconfigBytes []byte, namespace string) (search *Searc
 	}()
 	clusterKey := generateKey(kubeconfigBytes, namespace)
 	searchMapLock.Lock()
-	defer searchMapLock.Unlock()
 	searcher, exist := searchMap.Get(clusterKey)
+	searchMapLock.Unlock()
 	if !exist || searcher == nil {
 		kubeconfigPath := k8sutils.GetOrGenKubeConfigPath(string(kubeconfigBytes))
 		clientUtils, err := clientgoutils.NewClientGoUtils(kubeconfigPath, namespace)
@@ -325,16 +323,23 @@ func GetSearcherWithLRU(kubeconfigBytes []byte, namespace string) (search *Searc
 		if err != nil {
 			return nil, err
 		}
+		searchMapLock.Lock()
+		defer searchMapLock.Unlock()
 		log.Infof("Search map is len is %d", searchMap.Len()+1)
 		clusterKey = generateKey(kubeconfigBytes, namespace)
-		searchMap.Add(clusterKey, newSearcher)
+		if searcher, exist = searchMap.Get(clusterKey); exist && searcher != nil {
+			newSearcher.Stop()
+			search = searcher.(*Searcher)
+			return search, nil
+		} else {
+			searchMap.Add(clusterKey, newSearcher)
+			search = newSearcher
+			return search, nil
+		}
 	}
-	if searcher, exist = searchMap.Get(clusterKey); exist && searcher != nil {
-		search, _ = searcher.(*Searcher)
-		err = nil
-		return
-	}
-	return nil, errors.New("Error occurs while init informer searcher")
+	search = searcher.(*Searcher)
+	err = nil
+	return search, err
 }
 
 // calculate kubeconfig content's sha value as unique cluster id
@@ -441,23 +446,23 @@ func initSearcher(kubeconfigBytes []byte, namespace string, clientUtils *clientg
 		kubeconfigBytes:        kubeconfigBytes,
 		dynamicInformerFactory: dynamicInformerFactory,
 		supportSchema:          &supportedSchema,
-		stopChannel:            stopCRDChannel,
+		stopChan:               stopCRDChannel,
 	}
 	return newSearcher, nil
 }
 
+// Start wait searcher to close
+func (s *Searcher) Start() {
+	<-s.stopChan
+}
+
 // Stop to stop the searcher
 func (s *Searcher) Stop() {
-	//for i := 0; i < cap(s.stopChannel); i++ {
-	select {
-	case _, ok := <-s.stopChannel:
-		if ok {
-			s.stopChannel <- struct{}{}
+	defer func() {
+		if err := recover(); err != nil {
 		}
-	default:
-		s.stopChannel <- struct{}{}
-	}
-	//}
+	}()
+	close(s.stopChan)
 }
 
 func (s *Searcher) GetKubeconfigBytes() []byte {
@@ -797,7 +802,7 @@ func removeInformer(key string) {
 	searchMapLock.Lock()
 	defer searchMapLock.Unlock()
 	if searcher, exist := searchMap.Get(key); exist && searcher != nil {
-		go func() { searcher.(*Searcher).Stop() }()
+		searcher.(*Searcher).Stop()
 		searchMap.Remove(key)
 	}
 }
@@ -834,10 +839,7 @@ func init() {
 								if s, ok := get.(*Searcher); ok && s != nil {
 									t := time.Time{}
 									if s.lastUsedTime != t && time.Now().Sub(s.lastUsedTime).Hours() >= 24 {
-										go func() {
-											utils.RecoverFromPanic()
-											s.Stop()
-										}()
+										s.Stop()
 										searchMap.Remove(key)
 									}
 								}
