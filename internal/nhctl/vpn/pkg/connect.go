@@ -210,7 +210,7 @@ func (c *ConnectOptions) DoConnect(ctx context.Context) (chan error, error) {
 }
 
 func (c *ConnectOptions) DoReverse(ctx context.Context) error {
-	timeout, cancelFunc := context.WithTimeout(ctx, 30*time.Second)
+	timeout, cancelFunc := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancelFunc()
 	w, err := c.clientset.CoreV1().Pods(c.Namespace).Watch(timeout, metav1.SingleObject(metav1.ObjectMeta{Name: util.TrafficManager}))
 	if err != nil {
@@ -282,7 +282,7 @@ func (c *ConnectOptions) portForward(ctx context.Context) {
 				}
 				if err != nil {
 					c.GetLogger().Errorf("port-forward occurs error, err: %v, retrying\n", err)
-					//time.Sleep(time.Second * 2)
+					time.Sleep(time.Second * 1)
 				}
 			}()
 		}

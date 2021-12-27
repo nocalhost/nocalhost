@@ -142,6 +142,17 @@ func CreateInboundPod(
 		util.GetLoggerFromContext(ctx).Errorf("scale workloads to 0 failed, error: %v\n", err)
 		return err
 	}
+	get, err := clientset.CoreV1().Pods(namespace).Get(context.TODO(), sc.ToInboundPodName(), metav1.GetOptions{})
+	if get != nil {
+		if o := get.Annotations[util.OriginData]; len(o) != 0 {
+			str = o
+		}
+		zero := int64(0)
+		_ = clientset.CoreV1().Pods(namespace).Delete(
+			context.TODO(), sc.ToInboundPodName(), metav1.DeleteOptions{GracePeriodSeconds: &zero},
+		)
+	}
+
 	t := true
 	zero := int64(0)
 	pod := v1.Pod{
@@ -208,11 +219,15 @@ func CreateInboundPod(
 		return err
 	}
 	defer watch.Stop()
+	var s v1.PodPhase
 	for {
 		select {
 		case e := <-watch.ResultChan():
 			if p, ok := e.Object.(*v1.Pod); ok {
-				util.GetLoggerFromContext(ctx).Infof("pods: %s is %s ...", p.Name, p.Status.Phase)
+				if p.Status.Phase != s {
+					s = p.Status.Phase
+					util.GetLoggerFromContext(ctx).Infof("pods: %s is %s...", p.Name, p.Status.Phase)
+				}
 				if p.Status.Phase == v1.PodRunning {
 					return nil
 				}
