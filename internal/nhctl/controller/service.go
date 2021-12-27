@@ -404,18 +404,31 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 		return errors.WithStack(err)
 	}
 
-	log.Infof("Scale %s(%s) to 1", c.Name, c.Type.String())
-	for _, item := range c.DevModeAction.ScalePatches {
-		log.Infof("Patching %s", item.Patch)
-		if err := c.Client.Patch(c.Type.String(), c.Name, item.Patch, item.Type); err != nil {
-			return err
-		}
-	}
-	log.Info("Scale success")
-
+	// Check if already in DevMode
 	podTemplate, err := GetPodTemplateFromSpecPath(c.DevModeAction.PodTemplatePath, unstructuredObj.Object)
 	if err != nil {
 		return err
+	}
+
+	for _, container := range podTemplate.Spec.Containers {
+		if container.Name == "nocalhost-dev" || container.Name == "nocalhost-sidecar" {
+			return errors.New(fmt.Sprintf("Container %s already exists, you need to reset it first", container.Name))
+		}
+	}
+
+	m := map[string]interface{}{"metadata": map[string]interface{}{"annotations": map[string]string{_const.OriginWorkloadDefinition: string(originalSpecJson)}}}
+	mBytes, _ := json.Marshal(m)
+	if err = c.Client.Patch(c.Type.String(), c.Name, string(mBytes), "merge"); err != nil {
+		return err
+	}
+	log.Info("Original manifest recorded")
+
+	log.Info("Executing ScalePatches")
+	for _, item := range c.DevModeAction.ScalePatches {
+		log.Infof("Patching %s(%s)", item.Patch, item.Type)
+		if err := c.Client.Patch(c.Type.String(), c.Name, item.Patch, item.Type); err != nil {
+			return err
+		}
 	}
 
 	podSpec := &podTemplate.Spec
@@ -427,13 +440,6 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 	}
 
 	patchDevContainerToPodSpec(podSpec, ops.Container, devContainer, sideCarContainer, devModeVolumes)
-
-	m := map[string]interface{}{"metadata": map[string]interface{}{"annotations": map[string]string{_const.OriginWorkloadDefinition: string(originalSpecJson)}}}
-	mBytes, _ := json.Marshal(m)
-	if err = c.Client.Patch(c.Type.String(), c.Name, string(mBytes), "merge"); err != nil {
-		return err
-	}
-	log.Info("Original manifest recorded")
 
 	if !c.DevModeAction.Create {
 		log.Info("Patching development container...")

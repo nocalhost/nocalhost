@@ -28,7 +28,7 @@ import (
 
 var (
 	deployment  string
-	serviceType string
+	serviceType = "deployment"
 	pod         string
 	shell       string
 )
@@ -42,7 +42,7 @@ func init() {
 		"k8s deployment your developing service exists",
 	)
 	devStartCmd.Flags().StringVarP(
-		&serviceType, "controller-type", "t", "",
+		&serviceType, "controller-type", "t", "deployment",
 		"kind of k8s controller,such as deployment,statefulSet",
 	)
 	devStartCmd.Flags().StringVarP(

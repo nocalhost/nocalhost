@@ -27,7 +27,7 @@ func init() {
 	execCmd.Flags().StringVarP(&execFlags.Container, "container", "", "", "container name")
 	execCmd.Flags().StringVarP(&execFlags.SvcName, "deployment", "d", "",
 		"k8s deployment which your developing service exists")
-	execCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "",
+	execCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "deployment",
 		"kind of k8s controller,such as deployment,statefulSet")
 	rootCmd.AddCommand(execCmd)
 }

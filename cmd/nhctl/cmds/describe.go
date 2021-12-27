@@ -19,7 +19,7 @@ func init() {
 	describeCmd.Flags().StringVarP(&deploy, "deployment", "d", "",
 		"k8s deployment which your developing service exists",
 	)
-	describeCmd.Flags().StringVarP(&serviceType, "type", "t", "", "specify service type")
+	describeCmd.Flags().StringVarP(&serviceType, "type", "t", "deployment", "specify service type")
 	rootCmd.AddCommand(describeCmd)
 }
 
