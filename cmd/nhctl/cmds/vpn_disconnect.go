@@ -78,9 +78,7 @@ var disconnectCmd = &cobra.Command{
 			}); err != nil {
 				wd, _ := os.Getwd()
 				filename := filepath.Join(wd, "wintun.dll")
-				if err = os.Rename(filename, filepath.Join(os.TempDir(), "wintun.dll")); err != nil {
-					log.Warn(err)
-				}
+				_ = os.Rename(filename, filepath.Join(os.TempDir(), "wintun.dll"))
 			}
 		}
 	},

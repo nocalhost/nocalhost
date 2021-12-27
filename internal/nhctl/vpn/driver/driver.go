@@ -6,21 +6,18 @@
 package driver
 
 import (
-	log "github.com/sirupsen/logrus"
 	"k8s.io/client-go/util/retry"
 	"nocalhost/internal/nhctl/vpn/driver/wintun"
 	"os"
 	"path/filepath"
 )
 
-func InstallWireGuardTunDriver() {
-	if err := retry.OnError(retry.DefaultRetry, func(err error) bool {
+func InstallWireGuardTunDriver() error {
+	return retry.OnError(retry.DefaultRetry, func(err error) bool {
 		return err != nil
 	}, func() error {
 		return wintun.InstallWintunDriver()
-	}); err != nil {
-		log.Warn(err)
-	}
+	})
 }
 
 func UninstallWireGuardTunDriver() error {

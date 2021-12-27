@@ -3,6 +3,7 @@ package daemon_handler
 import (
 	"context"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -289,8 +290,8 @@ func (h *resourceHandler) OnDelete(obj interface{}) {
 // release resource handler will stop watcher
 func release(kubeconfigBytes []byte, namespace string) {
 	// needs to notify sudo daemon to update connect namespace
-	fmt.Println("needs to notify sudo daemon to update connect namespace, this should not to be happen")
-	fmt.Printf("current ns: %s, to be repleaded: %s\n", connectInfo.namespace, namespace)
+	log.Warn("needs to notify sudo daemon to update connect namespace, this should not to be happen")
+	log.Warnf("current ns: %s, to be repleaded: %s\n", connectInfo.namespace, namespace)
 
 	//ReleaseWatcher(kubeconfigBytes, namespace)
 	if clientset, err := util.GetClientSetByKubeconfigBytes(kubeconfigBytes); err == nil {

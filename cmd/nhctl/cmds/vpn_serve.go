@@ -16,8 +16,8 @@ import (
 var config pkg.Route
 
 func init() {
-	ServerCmd.Flags().StringArrayVarP(&config.ServeNodes, "nodeCommand", "L", []string{}, "command needs to be executed")
-	ServerCmd.Flags().StringVarP(&config.ChainNode, "chainCommand", "F", "", "command needs to be executed")
+	ServerCmd.Flags().StringArrayVarP(&config.ServeNodes, "node", "L", []string{}, "server node")
+	ServerCmd.Flags().StringVarP(&config.ChainNode, "chain", "F", "", "forward chain node")
 	ServerCmd.Flags().BoolVar(&util.Debug, "debug", false, "true/false")
 	vpnCmd.AddCommand(ServerCmd)
 }

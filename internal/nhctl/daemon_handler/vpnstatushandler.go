@@ -3,11 +3,7 @@ package daemon_handler
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
-	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/vpn/remote"
 	"nocalhost/internal/nhctl/vpn/util"
 	"strings"
@@ -71,25 +67,14 @@ func (c *ConnectTotal) IsConnected() bool {
 	return c.list.Has(util.GetMacAddress().String())
 }
 
-// todo
-func HandleVPNStatus(cmd *command.VPNOperateCommand) (interface{}, error) {
-	kubeconfigBytes, _ := ioutil.ReadFile(cmd.KubeConfig)
-	config, err := clientcmd.RESTConfigFromKubeConfig(kubeconfigBytes)
-	if err != nil {
-		return nil, err
-	}
-	clientset, err1 := kubernetes.NewForConfig(config)
-	if err1 != nil {
-	}
-	GetOrGenerateConfigMapWatcher(kubeconfigBytes, cmd.Namespace, clientset.CoreV1().RESTClient())
-	if connectInfo.IsEmpty() {
-	}
+// HandleVPNStatus todo
+func HandleVPNStatus() (interface{}, error) {
 	return nil, nil
 }
 
-func FromStringToConnectInfo(string2 string) *ConnectTotal {
+func FromStringToConnectInfo(str string) *ConnectTotal {
 	result := &ConnectTotal{list: sets.NewString()}
-	for _, s := range strings.Split(string2, "\n") {
+	for _, s := range strings.Split(str, "\n") {
 		if len(s) != 0 {
 			result.list.Insert(s)
 		}

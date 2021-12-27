@@ -29,13 +29,11 @@ var vpnStatusCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		client, err := daemon_client.GetDaemonClient(false)
 		if err != nil {
-			log.Warn(err)
-			return
+			log.Fatal(err)
 		}
-		must(Prepare())
-		result, err := client.SendVPNStatusCommand(kubeConfig, nameSpace, workloads)
+		result, err := client.SendVPNStatusCommand()
 		if err != nil {
-			log.Warn(err)
+			log.Fatal(err)
 			return
 		}
 		marshal, _ := yaml.Marshal(result)

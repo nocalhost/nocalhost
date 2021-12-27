@@ -496,14 +496,10 @@ func (d *DaemonClient) SendSudoVPNOperateCommand(
 	return d.sendAndWaitForStream(bys)
 }
 
-func (d *DaemonClient) SendVPNStatusCommand(kubeconfig, ns string, workloads string) (interface{}, error) {
+func (d *DaemonClient) SendVPNStatusCommand() (interface{}, error) {
 	cmd := &command.VPNOperateCommand{
 		CommandType: command.VPNStatus,
 		ClientStack: string(debug.Stack()),
-
-		KubeConfig: kubeconfig,
-		Namespace:  ns,
-		Resource:   workloads,
 	}
 	bys, err := json.Marshal(cmd)
 	if err != nil {

@@ -35,7 +35,7 @@ var reconnectCmd = &cobra.Command{
 	PreRun: func(*cobra.Command, []string) {
 		util.InitLogger(util.Debug)
 		if util.IsWindows() {
-			driver.InstallWireGuardTunDriver()
+			_ = driver.InstallWireGuardTunDriver()
 		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {

@@ -469,7 +469,7 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 				if err = json.Unmarshal(bys, cmd); err != nil {
 					return nil, errors.Wrap(err, "")
 				}
-				return daemon_handler.HandleVPNStatus(cmd)
+				return daemon_handler.HandleVPNStatus()
 			},
 		)
 	}
