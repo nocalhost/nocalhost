@@ -20,24 +20,6 @@ import (
 var supportedSvcType map[base.SvcType]base.DevModeAction
 var buildInGvkList []*schema.GroupVersionKind
 
-const (
-	Deployment       base.SvcType = "deployment"
-	StatefulSet      base.SvcType = "statefulset"
-	DaemonSet        base.SvcType = "daemonset"
-	Job              base.SvcType = "job"
-	CronJob          base.SvcType = "cronjob"
-	Pod              base.SvcType = "pod"
-	CloneSetV1Alpha1 base.SvcType = "clonesets.v1alpha1.apps.kruise.io"
-)
-
-//func SvcTypeIsBuildIn(svcType base.SvcType) bool {
-//	if svcType == Deployment || svcType == StatefulSet || svcType == DaemonSet ||
-//		svcType == Job || svcType == CronJob || svcType == Pod {
-//		return true
-//	}
-//	return false
-//}
-
 func IsBuildInGvk(gvk *schema.GroupVersionKind) bool {
 	for _, kind := range buildInGvkList {
 		if gvk.Kind == kind.Kind && gvk.Version == kind.Version && gvk.Group == kind.Group {
@@ -49,13 +31,19 @@ func IsBuildInGvk(gvk *schema.GroupVersionKind) bool {
 
 func init() {
 	supportedSvcType = make(map[base.SvcType]base.DevModeAction, 0)
-	supportedSvcType[Deployment] = DefaultDevModeAction
-	supportedSvcType[StatefulSet] = StatefulSetDevModeAction
-	supportedSvcType[DaemonSet] = DaemonSetDevModeAction
-	supportedSvcType[Job] = JobDevModeAction
-	supportedSvcType[CronJob] = CronJobDevModeAction
-	supportedSvcType[Pod] = DefaultDevModeAction // Todo
-	supportedSvcType[CloneSetV1Alpha1] = DefaultDevModeAction
+	supportedSvcType[base.Deployment] = DefaultDevModeAction
+	supportedSvcType[base.StatefulSet] = DefaultDevModeAction
+	supportedSvcType[base.DaemonSet] = DaemonSetDevModeAction
+	supportedSvcType[base.Job] = JobDevModeAction
+	supportedSvcType[base.CronJob] = CronJobDevModeAction
+	supportedSvcType[base.Pod] = DefaultDevModeAction // Todo
+
+	// Kruise
+	supportedSvcType["clonesets.v1alpha1.apps.kruise.io"] = DefaultDevModeAction
+	supportedSvcType["statefulsets.v1beta1.apps.kruise.io"] = DefaultDevModeAction
+	supportedSvcType["daemonsets.v1alpha1.apps.kruise.io"] = DaemonSetDevModeAction
+	supportedSvcType["advancedcronjobs.v1alpha1.apps.kruise.io"] = KruiseCronJobDevModeAction
+	supportedSvcType["broadcastjobs.v1alpha1.apps.kruise.io"] = JobDevModeAction
 
 	buildInGvkList = []*schema.GroupVersionKind{
 		{Group: "apps", Version: "v1", Kind: "Deployment"},
@@ -109,18 +97,10 @@ var (
 		PodTemplatePath: "/spec/template",
 	}
 
-	StatefulSetDevModeAction = base.DevModeAction{
-		ScalePatches: []base.PatchItem{{
-			Patch: `[{"op":"replace","path":"/spec/replicas","value":1}]`,
-			Type:  "json",
-		}},
-		PodTemplatePath: "/spec/template",
-	}
-
 	DaemonSetDevModeAction = base.DevModeAction{
 		ScalePatches: []base.PatchItem{{
-			Patch: `{"spec":{"template": {"spec": {"nodeName": "nocalhost.unreachable"}}}}`,
-			Type:  "strategic",
+			Patch: `[{"op":"replace","path": "/spec/template/spec/nodeName", "value": "nocalhost.unreachable"}]`,
+			Type:  "json",
 		}},
 		PodTemplatePath: "/spec/template",
 		Create:          true,
@@ -137,6 +117,15 @@ var (
 			Type:  "strategic",
 		}},
 		PodTemplatePath: "/spec/jobTemplate/spec/template",
+		Create:          true,
+	}
+
+	KruiseCronJobDevModeAction = base.DevModeAction{
+		ScalePatches: []base.PatchItem{{
+			Patch: `[{"op":"replace","path": "/spec/suspend", "value": true}]`,
+			Type:  "json",
+		}},
+		PodTemplatePath: "/spec/template/broadcastJobTemplate/spec/template",
 		Create:          true,
 	}
 )

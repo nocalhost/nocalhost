@@ -28,7 +28,7 @@ func (c *Controller) BuildPodController() pod_controller.PodController {
 			return &DuplicateDevModeController{Controller: c}
 		}
 		return &DefaultController{Controller: c}
-	case base.Job, base.CronJob, base.CloneSetV1Alpha1:
+	case base.Job, base.CronJob:
 		return &DefaultController{Controller: c}
 	case base.Pod:
 		if c.DevModeType == profile.DuplicateDevMode {
