@@ -61,10 +61,8 @@ func (r *DuplicateRawPodController) ReplaceImage(ctx context.Context, ops *model
 		}
 	}
 
-	labelsMap, err := r.getDuplicateLabelsMap()
-	if err != nil {
-		return err
-	}
+	labelsMap := r.getDuplicateLabelsMap()
+
 	originalPod.Name = r.getDuplicateResourceName()
 	originalPod.Labels = labelsMap
 	originalPod.Status = corev1.PodStatus{}

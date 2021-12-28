@@ -339,48 +339,10 @@ func AddItemToUnstructuredMap(path string, u map[string]interface{}, key string,
 	return nil
 }
 
-func (c *Controller) PatchDuplicateInfo(u map[string]interface{}) error {
-	labelsMap, err := c.getDuplicateLabelsMap()
-	if err != nil {
-		return err
-	}
+func (c *Controller) PatchDuplicateInfo(u *unstructured.Unstructured) {
 
-	metaM, ok := u["metadata"]
-	if !ok {
-		return errors.New("metadata not found")
-	}
+	u.SetName(c.getDuplicateResourceName())
+	u.SetLabels(c.getDuplicateLabelsMap())
 
-	mm, ok := metaM.(map[string]interface{})
-	if !ok {
-		return errors.New("metadata invalid")
-	}
-
-	//dep.Name = d.getDuplicateResourceName()
-	mm["name"] = c.getDuplicateResourceName()
-	mm["labels"] = labelsMap
-
-	delete(mm, "resourceVersion") //dep.ResourceVersion = ""
-	delete(u, "status")           //dep.Status = appsv1.DeploymentStatus{}
-
-	// todo
-	//dep.Spec.Selector = &metav1.LabelSelector{MatchLabels: labelsMap}
-	pathItems := strings.Split(c.DevModeAction.PodTemplatePath, "/")
-	path := strings.Join(pathItems[:len(pathItems)-1], "/")
-	lm := map[string]interface{}{"matchLabels": labelsMap}
-	err = AddItemToUnstructuredMap(path, u, "selector", lm)
-	if err != nil {
-		return err
-	}
-
-	li := map[string]interface{}{}
-	for s, s2 := range labelsMap {
-		li[s] = s2
-	}
-
-	//dep.Spec.Template.Labels = labelsMap
-	err = AddItemToUnstructuredMap(c.DevModeAction.PodTemplatePath+"/"+"metadata", u, "labels", li)
-	if err != nil {
-		return err
-	}
-	return nil
+	u.SetResourceVersion("")
 }

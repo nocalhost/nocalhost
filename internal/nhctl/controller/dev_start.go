@@ -198,7 +198,6 @@ func (c *Controller) genWorkDirAndPVAndMounts(container, storageClass string, du
 
 	var workDirDefinedInPersistVolume bool // if workDir is specified in persistentVolumeDirs
 	var workDirResideInPersistVolumeDirs bool
-	var err error
 	persistentVolumes := c.GetPersistentVolumeDirs(container)
 	for index, persistentVolume := range persistentVolumes {
 		if persistentVolume.Path == "" {
@@ -209,11 +208,7 @@ func (c *Controller) genWorkDirAndPVAndMounts(container, storageClass string, du
 		// Check if pvc is already exist
 		labels := map[string]string{}
 		if duplicateDevMode {
-			labels, err = c.getDuplicateLabelsMap()
-			if err != nil {
-				log.WarnE(err, "")
-				continue
-			}
+			labels = c.getDuplicateLabelsMap()
 			labels[_const.DevWorkloadIgnored] = "false"
 			labels[_const.AppLabel] = c.AppName
 		} else {
