@@ -31,6 +31,7 @@ const (
 	VPNOperate            DaemonCommandType = "VPNOperate"
 	SudoVPNOperate        DaemonCommandType = "SudoVPNOperate"
 	VPNStatus             DaemonCommandType = "VPNStatus"
+	SudoVPNStatus         DaemonCommandType = "SudoVPNStatus"
 	AuthCheck             DaemonCommandType = "AuthCheck"
 
 	PREVIEW_VERSION = 0

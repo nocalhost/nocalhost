@@ -465,11 +465,13 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 	case command.VPNStatus:
 		err = Process(
 			conn, func(conn net.Conn) (interface{}, error) {
-				cmd := &command.VPNOperateCommand{}
-				if err = json.Unmarshal(bys, cmd); err != nil {
-					return nil, errors.Wrap(err, "")
-				}
 				return daemon_handler.HandleVPNStatus()
+			},
+		)
+	case command.SudoVPNStatus:
+		err = Process(
+			conn, func(conn net.Conn) (interface{}, error) {
+				return daemon_handler.HandleSudoVPNStatus()
 			},
 		)
 	}

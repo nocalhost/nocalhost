@@ -19,6 +19,10 @@ import (
 var connected *pkg.ConnectOptions
 var lock = &sync.Mutex{}
 
+func HandleSudoVPNStatus() (interface{}, error) {
+	return connected, nil
+}
+
 // HandleSudoVPNOperate sudo daemon, vpn executor
 func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) error {
 	preCheck(cmd)

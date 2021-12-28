@@ -6,11 +6,13 @@
 package cmds
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/daemon_client"
+	"nocalhost/internal/nhctl/vpn/pkg"
 	"nocalhost/internal/nhctl/vpn/util"
-	"nocalhost/pkg/nhctl/log"
 	"sigs.k8s.io/yaml"
 )
 
@@ -27,16 +29,58 @@ var vpnStatusCmd = &cobra.Command{
 	Short: "status",
 	Long:  `status`,
 	Run: func(cmd *cobra.Command, args []string) {
-		client, err := daemon_client.GetDaemonClient(false)
-		if err != nil {
-			log.Fatal(err)
+		var n name
+		if client, err := daemon_client.GetDaemonClient(false); err == nil {
+			if command, err := client.SendVPNStatusCommand(); err == nil {
+				if marshal, err := json.Marshal(command); err == nil {
+					var result cluster
+					if err = json.Unmarshal(marshal, &result); err == nil {
+						n.Actual = result
+					} else {
+						fmt.Println(err)
+					}
+				} else {
+					fmt.Println(err)
+				}
+			} else {
+				fmt.Println(err)
+			}
+		} else {
+			fmt.Println(err)
 		}
-		result, err := client.SendVPNStatusCommand()
-		if err != nil {
-			log.Fatal(err)
-			return
+		if sudoclient, err := daemon_client.GetDaemonClient(true); err == nil {
+			if command, err := sudoclient.SendSudoVPNStatusCommand(); err == nil {
+				if marshal, err := json.Marshal(command); err == nil {
+					var result pkg.ConnectOptions
+					if err = json.Unmarshal(marshal, &result); err == nil {
+						n.Expected = cluster{
+							Namespace:  result.Namespace,
+							Kubeconfig: string(result.KubeconfigBytes),
+						}
+					} else {
+						fmt.Println(err)
+					}
+				} else {
+					fmt.Println(err)
+				}
+			} else {
+				fmt.Println(err)
+			}
+		} else {
+			fmt.Println(err)
 		}
-		marshal, _ := yaml.Marshal(result)
+		marshal, _ := yaml.Marshal(n)
 		println(string(marshal))
 	},
+}
+
+type name struct {
+	Expected cluster
+	Actual   cluster
+	Equal    bool
+}
+
+type cluster struct {
+	Namespace  string
+	Kubeconfig string
 }

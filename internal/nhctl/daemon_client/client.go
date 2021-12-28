@@ -512,6 +512,22 @@ func (d *DaemonClient) SendVPNStatusCommand() (interface{}, error) {
 	return result, nil
 }
 
+func (d *DaemonClient) SendSudoVPNStatusCommand() (interface{}, error) {
+	cmd := &command.VPNOperateCommand{
+		CommandType: command.SudoVPNStatus,
+		ClientStack: string(debug.Stack()),
+	}
+	bys, err := json.Marshal(cmd)
+	if err != nil {
+		return nil, errors.Wrap(err, "")
+	}
+	var result interface{}
+	if err = d.sendAndWaitForResponse(bys, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
 // sendDataToDaemonServer send data only to daemon
 func (d *DaemonClient) sendDataToDaemonServer(data []byte) error {
 	baseCmd := command.BaseCommand{}

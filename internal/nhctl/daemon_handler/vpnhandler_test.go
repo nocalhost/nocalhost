@@ -2,11 +2,13 @@ package daemon_handler
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/daemon_server/command"
+	"nocalhost/internal/nhctl/vpn/pkg"
 	"nocalhost/internal/nhctl/vpn/util"
 	"sync"
 	"testing"
@@ -82,4 +84,16 @@ func TestMaps(t *testing.T) {
 
 type a struct {
 	name string
+}
+
+func TestStruct(t *testing.T) {
+	connected = &pkg.ConnectOptions{
+		KubeconfigBytes: []byte("kube"),
+		Namespace:       "ns",
+	}
+	vpnStatus, err := HandleVPNStatus()
+	fmt.Println(err)
+	marshal, err := json.Marshal(vpnStatus)
+	fmt.Println(err)
+	fmt.Println(string(marshal))
 }

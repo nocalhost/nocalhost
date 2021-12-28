@@ -1,13 +1,11 @@
 package daemon_handler
 
 import (
-	"context"
 	"fmt"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"nocalhost/internal/nhctl/vpn/remote"
 	"nocalhost/internal/nhctl/vpn/util"
 	"strings"
-	"sync"
 )
 
 type HealthEnum string
@@ -27,20 +25,6 @@ func (e HealthEnum) String() string {
 
 func (m ModeEnum) String() string {
 	return string(m)
-}
-
-//var status *VPNStatus
-//var statusLock sync.Mutex
-
-// status of mine
-var connectHealthStatus *Func
-
-// resources --> health
-var reverseHeathStatus sync.Map
-
-type Func struct {
-	health HealthEnum
-	f      context.CancelFunc
 }
 
 type ReverseTotal struct {
@@ -67,9 +51,17 @@ func (c *ConnectTotal) IsConnected() bool {
 	return c.list.Has(util.GetMacAddress().String())
 }
 
-// HandleVPNStatus todo
 func HandleVPNStatus() (interface{}, error) {
-	return nil, nil
+	if connected == nil {
+		return nil, nil
+	}
+	return struct {
+		Namespace  string
+		Kubeconfig string
+	}{
+		Namespace:  connected.Namespace,
+		Kubeconfig: string(connected.KubeconfigBytes),
+	}, nil
 }
 
 func FromStringToConnectInfo(str string) *ConnectTotal {
