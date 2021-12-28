@@ -119,28 +119,19 @@ func (s *ServiceHandler) Reset() error {
 
 func restore(factory cmdutil.Factory, clientset *kubernetes.Clientset, namespace string, data string) error {
 	if o := data; len(o) != 0 {
-		var resourceTupleList []util.ResourceTupleWithScale
+		var resourceTupleList util.ResourceTupleWithScale
 		if err := json.Unmarshal([]byte(o), &resourceTupleList); err == nil {
-			for _, resourceTuple := range resourceTupleList {
-				if err = util.UpdateReplicasScale(clientset, namespace, resourceTuple); err != nil {
-					return err
-				}
-			}
+			_ = util.UpdateReplicasScale(clientset, namespace, resourceTupleList)
 		}
-		var list []string
-		if err := json.Unmarshal([]byte(o), &list); err == nil {
-			for _, l := range list {
-				var u unstructured.Unstructured
-				if err = json.Unmarshal([]byte(l), &u); err == nil {
-					if client, err := factory.DynamicClient(); err == nil {
-						gvrResource := client.Resource(schema.GroupVersionResource{
-							Group:    u.GetObjectKind().GroupVersionKind().Group,
-							Version:  u.GetObjectKind().GroupVersionKind().Version,
-							Resource: strings.ToLower(u.GetObjectKind().GroupVersionKind().Kind) + "s",
-						})
-						gvrResource.Namespace(namespace).Create(context.TODO(), &u, metav1.CreateOptions{})
-					}
-				}
+		var u unstructured.Unstructured
+		if err := json.Unmarshal([]byte(o), &u); err == nil {
+			if client, err := factory.DynamicClient(); err == nil {
+				gvrResource := client.Resource(schema.GroupVersionResource{
+					Group:    u.GetObjectKind().GroupVersionKind().Group,
+					Version:  u.GetObjectKind().GroupVersionKind().Version,
+					Resource: strings.ToLower(u.GetObjectKind().GroupVersionKind().Kind) + "s",
+				})
+				gvrResource.Namespace(namespace).Create(context.TODO(), &u, metav1.CreateOptions{})
 			}
 		}
 	}

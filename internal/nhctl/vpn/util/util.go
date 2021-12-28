@@ -316,7 +316,7 @@ func GetAndConsumeControllerObject(f cmdutil.Factory, namespace string, label la
 func GetLabelSelector(object k8sruntime.Object) *metav1.LabelSelector {
 	u := object.(*unstructured.Unstructured)
 	stringMap, _, err := unstructured.NestedStringMap(u.Object, "spec", "selector")
-	if err == nil {
+	if err == nil && len(stringMap) != 0 {
 		return &metav1.LabelSelector{MatchLabels: stringMap}
 	}
 	return &metav1.LabelSelector{MatchLabels: u.GetLabels()}

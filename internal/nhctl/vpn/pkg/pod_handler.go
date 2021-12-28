@@ -95,7 +95,7 @@ func (pod *PodHandler) Reset() error {
 					Version:  r.GetObjectKind().GroupVersionKind().Version,
 					Resource: strings.ToLower(r.GetObjectKind().GroupVersionKind().Kind) + "s",
 				}
-				_, _ = client.Resource(gvr).Create(context.TODO(), &r, metav1.CreateOptions{})
+				client.Resource(gvr).Namespace(pod.namespace).Create(context.TODO(), &r, metav1.CreateOptions{})
 			}
 		}
 	}
