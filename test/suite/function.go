@@ -43,8 +43,8 @@ func Hook(client runner.Client) {
 	)
 }
 
-func HelmAdaption(client runner.Client) {
-	util.Retry(
+func HelmAdaption(client runner.Client) error {
+	return util.Retry(
 		"HelmAdaption", []func() error{
 			func() error {
 				return util.TimeoutFunc(
@@ -134,31 +134,36 @@ func HelmAdaption(client runner.Client) {
 	)
 }
 
-func PortForward(client runner.Client, module, moduleType string) {
+func PortForward(client runner.Client, module, moduleType string) error {
 	port, err := ports.GetAvailablePort()
 	if err != nil {
 		port = 49088
 	}
 
-	util.Retry(
+	err = util.Retry(
 		fmt.Sprintf("PortForward-%s-%s", moduleType, module), []func() error{
 			func() error { return testcase.PortForwardStartT(client, module, moduleType, port) },
 		},
 	)
+	if err != nil {
+		return err
+	}
+
 	funcs := []func() error{
 		func() error { return testcase.PortForwardCheck(port) },
 		func() error { return testcase.StatusCheckPortForward(client, module, moduleType, port) },
 		func() error { return testcase.PortForwardEndT(client, module, moduleType, port) },
 	}
-	util.Retry(fmt.Sprintf("PortForward-%s-%s", moduleType, module), funcs)
+	return util.Retry(fmt.Sprintf("PortForward-%s-%s", moduleType, module), funcs)
 }
 
-func PortForwardService(client runner.Client) {
+func PortForwardService(client runner.Client) error {
 	module := "productpage"
 	remotePort := 9080
 	localPort, err := ports.GetAvailablePort()
 	if err != nil {
-		panic(errors.Errorf("fail to get available port, err: %s", err))
+		//panic(errors.Errorf("fail to get available port, err: %s", err))
+		return err
 	}
 	cmd := client.GetKubectl().Command(
 		context.Background(),
@@ -168,15 +173,26 @@ func PortForwardService(client runner.Client) {
 	)
 	log.Infof("Running command: %v", cmd.Args)
 	if err = cmd.Start(); err != nil {
-		panic(errors.Errorf("fail to port-forward expose service-%s, err: %s", module, err))
+		//panic(errors.Errorf("fail to port-forward expose service-%s, err: %s", module, err))
+		return errors.WithStack(err)
 	}
-	clientgoutils.Must(testcase.PortForwardCheck(localPort))
+	//clientgoutils.Must(testcase.PortForwardCheck(localPort))
+	err = testcase.PortForwardCheck(localPort)
+	if err != nil {
+		return err
+	}
 	_ = cmd.Process.Kill()
+	return nil
 }
 
-func test(cli runner.Client, moduleName, moduleType string, modeType profile.DevModeType) {
-	PortForward(cli, moduleName, moduleType)
-	PortForwardService(cli)
+func test(cli runner.Client, moduleName, moduleType string, modeType profile.DevModeType) error {
+	err := PortForward(cli, moduleName, moduleType)
+	if err != nil {
+		return err
+	}
+	if err = PortForwardService(cli); err != nil {
+		return err
+	}
 	funcs := []func() error{
 		func() error {
 			if err := testcase.DevStartT(cli, moduleName, moduleType, modeType); err != nil {
@@ -189,23 +205,23 @@ func test(cli runner.Client, moduleName, moduleType string, modeType profile.Dev
 		func() error { return testcase.SyncStatusT(cli, moduleName, moduleType) },
 		func() error { return testcase.DevEndT(cli, moduleName, moduleType) },
 	}
-	util.Retry(fmt.Sprintf("Dev-%s-%s-%s", modeType, moduleName, moduleType), funcs)
+	return util.Retry(fmt.Sprintf("Dev-%s-%s-%s", modeType, moduleName, moduleType), funcs)
 }
 
-func Deployment(cli runner.Client) {
-	test(cli, "ratings", "deployment", profile.ReplaceDevMode)
+func Deployment(cli runner.Client) error {
+	return test(cli, "ratings", "deployment", profile.ReplaceDevMode)
 }
 
-func DeploymentDuplicate(cli runner.Client) {
-	test(cli, "ratings", "deployment", profile.DuplicateDevMode)
+func DeploymentDuplicate(cli runner.Client) error {
+	return test(cli, "ratings", "deployment", profile.DuplicateDevMode)
 }
 
-func StatefulSet(cli runner.Client) {
-	test(cli, "web", "statefulset", profile.ReplaceDevMode)
+func StatefulSet(cli runner.Client) error {
+	return test(cli, "web", "statefulset", profile.ReplaceDevMode)
 }
 
-func StatefulSetDuplicate(cli runner.Client) {
-	test(cli, "web", "statefulset", profile.DuplicateDevMode)
+func StatefulSetDuplicate(cli runner.Client) error {
+	return test(cli, "web", "statefulset", profile.DuplicateDevMode)
 }
 
 /**
@@ -221,7 +237,7 @@ then, install a new version of nhctl
   (4) try to end dev mode
 using new version of nhctl to do more operation
 */
-func Compatible(cli runner.Client) {
+func Compatible(cli runner.Client) error {
 	module := "ratings"
 	port, err := ports.GetAvailablePort()
 	if err != nil {
@@ -234,14 +250,23 @@ func Compatible(cli runner.Client) {
 		util.Retry(suiteName, []func() error{func() error { return testcase.StopDaemon(cli.GetNhctl()) }})
 		_ = testcase.NhctlVersion(cli.GetNhctl())
 	}
-	util.Retry(suiteName, []func() error{func() error { return testcase.Exec(cli) }})
+	err = util.Retry(suiteName, []func() error{func() error { return testcase.Exec(cli) }})
+	if err != nil {
+		return err
+	}
 	m := []func() error{
 		func() error { return testcase.DevStartDeployment(cli, module) },
 		func() error { return testcase.Sync(cli, module) },
 	}
-	util.Retry(suiteName, m)
+	err = util.Retry(suiteName, m)
+	if err != nil {
+		return err
+	}
 	m2 := []func() error{func() error { return testcase.PortForwardStart(cli, module, port) }}
-	util.Retry(suiteName, m2)
+	err = util.Retry(suiteName, m2)
+	if err != nil {
+		return err
+	}
 	// install new version of nhctl
 	if lastVersion != "" {
 		util.Retry(suiteName, []func() error{func() error { return testcase.InstallNhctl(currentVersion) }})
@@ -251,27 +276,30 @@ func Compatible(cli runner.Client) {
 	funcsList := []func() error{
 		func() error { return testcase.StatusCheck(cli, module) },
 		func() error { return testcase.SyncCheck(cli, module) },
+		func() error { return testcase.PortForwardEnd(cli, module, port) },
 	}
-	util.Retry(suiteName, funcsList)
-	util.Retry(suiteName, []func() error{func() error { return testcase.PortForwardEnd(cli, module, port) }})
-	//util.RetryWith2Params(suiteName,
-	//	map[string]func(*nhctlcli.CLI, string) error{"DevEnd": testcase.DevEnd},
-	//	cli,
-	//	module)
-	clientgoutils.Must(testcase.DevEndDeployment(cli, module))
+	err = util.Retry(suiteName, funcsList)
+	if err != nil {
+		return err
+	}
+
+	//clientgoutils.Must(testcase.DevEndDeployment(cli, module))
+	err = testcase.DevEndDeployment(cli, module)
+	if err != nil {
+		return err
+	}
 	// for temporary
 	funcs := []func() error{
 		func() error { return testcase.Upgrade(cli) },
 		func() error { return testcase.Config(cli) },
 		func() error { return testcase.List(cli) },
-		//func() error { return testcase.Db(cli) },
 		func() error { return testcase.Pvc(cli) },
 		func() error { return testcase.InstallBookInfoDifferentType(cli) },
 	}
-	util.Retry(suiteName, funcs)
+	return util.Retry(suiteName, funcs)
 }
 
-func Reset(cli runner.Client) {
+func Reset(cli runner.Client) error {
 	_ = testcase.UninstallBookInfo(cli)
 	retryTimes := 5
 	var err error
@@ -284,23 +312,42 @@ func Reset(cli runner.Client) {
 		}
 		break
 	}
-	clientgoutils.Must(err)
-	clientgoutils.Must(testcase.List(cli))
+	//clientgoutils.Must(err)
+	//clientgoutils.Must(testcase.List(cli))
+	if err != nil {
+		return err
+	}
+	return testcase.List(cli)
 }
 
-func Apply(cli runner.Client) {
-	util.Retry("Apply", []func() error{func() error { return testcase.Apply(cli) }})
-	clientgoutils.Must(testcase.List(cli))
+func Apply(cli runner.Client) error {
+	err := util.Retry("Apply", []func() error{func() error { return testcase.Apply(cli) }})
+	if err != nil {
+		return err
+	}
+	//clientgoutils.Must(testcase.List(cli))
+	return testcase.List(cli)
 }
 
-func Upgrade(cli runner.Client) {
-	util.Retry("Upgrade", []func() error{func() error { return testcase.Upgrade(cli) }})
-	clientgoutils.Must(testcase.List(cli))
-	Reset(cli)
-	Apply(cli)
+func Upgrade(cli runner.Client) error {
+	err := util.Retry("Upgrade", []func() error{func() error { return testcase.Upgrade(cli) }})
+	if err != nil {
+		return err
+	}
+
+	//clientgoutils.Must(testcase.List(cli))
+	if err = testcase.List(cli); err != nil {
+		return err
+	}
+
+	if err = Reset(cli); err != nil {
+		return err
+	}
+
+	return Apply(cli)
 }
 
-func ProfileAndAssociate(cli runner.Client) {
+func ProfileAndAssociate(cli runner.Client) error {
 
 	singleSvcConfig := fp.NewRandomTempPath()
 	multiSvcConfig := fp.NewRandomTempPath()
@@ -310,7 +357,7 @@ func ProfileAndAssociate(cli runner.Client) {
 	multiSvcConfigCm := fp.NewRandomTempPath().MkdirThen().RelOrAbs("cm.yaml")
 	fullConfigCm := fp.NewRandomTempPath().MkdirThen().RelOrAbs("cm.yaml")
 
-	util.Retry(
+	err := util.Retry(
 		"ProfileAndAssociate", []func() error{
 
 			// clear env
@@ -440,11 +487,15 @@ func ProfileAndAssociate(cli runner.Client) {
 			func() error { return testcase.ConfigReload(cli) },
 		},
 	)
-	clientgoutils.Must(testcase.List(cli))
+	if err != nil {
+		return err
+	}
+	//clientgoutils.Must(testcase.List(cli))
+	return testcase.List(cli)
 }
 
-func Install(cli runner.Client) {
-	retryTimes := 5
+func Install(cli runner.Client) error {
+	retryTimes := 2
 	var err error
 	for i := 0; i < retryTimes; i++ {
 		if err = testcase.InstallBookInfoDifferentType(cli); err != nil {
@@ -453,9 +504,10 @@ func Install(cli runner.Client) {
 		}
 		break
 	}
-	if err != nil {
-		panic(errors.New("test suite failed, fail on step: install"))
-	}
+	//if err != nil {
+	//	panic(errors.New("test suite failed, fail on step: install"))
+	//}
+	return err
 }
 
 // Prepare will install a nhctl client, create a k8s cluster if necessary
@@ -513,7 +565,7 @@ func Prepare() (cancelFunc func(), namespaceResult, kubeconfigResult string) {
 	return
 }
 
-func KillSyncthingProcess(cli runner.Client) {
+func KillSyncthingProcess(cli runner.Client) error {
 	module := "ratings"
 	funcs := []func() error{
 		func() error {
@@ -531,10 +583,10 @@ func KillSyncthingProcess(cli runner.Client) {
 		func() error { return testcase.SyncStatus(cli, module) },
 		func() error { return testcase.DevEndDeployment(cli, module) },
 	}
-	util.Retry("kill syncthing process", funcs)
+	return util.Retry("kill syncthing process", funcs)
 }
 
-func Get(cli runner.Client) {
+func Get(cli runner.Client) error {
 	cases := []struct {
 		resource string
 		appName  string
@@ -565,10 +617,10 @@ func Get(cli runner.Client) {
 			return nil
 		},
 	}
-	util.Retry("get", funcs)
+	return util.Retry("get", funcs)
 }
 
-func TestLog(_ runner.Client) {
+func TestLog(_ runner.Client) error {
 	file := fp.NewFilePath(homedir.HomeDir()).
 		RelOrAbs(".nh").
 		RelOrAbs("nhctl").
@@ -576,6 +628,7 @@ func TestLog(_ runner.Client) {
 		RelOrAbs("nhctl.log").
 		ReadFile()
 	if len(file) == 0 {
-		panic("Daemon log file is empty, please check your log initialize code !!!")
+		return errors.New("Daemon log file is empty, please check your log initialize code !!!")
 	}
+	return nil
 }

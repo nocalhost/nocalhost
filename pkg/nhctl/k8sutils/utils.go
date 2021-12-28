@@ -7,6 +7,7 @@ package k8sutils
 
 import (
 	"context"
+	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -116,7 +117,7 @@ func WaitResource(client *kubernetes.Clientset, g cache.Getter, namespace string
 	mapper := restmapper.NewDiscoveryRESTMapper(groupResources)
 	restMapping, err := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
 	if err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 
 	watchlist := cache.NewFilteredListWatchFromClient(
@@ -142,7 +143,7 @@ func WaitResource(client *kubernetes.Clientset, g cache.Getter, namespace string
 
 	object, err := scheme.Scheme.New(gvk)
 	if err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 
 	conditionFunc := func(e watch.Event) (bool, error) { return checker(e.Object), nil }
@@ -150,7 +151,7 @@ func WaitResource(client *kubernetes.Clientset, g cache.Getter, namespace string
 	if err != nil {
 		log.Infof("wait resource: %s to ready failed, error: %v, event: %v",
 			restMapping.Resource.Resource, err, event)
-		return err
+		return errors.WithStack(err)
 	}
 	return nil
 }

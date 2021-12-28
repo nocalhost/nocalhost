@@ -38,31 +38,33 @@ func NewT(namespace, kubeconfig string, f func()) *T {
 	}
 }
 
-func (t *T) Run(name string, fn func(cli runner.Client)) {
-	t.RunWithBookInfo(true, name, fn)
+func (t *T) Run(name string, fn func(cli runner.Client) error) error {
+	return t.RunWithBookInfo(true, name, fn)
 }
 
 // Run command and clean environment after finished
-func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.Client)) {
+func (t *T) RunWithBookInfo(installBookInfo bool, name string, fn func(cli runner.Client) error) error {
 	logger := log.TestLogger(name)
 
+	var err error
 	logger.Infof("============= Testing (Start)%s  =============\n", name)
 	timeBefore := time.Now()
 
-	defer func() {
-		if err := recover(); err != nil {
-			t.AlertForImagePull()
-			LogsForArchive()
-			logger.Infof(">>> Panic on suit %s <<<", name)
-
-			t.Clean()
-			t.Alert()
-			panic(err)
-		}
-	}()
+	//defer func() {
+	//	if err := recover(); err != nil {
+	//		t.AlertForImagePull()
+	//		LogsForArchive()
+	//		logger.Infof(">>> Panic on suit %s <<<", name)
+	//		logger.Infof("Error before recover %v", err)
+	//
+	//		t.Clean()
+	//		t.Alert()
+	//		panic(err)
+	//	}
+	//}()
 
 	clientForRunner := t.Cli.RandomNsCli(name)
-	if err := util.RetryFunc(
+	if err = util.RetryFunc(
 		func() error {
 			result, errOutput, err := clientForRunner.GetKubectl().RunClusterScope(
 				context.Background(), "create", "ns", clientForRunner.NameSpace(),
@@ -79,102 +81,117 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 			return errors.Wrap(err, "Error while create ns: "+errOutput)
 		},
 	); err != nil {
-		fmt.Printf("Error stack: %v\n", err)
-		panic(err)
-		return
+		//fmt.Printf("Error stack: %v\n", err)
+		//panic(err)
+		//return
+		return err
 	}
 
 	logger.Infof("============= Testing (Create Ns)%s  =============\n", name)
 
-	var retryTimes = 5
-	if withBookInfo {
+	//var retryTimes = 2
+	if installBookInfo {
 		defer func() {
 			_ = testcase.UninstallBookInfo(clientForRunner)
 		}()
 
-		var err error
-		for i := 0; i < retryTimes; i++ {
-			timeBeforeInstall := time.Now()
-			logger.Info(fmt.Sprintf("============= Testing (Installing BookInfo %d)%s =============\n", i, name))
-			timeoutCtx, _ := context.WithTimeout(context.Background(), 2*time.Minute)
-			if err = testcase.InstallBookInfo(timeoutCtx, clientForRunner); err != nil {
-				logger.Infof(
-					"============= Testing (Install BookInfo Failed)%s =============, Err: \n", name, err.Error(),
-				)
-				_ = testcase.UninstallBookInfo(clientForRunner)
-				continue
-			}
-			timeAfterInstall := time.Now()
-			logger.Infof(
-				"============= Testing (BookInfo Installed, Cost(%fs) %s =============\n",
-				timeAfterInstall.Sub(timeBeforeInstall).Seconds(), name,
-			)
-			break
+		//for i := 0; i < retryTimes; i++ {
+		timeBeforeInstall := time.Now()
+		logger.Info(fmt.Sprintf("============= Testing (Installing BookInfo)%s =============\n", name))
+		timeoutCtx, _ := context.WithTimeout(context.Background(), 2*time.Minute)
+		if err = testcase.InstallBookInfo(timeoutCtx, clientForRunner); err != nil {
+			//logger.Infof(
+			//	"============= Testing (Install BookInfo Failed)%s =============, Err: \n", name, err.Error(),
+			//)
+			_ = testcase.UninstallBookInfo(clientForRunner)
+			//continue
+			return err
 		}
+		timeAfterInstall := time.Now()
+		logger.Infof(
+			"============= Testing (BookInfo Installed, Cost(%fs) %s =============\n",
+			timeAfterInstall.Sub(timeBeforeInstall).Seconds(), name,
+		)
+		//	break
+		//}
 
+		//if err != nil {
+		//	panic(errors.Wrap(err, "test suite failed, install bookinfo error"))
+		//}
+
+		//for i := 0; i < retryTimes; i++ {
+
+		logger.Infof("============= Testing (Wait BookInfo)%s =============\n", name)
+
+		err = k8sutils.WaitPod(
+			clientForRunner.GetClientset(),
+			clientForRunner.GetNhctl().Namespace,
+			metav1.ListOptions{LabelSelector: fields.OneTermEqualSelector("app", "reviews").String()},
+			func(i *v1.Pod) bool { return i.Status.Phase == v1.PodRunning },
+			time.Hour*1,
+		)
 		if err != nil {
-			panic(errors.Wrap(err, "test suite failed, install bookinfo error"))
+			return err
 		}
 
-		for i := 0; i < retryTimes; i++ {
-
-			logger.Infof("============= Testing (Wait BookInfo %d)%s =============\n", i, name)
-
-			err = k8sutils.WaitPod(
-				clientForRunner.GetClientset(),
-				clientForRunner.GetNhctl().Namespace,
-				metav1.ListOptions{LabelSelector: fields.OneTermEqualSelector("app", "reviews").String()},
-				func(i *v1.Pod) bool { return i.Status.Phase == v1.PodRunning },
-				time.Hour*1,
-			)
-
-			err = k8sutils.WaitPod(
-				clientForRunner.GetClientset(),
-				clientForRunner.GetNhctl().Namespace,
-				metav1.ListOptions{LabelSelector: fields.OneTermEqualSelector("app", "ratings").String()},
-				func(i *v1.Pod) bool { return i.Status.Phase == v1.PodRunning },
-				time.Hour*1,
-			)
-
-			err = k8sutils.WaitPod(
-				clientForRunner.GetClientset(),
-				clientForRunner.GetNhctl().Namespace,
-				metav1.ListOptions{LabelSelector: fields.OneTermEqualSelector("app", "productpage").String()},
-				func(i *v1.Pod) bool { return i.Status.Phase == v1.PodRunning },
-				time.Hour*1,
-			)
-
-			if err == nil {
-				break
-			}
-		}
-
+		err = k8sutils.WaitPod(
+			clientForRunner.GetClientset(),
+			clientForRunner.GetNhctl().Namespace,
+			metav1.ListOptions{LabelSelector: fields.OneTermEqualSelector("app", "ratings").String()},
+			func(i *v1.Pod) bool { return i.Status.Phase == v1.PodRunning },
+			time.Hour*1,
+		)
 		if err != nil {
-			panic(errors.Wrap(err, "test suite failed, install bookinfo error while wait for pod ready"))
+			return err
 		}
+
+		err = k8sutils.WaitPod(
+			clientForRunner.GetClientset(),
+			clientForRunner.GetNhctl().Namespace,
+			metav1.ListOptions{LabelSelector: fields.OneTermEqualSelector("app", "productpage").String()},
+			func(i *v1.Pod) bool { return i.Status.Phase == v1.PodRunning },
+			time.Hour*1,
+		)
+		if err != nil {
+			return err
+		}
+
+		//	if err == nil {
+		//		break
+		//	}
+		//}
+
+		//if err != nil {
+		//	panic(errors.Wrap(err, "test suite failed, install bookinfo error while wait for pod ready"))
+		//}
 	}
 
 	logger.Infof("============= Testing (Test)%s =============\n", name)
 
-	doneChan := make(chan struct{}, 1)
+	doneChan := make(chan error, 1)
 	go func() {
-		fn(clientForRunner)
-		doneChan <- struct{}{}
+		err := fn(clientForRunner)
+		doneChan <- err
 	}()
 	select {
-	case <-doneChan:
-	case <-time.After(30 * time.Minute):
+	case err := <-doneChan:
+		if err != nil {
+			return err
+		}
+	case <-time.After(20 * time.Minute):
 		timeAfter := time.Now()
 		logger.Infof(
 			"============= Testing timeout, Cost(%fs) %s =============\n", timeAfter.Sub(timeBefore).Seconds(), name,
 		)
-		panic(errors.New(fmt.Sprintf("Test %s timeout", name)))
+		//panic(errors.New(fmt.Sprintf("Test %s timeout", name)))
+		return errors.New(fmt.Sprintf("Test %s timeout", name))
 	}
 
 	timeAfter := time.Now()
 	logger.Infof(
 		"============= Testing done, Cost(%fs) %s =============\n", timeAfter.Sub(timeBefore).Seconds(), name,
 	)
+	return nil
 }
 
 func (t *T) Clean() {
