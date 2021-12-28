@@ -10,9 +10,9 @@ import (
 	"github.com/pkg/errors"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/common"
-	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/controller"
+	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
@@ -70,7 +70,11 @@ func initService(svcName string, svcType string) *controller.Controller {
 	if svcName == "" {
 		log.Fatal("please use -d to specify a k8s workload")
 	}
-	c, err := nocalhostApp.Controller(svcName, base.SvcTypeOf(svcType))
+	st, err := nocalhost.SvcTypeOfMutate(svcType)
+	if err != nil {
+		log.FatalE(err, "")
+	}
+	c, err := nocalhostApp.Controller(svcName, st)
 	if err != nil {
 		log.FatalE(err, "")
 	}

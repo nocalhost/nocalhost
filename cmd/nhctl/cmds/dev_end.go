@@ -11,13 +11,14 @@ import (
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/coloredoutput"
 	_const "nocalhost/internal/nhctl/const"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"strconv"
 )
 
 func init() {
 	devEndCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
-	devEndCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "",
+	devEndCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "deployment",
 		"kind of k8s controller,such as deployment,statefulSet")
 	debugCmd.AddCommand(devEndCmd)
 }
@@ -46,6 +47,7 @@ var devEndCmd = &cobra.Command{
 		}
 
 		must(nocalhostSvc.DevEnd(false))
+		utils.Should(nocalhostSvc.DecreaseDevModeCount())
 
 		// Recover hpa
 		if needToRecoverHPA {

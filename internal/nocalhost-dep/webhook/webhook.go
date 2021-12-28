@@ -515,7 +515,7 @@ func (whsvr *WebhookServer) mutate(ar *v1.AdmissionReview) *v1.AdmissionResponse
 	if v, ok := omh.Annotations[appmeta.AnnotationKey]; ok && v != "" && resourceName != "" {
 		injectInitContainers, EnvVar, err = nocalhostDepConfigmapCustom(
 			func() (*profile.NocalHostAppConfigV2, *profile.ServiceConfigV2, error) {
-				return app.LoadSvcCfgFromStrIfValid(v, resourceName, base.SvcTypeOf(resourceType))
+				return app.LoadSvcCfgFromStrIfValid(v, resourceName, base.SvcType(resourceType))
 			}, containers,
 		)
 

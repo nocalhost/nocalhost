@@ -26,7 +26,6 @@ import (
 	"nocalhost/pkg/nhctl/clientgoutils"
 	k8sutil "nocalhost/pkg/nhctl/k8sutils"
 	"nocalhost/pkg/nhctl/log"
-	"runtime/debug"
 	"strings"
 	"time"
 )
@@ -78,6 +77,12 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 		appmeta_manager.Init()
 		appmeta_manager.RegisterListener(
 			func(pack *appmeta_manager.ApplicationEventPack) error {
+
+				if strings.Contains(pack.Event.ResourceName, appmeta.DEV_STARTING_SUFFIX) {
+					log.Infof("Ignore event %s", pack.Event.ResourceName)
+					return nil
+				}
+
 				kubeconfig := k8sutil.GetOrGenKubeConfigPath(string(pack.KubeConfigBytes))
 				nhApp, err := app.NewApplication(pack.AppName, pack.Ns, kubeconfig, true)
 				if err != nil {
@@ -103,7 +108,10 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 
 					_ = nhController.StopSyncAndPortForwardProcess(true)
 				} else if pack.Event.EventType == appmeta.DEV_STA {
-					profile, _ := nhApp.GetProfile()
+					profile, err := nhApp.GetProfile()
+					if err != nil {
+						return nil
+					}
 
 					// ignore the event from local
 					if profile.Identifier == pack.Event.Identifier {
@@ -149,13 +157,15 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 
 			go func() {
 				defer func() {
-					_ = conn.Close()
-					recoverDaemonFromPanic()
+					if conn != nil {
+						_ = conn.Close()
+					}
+					utils.RecoverFromPanic()
 				}()
 
 				var err error
 
-				start := time.Now()
+				//start := time.Now()
 				errChan := make(chan error, 1)
 				bytesChan := make(chan []byte, 1)
 
@@ -186,10 +196,10 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 					log.LogE(err)
 					return
 				}
-				log.Tracef("Handling %s command", cmdType)
+				//log.Tracef("Handling %s command", cmdType)
 				handleCommand(conn, bytes, cmdType, clientStack)
-				takes := time.Now().Sub(start).Seconds()
-				log.WriteToEsWithField(map[string]interface{}{"take": takes}, "%s command done", cmdType)
+				//takes := time.Now().Sub(start).Seconds()
+				//log.WriteToEsWithField(map[string]interface{}{"take": takes}, "%s command done", cmdType)
 			}()
 		}
 	}()
@@ -231,9 +241,7 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType, clientStack string) {
 	var err error
 	defer func() {
-		if err != nil {
-			log.Log("Client Stack: " + clientStack)
-		}
+		utils.RecoverFromPanic()
 	}()
 
 	// prevent elder version to send cmd to daemon
@@ -377,7 +385,7 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 					return nil, errors.Wrap(err, "")
 				}
 
-				return daemon_handler.HandleGetResourceInfoRequest(cmd), nil
+				return daemon_handler.HandleGetResourceInfoRequest(cmd)
 			},
 		)
 
@@ -510,10 +518,4 @@ func handleStopPortForwardCommand(cmd *command.PortForwardCommand) error {
 // If a port-forward already exist, skip it(don't do anything), and return an error
 func handleStartPortForwardCommand(startCmd *command.PortForwardCommand) error {
 	return pfManager.StartPortForwardGoRoutine(startCmd, true)
-}
-
-func recoverDaemonFromPanic() {
-	if r := recover(); r != nil {
-		log.Errorf("DAEMON-RECOVER: %s", string(debug.Stack()))
-	}
 }

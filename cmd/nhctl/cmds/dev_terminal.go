@@ -20,7 +20,7 @@ func init() {
 		"k8s deployment which your developing service exists",
 	)
 	devTerminalCmd.Flags().StringVarP(
-		&serviceType, "controller-type", "t", "",
+		&serviceType, "controller-type", "t", "deployment",
 		"kind of k8s controller,such as deployment,statefulSet",
 	)
 	devTerminalCmd.Flags().StringVarP(&container, "container", "c", "", "container to enter")

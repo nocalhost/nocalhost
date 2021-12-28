@@ -16,7 +16,6 @@ import (
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/pod_controller"
 	"nocalhost/pkg/nhctl/log"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -26,99 +25,63 @@ type DeploymentController struct {
 }
 
 func (d *DeploymentController) GetNocalhostDevContainerPod() (string, error) {
-	checkPodsList, err := d.Client.ListPodsByDeployment(d.GetName())
-	if err != nil {
-		return "", err
-	}
-	return findDevPod(checkPodsList.Items)
+	return d.GetDevModePodName()
 }
 
 // ReplaceImage In DevMode, nhctl will replace the container of your workload with two containers:
 // one is called devContainer, the other is called sideCarContainer
 func (d *DeploymentController) ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error {
+	return d.PatchDevModeManifest(ctx, ops)
+}
 
-	var err error
-	d.Client.Context(ctx)
+func (d *DeploymentController) RollBack(reset bool) error {
 
+	clientUtils := d.Client
 	dep, err := d.Client.GetDeployment(d.GetName())
 	if err != nil {
 		return err
 	}
 
-	originalSpecJson, err := json.Marshal(&dep.Spec)
-	if err != nil {
-		return errors.Wrap(err, "")
+	if err = d.RollbackFromAnnotation(); err == nil {
+		return nil
 	}
 
-	if err = d.Client.ScaleDeploymentReplicasToOne(d.GetName()); err != nil {
-		return err
-	}
-
-	devContainer, sideCarContainer, devModeVolumes, err :=
-		d.genContainersAndVolumes(&dep.Spec.Template.Spec, ops.Container, ops.DevImage, ops.StorageClass, false)
-	if err != nil {
-		return err
-	}
-
-	for i := 0; i < 10; i++ {
-		// Get latest deployment
-		dep, err := d.Client.GetDeployment(d.GetName())
-		if err != nil {
-			return err
-		}
-
-		patchDevContainerToPodSpec(&dep.Spec.Template.Spec, ops.Container, devContainer, sideCarContainer, devModeVolumes)
-
-		// PriorityClass
-		priorityClass := ops.PriorityClass
-		if priorityClass == "" {
-			priorityClass = d.config.PriorityClass
-		}
-		if priorityClass != "" {
-			log.Infof("Using priorityClass: %s...", priorityClass)
-			dep.Spec.Template.Spec.PriorityClassName = priorityClass
-		}
-
-		dep.Annotations[OriginSpecJson] = string(originalSpecJson)
-
-		log.Info("Updating development container...")
-		if _, err = d.Client.UpdateDeployment(dep, true); err != nil {
-			if strings.Contains(err.Error(), "no PriorityClass") {
-				log.Warnf("PriorityClass %s not found, disable it...", priorityClass)
-				if dep, err = d.Client.GetDeployment(d.GetName()); err != nil {
-					return err
-				}
-				dep.Spec.Template.Spec.PriorityClassName = ""
-				if _, err = d.Client.UpdateDeployment(dep, true); err != nil {
-					if strings.Contains(err.Error(), "Operation cannot be fulfilled on") {
-						log.Warn("Deployment has been modified, retrying...")
-						continue
-					}
-					return err
-				}
-				break
-			} else if strings.Contains(err.Error(), "Operation cannot be fulfilled on") {
-				log.Warn("Deployment has been modified, retrying...")
-				continue
-			}
-			return err
-		}
-		break
-	}
-
-	d.patchAfterDevContainerReplaced(ops.Container, d.Type.String(), dep.Name)
-
-	return waitingPodToBeReady(d.GetNocalhostDevContainerPod)
-}
-
-func (d *DeploymentController) RollBack(reset bool) error {
-	clientUtils := d.Client
-
-	dep, err := clientUtils.GetDeployment(d.GetName())
-	if err != nil {
-		return err
-	}
-
+	log.Warn(err.Error())
+	//log.Info("Annotation nocalhost.origin.spec.json not found, try to find it from rs")
+	//rss, _ := clientUtils.GetSortedReplicaSetsByDeployment(d.GetName())
+	//if len(rss) >= 1 {
+	//	var r *v1.ReplicaSet
+	//	var originalPodReplicas *int32
+	//	for _, rs := range rss {
+	//		if rs.Annotations == nil {
+	//			continue
+	//		}
+	//		// Mark the original revision
+	//		if rs.Annotations[_const.DevImageRevisionAnnotationKey] == _const.DevImageRevisionAnnotationValue {
+	//			r = rs
+	//			if rs.Annotations[_const.DevImageOriginalPodReplicasAnnotationKey] != "" {
+	//				podReplicas, _ := strconv.Atoi(rs.Annotations[_const.DevImageOriginalPodReplicasAnnotationKey])
+	//				podReplicas32 := int32(podReplicas)
+	//				originalPodReplicas = &podReplicas32
+	//			}
+	//		}
+	//	}
+	//
+	//	if r == nil && reset {
+	//		r = rss[0]
+	//	}
+	//
+	//	if r != nil {
+	//		dep.Spec.Template = r.Spec.Template
+	//		if originalPodReplicas != nil {
+	//			dep.Spec.Replicas = originalPodReplicas
+	//		}
+	//	} else {
+	//		return errors.New("Failed to find revision to rollout")
+	//	}
+	//} else {
+	//	return errors.New("Failed to find revision to rollout(no rs found)")
+	//}
 	osj, ok := dep.Annotations[OriginSpecJson]
 	if ok {
 		log.Info("Annotation nocalhost.origin.spec.json found, use it")
@@ -129,43 +92,6 @@ func (d *DeploymentController) RollBack(reset bool) error {
 
 		if len(dep.Annotations) == 0 {
 			dep.Annotations = make(map[string]string, 0)
-		}
-		dep.Annotations[OriginSpecJson] = osj
-	} else {
-		log.Info("Annotation nocalhost.origin.spec.json not found, try to find it from rs")
-		rss, _ := clientUtils.GetSortedReplicaSetsByDeployment(d.GetName())
-		if len(rss) >= 1 {
-			var r *v1.ReplicaSet
-			var originalPodReplicas *int32
-			for _, rs := range rss {
-				if rs.Annotations == nil {
-					continue
-				}
-				// Mark the original revision
-				if rs.Annotations[_const.DevImageRevisionAnnotationKey] == _const.DevImageRevisionAnnotationValue {
-					r = rs
-					if rs.Annotations[_const.DevImageOriginalPodReplicasAnnotationKey] != "" {
-						podReplicas, _ := strconv.Atoi(rs.Annotations[_const.DevImageOriginalPodReplicasAnnotationKey])
-						podReplicas32 := int32(podReplicas)
-						originalPodReplicas = &podReplicas32
-					}
-				}
-			}
-
-			if r == nil && reset {
-				r = rss[0]
-			}
-
-			if r != nil {
-				dep.Spec.Template = r.Spec.Template
-				if originalPodReplicas != nil {
-					dep.Spec.Replicas = originalPodReplicas
-				}
-			} else {
-				return errors.New("Failed to find revision to rollout")
-			}
-		} else {
-			return errors.New("Failed to find revision to rollout(no rs found)")
 		}
 	}
 
@@ -220,5 +146,6 @@ func GetDefaultPodName(ctx context.Context, p pod_controller.PodController) (str
 }
 
 func (d *DeploymentController) GetPodList() ([]corev1.Pod, error) {
-	return d.Client.ListLatestRevisionPodsByDeployment(d.GetName())
+	//return d.Client.ListLatestRevisionPodsByDeployment(d.GetName())
+	return d.Controller.GetPodList()
 }

@@ -21,7 +21,7 @@ func init() {
 		"k8s deployment which your developing service exists",
 	)
 	devContainersCmd.Flags().StringVarP(
-		&serviceType, "controller-type", "t", "",
+		&serviceType, "controller-type", "t", "deployment",
 		"kind of k8s controller,such as deployment,statefulSet",
 	)
 	debugCmd.AddCommand(devContainersCmd)
@@ -48,7 +48,7 @@ var devContainersCmd = &cobra.Command{
 			containers = append(containers, item.Name)
 		}
 		if len(containers) == 0 {
-			log.Fatal("Container num is not 0??")
+			log.Fatal("Container num is 0??")
 		}
 		c, err := json.Marshal(containers)
 		if err != nil {

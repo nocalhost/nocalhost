@@ -162,7 +162,7 @@ func (cmw *CmWatcher) GetNocalhostConfig(application, svcType, svcName string) (
 
 			return app.LoadSvcCfgFromStrIfValid(
 				cfgStr, svcName,
-				base.SvcTypeOf(strings.ToLower(svcType)),
+				base.SvcType(strings.ToLower(svcType)),
 			)
 		}
 	}

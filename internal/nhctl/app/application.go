@@ -26,7 +26,6 @@ import (
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 )
 
@@ -191,7 +190,7 @@ func newApplication(name string, ns string, kubeconfig string, meta *appmeta.App
 func (a *Application) ReloadCfg(reloadFromMeta, silence bool) error {
 	secretCfg := a.appMeta.Config
 	for _, config := range secretCfg.ApplicationConfig.ServiceConfigs {
-		if err := a.ReloadSvcCfg(config.Name, base.SvcTypeOf(config.Type), reloadFromMeta, silence); err != nil {
+		if err := a.ReloadSvcCfg(config.Name, base.SvcType(config.Type), reloadFromMeta, silence); err != nil {
 			log.LogE(err)
 		}
 	}
@@ -463,7 +462,7 @@ func doLoadProfileFromSvcConfig(renderItem envsubst.RenderItem, svcName string, 
 	}
 
 	for _, svcConfig := range config {
-		if svcConfig.Name == svcName && base.SvcTypeOf(svcConfig.Type) == svcType {
+		if svcConfig.Name == svcName && base.SvcType(svcConfig.Type) == svcType {
 			return svcConfig, nil
 		}
 	}
@@ -558,36 +557,36 @@ func (a *Application) getProfileForUpdate() (*profile.AppProfileV2, error) {
 	return profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name, a.appMeta.NamespaceId)
 }
 
-func (a *Application) LoadConfigFromLocalV2() (*profile.NocalHostAppConfigV2, error) {
-
-	isV2, err := a.checkIfAppConfigIsV2()
-	if err != nil {
-		return nil, err
-	}
-
-	if !isV2 {
-		log.Log("Upgrade config V1 to V2 ...")
-		err = a.UpgradeAppConfigV1ToV2()
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	config := &profile.NocalHostAppConfigV2{}
-	rbytes, err := ioutil.ReadFile(a.GetConfigV2Path())
-	if err != nil {
-		return nil, errors.New(fmt.Sprintf("fail to load configFile : %s", a.GetConfigV2Path()))
-	}
-	if err = yaml.Unmarshal(rbytes, config); err != nil {
-		re, _ := regexp.Compile("remoteDebugPort: \"[0-9]*\"")
-		rep := re.ReplaceAllString(string(rbytes), "")
-		if err = yaml.Unmarshal([]byte(rep), config); err != nil {
-			return nil, errors.Wrap(err, "")
-		}
-	}
-
-	return config, nil
-}
+//func (a *Application) LoadConfigFromLocalV2() (*profile.NocalHostAppConfigV2, error) {
+//
+//	isV2, err := a.checkIfAppConfigIsV2()
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	if !isV2 {
+//		log.Log("Upgrade config V1 to V2 ...")
+//		err = a.UpgradeAppConfigV1ToV2()
+//		if err != nil {
+//			return nil, err
+//		}
+//	}
+//
+//	config := &profile.NocalHostAppConfigV2{}
+//	rbytes, err := ioutil.ReadFile(a.GetConfigV2Path())
+//	if err != nil {
+//		return nil, errors.New(fmt.Sprintf("fail to load configFile : %s", a.GetConfigV2Path()))
+//	}
+//	if err = yaml.Unmarshal(rbytes, config); err != nil {
+//		re, _ := regexp.Compile("remoteDebugPort: \"[0-9]*\"")
+//		rep := re.ReplaceAllString(string(rbytes), "")
+//		if err = yaml.Unmarshal([]byte(rep), config); err != nil {
+//			return nil, errors.Wrap(err, "")
+//		}
+//	}
+//
+//	return config, nil
+//}
 
 type HelmFlags struct {
 	Debug    bool
@@ -658,7 +657,7 @@ func (a *Application) GetDescription() *profile.AppProfileV2 {
 		for _, svcProfile := range appProfile.SvcProfile {
 			appmeta.FillingExtField(svcProfile, meta, a.Name, a.NameSpace, appProfile.Identifier)
 
-			if m := devMeta[base.SvcTypeOf(svcProfile.GetType()).Alias()]; m != nil {
+			if m := devMeta[base.SvcType(svcProfile.GetType()).Alias()]; m != nil {
 				delete(m, svcProfile.GetName())
 			}
 		}

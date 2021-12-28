@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cmds
 
@@ -25,7 +25,7 @@ var commonFlags = CommonFlags{}
 func init() {
 	configTemplateCmd.Flags().StringVarP(&commonFlags.SvcName, "deployment", "d", "",
 		"k8s deployment which your developing service exists")
-	configTemplateCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "",
+	configTemplateCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "deployment",
 		"kind of k8s controller,such as deployment,statefulSet")
 	configCmd.AddCommand(configTemplateCmd)
 }

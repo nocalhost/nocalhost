@@ -22,6 +22,7 @@ import (
 	"nocalhost/internal/nhctl/nocalhost/db"
 	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/profile"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"os"
@@ -135,7 +136,7 @@ func (p *PortForwardManager) RecoverPortForwardForApplication(ns, appName, nid s
 }
 
 func (p *PortForwardManager) RecoverAllPortForward() {
-	defer recoverDaemonFromPanic()
+	defer utils.RecoverFromPanic()
 
 	log.Info("Recovering all port-forward")
 	var scanned bool
@@ -265,7 +266,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 		RemotePort: startCmd.RemotePort,
 	}
 	go func() {
-		defer recoverDaemonFromPanic()
+		defer utils.RecoverFromPanic()
 
 		log.Logf("Forwarding %d:%d", localPort, remotePort)
 
@@ -310,7 +311,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 			}
 
 			go func() {
-				defer recoverDaemonFromPanic()
+				defer utils.RecoverFromPanic()
 				<-readyCh
 				log.Infof("Port forward %d:%d is ready", localPort, remotePort)
 				p.lock.Lock()
@@ -319,7 +320,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 			}()
 
 			go func() {
-				defer recoverDaemonFromPanic()
+				defer utils.RecoverFromPanic()
 				errCh <- nocalhostApp.PortForward(startCmd.PodName, localPort, remotePort, readyCh, stopCh, stream)
 				log.Logf("Port-forward %d:%d occurs errors", localPort, remotePort)
 			}()

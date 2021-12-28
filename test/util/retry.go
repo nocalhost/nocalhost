@@ -6,9 +6,6 @@
 package util
 
 import (
-	"fmt"
-	"nocalhost/pkg/nhctl/clientgoutils"
-	"nocalhost/pkg/nhctl/log"
 	"reflect"
 	"runtime"
 	"strings"
@@ -17,24 +14,26 @@ import (
 
 var retryTimes = 10
 
-func Retry(suiteName string, funcs []func() error) {
+func Retry(suiteName string, funcs []func() error) error {
 
-	logger := log.TestLogger(suiteName)
+	//logger := log.TestLogger(suiteName)
 	var err error
-	for i, f := range funcs {
+	for _, f := range funcs {
 		for i := 0; i < retryTimes; i++ {
 			if err = f(); err == nil {
 				break
 			}
-			logger.Infof("Error while exec retry func, %v", err)
+			//logger.Infof("Error while exec retry func, %v", err)
 		}
-		clientgoutils.MustI(
-			err, fmt.Sprintf(
-				"error on step [%d] %s - %s",
-				i, suiteName, getFunctionName(reflect.ValueOf(f)),
-			),
-		)
+		//clientgoutils.MustI(
+		//	err, fmt.Sprintf(
+		//		"error on step [%d] %s - %s",
+		//		i, suiteName, getFunctionName(reflect.ValueOf(f)),
+		//	),
+		//)
+		return err
 	}
+	return err
 }
 
 func RetryFunc(fun func() error) error {

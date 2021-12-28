@@ -19,7 +19,7 @@ func init() {
 	describeCmd.Flags().StringVarP(&deploy, "deployment", "d", "",
 		"k8s deployment which your developing service exists",
 	)
-	describeCmd.Flags().StringVarP(&serviceType, "type", "t", "", "specify service type")
+	describeCmd.Flags().StringVarP(&serviceType, "type", "t", "deployment", "specify service type")
 	rootCmd.AddCommand(describeCmd)
 }
 
@@ -39,7 +39,7 @@ var describeCmd = &cobra.Command{
 		if deploy == "" {
 			appProfile := nocalhostApp.GetDescription()
 			for _, svcProfileV2 := range appProfile.SvcProfile {
-				svcProfileV2.DevModeType = nocalhostApp.GetAppMeta().GetCurrentDevModeTypeOfWorkload(svcProfileV2.Name, base.SvcTypeOf(svcProfileV2.Type), appProfile.Identifier)
+				svcProfileV2.DevModeType = nocalhostApp.GetAppMeta().GetCurrentDevModeTypeOfWorkload(svcProfileV2.Name, base.SvcType(svcProfileV2.Type), appProfile.Identifier)
 			}
 			bytes, err := yaml.Marshal(appProfile)
 			if err == nil {

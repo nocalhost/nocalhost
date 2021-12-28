@@ -20,6 +20,7 @@ import (
 	"nocalhost/pkg/nhctl/clientgoutils"
 	k8sutil "nocalhost/pkg/nhctl/k8sutils"
 	"nocalhost/pkg/nhctl/log"
+	"strings"
 )
 
 var ErrorButSkip = "rror while uninstall application but skipped,"
@@ -88,6 +89,11 @@ func (cso *ClientGoUtilClient) getCustomResourceDaemon(app, ns string) item.App 
 	for _, entry := range resouce_cache.GroupToTypeMap {
 		resources := make([]item.Resource, 0, len(entry.V))
 		for _, resource := range entry.V {
+			rs := strings.Split(resource, ".")
+			if len(rs) < 1 {
+				continue
+			}
+			resource = strings.ToLower(rs[0])
 			resourceList, err := s.Criteria().
 				ResourceType(resource).
 				AppName(app).

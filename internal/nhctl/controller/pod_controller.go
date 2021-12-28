@@ -15,28 +15,29 @@ func (c *Controller) BuildPodController() pod_controller.PodController {
 	switch c.Type {
 	case base.Deployment:
 		if c.DevModeType == profile.DuplicateDevMode {
-			return &DuplicateDeploymentController{Controller: c}
+			return &DuplicateDevModeController{Controller: c}
 		}
 		return &DeploymentController{Controller: c}
 	case base.StatefulSet:
 		if c.DevModeType == profile.DuplicateDevMode {
-			return &DuplicateStatefulSetController{Controller: c}
+			return &DuplicateDevModeController{Controller: c}
 		}
-		return &StatefulSetController{Controller: c}
+		return &DefaultController{Controller: c}
 	case base.DaemonSet:
 		if c.DevModeType == profile.DuplicateDevMode {
-			return &DuplicateDaemonSetController{Controller: c}
+			return &DuplicateDevModeController{Controller: c}
 		}
-		return &DaemonSetController{Controller: c}
-	case base.Job:
-		return &JobController{Controller: c}
-	case base.CronJob:
-		return &CronJobController{Controller: c}
+		return &DefaultController{Controller: c}
+	case base.Job, base.CronJob:
+		return &DefaultController{Controller: c}
 	case base.Pod:
 		if c.DevModeType == profile.DuplicateDevMode {
 			return &DuplicateRawPodController{Controller: c}
 		}
 		return &RawPodController{Controller: c}
 	}
-	return nil
+	if c.DevModeType == profile.DuplicateDevMode {
+		return &DuplicateDevModeController{c}
+	}
+	return &DefaultController{Controller: c}
 }

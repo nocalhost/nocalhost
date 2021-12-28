@@ -29,7 +29,7 @@ var container string
 func init() {
 	devCmdCmd.Flags().StringVarP(&deployment, "deployment", "d", "",
 		"K8s deployment which your developing service exists")
-	devCmdCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "",
+	devCmdCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "deployment",
 		"kind of k8s controller,such as deployment,statefulSet")
 	devCmdCmd.Flags().StringVarP(&container, "container", "c", "",
 		"which container of pod to run command")

@@ -74,7 +74,7 @@ type ContainerDevConfig struct {
 	EnvFrom               *EnvFrom               `json:"envFrom,omitempty" yaml:"envFrom,omitempty"`
 	PortForward           []string               `validate:"dive,PortForward" json:"portForward" yaml:"portForward"`
 	SidecarImage          string                 `json:"sidecarImage,omitempty" yaml:"sidecarImage,omitempty"`
-	Patches               []PatchItem            `json:"patches,omitempty" yaml:"patches,omitempty"`
+	Patches               []base.PatchItem       `json:"patches,omitempty" yaml:"patches,omitempty"`
 }
 
 type DevCommands struct {
@@ -88,7 +88,7 @@ type DevCommands struct {
 type SyncConfig struct {
 	Type              string   `validate:"SyncType" json:"type" yaml:"type"`
 	Mode              string   `validate:"SyncMode" json:"mode,omitempty" yaml:"mode,omitempty"`
-	DeleteProtection  *bool     `json:"deleteProtection,omitempty" yaml:"deleteProtection,omitempty"`
+	DeleteProtection  *bool    `json:"deleteProtection,omitempty" yaml:"deleteProtection,omitempty"`
 	FilePattern       []string `json:"filePattern" yaml:"filePattern"`
 	IgnoreFilePattern []string `json:"ignoreFilePattern" yaml:"ignoreFilePattern"`
 }
@@ -125,7 +125,7 @@ type EnvFile struct {
 func (n *NocalHostAppConfigV2) GetSvcConfigV2(svcName string, svcType base.SvcType) *ServiceConfigV2 {
 	if n != nil {
 		for _, config := range n.ApplicationConfig.ServiceConfigs {
-			if config.Name == svcName && base.SvcTypeOf(config.Type) == svcType {
+			if config.Name == svcName && base.SvcType(config.Type) == svcType {
 				return config
 			}
 		}
@@ -136,7 +136,7 @@ func (n *NocalHostAppConfigV2) GetSvcConfigV2(svcName string, svcType base.SvcTy
 // GetSvcConfigS If ServiceConfig not found, return a default one
 func (n *NocalHostAppConfigV2) GetSvcConfigS(svcName string, svcType base.SvcType) ServiceConfigV2 {
 	for _, config := range n.ApplicationConfig.ServiceConfigs {
-		if config.Name == svcName && base.SvcTypeOf(config.Type) == svcType {
+		if config.Name == svcName && base.SvcType(config.Type) == svcType {
 			return *config
 		}
 	}

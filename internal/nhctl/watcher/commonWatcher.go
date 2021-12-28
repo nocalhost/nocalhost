@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package watcher
 
@@ -134,7 +134,7 @@ func (c *Controller) handleErr(err error, key interface{}) {
 	c.queue.Forget(key)
 	// Report to an external entity that, even after several retries, we could not successfully process this key
 	runtime.HandleError(err)
-	log.Errorf("Dropping resolving %q %s out of the queue: %v", key, err)
+	log.Errorf("Dropping resolving %q %s out of the queue: %v", c.queue.NumRequeues(key), key, err)
 }
 
 // Run begins watching and syncing.
@@ -158,7 +158,7 @@ func (c *Controller) Run(threadiness int, stopCh chan struct{}) {
 	}
 
 	<-stopCh
-	log.Info("Stop Watcher %s...", c.watcher.WatcherInfo())
+	log.Infof("Stop Watcher %s...", c.watcher.WatcherInfo())
 }
 
 func (c *Controller) runWorker() {

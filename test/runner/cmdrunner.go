@@ -101,7 +101,7 @@ func (r *CmdRunner) RunWithRollingOutWithChecker(suitName string, cmd *exec.Cmd,
 	}()
 	if err := cmd.Start(); err != nil {
 		_ = cmd.Process.Kill()
-		return stdoutBuf.String(), stderrBuf.String(), err
+		return stdoutBuf.String(), stderrBuf.String(), errors.WithStack(err)
 	}
 	_ = cmd.Wait()
 	var err error

@@ -91,13 +91,17 @@ func (c *Controller) StopSyncAndPortForwardProcess(cleanRemoteSecret bool) error
 	utils.Should(c.StopAllPortForward())
 
 	// Clean up secret
-	svcProfile, _ := c.GetProfile()
-	svcProfile.DevModeType = c.AppMeta.GetCurrentDevModeTypeOfWorkload(c.Name, c.Type, c.Identifier)
+	//svcProfile, err := c.GetProfile()
+	//if err != nil {
+	//	return err
+	//}
+	//svcProfile.DevModeType = c.AppMeta.GetCurrentDevModeTypeOfWorkload(c.Name, c.Type, c.Identifier)
 	if cleanRemoteSecret {
-		secretName := svcProfile.SyncthingSecret
-		if svcProfile.DevModeType.IsDuplicateDevMode() {
-			secretName = svcProfile.DuplicateDevModeSyncthingSecretName
-		}
+		//secretName := svcProfile.SyncthingSecret
+		//if svcProfile.DevModeType.IsDuplicateDevMode() {
+		//	secretName = svcProfile.DuplicateDevModeSyncthingSecretName
+		//}
+		secretName := c.GetSyncThingSecretName()
 		if secretName != "" {
 			log.Debugf("Cleaning up secret %s", secretName)
 			if err = c.Client.DeleteSecret(secretName); err != nil {
@@ -106,7 +110,7 @@ func (c *Controller) StopSyncAndPortForwardProcess(cleanRemoteSecret bool) error
 		}
 	}
 
-	return c.setSyncthingProfileEndStatus(svcProfile.DevModeType.IsDuplicateDevMode())
+	return c.setSyncthingProfileEndStatus()
 }
 
 func (c *Controller) SetSyncingStatus(is bool) error {
