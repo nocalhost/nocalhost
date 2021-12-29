@@ -1,11 +1,12 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cmds
 
 import (
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 
 	"github.com/pkg/errors"
@@ -15,7 +16,7 @@ import (
 func init() {
 	devResetCmd.Flags().StringVarP(&deployment, "deployment", "d", "",
 		"k8s deployment which your developing service exists")
-	devResetCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "",
+	devResetCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "deployment",
 		"kind of k8s controller,such as deployment,statefulSet")
 	debugCmd.AddCommand(devResetCmd)
 }
@@ -37,6 +38,7 @@ var devResetCmd = &cobra.Command{
 
 		_ = nocalhostSvc.DevEnd(true)
 
+		utils.Should(nocalhostSvc.DecreaseDevModeCount())
 		log.Infof("Service %s has been reset.\n", deployment)
 	},
 }

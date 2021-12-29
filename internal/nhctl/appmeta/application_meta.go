@@ -346,9 +346,9 @@ func Decode(secret *corev1.Secret) (*ApplicationMeta, error) {
 }
 
 func FillingExtField(s *profile2.SvcProfileV2, meta *ApplicationMeta, appName, ns, identifier string) {
-	svcType := base.SvcTypeOf(s.GetType())
+	svcType := base.SvcType(s.GetType())
 
-	s.DevModeType = meta.GetCurrentDevModeTypeOfWorkload(s.GetName(), base.SvcTypeOf(s.GetType()), identifier)
+	s.DevModeType = meta.GetCurrentDevModeTypeOfWorkload(s.GetName(), base.SvcType(s.GetType()), identifier)
 	devStatus := meta.CheckIfSvcDeveloping(s.GetName(), identifier, svcType, s.DevModeType)
 
 	pack := dev_dir.NewSvcPack(

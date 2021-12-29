@@ -12,16 +12,16 @@ import (
 	"os"
 )
 
-func (c *ClientGoUtils) Patch(resourceType string, name string, path string, pathType string) error {
+func (c *ClientGoUtils) Patch(resourceType string, name string, patchContent string, pathType string) error {
 	ioStreams := genericclioptions.IOStreams{
 		In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr,
 	} // don't print log to stderr
 	o := patch.NewPatchOptions(ioStreams)
 	cmd := patch.NewCmdPatch(c.NewFactory(), ioStreams)
 	if err := o.Complete(c.NewFactory(), cmd, []string{resourceType, name}); err != nil {
-		return errors.Wrap(err, "")
+		return errors.WithStack(err)
 	}
-	o.Patch = path
+	o.Patch = patchContent
 	o.PatchType = pathType
-	return errors.Wrap(o.RunPatch(), "")
+	return errors.WithStack(o.RunPatch())
 }
