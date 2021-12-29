@@ -36,15 +36,15 @@ func createOutboundRouterPodIfNecessary(
 		return routerPod.Status.PodIP, nil
 	}
 	args := []string{
-		"sysctl net.ipv4.ip_forward=1",
-		"iptables -F",
-		"iptables -P INPUT ACCEPT",
-		"iptables -P FORWARD ACCEPT",
-		fmt.Sprintf("iptables -t nat -A POSTROUTING -s %s -o eth0 -j MASQUERADE", util.RouterIP.String()),
+		//"sysctl net.ipv4.ip_forward=1",
+		//"iptables -F",
+		//"iptables -P INPUT ACCEPT",
+		//"iptables -P FORWARD ACCEPT",
+		//fmt.Sprintf("iptables -t nat -A POSTROUTING -s %s -o eth0 -j MASQUERADE", util.RouterIP.String()),
 	}
-	for _, ipNet := range podCIDR {
-		args = append(args, fmt.Sprintf("iptables -t nat -A POSTROUTING -s %s -o eth0 -j MASQUERADE", ipNet.String()))
-	}
+	//for _, ipNet := range podCIDR {
+	//	args = append(args, fmt.Sprintf("iptables -t nat -A POSTROUTING -s %s -o eth0 -j MASQUERADE", ipNet.String()))
+	//}
 	args = append(args, fmt.Sprintf("nhctl vpn serve -L tcp://:10800 -L tun://:8421?net=%s --debug=true", serverIP.String()))
 
 	t := true
@@ -175,10 +175,10 @@ func CreateInboundPod(
 							"iptables -F;" +
 							"iptables -P INPUT ACCEPT;" +
 							"iptables -P FORWARD ACCEPT;" +
-							"iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 1:65535 -j DNAT --to " + localTunIP + ":1-65535;" +
-							"iptables -t nat -A POSTROUTING -p tcp -m tcp --dport 1:65535 -j MASQUERADE;" +
-							"iptables -t nat -A PREROUTING -i eth0 -p udp --dport 1:65535 -j DNAT --to " + localTunIP + ":1-65535;" +
-							"iptables -t nat -A POSTROUTING -p udp -m udp --dport 1:65535 -j MASQUERADE;" +
+							"iptables -t nat -A PREROUTING ! -p icmp -j DNAT --to " + localTunIP + ";" +
+							"iptables -t nat -A POSTROUTING ! -p icmp -j MASQUERADE;" +
+							"sysctl -w net.ipv4.conf.all.route_localnet=1;" +
+							"iptables -t nat -A OUTPUT -o lo ! -p icmp -j DNAT --to-destination " + localTunIP + ";" +
 							"nhctl vpn serve -L 'tun://0.0.0.0:8421/" + trafficManagerIP + ":8421?net=" + shadowTunIP + "&route=" + routes + "' --debug=true",
 					},
 					SecurityContext: &v1.SecurityContext{
