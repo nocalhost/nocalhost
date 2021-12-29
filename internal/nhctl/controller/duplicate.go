@@ -20,6 +20,12 @@ import (
 	"strings"
 )
 
+const (
+	IdentifierKey         = "identifier"
+	OriginWorkloadNameKey = "origin-workload-name"
+	OriginWorkloadTypeKey = "origin-workload-type"
+)
+
 // ReplaceDuplicateModeImage Create a duplicate deployment instead of replacing image
 func (c *Controller) ReplaceDuplicateModeImage(ctx context.Context, ops *model.DevStartOptions) error {
 	c.Client.Context(ctx)
@@ -42,26 +48,26 @@ func (c *Controller) ReplaceDuplicateModeImage(ctx context.Context, ops *model.D
 		}
 	}
 
-	var ps *v1.PodTemplateSpec
+	var podTemplate *v1.PodTemplateSpec
 	if !c.DevModeAction.Create {
 
 		um.SetName(c.getDuplicateResourceName())
 		um.SetLabels(c.getDuplicateLabelsMap())
 		um.SetResourceVersion("")
 
-		if ps, err = GetPodTemplateFromSpecPath(c.DevModeAction.PodTemplatePath, um.Object); err != nil {
+		if podTemplate, err = GetPodTemplateFromSpecPath(c.DevModeAction.PodTemplatePath, um.Object); err != nil {
 			return err
 		}
 
-		ps.Labels = c.getDuplicateLabelsMap()
+		podTemplate.Labels = c.getDuplicateLabelsMap()
 
 		devContainer, sideCarContainer, devModeVolumes, err :=
-			c.genContainersAndVolumes(&ps.Spec, ops.Container, ops.DevImage, ops.StorageClass, true)
+			c.genContainersAndVolumes(&podTemplate.Spec, ops.Container, ops.DevImage, ops.StorageClass, true)
 		if err != nil {
 			return err
 		}
 
-		patchDevContainerToPodSpec(&ps.Spec, ops.Container, devContainer, sideCarContainer, devModeVolumes)
+		patchDevContainerToPodSpec(&podTemplate.Spec, ops.Container, devContainer, sideCarContainer, devModeVolumes)
 
 		jsonObj, err := um.MarshalJSON()
 		if err != nil {
@@ -89,7 +95,7 @@ func (c *Controller) ReplaceDuplicateModeImage(ctx context.Context, ops *model.D
 			return errors.WithStack(err)
 		}
 
-		pss, _ := json.Marshal(ps)
+		pss, _ := json.Marshal(podTemplate)
 		templatePath := strings.Join(pis, ".")
 		if jsonStr, err = sjson.SetRaw(jsonStr, templatePath, string(pss)); err != nil {
 			return errors.WithStack(err)
@@ -130,42 +136,48 @@ func (c *Controller) ReplaceDuplicateModeImage(ctx context.Context, ops *model.D
 	} else {
 		labelsMap := c.getDuplicateLabelsMap()
 
-		if ps, err = GetPodTemplateFromSpecPath(c.DevModeAction.PodTemplatePath, um.Object); err != nil {
+		if podTemplate, err = GetPodTemplateFromSpecPath(c.DevModeAction.PodTemplatePath, um.Object); err != nil {
 			return err
 		}
-		generatedDeployment := &appsv1.Deployment{
+		genDeploy := &appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:   c.getDuplicateResourceName(),
 				Labels: labelsMap,
 			},
 			Spec: appsv1.DeploymentSpec{
-				Template: *ps,
+				Template: *podTemplate,
 			},
 		}
-		generatedDeployment.Spec.Selector = &metav1.LabelSelector{MatchLabels: labelsMap}
-		generatedDeployment.Spec.Template.Labels = labelsMap
-		generatedDeployment.ResourceVersion = ""
-		generatedDeployment.Spec.Template.Spec.NodeName = ""
+		genDeploy.Spec.Selector = &metav1.LabelSelector{MatchLabels: labelsMap}
+		genDeploy.Spec.Template.Labels = labelsMap
+		genDeploy.ResourceVersion = ""
+		genDeploy.Spec.Template.Spec.NodeName = ""
 
 		devContainer, sideCarContainer, devModeVolumes, err :=
 			c.genContainersAndVolumes(
-				&generatedDeployment.Spec.Template.Spec, ops.Container, ops.DevImage, ops.StorageClass, true,
+				&genDeploy.Spec.Template.Spec, ops.Container, ops.DevImage, ops.StorageClass, true,
 			)
 		if err != nil {
 			return err
 		}
 
 		patchDevContainerToPodSpec(
-			&generatedDeployment.Spec.Template.Spec, ops.Container, devContainer, sideCarContainer, devModeVolumes,
+			&genDeploy.Spec.Template.Spec, ops.Container, devContainer, sideCarContainer, devModeVolumes,
 		)
 
+		genDeploy.Spec.Template.Spec.RestartPolicy = v1.RestartPolicyAlways
+
 		// Create generated deployment
-		if _, err = c.Client.CreateDeploymentAndWait(generatedDeployment); err != nil {
+		if _, err = c.Client.CreateDeploymentAndWait(genDeploy); err != nil {
 			return err
 		}
 
-		c.patchAfterDevContainerReplaced(ops.Container, generatedDeployment.Kind, generatedDeployment.Name)
+		c.patchAfterDevContainerReplaced(ops.Container, genDeploy.Kind, genDeploy.Name)
 	}
 
-	return waitingPodToBeReady(c.GetDevModePodName)
+	delete(podTemplate.Labels, "pod-template-hash")
+	c.devModePodLabels = podTemplate.Labels
+
+	c.waitDevPodToBeReady()
+	return nil
 }

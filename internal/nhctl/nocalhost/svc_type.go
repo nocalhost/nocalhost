@@ -36,7 +36,7 @@ func init() {
 	supportedSvcType[base.DaemonSet] = DaemonSetDevModeAction
 	supportedSvcType[base.Job] = JobDevModeAction
 	supportedSvcType[base.CronJob] = CronJobDevModeAction
-	supportedSvcType[base.Pod] = DefaultDevModeAction // Todo
+	supportedSvcType[base.Pod] = PodDevModeAction // Todo
 
 	// Kruise
 	supportedSvcType["clonesets.v1alpha1.apps.kruise.io"] = DefaultDevModeAction
@@ -96,6 +96,8 @@ var (
 		}},
 		PodTemplatePath: "/spec/template",
 	}
+
+	PodDevModeAction = base.DevModeAction{}
 
 	DaemonSetDevModeAction = base.DevModeAction{
 		ScalePatches: []base.PatchItem{{

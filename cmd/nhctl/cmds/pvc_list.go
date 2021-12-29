@@ -53,11 +53,8 @@ var pvcListCmd = &cobra.Command{
 				if err != nil {
 					log.FatalE(err, "")
 				}
-				exist, err := c.CheckIfExist()
-				if err != nil {
-					log.FatalE(err, "failed to check if controller exists")
-				} else if !exist {
-					log.Fatalf("\"%s\" not found", pvcFlags.Svc)
+				if err = c.CheckIfExist(); err != nil {
+					log.FatalE(err, "")
 				}
 				pvcList, err = nocalhostApp.GetPVCsBySvc(pvcFlags.Svc)
 				must(err)

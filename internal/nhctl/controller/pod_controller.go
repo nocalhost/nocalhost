@@ -12,32 +12,11 @@ import (
 )
 
 func (c *Controller) BuildPodController() pod_controller.PodController {
-	switch c.Type {
-	case base.Deployment:
-		if c.DevModeType == profile.DuplicateDevMode {
-			return &DuplicateDevModeController{Controller: c}
-		}
-		return &DeploymentController{Controller: c}
-	case base.StatefulSet:
-		if c.DevModeType == profile.DuplicateDevMode {
-			return &DuplicateDevModeController{Controller: c}
-		}
-		return &DefaultController{Controller: c}
-	case base.DaemonSet:
-		if c.DevModeType == profile.DuplicateDevMode {
-			return &DuplicateDevModeController{Controller: c}
-		}
-		return &DefaultController{Controller: c}
-	case base.Job, base.CronJob:
-		return &DefaultController{Controller: c}
-	case base.Pod:
+	if c.Type == base.Pod {
 		if c.DevModeType == profile.DuplicateDevMode {
 			return &DuplicateRawPodController{Controller: c}
 		}
 		return &RawPodController{Controller: c}
-	}
-	if c.DevModeType == profile.DuplicateDevMode {
-		return &DuplicateDevModeController{c}
 	}
 	return &DefaultController{Controller: c}
 }

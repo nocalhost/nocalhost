@@ -112,21 +112,9 @@ func (c *Controller) GetCurrentDevModeType() profile.DevModeType {
 	return c.AppMeta.GetCurrentDevModeTypeOfWorkload(c.Name, c.Type, c.Identifier)
 }
 
-//func CheckIfControllerTypeSupport(t string) bool {
-//	tt := base.SvcType(t)
-//	if tt == base.Deployment || tt == base.StatefulSet || tt == base.DaemonSet || tt == base.Job ||
-//		tt == base.CronJob || tt == base.Pod || tt == base.CloneSetV1Alpha1 {
-//		return true
-//	}
-//	return false
-//}
-
-func (c *Controller) CheckIfExist() (bool, error) {
+func (c *Controller) CheckIfExist() error {
 	_, err := c.GetUnstructured()
-	if err != nil {
-		return false, err
-	}
-	return true, nil
+	return err
 }
 
 func (c *Controller) GetOriginalContainers() ([]v1.Container, error) {
@@ -134,7 +122,6 @@ func (c *Controller) GetOriginalContainers() ([]v1.Container, error) {
 }
 
 func GetOriginalContainers(client *clientgoutils.ClientGoUtils, workloadType base.SvcType, workloadName, path string) ([]v1.Container, error) {
-	//var podSpec v1.PodSpec
 	um, err := client.GetUnstructured(string(workloadType), workloadName)
 	if err != nil {
 		return nil, err
@@ -153,93 +140,6 @@ func GetOriginalContainers(client *clientgoutils.ClientGoUtils, workloadType bas
 	if err != nil {
 		return nil, err
 	}
-
-	//switch workloadType {
-	//case base.Deployment:
-	//	d, err := client.GetDeployment(workloadName)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	if len(d.Annotations) > 0 {
-	//		if osj, ok := d.Annotations[OriginSpecJson]; ok {
-	//			d.Spec = appsv1.DeploymentSpec{}
-	//			if err = json.Unmarshal([]byte(osj), &d.Spec); err != nil {
-	//				return nil, errors.Wrap(err, "")
-	//			}
-	//		}
-	//	}
-	//	podSpec = d.Spec.Template.Spec
-	//case base.StatefulSet:
-	//	s, err := client.GetStatefulSet(workloadName)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	if len(s.Annotations) > 0 {
-	//		if osj, ok := s.Annotations[OriginSpecJson]; ok {
-	//			s.Spec = appsv1.StatefulSetSpec{}
-	//			if err = json.Unmarshal([]byte(osj), &s.Spec); err != nil {
-	//				return nil, errors.Wrap(err, "")
-	//			}
-	//		}
-	//	}
-	//	podSpec = s.Spec.Template.Spec
-	//case base.DaemonSet:
-	//	d, err := client.GetDaemonSet(workloadName)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	if len(d.Annotations) > 0 {
-	//		if osj, ok := d.Annotations[OriginSpecJson]; ok {
-	//			d.Spec = appsv1.DaemonSetSpec{}
-	//			if err = json.Unmarshal([]byte(osj), &d.Spec); err != nil {
-	//				return nil, errors.Wrap(err, "")
-	//			}
-	//		}
-	//	}
-	//	podSpec = d.Spec.Template.Spec
-	//case base.Job:
-	//	j, err := client.GetJobs(workloadName)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	if len(j.Annotations) > 0 {
-	//		if osj, ok := j.Annotations[OriginSpecJson]; ok {
-	//			j.Spec = batchv1.JobSpec{}
-	//			if err = json.Unmarshal([]byte(osj), &j.Spec); err != nil {
-	//				return nil, errors.Wrap(err, "")
-	//			}
-	//		}
-	//	}
-	//	podSpec = j.Spec.Template.Spec
-	//case base.CronJob:
-	//	j, err := client.GetCronJobs(workloadName)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	if len(j.Annotations) > 0 {
-	//		if osj, ok := j.Annotations[OriginSpecJson]; ok {
-	//			j.Spec = batchv1beta1.CronJobSpec{}
-	//			if err = json.Unmarshal([]byte(osj), &j.Spec); err != nil {
-	//				return nil, errors.Wrap(err, "")
-	//			}
-	//		}
-	//	}
-	//	podSpec = j.Spec.JobTemplate.Spec.Template.Spec
-	//case base.Pod:
-	//	p, err := client.GetPod(workloadName)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	if len(p.Annotations) > 0 {
-	//		if osj, ok := p.Annotations[originalPodDefine]; ok {
-	//			p.Spec = v1.PodSpec{}
-	//			if err = json.Unmarshal([]byte(osj), p); err != nil {
-	//				return nil, errors.Wrap(err, "")
-	//			}
-	//		}
-	//	}
-	//	podSpec = p.Spec
-	//}
 
 	return pt.Spec.Containers, nil
 }
@@ -481,6 +381,11 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 	delete(podTemplate.Labels, "pod-template-hash")
 	c.devModePodLabels = podTemplate.Labels
 
+	c.waitDevPodToBeReady()
+	return nil
+}
+
+func (c *Controller) waitDevPodToBeReady() {
 	gvr := c.Client.ResourceFor("pod", false)
 	gvk, gvkErr := c.Client.KindFor(gvr)
 	if gvkErr != nil {
@@ -572,7 +477,6 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 	}
 
 	<-quitChan
-	return nil
 }
 
 func (c *Controller) CheckDevModePodIsRunning() (string, error) {
@@ -611,4 +515,39 @@ func (c *Controller) DuplicateModeRollBack() error {
 	}
 
 	return clientgoutils.DeleteResourceInfo(infos[0])
+}
+
+func (c *Controller) ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error {
+	if c.IsInDuplicateDevMode() {
+		return c.ReplaceDuplicateModeImage(ctx, ops)
+	}
+	return c.PatchDevModeManifest(ctx, ops)
+}
+
+func (c *Controller) RollBack(reset bool) error {
+	if c.IsInDuplicateDevMode() {
+		return c.DuplicateModeRollBack()
+	}
+	return c.RollbackFromAnnotation()
+}
+
+func GetDefaultPodName(ctx context.Context, p *Controller) (string, error) {
+	var (
+		podList []v1.Pod
+		err     error
+	)
+	for {
+		select {
+		case <-ctx.Done():
+			return "", errors.New(fmt.Sprintf("Fail to get %s' pod", p.Name))
+		default:
+			podList, err = p.GetPodList()
+		}
+		if err != nil || len(podList) == 0 {
+			log.Infof("Pod of %s has not been ready, waiting for it...", p.Name)
+			time.Sleep(time.Second)
+		} else {
+			return podList[0].Name, nil
+		}
+	}
 }
