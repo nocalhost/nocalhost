@@ -7,7 +7,6 @@ package controller
 
 import (
 	"context"
-	corev1 "k8s.io/api/core/v1"
 	"nocalhost/internal/nhctl/model"
 )
 
@@ -21,10 +20,6 @@ type DuplicateDevModeController struct {
 	*Controller
 }
 
-func (d *DuplicateDevModeController) GetNocalhostDevContainerPod() (string, error) {
-	return d.GetDuplicateDevModePodName()
-}
-
 // ReplaceImage Create a duplicate deployment instead of replacing image
 func (d *DuplicateDevModeController) ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error {
 	return d.ReplaceDuplicateModeImage(ctx, ops)
@@ -32,8 +27,4 @@ func (d *DuplicateDevModeController) ReplaceImage(ctx context.Context, ops *mode
 
 func (d *DuplicateDevModeController) RollBack(reset bool) error {
 	return d.DuplicateModeRollBack()
-}
-
-func (d *DuplicateDevModeController) GetPodList() ([]corev1.Pod, error) {
-	return d.GetDuplicateModePodList()
 }

@@ -16,7 +16,7 @@ import (
 func init() {
 	devResetCmd.Flags().StringVarP(&deployment, "deployment", "d", "",
 		"k8s deployment which your developing service exists")
-	devResetCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "",
+	devResetCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "deployment",
 		"kind of k8s controller,such as deployment,statefulSet")
 	debugCmd.AddCommand(devResetCmd)
 }

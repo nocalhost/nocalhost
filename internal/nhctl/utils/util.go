@@ -214,7 +214,7 @@ func CheckKubectlVersion(compareMinor int) error {
 func GetShortUuid() (string, error) {
 	uid, err := uuid.NewUUID()
 	if err != nil {
-		return "", errors.Wrap(err, "")
+		return "", errors.WithStack(err)
 	}
 	strs := strings.Split(uid.String(), "-")
 	if len(strs) == 0 {

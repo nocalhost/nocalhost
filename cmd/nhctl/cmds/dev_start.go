@@ -28,7 +28,7 @@ import (
 
 var (
 	deployment  string
-	serviceType string
+	serviceType = "deployment"
 	pod         string
 	shell       string
 )
@@ -42,7 +42,7 @@ func init() {
 		"k8s deployment your developing service exists",
 	)
 	devStartCmd.Flags().StringVarP(
-		&serviceType, "controller-type", "t", "",
+		&serviceType, "controller-type", "t", "deployment",
 		"kind of k8s controller,such as deployment,statefulSet",
 	)
 	devStartCmd.Flags().StringVarP(
@@ -121,7 +121,7 @@ var devStartCmd = &cobra.Command{
 		if nocalhostSvc.IsInDevMode() {
 			coloredoutput.Hint(fmt.Sprintf("Already in %s DevMode...", nocalhostSvc.DevModeType.ToString()))
 
-			podName, err := nocalhostSvc.BuildPodController().GetNocalhostDevContainerPod()
+			podName, err := nocalhostSvc.GetDevModePodName()
 			must(err)
 
 			if !devStartOps.NoSyncthing {
@@ -162,7 +162,7 @@ var devStartCmd = &cobra.Command{
 			log.FatalE(err, "")
 		}
 
-		devPodName, err := nocalhostSvc.BuildPodController().GetNocalhostDevContainerPod()
+		devPodName, err := nocalhostSvc.GetDevModePodName()
 		must(err)
 
 		startPortForwardAfterDevStart(devPodName)

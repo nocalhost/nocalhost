@@ -7,16 +7,11 @@ package controller
 
 import (
 	"context"
-	corev1 "k8s.io/api/core/v1"
 	"nocalhost/internal/nhctl/model"
 )
 
 type DefaultController struct {
 	*Controller
-}
-
-func (j *DefaultController) GetNocalhostDevContainerPod() (string, error) {
-	return j.GetDevModePodName()
 }
 
 func (j *DefaultController) ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error {
@@ -25,8 +20,4 @@ func (j *DefaultController) ReplaceImage(ctx context.Context, ops *model.DevStar
 
 func (j *DefaultController) RollBack(reset bool) error {
 	return j.RollbackFromAnnotation()
-}
-
-func (j *DefaultController) GetPodList() ([]corev1.Pod, error) {
-	return j.Controller.GetPodList()
 }

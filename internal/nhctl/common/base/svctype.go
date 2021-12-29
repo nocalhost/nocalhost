@@ -8,14 +8,13 @@ package base
 type SvcType string
 
 const (
-	Deployment       SvcType = "deployment"
-	StatefulSet      SvcType = "statefulset"
-	DaemonSet        SvcType = "daemonset"
-	Job              SvcType = "job"
-	CronJob          SvcType = "cronjob"
-	Pod              SvcType = "pod"
-	CloneSetV1Alpha1 SvcType = "clonesets.v1alpha1.apps.kruise.io"
-	DEPLOYMENT       SvcType = "D"
+	Deployment  SvcType = "deployment"
+	StatefulSet SvcType = "statefulset"
+	DaemonSet   SvcType = "daemonset"
+	Job         SvcType = "job"
+	CronJob     SvcType = "cronjob"
+	Pod         SvcType = "pod"
+	DEPLOYMENT  SvcType = "D"
 )
 
 // Alias For compatibility with meta

@@ -26,7 +26,6 @@ import (
 	"nocalhost/internal/nhctl/watcher"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
-	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -321,11 +320,7 @@ func (c *Controller) UpdateSvcProfile(modify func(*profile.SvcProfileV2) error) 
 	return profileV2.Save()
 }
 
-func (c *Controller) GetName() string {
-	return c.Name
-}
-
-func (c *Controller) getDuplicateLabelsMap() (map[string]string, error) {
+func (c *Controller) getDuplicateLabelsMap() map[string]string {
 
 	labelsMap := map[string]string{
 		IdentifierKey:             c.Identifier,
@@ -333,11 +328,12 @@ func (c *Controller) getDuplicateLabelsMap() (map[string]string, error) {
 		OriginWorkloadTypeKey:     string(c.Type),
 		_const.DevWorkloadIgnored: "true",
 	}
-	return labelsMap, nil
+	return labelsMap
 }
 
 func (c *Controller) getDuplicateResourceName() string {
-	return strings.Join([]string{c.Name, c.Identifier[0:5], strconv.Itoa(int(time.Now().Unix()))}, "-")
+	uuid, _ := utils.GetShortUuid()
+	return strings.Join([]string{c.Name, c.Identifier[0:5], uuid}, "-")
 }
 
 func (c *Controller) patchAfterDevContainerReplaced(containerName, resourceType, resourceName string) {
@@ -376,9 +372,8 @@ func (c *Controller) patchAfterDevContainerReplaced(containerName, resourceType,
 //}
 
 func (c *Controller) getGeneratedDeploymentName() string {
-	t := strings.ToLower(strings.Split(string(c.Type), ".")[0])
 	id, _ := utils.GetShortUuid()
-	return fmt.Sprintf("%s-%s-devmode-%s", c.GetName(), t, id)
+	return fmt.Sprintf("%s-gen-%s", c.Name, id)
 }
 
 func (c *Controller) getGeneratedDeploymentLabels() map[string]string {
@@ -404,18 +399,31 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 		return errors.WithStack(err)
 	}
 
-	log.Infof("Scale %s(%s) to 1", c.Name, c.Type.String())
-	for _, item := range c.DevModeAction.ScalePatches {
-		log.Infof("Patching %s", item.Patch)
-		if err := c.Client.Patch(c.Type.String(), c.Name, item.Patch, item.Type); err != nil {
-			return err
-		}
-	}
-	log.Info("Scale success")
-
+	// Check if already in DevMode
 	podTemplate, err := GetPodTemplateFromSpecPath(c.DevModeAction.PodTemplatePath, unstructuredObj.Object)
 	if err != nil {
 		return err
+	}
+
+	for _, container := range podTemplate.Spec.Containers {
+		if container.Name == "nocalhost-dev" || container.Name == "nocalhost-sidecar" {
+			return errors.New(fmt.Sprintf("Container %s already exists, you need to reset it first", container.Name))
+		}
+	}
+
+	m := map[string]interface{}{"metadata": map[string]interface{}{"annotations": map[string]string{_const.OriginWorkloadDefinition: string(originalSpecJson)}}}
+	mBytes, _ := json.Marshal(m)
+	if err = c.Client.Patch(c.Type.String(), c.Name, string(mBytes), "merge"); err != nil {
+		return err
+	}
+	log.Info("Original manifest recorded")
+
+	log.Info("Executing ScalePatches...")
+	for _, item := range c.DevModeAction.ScalePatches {
+		log.Infof("Patching %s(%s)", item.Patch, item.Type)
+		if err := c.Client.Patch(c.Type.String(), c.Name, item.Patch, item.Type); err != nil {
+			return err
+		}
 	}
 
 	podSpec := &podTemplate.Spec
@@ -427,13 +435,6 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 	}
 
 	patchDevContainerToPodSpec(podSpec, ops.Container, devContainer, sideCarContainer, devModeVolumes)
-
-	m := map[string]interface{}{"metadata": map[string]interface{}{"annotations": map[string]string{_const.OriginWorkloadDefinition: string(originalSpecJson)}}}
-	mBytes, _ := json.Marshal(m)
-	if err = c.Client.Patch(c.Type.String(), c.Name, string(mBytes), "merge"); err != nil {
-		return err
-	}
-	log.Info("Original manifest recorded")
 
 	if !c.DevModeAction.Create {
 		log.Info("Patching development container...")
@@ -582,141 +583,8 @@ func (c *Controller) CheckDevModePodIsRunning() (string, error) {
 	return findDevPodName(pods...)
 }
 
-// ReplaceDuplicateModeImage Create a duplicate deployment instead of replacing image
-func (c *Controller) ReplaceDuplicateModeImage(ctx context.Context, ops *model.DevStartOptions) error {
-	c.Client.Context(ctx)
-
-	um, err := c.GetUnstructured()
-	if err != nil {
-		return err
-	}
-
-	RemoveUselessInfo(um)
-
-	if c.IsInReplaceDevMode() {
-		od, err := GetAnnotationFromUnstructured(um, _const.OriginWorkloadDefinition)
-		if err != nil {
-			return err
-		}
-
-		if um, err = c.Client.GetUnstructuredFromString(od); err != nil {
-			return err
-		}
-	}
-
-	var ps *v1.PodTemplateSpec
-	if !c.DevModeAction.Create {
-		if err = c.PatchDuplicateInfo(um.Object); err != nil {
-			return err
-		}
-		if ps, err = GetPodTemplateFromSpecPath(c.DevModeAction.PodTemplatePath, um.Object); err != nil {
-			return err
-		}
-
-		devContainer, sideCarContainer, devModeVolumes, err :=
-			c.genContainersAndVolumes(&ps.Spec, ops.Container, ops.DevImage, ops.StorageClass, true)
-		if err != nil {
-			return err
-		}
-
-		patchDevContainerToPodSpec(&ps.Spec, ops.Container, devContainer, sideCarContainer, devModeVolumes)
-
-		// Set podTemplate
-		ptm, err := GetUnstructuredMapBySpecificPath(c.DevModeAction.PodTemplatePath, um.Object)
-		if err != nil {
-			return err
-		}
-
-		ptm["spec"] = &ps.Spec
-
-		jsonObj, err := json.Marshal(um)
-		if err != nil {
-			return errors.WithStack(err)
-		}
-
-		infos, err := c.Client.GetResourceInfoFromString(string(jsonObj), true)
-		if err != nil {
-			return err
-		}
-
-		if len(infos) != 1 {
-			return errors.New(fmt.Sprintf("ResourceInfo' num is %d(not 1?)", len(infos)))
-		}
-
-		log.Infof("Creating %s(%v)", infos[0].Name, infos[0].Object.GetObjectKind().GroupVersionKind())
-		err = c.Client.ApplyResourceInfo(infos[0], nil)
-		if err != nil {
-			return err
-		}
-
-		gvk := infos[0].Object.GetObjectKind().GroupVersionKind()
-		kind := gvk.Kind
-		if gvk.Version != "" {
-			kind += "." + gvk.Version
-		}
-		if gvk.Group != "" {
-			kind += "." + gvk.Group
-		}
-
-		for _, item := range c.DevModeAction.ScalePatches {
-			log.Infof("Patching %s", item.Patch)
-			if err = c.Client.Patch(kind, infos[0].Name, item.Patch, item.Type); err != nil {
-				return err
-			}
-		}
-
-		c.patchAfterDevContainerReplaced(ops.Container, kind, infos[0].Name)
-	} else {
-		labelsMap, err := c.getDuplicateLabelsMap()
-		if err != nil {
-			return err
-		}
-		if ps, err = GetPodTemplateFromSpecPath(c.DevModeAction.PodTemplatePath, um.Object); err != nil {
-			return err
-		}
-		generatedDeployment := &appsv1.Deployment{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   c.getDuplicateResourceName(),
-				Labels: labelsMap,
-			},
-			Spec: appsv1.DeploymentSpec{
-				Template: *ps,
-			},
-		}
-		generatedDeployment.Spec.Selector = &metav1.LabelSelector{MatchLabels: labelsMap}
-		generatedDeployment.Spec.Template.Labels = labelsMap
-		generatedDeployment.ResourceVersion = ""
-		generatedDeployment.Spec.Template.Spec.NodeName = ""
-
-		devContainer, sideCarContainer, devModeVolumes, err :=
-			c.genContainersAndVolumes(
-				&generatedDeployment.Spec.Template.Spec, ops.Container, ops.DevImage, ops.StorageClass, true,
-			)
-		if err != nil {
-			return err
-		}
-
-		patchDevContainerToPodSpec(
-			&generatedDeployment.Spec.Template.Spec, ops.Container, devContainer, sideCarContainer, devModeVolumes,
-		)
-
-		// Create generated deployment
-		if _, err = c.Client.CreateDeploymentAndWait(generatedDeployment); err != nil {
-			return err
-		}
-
-		c.patchAfterDevContainerReplaced(ops.Container, generatedDeployment.Kind, generatedDeployment.Name)
-	}
-
-	return waitingPodToBeReady(c.GetDuplicateDevModePodName)
-}
-
 func (c *Controller) GetDuplicateModePodList() ([]v1.Pod, error) {
-	labelsMap, err := c.getDuplicateLabelsMap()
-	if err != nil {
-		return nil, err
-	}
-	return c.Client.Labels(labelsMap).ListPods()
+	return c.Client.Labels(c.getDuplicateLabelsMap()).ListPods()
 }
 
 func (c *Controller) GetDevModePodName() (string, error) {
@@ -727,19 +595,8 @@ func (c *Controller) GetDevModePodName() (string, error) {
 	return findDevPodName(pods...)
 }
 
-func (c *Controller) GetDuplicateDevModePodName() (string, error) {
-	pods, err := c.GetDuplicateModePodList()
-	if err != nil {
-		return "", err
-	}
-	return findDevPodName(pods...)
-}
-
 func (c *Controller) DuplicateModeRollBack() error {
-	lmap, err := c.getDuplicateLabelsMap()
-	if err != nil {
-		return err
-	}
+	lmap := c.getDuplicateLabelsMap()
 	t := string(c.Type)
 	if c.DevModeAction.Create {
 		t = "deployment"

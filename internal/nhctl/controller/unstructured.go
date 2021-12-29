@@ -9,10 +9,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
+	"github.com/tidwall/sjson"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/cli-runtime/pkg/resource"
+	"nocalhost/internal/nhctl/common/base"
 	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
@@ -41,6 +44,16 @@ func (c *Controller) GetPodTemplate() (*corev1.PodTemplateSpec, error) {
 // If in Replace DevMode and DevModeAction.Create is true, return pods of generated deployment
 // Others, return pods of the workload
 func (c *Controller) GetPodList() ([]corev1.Pod, error) {
+	if c.Type == base.Pod {
+		pod, err := c.Client.GetPod(c.Name)
+		if err != nil {
+			return nil, err
+		}
+		return []corev1.Pod{*pod}, nil
+	}
+	if c.DevModeType.IsDuplicateDevMode() {
+		return c.GetDuplicateModePodList()
+	}
 	if c.IsInReplaceDevMode() && c.DevModeAction.Create {
 		return c.ListPodOfGeneratedDeployment()
 	}
@@ -151,13 +164,31 @@ func (c *Controller) RollbackFromAnnotation() error {
 		return err
 	}
 
+	var originalWorkload []*resource.Info
 	osj, err := GetAnnotationFromUnstructured(devModeWorkload, _const.OriginWorkloadDefinition)
 	if err != nil {
-		return err
-	}
-	log.Infof("Annotation %s found, use it", _const.OriginWorkloadDefinition)
+		// For compatibility
+		log.Infof("Annotation %s not found, finding %s", _const.OriginWorkloadDefinition, OriginSpecJson)
+		osj2, err := GetAnnotationFromUnstructured(devModeWorkload, OriginSpecJson)
+		if err != nil {
+			return err
+		}
 
-	originalWorkload, err := c.Client.GetResourceInfoFromString(osj, true)
+		osj2 = strings.Trim(osj2, "\"")
+
+		mj, err := devModeWorkload.MarshalJSON()
+		if err != nil {
+			return err
+		}
+		osj = string(mj)
+		if osj, err = sjson.SetRaw(osj, "spec", osj2); err != nil {
+			return errors.WithStack(err)
+		}
+	} else {
+		log.Infof("Annotation %s found, use it", _const.OriginWorkloadDefinition)
+	}
+
+	originalWorkload, err = c.Client.GetResourceInfoFromString(osj, true)
 	if err != nil {
 		return err
 	}
@@ -181,26 +212,6 @@ func (c *Controller) RollbackFromAnnotation() error {
 	}
 
 	return c.Client.ApplyResourceInfo(originalWorkload[0], nil)
-
-	//originalWorkload, err := c.Client.GetUnstructuredFromString(osj)
-	//if err != nil {
-	//	return err
-	//}
-
-	//specMap, ok := originalWorkload.Object["spec"]
-	//if !ok {
-	//	return errors.New("Spec not found in workload definition")
-	//}
-	//
-	//jsonPatches := make([]jsonPatch, 0)
-	//jsonPatches = append(jsonPatches, jsonPatch{
-	//	Op:    "replace",
-	//	Path:  "/spec",
-	//	Value: specMap,
-	//})
-	//
-	//bys, _ := json.Marshal(jsonPatches)
-	//return c.Client.Patch(c.Type.String(), c.Name, string(bys), "json")
 }
 
 // GetUnstructuredMapBySpecificPath Path must be like: /spec/template
@@ -315,72 +326,4 @@ func RemoveUselessInfo(u *unstructured.Unstructured) {
 	delete(a, "kubectl.kubernetes.io/last-applied-configuration")
 	delete(a, OriginSpecJson) // remove deprecated annotation
 	u.SetAnnotations(a)
-}
-
-func AddItemToUnstructuredMap(path string, u map[string]interface{}, key string, item map[string]interface{}) error {
-	ps := strings.Split(path, "/")
-	currentMap := u
-	for _, p := range ps {
-		if p == "" {
-			continue
-		}
-		tM, ok := currentMap[p]
-		if !ok {
-			return errors.New(fmt.Sprintf("Add item to UnstructuredMap failed in %s", p))
-		}
-
-		tm, ok := tM.(map[string]interface{})
-		if !ok {
-			return errors.New(fmt.Sprintf("Add item to UnstructuredMap failed in %s", p))
-		}
-		currentMap = tm
-	}
-	currentMap[key] = item
-	return nil
-}
-
-func (c *Controller) PatchDuplicateInfo(u map[string]interface{}) error {
-	labelsMap, err := c.getDuplicateLabelsMap()
-	if err != nil {
-		return err
-	}
-
-	metaM, ok := u["metadata"]
-	if !ok {
-		return errors.New("metadata not found")
-	}
-
-	mm, ok := metaM.(map[string]interface{})
-	if !ok {
-		return errors.New("metadata invalid")
-	}
-
-	//dep.Name = d.getDuplicateResourceName()
-	mm["name"] = c.getDuplicateResourceName()
-	mm["labels"] = labelsMap
-
-	delete(mm, "resourceVersion") //dep.ResourceVersion = ""
-	delete(u, "status")           //dep.Status = appsv1.DeploymentStatus{}
-
-	// todo
-	//dep.Spec.Selector = &metav1.LabelSelector{MatchLabels: labelsMap}
-	pathItems := strings.Split(c.DevModeAction.PodTemplatePath, "/")
-	path := strings.Join(pathItems[:len(pathItems)-1], "/")
-	lm := map[string]interface{}{"matchLabels": labelsMap}
-	err = AddItemToUnstructuredMap(path, u, "selector", lm)
-	if err != nil {
-		return err
-	}
-
-	li := map[string]interface{}{}
-	for s, s2 := range labelsMap {
-		li[s] = s2
-	}
-
-	//dep.Spec.Template.Labels = labelsMap
-	err = AddItemToUnstructuredMap(c.DevModeAction.PodTemplatePath+"/"+"metadata", u, "labels", li)
-	if err != nil {
-		return err
-	}
-	return nil
 }

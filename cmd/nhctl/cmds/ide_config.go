@@ -17,7 +17,7 @@ var configAction string
 func init() {
 	ideConfigCmd.Flags().StringVarP(&deployment, "deployment", "d", "",
 		"k8s deployment your developing service exists")
-	ideConfigCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "",
+	ideConfigCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "deployment",
 		"kind of k8s controller,such as deployment,statefulSet")
 	ideConfigCmd.Flags().StringVarP(&configAction, "action", "a", "",
 		"action applied in nocalhost config, such as check")

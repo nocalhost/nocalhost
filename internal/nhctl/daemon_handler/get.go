@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -195,8 +196,8 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) (inte
 
 	case "app", "application":
 		// init searcher for cache async
-		go func() { _, _ = resouce_cache.GetSearcherWithLRU(KubeConfigBytes, ns) }()
-		if request.ResourceName == "" {
+		go resouce_cache.GetSearcherWithLRU(KubeConfigBytes, ns)
+		if len(request.ResourceName) == 0 {
 			return ParseApplicationsResult(ns, GetAllValidApplicationWithDefaultApp(ns, KubeConfigBytes)), nil
 		} else {
 			meta := appmeta_manager.GetApplicationMeta(ns, request.ResourceName, KubeConfigBytes)
@@ -268,26 +269,38 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) (inte
 			Label(request.Label).
 			ShowHidden(request.ShowHidden).
 			Query()
+		if err != nil || len(data) == 0 {
+			return nil, nil
+		}
 		// resource namespace filter status is active
-		availableData := make([]interface{}, 0, 0)
+		result := make([]item.Item, 0, 0)
 		for _, datum := range data {
 			um, ok := datum.(*unstructured.Unstructured)
-			if !ok || um.GetDeletionTimestamp() != nil {
+			if !ok {
 				continue
 			}
-			availableData = append(availableData, datum)
+			if um.GetDeletionTimestamp() != nil {
+				continue
+			}
+			j, err := um.MarshalJSON()
+			if err != nil {
+				continue
+			}
+			namespace := &v1.Namespace{}
+			if err = json.Unmarshal(j, namespace); err != nil {
+				continue
+			}
+			if namespace.Status.Phase == v1.NamespaceActive {
+				result = append(result, item.Item{Metadata: datum})
+			}
 		}
-		if len(availableData) == 0 {
+		if len(result) == 0 {
 			return nil, nil
 		}
 		if len(request.ResourceName) == 0 {
-			result := make([]item.Item, 0, len(availableData))
-			for _, datum := range availableData {
-				result = append(result, item.Item{Metadata: datum})
-			}
 			return result[0:], nil
 		} else {
-			return item.Item{Metadata: availableData[0]}, nil
+			return result[0], nil
 		}
 
 	default:
@@ -302,46 +315,20 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) (inte
 			serviceMap = getServiceProfile(ns, request.AppName, KubeConfigBytes)
 		}
 
-		c := s.Criteria().
+		items, err := s.Criteria().
 			ResourceType(request.Resource).
 			ResourceName(request.ResourceName).
 			AppName(request.AppName).
 			Namespace(ns).
 			ShowHidden(request.ShowHidden).
-			Label(request.Label)
-		// get all resource in namespace
-		if len(request.ResourceName) == 0 {
-			items, err := c.Query()
-			if err != nil {
-				return nil, err
-			}
-			result := make([]item.Item, 0, len(items))
-			for _, i := range items {
-				tempItem := item.Item{Metadata: i}
-				if mapping, err := s.GetResourceInfo(request.Resource); err == nil {
-					var tt string
-					if nocalhost.IsBuildInGvk(&mapping.Gvk) {
-						tt = strings.ToLower(mapping.Gvk.Kind)
-					} else {
-						tt = fmt.Sprintf("%s.%s.%s", mapping.Gvr.Resource, mapping.Gvr.Version, mapping.Gvr.Group)
-					}
-					//log.Infof("TTTest: getting description of %s", tt)
-					if tm, ok := serviceMap[tt]; ok {
-						if d, ok := tm[i.(metav1.Object).GetName()]; ok {
-							tempItem.Description = d
-						}
-					}
-				}
-				result = append(result, tempItem)
-			}
-			return result, nil
-		} else {
-			// get specify resource name in namespace
-			one, err := c.QueryOne()
-			if err != nil || one == nil {
-				return nil, nil
-			}
-			i := item.Item{Metadata: one}
+			Label(request.Label).
+			Query()
+		if err != nil {
+			return nil, err
+		}
+		result := make([]item.Item, 0, len(items))
+		for _, i := range items {
+			tempItem := item.Item{Metadata: i}
 			if mapping, err := s.GetResourceInfo(request.Resource); err == nil {
 				var tt string
 				if nocalhost.IsBuildInGvk(&mapping.Gvk) {
@@ -349,14 +336,20 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) (inte
 				} else {
 					tt = fmt.Sprintf("%s.%s.%s", mapping.Gvr.Resource, mapping.Gvr.Version, mapping.Gvr.Group)
 				}
+				//log.Infof("TTTest: getting description of %s", tt)
 				if tm, ok := serviceMap[tt]; ok {
-					if d, ok := tm[one.(metav1.Object).GetName()]; ok {
-						i.Description = d
+					if d, ok := tm[i.(metav1.Object).GetName()]; ok {
+						tempItem.Description = d
 					}
 				}
-
 			}
-			return i, nil
+			result = append(result, tempItem)
+		}
+		// get all resource in namespace
+		if len(request.ResourceName) == 0 {
+			return result, nil
+		} else {
+			return result[0], nil
 		}
 	}
 }
