@@ -121,7 +121,7 @@ var devStartCmd = &cobra.Command{
 		if nocalhostSvc.IsInDevMode() {
 			coloredoutput.Hint(fmt.Sprintf("Already in %s DevMode...", nocalhostSvc.DevModeType.ToString()))
 
-			podName, err := nocalhostSvc.BuildPodController().GetNocalhostDevContainerPod()
+			podName, err := nocalhostSvc.GetDevModePodName()
 			must(err)
 
 			if !devStartOps.NoSyncthing {
@@ -162,7 +162,7 @@ var devStartCmd = &cobra.Command{
 			log.FatalE(err, "")
 		}
 
-		devPodName, err := nocalhostSvc.BuildPodController().GetNocalhostDevContainerPod()
+		devPodName, err := nocalhostSvc.GetDevModePodName()
 		must(err)
 
 		startPortForwardAfterDevStart(devPodName)

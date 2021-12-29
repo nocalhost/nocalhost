@@ -264,7 +264,7 @@ func doPortForward(svc *controller.Controller, svcProfile *profile.SvcProfileV2,
 	if svc.Client, err = clientgoutils.NewClientGoUtils(kubeconfigPath, svc.NameSpace); err != nil {
 		return err
 	}
-	if p.PodName, err = svc.BuildPodController().GetNocalhostDevContainerPod(); err != nil {
+	if p.PodName, err = svc.GetDevModePodName(); err != nil {
 		return err
 	}
 	if err = pfManager.StartPortForwardGoRoutine(p, true); err != nil {

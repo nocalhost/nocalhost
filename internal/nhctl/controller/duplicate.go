@@ -167,5 +167,5 @@ func (c *Controller) ReplaceDuplicateModeImage(ctx context.Context, ops *model.D
 		c.patchAfterDevContainerReplaced(ops.Container, generatedDeployment.Kind, generatedDeployment.Name)
 	}
 
-	return waitingPodToBeReady(c.GetDuplicateDevModePodName)
+	return waitingPodToBeReady(c.GetDevModePodName)
 }

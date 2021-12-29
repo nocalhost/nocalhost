@@ -12,6 +12,5 @@ import (
 
 type PodController interface {
 	ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error
-	GetNocalhostDevContainerPod() (string, error) // Deprecated
 	RollBack(reset bool) error
 }

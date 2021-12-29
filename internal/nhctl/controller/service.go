@@ -320,10 +320,6 @@ func (c *Controller) UpdateSvcProfile(modify func(*profile.SvcProfileV2) error) 
 	return profileV2.Save()
 }
 
-func (c *Controller) GetName() string {
-	return c.Name
-}
-
 func (c *Controller) getDuplicateLabelsMap() map[string]string {
 
 	labelsMap := map[string]string{
@@ -377,7 +373,7 @@ func (c *Controller) patchAfterDevContainerReplaced(containerName, resourceType,
 
 func (c *Controller) getGeneratedDeploymentName() string {
 	id, _ := utils.GetShortUuid()
-	return fmt.Sprintf("%s-gen-%s", c.GetName(), id)
+	return fmt.Sprintf("%s-gen-%s", c.Name, id)
 }
 
 func (c *Controller) getGeneratedDeploymentLabels() map[string]string {
@@ -593,14 +589,6 @@ func (c *Controller) GetDuplicateModePodList() ([]v1.Pod, error) {
 
 func (c *Controller) GetDevModePodName() (string, error) {
 	pods, err := c.GetPodList()
-	if err != nil {
-		return "", err
-	}
-	return findDevPodName(pods...)
-}
-
-func (c *Controller) GetDuplicateDevModePodName() (string, error) {
-	pods, err := c.GetDuplicateModePodList()
 	if err != nil {
 		return "", err
 	}

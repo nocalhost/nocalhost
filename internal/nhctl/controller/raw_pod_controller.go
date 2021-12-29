@@ -23,21 +23,17 @@ type RawPodController struct {
 	*Controller
 }
 
-func (r *RawPodController) GetNocalhostDevContainerPod() (string, error) {
-	return r.GetDevModePodName()
-}
-
 func (r *RawPodController) ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error {
 
 	r.Client.Context(ctx)
-	originalPod, err := r.Client.GetPod(r.GetName())
+	originalPod, err := r.Client.GetPod(r.Name)
 	if err != nil {
 		return err
 	}
 
 	// Check if pod managed by controller
 	if len(originalPod.OwnerReferences) > 0 {
-		return errors.New(fmt.Sprintf("Pod %s is manged by a controller, can not enter DevMode", r.GetName()))
+		return errors.New(fmt.Sprintf("Pod %s is manged by a controller, can not enter DevMode", r.Name))
 	}
 
 	originalPod.Status = corev1.PodStatus{}
@@ -62,7 +58,7 @@ func (r *RawPodController) ReplaceImage(ctx context.Context, ops *model.DevStart
 	patchDevContainerToPodSpec(&originalPod.Spec, ops.Container, devContainer, sideCarContainer, devModeVolumes)
 
 	log.Info("Delete original pod...")
-	if err = r.Client.DeletePodByName(r.GetName(), 0); err != nil {
+	if err = r.Client.DeletePodByName(r.Name, 0); err != nil {
 		return err
 	}
 
@@ -75,11 +71,11 @@ func (r *RawPodController) ReplaceImage(ctx context.Context, ops *model.DevStart
 
 	r.patchAfterDevContainerReplaced(ops.Container, originalPod.Kind, originalPod.Name)
 
-	return waitingPodToBeReady(r.GetNocalhostDevContainerPod)
+	return waitingPodToBeReady(r.GetDevModePodName)
 }
 
 func (r *RawPodController) RollBack(reset bool) error {
-	originPod, err := r.Client.GetPod(r.GetName())
+	originPod, err := r.Client.GetPod(r.Name)
 	if err != nil {
 		return err
 	}
@@ -100,7 +96,7 @@ func (r *RawPodController) RollBack(reset bool) error {
 	}
 
 	log.Info(" Deleting current revision...")
-	if err = r.Client.DeletePodByName(r.GetName(), 0); err != nil {
+	if err = r.Client.DeletePodByName(r.Name, 0); err != nil {
 		return err
 	}
 
@@ -110,10 +106,6 @@ func (r *RawPodController) RollBack(reset bool) error {
 	}
 	return nil
 }
-
-//func (r *RawPodController) GetPodList() ([]corev1.Pod, error) {
-//	return r.Controller.GetPodList()
-//}
 
 func findDevContainerInPodSpec(pod *corev1.PodSpec, containerName string) (*corev1.Container, error) {
 	var devContainer *corev1.Container
