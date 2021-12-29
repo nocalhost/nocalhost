@@ -15,7 +15,7 @@ import (
 
 //
 func getClient() *ClientGoUtils {
-	client, err := NewClientGoUtils("", "nocalhost-test")
+	client, err := NewClientGoUtils("", "")
 	if err != nil {
 		panic(err)
 	}
@@ -61,6 +61,20 @@ func TestClientGoUtils_GetDeployment(t *testing.T) {
 //		fmt.Println("not ok")
 //	}
 //}
+
+func TestClientGoUtils_ListHPA(t *testing.T) {
+	c, err := NewClientGoUtils("", "nocalhost-test")
+	if err != nil {
+		panic(err)
+	}
+	hs, err := c.ListHPA()
+	if err != nil {
+		panic(err)
+	}
+	for _, h := range hs {
+		fmt.Println(h.Name)
+	}
+}
 
 func TestClientGoUtils_ListResourceInfo(t *testing.T) {
 	client := getClient()
