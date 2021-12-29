@@ -85,7 +85,7 @@ var devCmdCmd = &cobra.Command{
 		if len(targetCommand) == 0 {
 			log.Fatalf("%s command not defined", commandType)
 		}
-		podList, err := nocalhostSvc.BuildPodController().GetPodList()
+		podList, err := nocalhostSvc.GetPodList()
 		if err != nil {
 			log.Fatal(err)
 		}

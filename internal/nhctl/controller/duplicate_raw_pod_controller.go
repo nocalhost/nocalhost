@@ -104,6 +104,6 @@ func (r *DuplicateRawPodController) RollBack(reset bool) error {
 	return r.Client.DeletePod(deploys[0].Name, false, 1*time.Second)
 }
 
-func (r *DuplicateRawPodController) GetPodList() ([]corev1.Pod, error) {
-	return r.GetDuplicateModePodList()
-}
+//func (r *DuplicateRawPodController) GetPodList() ([]corev1.Pod, error) {
+//	return r.Controller.GetPodList()
+//}

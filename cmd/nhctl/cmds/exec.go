@@ -50,7 +50,7 @@ var execCmd = &cobra.Command{
 			execFlags.Commands[i] = compile.ReplaceAllString(execFlags.Commands[i], "${$1}")
 		}
 		initAppAndCheckIfSvcExist(execFlags.AppName, execFlags.SvcName, serviceType)
-		podList, err := nocalhostSvc.BuildPodController().GetPodList()
+		podList, err := nocalhostSvc.GetPodList()
 		if err != nil {
 			log.Fatal(err)
 		}

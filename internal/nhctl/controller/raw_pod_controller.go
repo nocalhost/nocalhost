@@ -24,12 +24,7 @@ type RawPodController struct {
 }
 
 func (r *RawPodController) GetNocalhostDevContainerPod() (string, error) {
-	pod, err := r.Client.GetPod(r.GetName())
-	if err != nil {
-		return "", err
-	}
-	checkPodsList := []corev1.Pod{*pod}
-	return findDevPodName(checkPodsList...)
+	return r.GetDevModePodName()
 }
 
 func (r *RawPodController) ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error {
@@ -116,13 +111,9 @@ func (r *RawPodController) RollBack(reset bool) error {
 	return nil
 }
 
-func (r *RawPodController) GetPodList() ([]corev1.Pod, error) {
-	pod, err := r.Client.GetPod(r.GetName())
-	if err != nil {
-		return nil, err
-	}
-	return []corev1.Pod{*pod}, nil
-}
+//func (r *RawPodController) GetPodList() ([]corev1.Pod, error) {
+//	return r.Controller.GetPodList()
+//}
 
 func findDevContainerInPodSpec(pod *corev1.PodSpec, containerName string) (*corev1.Container, error) {
 	var devContainer *corev1.Container

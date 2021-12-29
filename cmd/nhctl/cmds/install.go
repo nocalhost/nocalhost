@@ -148,7 +148,6 @@ var installCmd = &cobra.Command{
 
 		// Start port forward
 		for _, svcProfile := range configV2.ServiceConfigs {
-			//nhSvc := initService(svcProfile.Name, svcProfile.Type)
 			checkIfSvcExist(svcProfile.Name, svcProfile.Type)
 			nhSvc := nocalhostSvc
 			for _, cc := range svcProfile.ContainerConfigs {
@@ -159,16 +158,16 @@ var installCmd = &cobra.Command{
 				svcType := svcProfile.Type
 				log.Infof("Starting port-forward for %s %s", svcType, svcProfile.Name)
 				ctx, _ := context.WithTimeout(context.Background(), 5*time.Minute)
-				podController := nhSvc.BuildPodController()
-				if podController == nil {
-					log.WarnE(errors.New("Pod controller is nil"), "")
-					continue
-				}
+				//podController := nhSvc.BuildPodController()
+				//if podController == nil {
+				//	log.WarnE(errors.New("Pod controller is nil"), "")
+				//	continue
+				//}
 
 				var i int
 				for i = 0; i < 60; i++ {
 					<-time.After(time.Second)
-					podName, err = controller.GetDefaultPodName(ctx, podController)
+					podName, err = controller.GetDefaultPodName(ctx, nhSvc)
 					if err != nil {
 						log.WarnE(err, "")
 						continue

@@ -26,7 +26,6 @@ import (
 	"nocalhost/internal/nhctl/watcher"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
-	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -337,7 +336,8 @@ func (c *Controller) getDuplicateLabelsMap() map[string]string {
 }
 
 func (c *Controller) getDuplicateResourceName() string {
-	return strings.Join([]string{c.Name, c.Identifier[0:5], strconv.Itoa(int(time.Now().Unix()))}, "-")
+	uuid, _ := utils.GetShortUuid()
+	return strings.Join([]string{c.Name, c.Identifier[0:5], uuid}, "-")
 }
 
 func (c *Controller) patchAfterDevContainerReplaced(containerName, resourceType, resourceName string) {
@@ -376,9 +376,8 @@ func (c *Controller) patchAfterDevContainerReplaced(containerName, resourceType,
 //}
 
 func (c *Controller) getGeneratedDeploymentName() string {
-	t := strings.ToLower(strings.Split(string(c.Type), ".")[0])
 	id, _ := utils.GetShortUuid()
-	return fmt.Sprintf("%s-%s-devmode-%s", c.GetName(), t, id)
+	return fmt.Sprintf("%s-gen-%s", c.GetName(), id)
 }
 
 func (c *Controller) getGeneratedDeploymentLabels() map[string]string {
@@ -423,7 +422,7 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 	}
 	log.Info("Original manifest recorded")
 
-	log.Info("Executing ScalePatches")
+	log.Info("Executing ScalePatches...")
 	for _, item := range c.DevModeAction.ScalePatches {
 		log.Infof("Patching %s(%s)", item.Patch, item.Type)
 		if err := c.Client.Patch(c.Type.String(), c.Name, item.Patch, item.Type); err != nil {

@@ -14,7 +14,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/model"
-	"nocalhost/internal/nhctl/pod_controller"
 	"nocalhost/pkg/nhctl/log"
 	"strings"
 	"time"
@@ -24,6 +23,7 @@ type DeploymentController struct {
 	*Controller
 }
 
+// GetNocalhostDevContainerPod Deprecated
 func (d *DeploymentController) GetNocalhostDevContainerPod() (string, error) {
 	return d.GetDevModePodName()
 }
@@ -124,7 +124,7 @@ func (d *DeploymentController) RollBack(reset bool) error {
 	return nil
 }
 
-func GetDefaultPodName(ctx context.Context, p pod_controller.PodController) (string, error) {
+func GetDefaultPodName(ctx context.Context, p *Controller) (string, error) {
 	var (
 		podList []corev1.Pod
 		err     error
@@ -145,7 +145,7 @@ func GetDefaultPodName(ctx context.Context, p pod_controller.PodController) (str
 	}
 }
 
-func (d *DeploymentController) GetPodList() ([]corev1.Pod, error) {
-	//return d.Client.ListLatestRevisionPodsByDeployment(d.GetName())
-	return d.Controller.GetPodList()
-}
+//func (d *DeploymentController) GetPodList() ([]corev1.Pod, error) {
+//	//return d.Client.ListLatestRevisionPodsByDeployment(d.GetName())
+//	return d.Controller.GetPodList()
+//}

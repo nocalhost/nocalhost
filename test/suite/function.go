@@ -485,7 +485,7 @@ func Prepare() (cancelFunc func(), namespaceResult, kubeconfigResult string) {
 		}()
 	}
 
-	go util.TimeoutChecker(1*time.Hour, cancelFunc)
+	go util.TimeoutChecker(30*time.Minute, cancelFunc)
 
 	_, currentVersion := testcase.GetVersion()
 	util.Retry("Prepare", []func() error{func() error { return testcase.InstallNhctl(currentVersion) }})

@@ -15,6 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/cli-runtime/pkg/resource"
+	"nocalhost/internal/nhctl/common/base"
 	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
@@ -43,6 +44,16 @@ func (c *Controller) GetPodTemplate() (*corev1.PodTemplateSpec, error) {
 // If in Replace DevMode and DevModeAction.Create is true, return pods of generated deployment
 // Others, return pods of the workload
 func (c *Controller) GetPodList() ([]corev1.Pod, error) {
+	if c.Type == base.Pod {
+		pod, err := c.Client.GetPod(c.Name)
+		if err != nil {
+			return nil, err
+		}
+		return []corev1.Pod{*pod}, nil
+	}
+	if c.DevModeType.IsDuplicateDevMode() {
+		return c.GetDuplicateModePodList()
+	}
 	if c.IsInReplaceDevMode() && c.DevModeAction.Create {
 		return c.ListPodOfGeneratedDeployment()
 	}
@@ -315,34 +326,4 @@ func RemoveUselessInfo(u *unstructured.Unstructured) {
 	delete(a, "kubectl.kubernetes.io/last-applied-configuration")
 	delete(a, OriginSpecJson) // remove deprecated annotation
 	u.SetAnnotations(a)
-}
-
-func AddItemToUnstructuredMap(path string, u map[string]interface{}, key string, item map[string]interface{}) error {
-	ps := strings.Split(path, "/")
-	currentMap := u
-	for _, p := range ps {
-		if p == "" {
-			continue
-		}
-		tM, ok := currentMap[p]
-		if !ok {
-			return errors.New(fmt.Sprintf("Add item to UnstructuredMap failed in %s", p))
-		}
-
-		tm, ok := tM.(map[string]interface{})
-		if !ok {
-			return errors.New(fmt.Sprintf("Add item to UnstructuredMap failed in %s", p))
-		}
-		currentMap = tm
-	}
-	currentMap[key] = item
-	return nil
-}
-
-func (c *Controller) PatchDuplicateInfo(u *unstructured.Unstructured) {
-
-	u.SetName(c.getDuplicateResourceName())
-	u.SetLabels(c.getDuplicateLabelsMap())
-
-	u.SetResourceVersion("")
 }

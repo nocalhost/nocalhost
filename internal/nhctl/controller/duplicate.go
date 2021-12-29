@@ -44,7 +44,10 @@ func (c *Controller) ReplaceDuplicateModeImage(ctx context.Context, ops *model.D
 
 	var ps *v1.PodTemplateSpec
 	if !c.DevModeAction.Create {
-		c.PatchDuplicateInfo(um)
+
+		um.SetName(c.getDuplicateResourceName())
+		um.SetLabels(c.getDuplicateLabelsMap())
+		um.SetResourceVersion("")
 
 		if ps, err = GetPodTemplateFromSpecPath(c.DevModeAction.PodTemplatePath, um.Object); err != nil {
 			return err

@@ -7,7 +7,6 @@ package controller
 
 import (
 	"context"
-	corev1 "k8s.io/api/core/v1"
 	"nocalhost/internal/nhctl/model"
 )
 
@@ -34,6 +33,6 @@ func (d *DuplicateDevModeController) RollBack(reset bool) error {
 	return d.DuplicateModeRollBack()
 }
 
-func (d *DuplicateDevModeController) GetPodList() ([]corev1.Pod, error) {
-	return d.GetDuplicateModePodList()
-}
+//func (d *DuplicateDevModeController) GetPodList() ([]corev1.Pod, error) {
+//	return d.Controller.GetPodList()
+//}

@@ -37,7 +37,7 @@ var devPodCmd = &cobra.Command{
 		applicationName := args[0]
 		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
 
-		podList, err := nocalhostSvc.BuildPodController().GetPodList()
+		podList, err := nocalhostSvc.GetPodList()
 		if err != nil || len(podList) != 1 {
 			return
 		}
