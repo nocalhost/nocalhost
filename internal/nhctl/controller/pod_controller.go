@@ -8,12 +8,11 @@ package controller
 import (
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/pod_controller"
-	"nocalhost/internal/nhctl/profile"
 )
 
 func (c *Controller) BuildPodController() pod_controller.PodController {
 	if c.Type == base.Pod {
-		if c.DevModeType == profile.DuplicateDevMode {
+		if c.DevModeType.IsDuplicateDevMode() {
 			return &DuplicateRawPodController{Controller: c}
 		}
 		return &RawPodController{Controller: c}

@@ -35,8 +35,6 @@ func (c *Controller) ReplaceDuplicateModeImage(ctx context.Context, ops *model.D
 		return err
 	}
 
-	RemoveUselessInfo(um)
-
 	if c.IsInReplaceDevMode() {
 		od, err := GetAnnotationFromUnstructured(um, _const.OriginWorkloadDefinition)
 		if err != nil {
@@ -47,6 +45,8 @@ func (c *Controller) ReplaceDuplicateModeImage(ctx context.Context, ops *model.D
 			return err
 		}
 	}
+
+	RemoveUselessInfo(um)
 
 	var podTemplate *v1.PodTemplateSpec
 	if !c.DevModeAction.Create {
@@ -166,6 +166,8 @@ func (c *Controller) ReplaceDuplicateModeImage(ctx context.Context, ops *model.D
 		)
 
 		genDeploy.Spec.Template.Spec.RestartPolicy = v1.RestartPolicyAlways
+
+		podTemplate = &genDeploy.Spec.Template
 
 		// Create generated deployment
 		if _, err = c.Client.CreateDeploymentAndWait(genDeploy); err != nil {

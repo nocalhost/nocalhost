@@ -518,14 +518,14 @@ func (c *Controller) DuplicateModeRollBack() error {
 }
 
 func (c *Controller) ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error {
-	if c.IsInDuplicateDevMode() {
+	if c.DevModeType.IsDuplicateDevMode() {
 		return c.ReplaceDuplicateModeImage(ctx, ops)
 	}
 	return c.PatchDevModeManifest(ctx, ops)
 }
 
 func (c *Controller) RollBack(reset bool) error {
-	if c.IsInDuplicateDevMode() {
+	if c.DevModeType.IsDuplicateDevMode() {
 		return c.DuplicateModeRollBack()
 	}
 	return c.RollbackFromAnnotation()

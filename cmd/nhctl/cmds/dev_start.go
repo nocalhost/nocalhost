@@ -113,7 +113,6 @@ var devStartCmd = &cobra.Command{
 		applicationName := args[0]
 		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
 
-		nocalhostSvc.DevModeType = dt
 		if !nocalhostApp.GetAppMeta().IsInstalled() {
 			log.Fatal(nocalhostApp.GetAppMeta().NotInstallTips())
 		}
@@ -153,6 +152,7 @@ var devStartCmd = &cobra.Command{
 
 		coloredoutput.Hint(fmt.Sprintf("Starting %s DevMode...", dt.ToString()))
 
+		nocalhostSvc.DevModeType = dt
 		loadLocalOrCmConfigIfValid()
 		stopPreviousSyncthing()
 		recordLocalSyncDirToProfile()
