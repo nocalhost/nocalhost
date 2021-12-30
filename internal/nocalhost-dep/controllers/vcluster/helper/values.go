@@ -24,17 +24,11 @@ syncer:
     limits:
       cpu: "1"
       memory: 1Gi
-    requests:
-      cpu: 50m
-      memory: 64Mi
 vcluster:
   resources:
     limits:
       cpu: "2"
       memory: 2Gi
-    requests:
-      cpu: 50m
-      memory: 64Mi
 `
 
 func ExtraValues(config *rest.Config, vc *helmv1alpha1.VirtualCluster) (map[string]interface{}, error) {
