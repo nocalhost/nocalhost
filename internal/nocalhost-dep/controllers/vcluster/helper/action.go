@@ -26,6 +26,7 @@ import (
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	"nocalhost/internal/nocalhost-api/global"
 	helmv1alpha1 "nocalhost/internal/nocalhost-dep/controllers/vcluster/api/v1alpha1"
 )
 
@@ -273,7 +274,8 @@ func NewActions(vc *helmv1alpha1.VirtualCluster, config *rest.Config) (Actions, 
 	return &actions{
 		cpo: ChartOptions{
 			ChartPathOptions: action.ChartPathOptions{
-				RepoURL: vc.GetChartRepo(),
+				//RepoURL: vc.GetChartRepo(),
+				RepoURL: global.NocalhostChartRepository,
 				Version: vc.GetChartVersion(),
 			},
 			Name: vc.GetChartName(),
