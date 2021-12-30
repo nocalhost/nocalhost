@@ -32,24 +32,24 @@ func NewDeploymentHandler(factory cmdutil.Factory, clientset *kubernetes.Clients
 	}
 }
 
-func (d *DeploymentHandler) ScaleToZero() (map[string]string, []v1.ContainerPort, string, error) {
+func (d *DeploymentHandler) ScaleToZero() (map[string]string, map[string]string, []v1.ContainerPort, string, error) {
 	scale, err := d.clientset.AppsV1().Deployments(d.namespace).GetScale(context.TODO(), d.name, metav1.GetOptions{})
 	if err != nil {
-		return nil, nil, "", err
+		return nil, nil, nil, "", err
 	}
 	if err = util.UpdateReplicasScale(d.clientset, d.namespace, util.ResourceTupleWithScale{
 		Resource: d.getResource(),
 		Name:     d.name,
 		Scale:    0,
 	}); err != nil {
-		return nil, nil, "", err
+		return nil, nil, nil, "", err
 	}
 	get, err := d.clientset.AppsV1().Deployments(d.namespace).Get(context.TODO(), d.name, metav1.GetOptions{})
 	if err != nil {
-		return nil, nil, "", err
+		return nil, nil, nil, "", err
 	}
 	formatInt := strconv.FormatInt(int64(scale.Spec.Replicas), 10)
-	return get.Spec.Template.GetLabels(), get.Spec.Template.Spec.Containers[0].Ports, formatInt, nil
+	return get.Spec.Template.GetLabels(), get.GetAnnotations(), get.Spec.Template.Spec.Containers[0].Ports, formatInt, nil
 }
 
 func (d *DeploymentHandler) getResource() string {

@@ -38,10 +38,10 @@ func NewServiceHandler(factory cmdutil.Factory, clientset *kubernetes.Clientset,
 }
 
 // ScaleToZero get deployment, statefulset, replicaset, otherwise delete it
-func (s *ServiceHandler) ScaleToZero() (map[string]string, []v1.ContainerPort, string, error) {
+func (s *ServiceHandler) ScaleToZero() (map[string]string, map[string]string, []v1.ContainerPort, string, error) {
 	service, err := s.clientset.CoreV1().Services(s.namespace).Get(context.TODO(), s.name, metav1.GetOptions{})
 	if err != nil {
-		return nil, nil, "", err
+		return nil, nil, nil, "", err
 	}
 
 	var va []util.ResourceTupleWithScale
@@ -63,10 +63,10 @@ func (s *ServiceHandler) ScaleToZero() (map[string]string, []v1.ContainerPort, s
 		}
 	})
 	if err != nil {
-		return nil, nil, "", err
+		return nil, nil, nil, "", err
 	}
 	if len(list) == 0 {
-		return nil, nil, "", nil
+		return nil, nil, nil, "", nil
 	}
 	if len(va) != 0 {
 		var ports []v1.ContainerPort
@@ -78,7 +78,7 @@ func (s *ServiceHandler) ScaleToZero() (map[string]string, []v1.ContainerPort, s
 			})
 		}
 		marshal, _ := json.Marshal(va)
-		return service.Spec.Selector, ports, string(marshal), nil
+		return service.Spec.Selector, service.GetAnnotations(), ports, string(marshal), nil
 	} else {
 		// CRD
 		var result []string
@@ -95,7 +95,8 @@ func (s *ServiceHandler) ScaleToZero() (map[string]string, []v1.ContainerPort, s
 			}
 		}
 		marshal, _ := json.Marshal(result)
-		return util.GetLabelSelector(list[0].Object).MatchLabels, util.GetPorts(list[0].Object), string(marshal), err
+		object := list[0].Object.(*unstructured.Unstructured)
+		return util.GetLabelSelector(list[0].Object).MatchLabels, object.GetAnnotations(), util.GetPorts(list[0].Object), string(marshal), err
 	}
 }
 

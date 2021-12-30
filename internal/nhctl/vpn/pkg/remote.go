@@ -137,7 +137,7 @@ func CreateInboundPod(
 		return err
 	}
 	util.GetLoggerFromContext(ctx).Infoln("scaling workloads to 0...")
-	labels, ports, str, err := sc.ScaleToZero()
+	labels, annotations, ports, str, err := sc.ScaleToZero()
 	if err != nil {
 		util.GetLoggerFromContext(ctx).Errorf("scale workloads to 0 failed, error: %v\n", err)
 		return err
@@ -153,6 +153,10 @@ func CreateInboundPod(
 		)
 	}
 
+	annotations[util.OriginData] = str
+	delete(annotations, "deployment.kubernetes.io/revision")
+	delete(annotations, "kubectl.kubernetes.io/last-applied-configuration")
+
 	t := true
 	zero := int64(0)
 	pod := v1.Pod{
@@ -161,7 +165,7 @@ func CreateInboundPod(
 			Namespace: namespace,
 			Labels:    labels,
 			// for restore
-			Annotations: map[string]string{util.OriginData: str},
+			Annotations: annotations,
 		},
 		Spec: v1.PodSpec{
 			RestartPolicy: v1.RestartPolicyAlways,

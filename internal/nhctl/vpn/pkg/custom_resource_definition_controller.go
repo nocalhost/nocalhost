@@ -39,22 +39,22 @@ func NewCustomResourceDefinitionHandler(factory cmdutil.Factory, clientset *kube
 }
 
 // ScaleToZero TODO needs to create a same pod name, but with different labels for using to click
-func (crd *CustomResourceDefinitionHandler) ScaleToZero() (map[string]string, []v1.ContainerPort, string, error) {
+func (crd *CustomResourceDefinitionHandler) ScaleToZero() (map[string]string, map[string]string, []v1.ContainerPort, string, error) {
 	//topController := util.GetTopController(crd.factory, crd.clientset, crd.namespace, fmt.Sprintf("%s/%s", crd.getResource(), crd.name))
 	info, err := util.GetUnstructuredObject(crd.factory, crd.namespace, fmt.Sprintf("%s/%s", crd.getResource(), crd.name))
 	if err != nil {
-		return nil, nil, "", err
+		return nil, nil, nil, "", err
 	}
 	helper := resource.NewHelper(info.Client, info.Mapping)
 	if _, err = helper.Delete(crd.namespace, info.Name); err != nil {
-		return nil, nil, "", err
+		return nil, nil, nil, "", err
 	}
 	u := info.Object.(*unstructured.Unstructured)
 	u.SetManagedFields(nil)
 	u.SetResourceVersion("")
 	u.SetUID("")
 	bytes, _ := u.MarshalJSON()
-	return util.GetLabelSelector(info.Object).MatchLabels, util.GetPorts(info.Object), string(bytes), err
+	return util.GetLabelSelector(info.Object).MatchLabels, u.GetAnnotations(), util.GetPorts(info.Object), string(bytes), err
 }
 
 func (crd CustomResourceDefinitionHandler) getResource() string {

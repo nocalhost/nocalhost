@@ -32,15 +32,15 @@ func NewDaemonSetHandler(factory cmdutil.Factory, clientset *kubernetes.Clientse
 }
 
 // ScaleToZero update DaemonSet spec nodeName to a not exist one, then create a new pod
-func (d *DaemonSetHandler) ScaleToZero() (map[string]string, []v1.ContainerPort, string, error) {
+func (d *DaemonSetHandler) ScaleToZero() (map[string]string, map[string]string, []v1.ContainerPort, string, error) {
 	daemonSet, err := d.clientset.AppsV1().DaemonSets(d.namespace).Get(context.TODO(), d.name, metav1.GetOptions{})
 	if err != nil {
-		return nil, nil, "", err
+		return nil, nil, nil, "", err
 	}
 	s := daemonSet.Spec.Template.Spec.NodeName
 	daemonSet.Spec.Template.Spec.NodeName = util.GetMacAddress().String()
 	update, err := d.clientset.AppsV1().DaemonSets(d.namespace).Update(context.TODO(), daemonSet, metav1.UpdateOptions{})
-	return update.Spec.Template.GetLabels(), update.Spec.Template.Spec.Containers[0].Ports, s, nil
+	return update.Spec.Template.GetLabels(), update.GetAnnotations(), update.Spec.Template.Spec.Containers[0].Ports, s, nil
 }
 
 func (d *DaemonSetHandler) getResource() string {

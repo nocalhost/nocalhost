@@ -7,11 +7,15 @@ package resouce_cache
 
 import (
 	"crypto/sha1"
+	"fmt"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
+	"nocalhost/internal/nhctl/daemon_client"
+	"nocalhost/internal/nhctl/daemon_server/command"
+	"nocalhost/pkg/nhctl/k8sutils"
 	"sync"
 	"time"
 )
@@ -119,7 +123,23 @@ func (r *ResourceEventHandlerFuncs) OnUpdate(_, _ interface{}) {
 	r.timeUp(r.handleAddOrUpdate)
 }
 
-func (r *ResourceEventHandlerFuncs) OnDelete(interface{}) {
+func (r *ResourceEventHandlerFuncs) OnDelete(obj interface{}) {
+	// delete vpn reverse proxy status
+	go func() {
+		// if vpn reverse type is pod, it will delete origin pod, and create a new pod with same name
+		objectTemp := obj.(metav1.Object)
+		if !("pods" == r.Gvr.Resource && objectTemp.GetOwnerReferences() != nil) {
+			name := fmt.Sprintf("%s/%s", r.Gvr.Resource, objectTemp.GetName())
+			if client, err := daemon_client.GetDaemonClient(false); err == nil {
+				path := k8sutils.GetOrGenKubeConfigPath(string(r.kubeconfigBytes))
+				if readClose, _ := client.SendVPNOperateCommand(
+					path, objectTemp.GetNamespace(), command.DisConnect, name); readClose != nil {
+					readClose.Close()
+				}
+			}
+		}
+	}()
+
 	// kubeconfig+namespace --> appName
 	var namespaceToApp = sync.Map{}
 	for _, i := range r.informer.Informer().GetStore().List() {

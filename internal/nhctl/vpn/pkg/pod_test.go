@@ -22,8 +22,8 @@ func TestPod(t *testing.T) {
 	set, _ := factory.KubernetesClientSet()
 	namespace := "naison"
 	controller := NewServiceHandler(factory, set, namespace, "productpage")
-	zero, ports, s, err := controller.ScaleToZero()
-	fmt.Println(zero, ports, s, err)
+	zero, annotation, ports, s, err := controller.ScaleToZero()
+	fmt.Println(zero, annotation, ports, s, err)
 	err = restore(factory, set, namespace, s)
 	fmt.Println(err)
 }

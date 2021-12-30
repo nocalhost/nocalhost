@@ -32,20 +32,20 @@ func NewStatefulsetHandler(factory cmdutil.Factory, clientset *kubernetes.Client
 	}
 }
 
-func (c *StatefulsetHandler) ScaleToZero() (map[string]string, []v1.ContainerPort, string, error) {
-	scale, err := c.clientset.AppsV1().StatefulSets(c.namespace).Get(context.TODO(), c.name, metav1.GetOptions{})
+func (c *StatefulsetHandler) ScaleToZero() (map[string]string, map[string]string, []v1.ContainerPort, string, error) {
+	statefulSet, err := c.clientset.AppsV1().StatefulSets(c.namespace).Get(context.TODO(), c.name, metav1.GetOptions{})
 	if err != nil {
-		return nil, nil, "", err
+		return nil, nil, nil, "", err
 	}
 	if err = util.UpdateReplicasScale(c.clientset, c.namespace, util.ResourceTupleWithScale{
 		Resource: c.getResource(),
 		Name:     c.name,
 		Scale:    0,
 	}); err != nil {
-		return nil, nil, "", err
+		return nil, nil, nil, "", err
 	}
-	formatInt := strconv.FormatInt(int64(*scale.Spec.Replicas), 10)
-	return scale.Spec.Template.Labels, scale.Spec.Template.Spec.Containers[0].Ports, formatInt, nil
+	formatInt := strconv.FormatInt(int64(*statefulSet.Spec.Replicas), 10)
+	return statefulSet.Spec.Template.Labels, statefulSet.GetAnnotations(), statefulSet.Spec.Template.Spec.Containers[0].Ports, formatInt, nil
 }
 
 func (c *StatefulsetHandler) getResource() string {

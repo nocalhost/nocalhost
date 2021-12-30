@@ -37,14 +37,14 @@ func NewPodHandler(factory cmdutil.Factory, clientset *kubernetes.Clientset, nam
 }
 
 // ScaleToZero TODO needs to create a same pod name, but with different labels for using to click
-func (pod *PodHandler) ScaleToZero() (map[string]string, []v1.ContainerPort, string, error) {
+func (pod *PodHandler) ScaleToZero() (map[string]string, map[string]string, []v1.ContainerPort, string, error) {
 	topController := util.GetTopController(pod.factory, pod.clientset, pod.namespace, fmt.Sprintf("%s/%s", pod.getResource(), pod.name))
 	zero := int64(0)
 	// controllerBy is empty
 	if len(topController.Name) == 0 || len(topController.Resource) == 0 {
 		object, err := util.GetUnstructuredObject(pod.factory, pod.namespace, fmt.Sprintf("%s/%s", pod.getResource(), pod.name))
 		if err != nil {
-			return nil, nil, "", err
+			return nil, nil, nil, "", err
 		}
 		u := object.Object.(*unstructured.Unstructured)
 		u.SetManagedFields(nil)
@@ -54,21 +54,21 @@ func (pod *PodHandler) ScaleToZero() (map[string]string, []v1.ContainerPort, str
 		_ = pod.clientset.CoreV1().Pods(pod.namespace).Delete(context.TODO(), pod.name, metav1.DeleteOptions{
 			GracePeriodSeconds: &zero,
 		})
-		return u.GetLabels(), util.GetPorts(u), string(marshal), nil
+		return u.GetLabels(), u.GetAnnotations(), util.GetPorts(u), string(marshal), nil
 	}
 	object, err := util.GetUnstructuredObject(pod.factory, pod.namespace, fmt.Sprintf("%s/%s", topController.Resource, topController.Name))
 	helper := resource.NewHelper(object.Client, object.Mapping)
 	if _, err = helper.DeleteWithOptions(pod.namespace, object.Name, &metav1.DeleteOptions{
 		GracePeriodSeconds: &zero,
 	}); err != nil {
-		return nil, nil, "", err
+		return nil, nil, nil, "", err
 	}
 	u := object.Object.(*unstructured.Unstructured)
 	u.SetManagedFields(nil)
 	u.SetUID("")
 	u.SetResourceVersion("")
 	bytes, _ := u.MarshalJSON()
-	return util.GetLabelSelector(object.Object).MatchLabels, util.GetPorts(object.Object), string(bytes), err
+	return util.GetLabelSelector(object.Object).MatchLabels, u.GetAnnotations(), util.GetPorts(object.Object), string(bytes), err
 }
 
 func (pod PodHandler) getResource() string {

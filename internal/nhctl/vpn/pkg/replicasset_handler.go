@@ -32,20 +32,20 @@ func NewReplicasHandler(factory cmdutil.Factory, clientset *kubernetes.Clientset
 	}
 }
 
-func (c *ReplicasHandler) ScaleToZero() (map[string]string, []v1.ContainerPort, string, error) {
+func (c *ReplicasHandler) ScaleToZero() (map[string]string, map[string]string, []v1.ContainerPort, string, error) {
 	replicaSet, err := c.clientset.AppsV1().ReplicaSets(c.namespace).Get(context.TODO(), c.name, metav1.GetOptions{})
 	if err != nil {
-		return nil, nil, "", err
+		return nil, nil, nil, "", err
 	}
 	if err = util.UpdateReplicasScale(c.clientset, c.namespace, util.ResourceTupleWithScale{
 		Resource: c.getResource(),
 		Name:     c.name,
 		Scale:    0,
 	}); err != nil {
-		return nil, nil, "", err
+		return nil, nil, nil, "", err
 	}
 	formatInt := strconv.FormatInt(int64(*replicaSet.Spec.Replicas), 10)
-	return replicaSet.Spec.Template.Labels, replicaSet.Spec.Template.Spec.Containers[0].Ports, formatInt, nil
+	return replicaSet.Spec.Template.Labels, replicaSet.GetAnnotations(), replicaSet.Spec.Template.Spec.Containers[0].Ports, formatInt, nil
 }
 
 func (c *ReplicasHandler) getResource() string {

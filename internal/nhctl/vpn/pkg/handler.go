@@ -10,7 +10,7 @@ import (
 )
 
 type Scalable interface {
-	ScaleToZero() (map[string]string, []v1.ContainerPort, string, error)
+	ScaleToZero() (labels, annotations map[string]string, ports []v1.ContainerPort, backupStr string, err error)
 	ToInboundPodName() string
 	Reset() error
 }
