@@ -528,7 +528,7 @@ func (c *Controller) RollBack(reset bool) error {
 	if c.DevModeType.IsDuplicateDevMode() {
 		return c.DuplicateModeRollBack()
 	}
-	return c.RollbackFromAnnotation()
+	return c.RollbackFromAnnotation(reset)
 }
 
 func GetDefaultPodName(ctx context.Context, p *Controller) (string, error) {

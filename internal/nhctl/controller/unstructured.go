@@ -65,15 +65,12 @@ func (c *Controller) GetPodList() ([]corev1.Pod, error) {
 	return c.Client.Labels(pt.Labels).ListPods()
 }
 
-func (c *Controller) getGeneratedDeployment() (*v1.Deployment, error) {
+func (c *Controller) getGeneratedDeployment() ([]v1.Deployment, error) {
 	ds, err := c.Client.Labels(c.getGeneratedDeploymentLabels()).ListDeployments()
 	if err != nil {
 		return nil, err
 	}
-	if len(ds) != 1 {
-		return nil, errors.New(fmt.Sprintf("Generated deployment is %d(not 1?)", len(ds)))
-	}
-	return &ds[0], nil
+	return ds, nil
 }
 
 func (c *Controller) ListPodOfGeneratedDeployment() ([]corev1.Pod, error) {
@@ -81,7 +78,10 @@ func (c *Controller) ListPodOfGeneratedDeployment() ([]corev1.Pod, error) {
 	if err != nil {
 		return nil, err
 	}
-	return c.Client.ListPodsOfDeployment(ds.Name)
+	if len(ds) != 1 {
+		return nil, errors.New(fmt.Sprintf("Generated deployment is %d(not 1?)", len(ds)))
+	}
+	return c.Client.ListPodsOfDeployment(ds[0].Name)
 }
 
 func (c *Controller) IncreaseDevModeCount() error {
@@ -146,7 +146,7 @@ func (c *Controller) DecreaseDevModeCount() error {
 	return c.Client.Patch(c.Type.String(), c.Name, string(bys), "json")
 }
 
-func (c *Controller) RollbackFromAnnotation() error {
+func (c *Controller) RollbackFromAnnotation(reset bool) error {
 
 	if c.DevModeAction.Create {
 		log.Info("Destroying generated deployment")
@@ -154,8 +154,21 @@ func (c *Controller) RollbackFromAnnotation() error {
 		if err != nil {
 			return err
 		}
-		if err = c.Client.DeleteDeployment(ds.Name, false); err != nil {
-			return err
+		if len(ds) != 1 {
+			if reset {
+				for _, d := range ds {
+					// Clean up generated deployment
+					if err = c.Client.DeleteDeployment(d.Name, false); err != nil {
+						log.WarnE(err, "")
+					}
+				}
+			} else {
+				return errors.New(fmt.Sprintf("Generated deployment is %d(not 1?)", len(ds)))
+			}
+		} else {
+			if err = c.Client.DeleteDeployment(ds[0].Name, false); err != nil {
+				return err
+			}
 		}
 	}
 
