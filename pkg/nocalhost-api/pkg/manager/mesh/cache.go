@@ -3,7 +3,7 @@
 * This source code is licensed under the Apache License Version 2.0.
  */
 
-package setupcluster
+package mesh
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,7 +24,7 @@ import (
 	toolscache "k8s.io/client-go/tools/cache"
 
 	"nocalhost/internal/nhctl/appmeta"
-	"nocalhost/internal/nhctl/const"
+	_const "nocalhost/internal/nhctl/const"
 )
 
 const (

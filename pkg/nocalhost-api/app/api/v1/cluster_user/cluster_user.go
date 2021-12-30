@@ -7,6 +7,7 @@ package cluster_user
 
 import (
 	"context"
+
 	"github.com/spf13/cast"
 
 	"nocalhost/internal/nocalhost-api/model"
@@ -14,7 +15,7 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
-	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
+	"nocalhost/pkg/nocalhost-api/pkg/manager/mesh"
 )
 
 type ClusterUserCreateRequest struct {
@@ -31,7 +32,7 @@ type ClusterUserCreateRequest struct {
 	DevSpaceType       uint64                    `json:"dev_space_type"`
 	VirtualCluster     *model.VirtualClusterInfo `json:"virtual_cluster"`
 	BaseDevSpaceId     uint64                    `json:"base_dev_space_id"`
-	MeshDevInfo        *setupcluster.MeshDevInfo `json:"mesh_dev_info"`
+	MeshDevInfo        *mesh.DevInfo             `json:"mesh_dev_info"`
 	IsBaseSpace        bool                      `json:"is_base_space"`
 	Protected          bool                      `json:"protected"`
 }

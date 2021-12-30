@@ -3,7 +3,7 @@
 * This source code is licensed under the Apache License Version 2.0.
  */
 
-package setupcluster
+package mesh
 
 import (
 	"context"
@@ -19,8 +19,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/wait"
+
 	"nocalhost/internal/nhctl/appmeta"
-	"nocalhost/internal/nhctl/const"
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
@@ -36,34 +37,34 @@ const (
 	Selected   = ShouldBeInstalled
 )
 
-type MeshManager interface {
-	InitMeshDevSpace(*MeshDevInfo) error
-	UpdateMeshDevSpace(*MeshDevInfo) error
-	DeleteTracingHeader(*MeshDevInfo) error
-	GetBaseDevSpaceAppInfo(*MeshDevInfo) []MeshDevApp
-	GetAPPInfo(*MeshDevInfo) ([]MeshDevApp, error)
-	Rollback(*MeshDevInfo) error
+type Manager interface {
+	InitMeshDevSpace(*DevInfo) error
+	UpdateMeshDevSpace(*DevInfo) error
+	DeleteTracingHeader(*DevInfo) error
+	GetBaseDevSpaceAppInfo(*DevInfo) []DevApp
+	GetAPPInfo(*DevInfo) ([]DevApp, error)
+	Rollback(*DevInfo) error
 	GetMeshNamespaceNames() []string
 	close()
 }
 
-type MeshDevInfo struct {
+type DevInfo struct {
 	BaseNamespace    string       `json:"-"`
 	MeshDevNamespace string       `json:"namespace"`
 	IsUpdateHeader   bool         `json:"-"`
 	Header           model.Header `json:"header"`
-	Apps             []MeshDevApp `json:"apps"`
+	Apps             []DevApp     `json:"apps"`
 	ReCreate         bool         `json:"-"`
 	resources        meshDevResources
 	rollback         rollback
 }
 
-type MeshDevApp struct {
-	Name      string            `json:"name"`
-	Workloads []MeshDevWorkload `json:"workloads"`
+type DevApp struct {
+	Name      string        `json:"name"`
+	Workloads []DevWorkload `json:"workloads"`
 }
 
-type MeshDevWorkload struct {
+type DevWorkload struct {
 	Kind   string `json:"kind"`
 	Name   string `json:"name"`
 	Status int    `json:"status"`
@@ -83,13 +84,13 @@ type rollbackHeader struct {
 	update map[string][]*istiov1alpha3.HTTPRoute
 }
 
-type SortAppsByName []MeshDevApp
+type SortAppsByName []DevApp
 
 func (a SortAppsByName) Len() int           { return len(a) }
 func (a SortAppsByName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a SortAppsByName) Less(i, j int) bool { return a[i].Name < a[j].Name }
 
-type SortWorkloadsByKindAndName []MeshDevWorkload
+type SortWorkloadsByKindAndName []DevWorkload
 
 func (w SortWorkloadsByKindAndName) Len() int      { return len(w) }
 func (w SortWorkloadsByKindAndName) Swap(i, j int) { w[i], w[j] = w[j], w[i] }
@@ -97,25 +98,25 @@ func (w SortWorkloadsByKindAndName) Less(i, j int) bool {
 	return w[i].Kind+w[i].Name < w[j].Kind+w[j].Name
 }
 
-func (info *MeshDevInfo) SortApps() {
+func (info *DevInfo) SortApps() {
 	sort.Sort(SortAppsByName(info.Apps))
 	for i := 0; i < len(info.Apps); i++ {
 		sort.Sort(SortWorkloadsByKindAndName(info.Apps[i].Workloads))
 	}
 }
 
-func (info *MeshDevInfo) Validate() bool {
+func (info *DevInfo) Validate() bool {
 	return info.Header.TraceKey != "" &&
 		info.Header.TraceValue != "" &&
 		len(validation.IsDNS1123Label(info.MeshDevNamespace)) == 0
 }
 
-type meshManager struct {
+type manager struct {
 	client *clientgo.GoClient
 	cache  cache
 }
 
-func (m *meshManager) InitMeshDevSpace(info *MeshDevInfo) error {
+func (m *manager) InitMeshDevSpace(info *DevInfo) error {
 	if err := m.initMeshDevSpace(info); err != nil {
 		return err
 	}
@@ -125,7 +126,7 @@ func (m *meshManager) InitMeshDevSpace(info *MeshDevInfo) error {
 	return nil
 }
 
-func (m *meshManager) UpdateMeshDevSpace(info *MeshDevInfo) error {
+func (m *manager) UpdateMeshDevSpace(info *DevInfo) error {
 	m.setWorkloadStatus(info)
 
 	if err := m.injectMeshDevSpace(info); err != nil {
@@ -138,7 +139,7 @@ func (m *meshManager) UpdateMeshDevSpace(info *MeshDevInfo) error {
 	return nil
 }
 
-func (m *meshManager) DeleteTracingHeader(info *MeshDevInfo) error {
+func (m *manager) DeleteTracingHeader(info *DevInfo) error {
 	for _, vs := range m.cache.GetVirtualServicesListByNamespace(info.BaseNamespace) {
 		ok, err := deleteHeaderFromVirtualService(&vs, info)
 		if err != nil {
@@ -155,9 +156,9 @@ func (m *meshManager) DeleteTracingHeader(info *MeshDevInfo) error {
 	return nil
 }
 
-func (m *meshManager) GetBaseDevSpaceAppInfo(info *MeshDevInfo) []MeshDevApp {
+func (m *manager) GetBaseDevSpaceAppInfo(info *DevInfo) []DevApp {
 	appNames := make([]string, 0)
-	appInfo := make([]MeshDevApp, 0)
+	appInfo := make([]DevApp, 0)
 	appConfigs := m.cache.GetAppConfigByNamespace(info.BaseNamespace)
 	for _, c := range appConfigs {
 		name := c.GetName()[len(appmeta.SecretNamePrefix):]
@@ -166,30 +167,30 @@ func (m *meshManager) GetBaseDevSpaceAppInfo(info *MeshDevInfo) []MeshDevApp {
 		}
 
 		appNames = append(appNames, name)
-		w := make([]MeshDevWorkload, 0)
+		w := make([]DevWorkload, 0)
 		for _, r := range m.cache.GetDeploymentsListByNamespaceAndAppName(info.BaseNamespace, name) {
-			w = append(w, MeshDevWorkload{
+			w = append(w, DevWorkload{
 				Kind: r.GetKind(),
 				Name: r.GetName(),
 			})
 		}
-		appInfo = append(appInfo, MeshDevApp{
+		appInfo = append(appInfo, DevApp{
 			Name:      name,
 			Workloads: w,
 		})
 	}
 
 	// default.application
-	w := make([]MeshDevWorkload, 0)
+	w := make([]DevWorkload, 0)
 	for _, r := range newResourcesMatcher(m.cache.GetDeploymentsListByNamespace(info.BaseNamespace)).
 		excludeApps(appNames).
 		match() {
-		w = append(w, MeshDevWorkload{
+		w = append(w, DevWorkload{
 			Kind: r.GetKind(),
 			Name: r.GetName(),
 		})
 	}
-	appInfo = append(appInfo, MeshDevApp{
+	appInfo = append(appInfo, DevApp{
 		Name:      _const.DefaultNocalhostApplication,
 		Workloads: w,
 	})
@@ -197,7 +198,7 @@ func (m *meshManager) GetBaseDevSpaceAppInfo(info *MeshDevInfo) []MeshDevApp {
 	return appInfo
 }
 
-func (m *meshManager) GetAPPInfo(info *MeshDevInfo) ([]MeshDevApp, error) {
+func (m *manager) GetAPPInfo(info *DevInfo) ([]DevApp, error) {
 	status := make(map[string]struct{})
 	for _, r := range m.cache.GetDeploymentsListByNamespace(info.MeshDevNamespace) {
 		status[r.GetKind()+"/"+r.GetName()] = struct{}{}
@@ -214,7 +215,7 @@ func (m *meshManager) GetAPPInfo(info *MeshDevInfo) ([]MeshDevApp, error) {
 	return apps, nil
 }
 
-func (m *meshManager) Rollback(info *MeshDevInfo) error {
+func (m *manager) Rollback(info *DevInfo) error {
 	// rollback after add tracing header failure
 	_ = wait.Poll(200*time.Millisecond, 5*time.Second, func() (bool, error) {
 		for name, route := range info.rollback.header.add {
@@ -290,7 +291,7 @@ func (m *meshManager) Rollback(info *MeshDevInfo) error {
 	return nil
 }
 
-func (m *meshManager) GetMeshNamespaceNames() []string {
+func (m *manager) GetMeshNamespaceNames() []string {
 	label := map[string]string{
 		"istio-injection":        "enabled",
 		"nocalhost.dev/devspace": "base",
@@ -303,11 +304,11 @@ func (m *meshManager) GetMeshNamespaceNames() []string {
 	return ret
 }
 
-func (m *meshManager) close() {
+func (m *manager) close() {
 	m.cache.close()
 }
 
-func (m *meshManager) injectMeshDevSpace(info *MeshDevInfo) error {
+func (m *manager) injectMeshDevSpace(info *DevInfo) error {
 	m.tagResources(info)
 
 	log.Debugf("inject workloads into dev namespace %s", info.MeshDevNamespace)
@@ -330,7 +331,7 @@ func (m *meshManager) injectMeshDevSpace(info *MeshDevInfo) error {
 	return g.Wait()
 }
 
-func (m *meshManager) deleteWorkloadsFromMeshDevSpace(info *MeshDevInfo) error {
+func (m *manager) deleteWorkloadsFromMeshDevSpace(info *DevInfo) error {
 	for _, r := range info.resources.delete {
 		r := *r.DeepCopy()
 		log.Debugf("delete the workload %s/%s from %s", r.GetKind(), r.GetName(), info.MeshDevNamespace)
@@ -355,7 +356,7 @@ func (m *meshManager) deleteWorkloadsFromMeshDevSpace(info *MeshDevInfo) error {
 	return nil
 }
 
-func (m *meshManager) applyWorkloadsToMeshDevSpace(info *MeshDevInfo) error {
+func (m *manager) applyWorkloadsToMeshDevSpace(info *DevInfo) error {
 	for _, r := range info.resources.install {
 		r := *r.DeepCopy()
 		log.Debugf("inject the workload %s/%s into dev namespace %s", r.GetKind(), r.GetName(), info.MeshDevNamespace)
@@ -388,7 +389,7 @@ func (m *meshManager) applyWorkloadsToMeshDevSpace(info *MeshDevInfo) error {
 	return nil
 }
 
-func (m *meshManager) deleteHeaderFromVirtualService(info *MeshDevInfo) error {
+func (m *manager) deleteHeaderFromVirtualService(info *DevInfo) error {
 	// delete header from vs
 	vs := make([]*unstructured.Unstructured, 0)
 	for _, r := range info.resources.delete {
@@ -419,7 +420,7 @@ func (m *meshManager) deleteHeaderFromVirtualService(info *MeshDevInfo) error {
 	return nil
 }
 
-func (m *meshManager) addHeaderToVirtualService(info *MeshDevInfo) error {
+func (m *manager) addHeaderToVirtualService(info *DevInfo) error {
 	// update vs
 	if info.Header.TraceKey == "" || info.Header.TraceValue == "" {
 		log.Debugf("can not find tracing header to update virtual service in the namespace %s",
@@ -490,7 +491,7 @@ func (m *meshManager) addHeaderToVirtualService(info *MeshDevInfo) error {
 	return nil
 }
 
-func (m *meshManager) updateHeaderToVirtualServices(info *MeshDevInfo) error {
+func (m *manager) updateHeaderToVirtualServices(info *DevInfo) error {
 	header := info.Header
 	if header.TraceKey == "" || header.TraceValue == "" {
 		return nil
@@ -525,7 +526,7 @@ func (m *meshManager) updateHeaderToVirtualServices(info *MeshDevInfo) error {
 	})
 }
 
-func (m *meshManager) updateVirtualServiceOnBaseDevSpace(info *MeshDevInfo) error {
+func (m *manager) updateVirtualServiceOnBaseDevSpace(info *DevInfo) error {
 	g, _ := errgroup.WithContext(context.Background())
 	g.Go(func() error {
 		return m.deleteHeaderFromVirtualService(info)
@@ -536,7 +537,7 @@ func (m *meshManager) updateVirtualServiceOnBaseDevSpace(info *MeshDevInfo) erro
 	return g.Wait()
 }
 
-func (m *meshManager) initMeshDevSpace(info *MeshDevInfo) error {
+func (m *manager) initMeshDevSpace(info *DevInfo) error {
 	// apply app config
 	log.Debugf("init the dev namespace %s", info.MeshDevNamespace)
 	appConfigs := m.cache.GetAppConfigByNamespace(info.BaseNamespace)
@@ -597,14 +598,14 @@ func (m *meshManager) initMeshDevSpace(info *MeshDevInfo) error {
 	return g.Wait()
 }
 
-func (m *meshManager) newCache() {
+func (m *manager) newCache() {
 	m.cache = *newCache(m.client.DynamicClient)
 }
 
-func (m *meshManager) getMeshDevSpaceWorkloads(info *MeshDevInfo) []MeshDevWorkload {
-	w := make([]MeshDevWorkload, 0)
+func (m *manager) getMeshDevSpaceWorkloads(info *DevInfo) []DevWorkload {
+	w := make([]DevWorkload, 0)
 	for _, r := range m.cache.GetDeploymentsListByNamespace(info.MeshDevNamespace) {
-		w = append(w, MeshDevWorkload{
+		w = append(w, DevWorkload{
 			Kind:   r.GetKind(),
 			Name:   r.GetName(),
 			Status: Installed,
@@ -613,10 +614,10 @@ func (m *meshManager) getMeshDevSpaceWorkloads(info *MeshDevInfo) []MeshDevWorkl
 	return w
 }
 
-func (m *meshManager) setWorkloadStatus(info *MeshDevInfo) {
+func (m *manager) setWorkloadStatus(info *DevInfo) {
 	log.Debug("set workloads status")
 	devWs := m.getMeshDevSpaceWorkloads(info)
-	devMap := make(map[string]MeshDevWorkload)
+	devMap := make(map[string]DevWorkload)
 	for _, w := range devWs {
 		devMap[w.Kind+"/"+w.Name] = w
 	}
@@ -634,7 +635,7 @@ func (m *meshManager) setWorkloadStatus(info *MeshDevInfo) {
 	info.Apps = apps
 }
 
-func (m *meshManager) tagResources(info *MeshDevInfo) {
+func (m *manager) tagResources(info *DevInfo) {
 	ws := make(map[string]int)
 	for _, a := range info.Apps {
 		for _, w := range a.Workloads {
@@ -657,7 +658,7 @@ func (m *meshManager) tagResources(info *MeshDevInfo) {
 	info.resources.delete = drs
 }
 
-func (m *meshManager) applyDependencyToMeshDevSpace(dependencies []MeshDevWorkload, info *MeshDevInfo) error {
+func (m *manager) applyDependencyToMeshDevSpace(dependencies []DevWorkload, info *DevInfo) error {
 	wm := make(map[string][]string)
 	for _, d := range dependencies {
 		if _, ok := wm[d.Kind]; ok {
@@ -687,8 +688,8 @@ func (m *meshManager) applyDependencyToMeshDevSpace(dependencies []MeshDevWorklo
 	return nil
 }
 
-func NewMeshManager(client *clientgo.GoClient) MeshManager {
-	m := &meshManager{}
+func NewMeshManager(client *clientgo.GoClient) Manager {
+	m := &manager{}
 	m.client = client
 	m.newCache()
 	return m

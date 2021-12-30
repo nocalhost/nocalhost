@@ -86,7 +86,7 @@ definitions:
       memory:
         type: integer
       mesh_dev_info:
-        $ref: '#/definitions/setupcluster.MeshDevInfo'
+        $ref: '#/definitions/mesh.DevInfo'
         type: object
       namespace:
         type: string
@@ -146,6 +146,62 @@ definitions:
         type: string
       space_storage_capacity:
         type: string
+    type: object
+  mesh.DevApp:
+    properties:
+      name:
+        type: string
+      workloads:
+        items:
+          $ref: '#/definitions/mesh.DevWorkload'
+        type: array
+    type: object
+  mesh.DevInfo:
+    properties:
+      apps:
+        items:
+          $ref: '#/definitions/mesh.DevApp'
+        type: array
+      header:
+        $ref: '#/definitions/model.Header'
+        type: object
+      namespace:
+        type: string
+      resources:
+        $ref: '#/definitions/mesh.meshDevResources'
+        type: object
+      rollback:
+        $ref: '#/definitions/mesh.rollback'
+        type: object
+    type: object
+  mesh.DevWorkload:
+    properties:
+      kind:
+        type: string
+      name:
+        type: string
+      status:
+        type: integer
+    type: object
+  mesh.meshDevResources:
+    properties:
+      delete:
+        type: string
+      install:
+        type: string
+    type: object
+  mesh.rollback:
+    properties:
+      header:
+        $ref: '#/definitions/mesh.rollbackHeader'
+        type: object
+    type: object
+  mesh.rollbackHeader:
+    properties:
+      add:
+        type: object
+      update:
+        type: object
     type: object
   model.ApplicationClusterModel:
     properties:
@@ -624,62 +680,6 @@ definitions:
         type: string
       version:
         type: string
-    type: object
-  setupcluster.MeshDevApp:
-    properties:
-      name:
-        type: string
-      workloads:
-        items:
-          $ref: '#/definitions/setupcluster.MeshDevWorkload'
-        type: array
-    type: object
-  setupcluster.MeshDevInfo:
-    properties:
-      apps:
-        items:
-          $ref: '#/definitions/setupcluster.MeshDevApp'
-        type: array
-      header:
-        $ref: '#/definitions/model.Header'
-        type: object
-      namespace:
-        type: string
-      resources:
-        $ref: '#/definitions/setupcluster.meshDevResources'
-        type: object
-      rollback:
-        $ref: '#/definitions/setupcluster.rollback'
-        type: object
-    type: object
-  setupcluster.MeshDevWorkload:
-    properties:
-      kind:
-        type: string
-      name:
-        type: string
-      status:
-        type: integer
-    type: object
-  setupcluster.meshDevResources:
-    properties:
-      delete:
-        type: string
-      install:
-        type: string
-    type: object
-  setupcluster.rollback:
-    properties:
-      header:
-        $ref: '#/definitions/setupcluster.rollbackHeader'
-        type: object
-    type: object
-  setupcluster.rollbackHeader:
-    properties:
-      add:
-        type: object
-      update:
-        type: object
     type: object
   user.CreateUserRequest:
     properties:
@@ -1505,7 +1505,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/setupcluster.MeshDevInfo'
+            $ref: '#/definitions/mesh.DevInfo'
             type: object
       summary: Get mesh apps info
       tags:
@@ -1558,7 +1558,7 @@ paths:
         name: MeshDevInfo
         required: true
         schema:
-          $ref: '#/definitions/setupcluster.MeshDevInfo'
+          $ref: '#/definitions/mesh.DevInfo'
           type: object
       produces:
       - application/json

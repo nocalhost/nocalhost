@@ -5,6 +5,10 @@
 
 package manager
 
-import "nocalhost/pkg/nocalhost-api/pkg/manager/vcluster"
+import (
+	"nocalhost/pkg/nocalhost-api/pkg/manager/mesh"
+	"nocalhost/pkg/nocalhost-api/pkg/manager/vcluster"
+)
 
 var VClusterSharedManagerFactory = vcluster.NewSharedManagerFactory()
+var MeshSharedManagerFactory = mesh.NewSharedManagerFactory()

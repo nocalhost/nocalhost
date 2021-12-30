@@ -8,6 +8,7 @@ package cluster
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
+
 	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
@@ -16,7 +17,7 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
-	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
+	"nocalhost/pkg/nocalhost-api/pkg/manager"
 )
 
 // GetList Delete the cluster completely
@@ -109,5 +110,5 @@ func deleteNocalhostManagedData(c *gin.Context, clusterId uint64, spaceIds []uin
 
 // Delete manager form factory
 func deleteMeshManager(kubeconfig string) {
-	setupcluster.GetSharedMeshManagerFactory().Delete(kubeconfig)
+	manager.MeshSharedManagerFactory.Delete(kubeconfig)
 }

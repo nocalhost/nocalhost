@@ -7,12 +7,13 @@ package cluster_user
 
 import (
 	"github.com/gin-gonic/gin"
+
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/internal/nocalhost-api/service/cooperator/ns_scope"
 	"nocalhost/pkg/nocalhost-api/app/router/ginbase"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
-	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
+	"nocalhost/pkg/nocalhost-api/pkg/manager/mesh"
 )
 
 // HasModifyPermissionToSomeDevSpace
@@ -100,7 +101,7 @@ func deleteShareSpaces(c *gin.Context, baseSpaceId uint64) {
 		if err != nil {
 			continue
 		}
-		meshDevInfo := &setupcluster.MeshDevInfo{
+		meshDevInfo := &mesh.DevInfo{
 			Header: space.TraceHeader,
 		}
 		req := ClusterUserCreateRequest{

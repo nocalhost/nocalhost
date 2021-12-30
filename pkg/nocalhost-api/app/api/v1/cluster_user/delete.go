@@ -7,9 +7,11 @@ package cluster_user
 
 import (
 	"encoding/json"
+
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
+
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/internal/nocalhost-api/service/cooperator/cluster_scope"
@@ -19,7 +21,7 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 	"nocalhost/pkg/nocalhost-api/pkg/manager"
-	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
+	"nocalhost/pkg/nocalhost-api/pkg/manager/mesh"
 )
 
 // Delete Completely delete the development environment
@@ -79,7 +81,7 @@ func Delete(c *gin.Context) {
 		return
 	}
 
-	meshDevInfo := &setupcluster.MeshDevInfo{
+	meshDevInfo := &mesh.DevInfo{
 		Header: clusterUser.TraceHeader,
 	}
 	req := ClusterUserCreateRequest{
@@ -144,7 +146,7 @@ func ReCreate(c *gin.Context) {
 	res := SpaceResourceLimit{}
 	_ = json.Unmarshal([]byte(clusterUser.SpaceResourceLimit), &res)
 	// create a new dev space
-	meshDevInfo := &setupcluster.MeshDevInfo{
+	meshDevInfo := &mesh.DevInfo{
 		Header:   clusterUser.TraceHeader,
 		ReCreate: true,
 	}

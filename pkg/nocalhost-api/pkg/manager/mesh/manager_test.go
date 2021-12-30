@@ -3,7 +3,7 @@
 * This source code is licensed under the Apache License Version 2.0.
  */
 
-package setupcluster
+package mesh
 
 import (
 	"reflect"
@@ -18,21 +18,21 @@ func TestMeshDevInfo_SortApps(t *testing.T) {
 		MeshDevNamespace string
 		IsUpdateHeader   bool
 		Header           model.Header
-		Apps             []MeshDevApp
+		Apps             []DevApp
 		resources        meshDevResources
 	}
 	tests := []struct {
 		name   string
-		want   MeshDevInfo
+		want   DevInfo
 		fields fields
 	}{
 		{
 			name: "sort",
-			want: MeshDevInfo{
-				Apps: []MeshDevApp{
+			want: DevInfo{
+				Apps: []DevApp{
 					{
 						Name: "bookinfo",
-						Workloads: []MeshDevWorkload{
+						Workloads: []DevWorkload{
 							{
 								Name: "details",
 								Kind: ConfigMap,
@@ -77,7 +77,7 @@ func TestMeshDevInfo_SortApps(t *testing.T) {
 					},
 					{
 						Name: "foo",
-						Workloads: []MeshDevWorkload{
+						Workloads: []DevWorkload{
 							{
 								Name: "bar",
 								Kind: ConfigMap,
@@ -103,10 +103,10 @@ func TestMeshDevInfo_SortApps(t *testing.T) {
 				},
 			},
 			fields: fields{
-				Apps: []MeshDevApp{
+				Apps: []DevApp{
 					{
 						Name: "foo",
-						Workloads: []MeshDevWorkload{
+						Workloads: []DevWorkload{
 							{
 								Name: "bar",
 								Kind: Deployment,
@@ -131,7 +131,7 @@ func TestMeshDevInfo_SortApps(t *testing.T) {
 					},
 					{
 						Name: "bookinfo",
-						Workloads: []MeshDevWorkload{
+						Workloads: []DevWorkload{
 							{
 								Name: "ratings",
 								Kind: Secret,
@@ -180,7 +180,7 @@ func TestMeshDevInfo_SortApps(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			info := MeshDevInfo{
+			info := DevInfo{
 				Apps: tt.fields.Apps,
 			}
 			info.SortApps()

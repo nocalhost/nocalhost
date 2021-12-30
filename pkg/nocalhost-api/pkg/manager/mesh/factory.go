@@ -3,7 +3,7 @@
 * This source code is licensed under the Apache License Version 2.0.
  */
 
-package setupcluster
+package mesh
 
 import (
 	"sync"
@@ -12,29 +12,23 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 )
 
-var sharedMeshManagerFactoryCache = NewSharedMeshManagerFactory()
-
-func GetSharedMeshManagerFactory() SharedMeshManagerFactory {
-	return sharedMeshManagerFactoryCache
-}
-
-type SharedMeshManagerFactory interface {
-	Manager(string) (MeshManager, error)
+type SharedManagerFactory interface {
+	Manager(string) (Manager, error)
 	Delete(string)
 }
 
-func NewSharedMeshManagerFactory() SharedMeshManagerFactory {
-	return &sharedMeshManagerFactory{
-		manager: map[string]MeshManager{},
+func NewSharedManagerFactory() SharedManagerFactory {
+	return &sharedManagerFactory{
+		manager: map[string]Manager{},
 	}
 }
 
-type sharedMeshManagerFactory struct {
+type sharedManagerFactory struct {
 	mu      sync.Mutex
-	manager map[string]MeshManager
+	manager map[string]Manager
 }
 
-func (f *sharedMeshManagerFactory) Manager(kubeconfig string) (MeshManager, error) {
+func (f *sharedManagerFactory) Manager(kubeconfig string) (Manager, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -56,7 +50,7 @@ func (f *sharedMeshManagerFactory) Manager(kubeconfig string) (MeshManager, erro
 	return manager, nil
 }
 
-func (f *sharedMeshManagerFactory) Delete(kubeconfig string) {
+func (f *sharedManagerFactory) Delete(kubeconfig string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	m, exists := f.manager[kubeconfig]

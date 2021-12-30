@@ -23,7 +23,7 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
 	"nocalhost/pkg/nocalhost-api/pkg/manager"
-	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
+	"nocalhost/pkg/nocalhost-api/pkg/manager/mesh"
 )
 
 // @Summary Plug-in Get personal application development environment (kubeconfig) (obsolete)
@@ -327,7 +327,7 @@ func GetJoinClusterAndAppAndUserDetail(c *gin.Context) {
 // @Produce  json
 // @param Authorization header string true "Authorization"
 // @Param id path string true "devspace id"
-// @Success 200 {object} setupcluster.MeshDevInfo
+// @Success 200 {object} mesh.DevInfo
 // @Router /v1/dev_space/{id}/mesh_apps_info [get]
 func GetAppsInfo(c *gin.Context) {
 	devSpaceId := cast.ToUint64(c.Param("id"))
@@ -365,17 +365,17 @@ func GetAppsInfo(c *gin.Context) {
 		return
 	}
 
-	meshManager, err := setupcluster.GetSharedMeshManagerFactory().Manager(clusterData.KubeConfig)
+	meshManager, err := manager.MeshSharedManagerFactory.Manager(clusterData.KubeConfig)
 	if err != nil {
 		log.Error(err)
 		api.SendResponse(c, errno.ErrGetDevSpaceAppInfo, nil)
 		return
 	}
 	if isBasespace {
-		result := setupcluster.MeshDevInfo{
+		result := mesh.DevInfo{
 			Header: devspace.TraceHeader,
 			Apps: meshManager.GetBaseDevSpaceAppInfo(
-				&setupcluster.MeshDevInfo{
+				&mesh.DevInfo{
 					BaseNamespace: devspace.Namespace},
 			),
 		}
@@ -384,7 +384,7 @@ func GetAppsInfo(c *gin.Context) {
 		return
 	}
 
-	info := &setupcluster.MeshDevInfo{
+	info := &mesh.DevInfo{
 		BaseNamespace:    basespace.Namespace,
 		MeshDevNamespace: devspace.Namespace,
 	}
@@ -394,7 +394,7 @@ func GetAppsInfo(c *gin.Context) {
 		api.SendResponse(c, errno.ErrGetDevSpaceAppInfo, nil)
 		return
 	}
-	result := setupcluster.MeshDevInfo{
+	result := mesh.DevInfo{
 		Header: devspace.TraceHeader,
 		Apps:   apps,
 	}

@@ -9,6 +9,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 
+	"nocalhost/pkg/nocalhost-api/pkg/manager"
+
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
 
@@ -18,6 +20,7 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
+	"nocalhost/pkg/nocalhost-api/pkg/manager/mesh"
 	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
 )
 
@@ -188,12 +191,12 @@ func UpdateResourceLimit(c *gin.Context) {
 // @Produce  json
 // @param Authorization header string true "Authorization"
 // @Param id path string true "devspace id"
-// @Param MeshDevInfo body setupcluster.MeshDevInfo true "mesh dev space info"
+// @Param MeshDevInfo body mesh.DevInfo true "mesh dev space info"
 // @Success 200 {object} model.ClusterUserModel
 // @Router /v1/dev_space/{id}/update_mesh_dev_space_info [put]
 func UpdateMeshDevSpaceInfo(c *gin.Context) {
 	// TODO move to /v1/dev_space/{id} [put]
-	var req setupcluster.MeshDevInfo
+	var req mesh.DevInfo
 	if err := c.ShouldBindJSON(&req); err != nil {
 		log.Warnf("bind resource limits params err: %v", err)
 		api.SendResponse(c, errno.ErrBind, nil)
@@ -243,7 +246,7 @@ func UpdateMeshDevSpaceInfo(c *gin.Context) {
 	info.IsUpdateHeader = basespace.TraceHeader.TraceKey != info.Header.TraceKey ||
 		basespace.TraceHeader.TraceValue != info.Header.TraceValue
 
-	meshManager, err := setupcluster.GetSharedMeshManagerFactory().Manager(clusterData.KubeConfig)
+	meshManager, err := manager.MeshSharedManagerFactory.Manager(clusterData.KubeConfig)
 	if err != nil {
 		log.Error(err)
 		api.SendResponse(c, errno.ErrUpdateMeshSpaceFailed, nil)

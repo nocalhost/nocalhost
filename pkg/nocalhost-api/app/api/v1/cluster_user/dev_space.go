@@ -378,7 +378,7 @@ func (d *DevSpace) initMeshDevSpace(
 
 	meshDevInfo.BaseNamespace = baseClusterUser.Namespace
 
-	meshManager, err := setupcluster.GetSharedMeshManagerFactory().Manager(clusterRecord.KubeConfig)
+	meshManager, err := manager.MeshSharedManagerFactory.Manager(clusterRecord.KubeConfig)
 	if err != nil {
 		return clusterUser, err
 	}
@@ -417,7 +417,7 @@ func (d *DevSpace) deleteTracingHeader() error {
 	meshDevInfo.MeshDevNamespace = d.DevSpaceParams.NameSpace
 	meshDevInfo.BaseNamespace = baseDevspace.Namespace
 
-	meshManager, err := setupcluster.GetSharedMeshManagerFactory().Manager(string(d.KubeConfig))
+	meshManager, err := manager.MeshSharedManagerFactory.Manager(string(d.KubeConfig))
 	if err != nil {
 		return err
 	}

@@ -1158,7 +1158,7 @@
                         "description": "OK",
                         "schema": {
                             "type": "object",
-                            "$ref": "#/definitions/setupcluster.MeshDevInfo"
+                            "$ref": "#/definitions/mesh.DevInfo"
                         }
                     }
                 }
@@ -1239,7 +1239,7 @@
                         "required": true,
                         "schema": {
                             "type": "object",
-                            "$ref": "#/definitions/setupcluster.MeshDevInfo"
+                            "$ref": "#/definitions/mesh.DevInfo"
                         }
                     }
                 ],
@@ -2139,7 +2139,7 @@
                 },
                 "mesh_dev_info": {
                     "type": "object",
-                    "$ref": "#/definitions/setupcluster.MeshDevInfo"
+                    "$ref": "#/definitions/mesh.DevInfo"
                 },
                 "namespace": {
                     "type": "string"
@@ -2222,6 +2222,91 @@
                 },
                 "space_storage_capacity": {
                     "type": "string"
+                }
+            }
+        },
+        "mesh.DevApp": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "workloads": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/mesh.DevWorkload"
+                    }
+                }
+            }
+        },
+        "mesh.DevInfo": {
+            "type": "object",
+            "properties": {
+                "apps": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/mesh.DevApp"
+                    }
+                },
+                "header": {
+                    "type": "object",
+                    "$ref": "#/definitions/model.Header"
+                },
+                "namespace": {
+                    "type": "string"
+                },
+                "resources": {
+                    "type": "object",
+                    "$ref": "#/definitions/mesh.meshDevResources"
+                },
+                "rollback": {
+                    "type": "object",
+                    "$ref": "#/definitions/mesh.rollback"
+                }
+            }
+        },
+        "mesh.DevWorkload": {
+            "type": "object",
+            "properties": {
+                "kind": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "integer"
+                }
+            }
+        },
+        "mesh.meshDevResources": {
+            "type": "object",
+            "properties": {
+                "delete": {
+                    "type": "string"
+                },
+                "install": {
+                    "type": "string"
+                }
+            }
+        },
+        "mesh.rollback": {
+            "type": "object",
+            "properties": {
+                "header": {
+                    "type": "object",
+                    "$ref": "#/definitions/mesh.rollbackHeader"
+                }
+            }
+        },
+        "mesh.rollbackHeader": {
+            "type": "object",
+            "properties": {
+                "add": {
+                    "type": "object"
+                },
+                "update": {
+                    "type": "object"
                 }
             }
         },
@@ -2933,91 +3018,6 @@
                 },
                 "version": {
                     "type": "string"
-                }
-            }
-        },
-        "setupcluster.MeshDevApp": {
-            "type": "object",
-            "properties": {
-                "name": {
-                    "type": "string"
-                },
-                "workloads": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/setupcluster.MeshDevWorkload"
-                    }
-                }
-            }
-        },
-        "setupcluster.MeshDevInfo": {
-            "type": "object",
-            "properties": {
-                "apps": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/setupcluster.MeshDevApp"
-                    }
-                },
-                "header": {
-                    "type": "object",
-                    "$ref": "#/definitions/model.Header"
-                },
-                "namespace": {
-                    "type": "string"
-                },
-                "resources": {
-                    "type": "object",
-                    "$ref": "#/definitions/setupcluster.meshDevResources"
-                },
-                "rollback": {
-                    "type": "object",
-                    "$ref": "#/definitions/setupcluster.rollback"
-                }
-            }
-        },
-        "setupcluster.MeshDevWorkload": {
-            "type": "object",
-            "properties": {
-                "kind": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "integer"
-                }
-            }
-        },
-        "setupcluster.meshDevResources": {
-            "type": "object",
-            "properties": {
-                "delete": {
-                    "type": "string"
-                },
-                "install": {
-                    "type": "string"
-                }
-            }
-        },
-        "setupcluster.rollback": {
-            "type": "object",
-            "properties": {
-                "header": {
-                    "type": "object",
-                    "$ref": "#/definitions/setupcluster.rollbackHeader"
-                }
-            }
-        },
-        "setupcluster.rollbackHeader": {
-            "type": "object",
-            "properties": {
-                "add": {
-                    "type": "object"
-                },
-                "update": {
-                    "type": "object"
                 }
             }
         },

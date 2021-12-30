@@ -3,7 +3,7 @@
 * This source code is licensed under the Apache License Version 2.0.
  */
 
-package setupcluster
+package mesh
 
 import (
 	"fmt"
@@ -28,8 +28,8 @@ const (
 	DefaultClusterDomain = "cluster.local"
 )
 
-func meshDevModifier(ns string, r *unstructured.Unstructured) ([]MeshDevWorkload, error) {
-	dependencies := make([]MeshDevWorkload, 0)
+func meshDevModifier(ns string, r *unstructured.Unstructured) ([]DevWorkload, error) {
+	dependencies := make([]DevWorkload, 0)
 	var err error
 	switch r.GetKind() {
 	case Deployment:
@@ -49,7 +49,7 @@ func meshDevModifier(ns string, r *unstructured.Unstructured) ([]MeshDevWorkload
 	return dependencies, nil
 }
 
-func deploymentModifier(rs *unstructured.Unstructured) ([]MeshDevWorkload, error) {
+func deploymentModifier(rs *unstructured.Unstructured) ([]DevWorkload, error) {
 	deploy := &appsv1.Deployment{}
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(rs.UnstructuredContent(), deploy); err != nil {
 		return nil, errors.WithStack(err)
@@ -108,7 +108,7 @@ func commonModifier(ns string, rs *unstructured.Unstructured) error {
 	return nil
 }
 
-func podDependencyModifier(spec *corev1.PodSpec) []MeshDevWorkload {
+func podDependencyModifier(spec *corev1.PodSpec) []DevWorkload {
 	// modify the init containers
 	initContainersModifier(spec)
 	// modify volumes
@@ -135,9 +135,9 @@ func initContainersModifier(spec *corev1.PodSpec) {
 	spec.InitContainers = initC
 }
 
-func volumeModifier(spec *corev1.PodSpec) []MeshDevWorkload {
+func volumeModifier(spec *corev1.PodSpec) []DevWorkload {
 	// copy emptyDir, downwardAPI, hostPath, configMap, secret to new namespace, deprecate other volumes
-	dependencies := make([]MeshDevWorkload, 0)
+	dependencies := make([]DevWorkload, 0)
 	delVolumeMounts := make(map[string]struct{})
 	volumes := spec.Volumes
 	for i := 0; i < len(volumes); i++ {
@@ -147,7 +147,7 @@ func volumeModifier(spec *corev1.PodSpec) []MeshDevWorkload {
 			continue
 		}
 		if volumes[i].ConfigMap != nil {
-			dependencies = append(dependencies, MeshDevWorkload{
+			dependencies = append(dependencies, DevWorkload{
 				Kind:   ConfigMap,
 				Name:   volumes[i].ConfigMap.Name,
 				Status: Selected,
@@ -155,7 +155,7 @@ func volumeModifier(spec *corev1.PodSpec) []MeshDevWorkload {
 			continue
 		}
 		if volumes[i].Secret != nil {
-			dependencies = append(dependencies, MeshDevWorkload{
+			dependencies = append(dependencies, DevWorkload{
 				Kind:   Secret,
 				Name:   volumes[i].Secret.SecretName,
 				Status: Selected,
@@ -201,13 +201,13 @@ func volumeModifier(spec *corev1.PodSpec) []MeshDevWorkload {
 	return dependencies
 }
 
-func getImagePullSecretDependency(spec *corev1.PodSpec) []MeshDevWorkload {
-	dependencies := make([]MeshDevWorkload, 0)
+func getImagePullSecretDependency(spec *corev1.PodSpec) []DevWorkload {
+	dependencies := make([]DevWorkload, 0)
 	for _, secret := range spec.ImagePullSecrets {
 		if secret.Name == "" {
 			continue
 		}
-		dependencies = append(dependencies, MeshDevWorkload{
+		dependencies = append(dependencies, DevWorkload{
 			Kind:   Secret,
 			Name:   secret.Name,
 			Status: Selected,
@@ -216,8 +216,8 @@ func getImagePullSecretDependency(spec *corev1.PodSpec) []MeshDevWorkload {
 	return dependencies
 }
 
-func getEnvDependency(spec *corev1.PodSpec) []MeshDevWorkload {
-	dependencies := make([]MeshDevWorkload, 0)
+func getEnvDependency(spec *corev1.PodSpec) []DevWorkload {
+	dependencies := make([]DevWorkload, 0)
 	for _, container := range spec.Containers {
 		dependencies = append(dependencies, getEnvDependencyFromContainer(container)...)
 	}
@@ -227,21 +227,21 @@ func getEnvDependency(spec *corev1.PodSpec) []MeshDevWorkload {
 	return dependencies
 }
 
-func getEnvDependencyFromContainer(container corev1.Container) []MeshDevWorkload {
-	dependencies := make([]MeshDevWorkload, 0)
+func getEnvDependencyFromContainer(container corev1.Container) []DevWorkload {
+	dependencies := make([]DevWorkload, 0)
 	for _, e := range container.Env {
 		if e.ValueFrom == nil {
 			continue
 		}
 		if e.ValueFrom.ConfigMapKeyRef != nil {
-			dependencies = append(dependencies, MeshDevWorkload{
+			dependencies = append(dependencies, DevWorkload{
 				Kind:   ConfigMap,
 				Name:   e.ValueFrom.ConfigMapKeyRef.Name,
 				Status: Selected,
 			})
 		}
 		if e.ValueFrom.SecretKeyRef != nil {
-			dependencies = append(dependencies, MeshDevWorkload{
+			dependencies = append(dependencies, DevWorkload{
 				Kind:   Secret,
 				Name:   e.ValueFrom.SecretKeyRef.Name,
 				Status: Selected,
@@ -251,14 +251,14 @@ func getEnvDependencyFromContainer(container corev1.Container) []MeshDevWorkload
 
 	for _, e := range container.EnvFrom {
 		if e.ConfigMapRef != nil {
-			dependencies = append(dependencies, MeshDevWorkload{
+			dependencies = append(dependencies, DevWorkload{
 				Kind:   ConfigMap,
 				Name:   e.ConfigMapRef.Name,
 				Status: Selected,
 			})
 		}
 		if e.SecretRef != nil {
-			dependencies = append(dependencies, MeshDevWorkload{
+			dependencies = append(dependencies, DevWorkload{
 				Kind:   Secret,
 				Name:   e.SecretRef.Name,
 				Status: Selected,
@@ -403,7 +403,7 @@ func genVirtualServiceForBaseDevSpace(baseNs, devNs, name string, header model.H
 	return rs, http.DeepCopy(), nil
 }
 
-func addHeaderToVirtualService(rs *unstructured.Unstructured, svcName string, info *MeshDevInfo) (
+func addHeaderToVirtualService(rs *unstructured.Unstructured, svcName string, info *DevInfo) (
 	*istiov1alpha3.HTTPRoute, error) {
 
 	rs.SetManagedFields(nil)
@@ -464,7 +464,7 @@ func addHeaderToVirtualService(rs *unstructured.Unstructured, svcName string, in
 	return http.DeepCopy(), nil
 }
 
-func deleteHeaderFromVirtualService(rs *unstructured.Unstructured, info *MeshDevInfo) (bool, error) {
+func deleteHeaderFromVirtualService(rs *unstructured.Unstructured, info *DevInfo) (bool, error) {
 	rs.SetManagedFields(nil)
 
 	vs := &v1alpha3.VirtualService{}
@@ -491,7 +491,7 @@ func deleteHeaderFromVirtualService(rs *unstructured.Unstructured, info *MeshDev
 	return ok, nil
 }
 
-func updateHeaderToVirtualService(rs *unstructured.Unstructured, info *MeshDevInfo) (
+func updateHeaderToVirtualService(rs *unstructured.Unstructured, info *DevInfo) (
 	[]*istiov1alpha3.HTTPRoute, bool, error) {
 
 	rs.SetManagedFields(nil)
