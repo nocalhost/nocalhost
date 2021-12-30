@@ -232,6 +232,7 @@ func (tun *NativeTun) setMTU(n int) error {
 		unix.SOCK_DGRAM,
 		0,
 	)
+
 	if err != nil {
 		return err
 	}
@@ -268,6 +269,7 @@ func (tun *NativeTun) MTU() (int, error) {
 		unix.SOCK_DGRAM,
 		0,
 	)
+
 	if err != nil {
 		return 0, err
 	}

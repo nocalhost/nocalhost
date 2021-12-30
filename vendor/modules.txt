@@ -496,13 +496,13 @@ golang.org/x/tools/go/buildutil
 golang.org/x/tools/go/internal/cgo
 golang.org/x/tools/go/loader
 golang.org/x/tools/internal/typeparams
-# golang.zx2c4.com/wintun v0.0.0-20211104114900-415007cec224
-golang.zx2c4.com/wintun
-# golang.zx2c4.com/wireguard v0.0.0-20211209221555-9c9e7e272434
+# golang.zx2c4.com/wireguard v0.0.0-20210927201915-bb745b2ea326
 ## explicit
 golang.zx2c4.com/wireguard/rwcancel
 golang.zx2c4.com/wireguard/tun
-# golang.zx2c4.com/wireguard/windows v0.5.3
+golang.zx2c4.com/wireguard/tun/wintun
+golang.zx2c4.com/wireguard/tun/wintun/memmod
+# golang.zx2c4.com/wireguard/windows v0.4.10
 ## explicit
 golang.zx2c4.com/wireguard/windows/tunnel/winipcfg
 # google.golang.org/appengine v1.6.7

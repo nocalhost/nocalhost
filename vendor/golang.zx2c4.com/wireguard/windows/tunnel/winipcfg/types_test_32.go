@@ -1,4 +1,5 @@
 //go:build 386 || arm
+// +build 386 arm
 
 /* SPDX-License-Identifier: MIT
  *

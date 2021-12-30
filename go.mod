@@ -73,8 +73,8 @@ require (
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e
 	golang.org/x/text v0.3.8-0.20211105212822-18b340fc7af2
-	golang.zx2c4.com/wireguard v0.0.0-20211209221555-9c9e7e272434
-	golang.zx2c4.com/wireguard/windows v0.5.3
+	golang.zx2c4.com/wireguard v0.0.0-20210927201915-bb745b2ea326
+	golang.zx2c4.com/wireguard/windows v0.4.10
 	google.golang.org/grpc v1.40.0
 	google.golang.org/protobuf v1.27.1
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0

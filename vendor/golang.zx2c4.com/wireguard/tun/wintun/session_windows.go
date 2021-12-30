@@ -3,8 +3,6 @@
  * Copyright (C) 2017-2021 WireGuard LLC. All Rights Reserved.
  */
 
-//go:build windows
-
 package wintun
 
 import (
@@ -69,7 +67,7 @@ func (session Session) ReceivePacket() (packet []byte, err error) {
 		err = e1
 		return
 	}
-	packet = unsafe.Slice((*byte)(unsafe.Pointer(r0)), packetSize)
+	unsafeSlice(unsafe.Pointer(&packet), unsafe.Pointer(r0), int(packetSize))
 	return
 }
 
@@ -83,10 +81,28 @@ func (session Session) AllocateSendPacket(packetSize int) (packet []byte, err er
 		err = e1
 		return
 	}
-	packet = unsafe.Slice((*byte)(unsafe.Pointer(r0)), packetSize)
+	unsafeSlice(unsafe.Pointer(&packet), unsafe.Pointer(r0), int(packetSize))
 	return
 }
 
 func (session Session) SendPacket(packet []byte) {
 	syscall.Syscall(procWintunSendPacket.Addr(), 2, session.handle, uintptr(unsafe.Pointer(&packet[0])), 0)
+}
+
+// unsafeSlice updates the slice slicePtr to be a slice
+// referencing the provided data with its length & capacity set to
+// lenCap.
+//
+// TODO: when Go 1.16 or Go 1.17 is the minimum supported version,
+// update callers to use unsafe.Slice instead of this.
+func unsafeSlice(slicePtr, data unsafe.Pointer, lenCap int) {
+	type sliceHeader struct {
+		Data unsafe.Pointer
+		Len  int
+		Cap  int
+	}
+	h := (*sliceHeader)(slicePtr)
+	h.Data = data
+	h.Len = lenCap
+	h.Cap = lenCap
 }
