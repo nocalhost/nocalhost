@@ -172,10 +172,11 @@ func (a *authConfig) Get(vc *v1alpha1.VirtualCluster) (string, error) {
 	}
 
 	// 3. set address into kubeconfig
-	nameSuffix := vc.GetSpaceName()
-	newName := "vcluster-" + nameSuffix
-	if nameSuffix == "" {
-		newName = name
+	newClusterName := vc.GetSpaceName()
+	newCtxName := "vcluster-" + newClusterName
+	if newClusterName == "" {
+		newCtxName = name
+		newClusterName = name
 	}
 	newCluster := api.NewCluster()
 	newCtx := api.NewContext()
@@ -191,15 +192,15 @@ func (a *authConfig) Get(vc *v1alpha1.VirtualCluster) (string, error) {
 	}
 
 	for _, ctx := range kubeConfig.Contexts {
-		ctx.Cluster = newName
+		ctx.Cluster = newClusterName
 		newCtx = ctx
 	}
-	kubeConfig.CurrentContext = newName
+	kubeConfig.CurrentContext = newCtxName
 	kubeConfig.Contexts = map[string]*api.Context{
-		newName: newCtx,
+		newCtxName: newCtx,
 	}
 	kubeConfig.Clusters = map[string]*api.Cluster{
-		newName: newCluster,
+		newClusterName: newCluster,
 	}
 
 	out, err := clientcmd.Write(*kubeConfig)
