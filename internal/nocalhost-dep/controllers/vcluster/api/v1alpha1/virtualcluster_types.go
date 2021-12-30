@@ -144,6 +144,11 @@ func (in *VirtualCluster) GetSpaceName() string {
 	return annotations[SpaceName]
 }
 
+func (in *VirtualCluster) GetHostClusterName() string {
+	annotations := in.GetAnnotations()
+	return annotations[ClusterName]
+}
+
 //+kubebuilder:object:root=true
 
 // VirtualClusterList contains a list of VirtualCluster

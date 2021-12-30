@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"sort"
 	"strconv"
 	"time"
@@ -17,6 +16,7 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -173,11 +173,12 @@ func (a *authConfig) Get(vc *v1alpha1.VirtualCluster) (string, error) {
 
 	// 3. set address into kubeconfig
 	newClusterName := vc.GetSpaceName()
-	newCtxName := "vcluster-" + newClusterName
-	if newClusterName == "" {
-		newCtxName = name
-		newClusterName = name
+	hostClusterName := vc.GetHostClusterName()
+	if hostClusterName == "" {
+		hostClusterName = "vcluster"
 	}
+	newCtxName := hostClusterName + "/" + newClusterName
+	newClusterName = newCtxName
 	newCluster := api.NewCluster()
 	newCtx := api.NewContext()
 	for _, cluster := range kubeConfig.Clusters {
