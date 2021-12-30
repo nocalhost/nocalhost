@@ -15,9 +15,9 @@ type DefaultController struct {
 }
 
 func (j *DefaultController) ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error {
-	return j.PatchDevModeManifest(ctx, ops)
+	return j.Controller.ReplaceImage(ctx, ops)
 }
 
 func (j *DefaultController) RollBack(reset bool) error {
-	return j.RollbackFromAnnotation()
+	return j.Controller.RollBack(reset)
 }

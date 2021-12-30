@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/pkg/nhctl/log"
 	"time"
@@ -35,19 +36,19 @@ func (r *DuplicateRawPodController) ReplaceImage(ctx context.Context, ops *model
 
 	if r.IsInReplaceDevMode() {
 		if len(originalPod.Annotations) > 0 {
-			podSpec, ok := originalPod.Annotations[originalPodDefine]
+			podSpec, ok := originalPod.Annotations[_const.OriginWorkloadDefinition]
 			if !ok {
-				return errors.New(fmt.Sprintf("Annotation %s not found, failed to rollback", originalPodDefine))
+				return errors.New(fmt.Sprintf("Annotation %s not found, failed to rollback", _const.OriginWorkloadDefinition))
 			}
 			if err = json.Unmarshal([]byte(podSpec), originalPod); err != nil {
 				return errors.Wrap(err, "")
 			}
 		} else {
-			return errors.New(fmt.Sprintf("Annotation %s not found, failed to rollback", originalPodDefine))
+			return errors.New(fmt.Sprintf("Annotation %s not found, failed to rollback", _const.OriginWorkloadDefinition))
 		}
 	} else {
 		if len(originalPod.Annotations) > 0 {
-			podSpec, ok := originalPod.Annotations[originalPodDefine]
+			podSpec, ok := originalPod.Annotations[_const.OriginWorkloadDefinition]
 			var oPodSpec = corev1.Pod{}
 			if ok {
 				if err = json.Unmarshal([]byte(podSpec), &oPodSpec); err == nil {

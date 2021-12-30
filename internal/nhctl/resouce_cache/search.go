@@ -359,7 +359,7 @@ func generateKey(kubeconfigBytes []byte, namespace string) string {
 // initSearcher return a searcher which use informer to cache resource, without cache
 func initSearcher(kubeconfigBytes []byte, namespace string, clientUtils *clientgoutils.ClientGoUtils,
 	gr []*restmapper.APIGroupResources) (*Searcher, error) {
-	log.Infof("TTTest initSearcher for ns: %s", namespace)
+	log.Infof("InitSearcher for ns: %s", namespace)
 
 	//// default value is flowcontrol.NewTokenBucketRateLimiter(5, 10)
 	//config.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(10000, 10000)
