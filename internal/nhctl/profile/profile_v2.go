@@ -15,7 +15,6 @@ import (
 	"net"
 	"nocalhost/internal/nhctl/dbutils"
 	"nocalhost/internal/nhctl/nocalhost_path"
-	"nocalhost/internal/nhctl/syncthing/ports"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -256,9 +255,9 @@ type SvcProfileV2 struct {
 	// same as local available port, use for port-forward
 	RemoteSyncthingPort int `json:"remoteSyncthingPort" yaml:"remoteSyncthingPort"`
 	// same as local available port, use for port-forward
-	RemoteSyncthingGUIPort              int    `json:"remoteSyncthingGUIPort" yaml:"remoteSyncthingGUIPort"`
-	SyncthingSecret                     string `json:"syncthingSecret" yaml:"syncthingSecret"` // secret name
-	DuplicateDevModeSyncthingSecretName string `json:"duplicateDevModeSyncthingSecretName" yaml:"duplicateDevModeSyncthingSecretName"`
+	RemoteSyncthingGUIPort int `json:"remoteSyncthingGUIPort" yaml:"remoteSyncthingGUIPort"`
+	//SyncthingSecret                     string `json:"syncthingSecret" yaml:"syncthingSecret"` // secret name
+	//DuplicateDevModeSyncthingSecretName string `json:"duplicateDevModeSyncthingSecretName" yaml:"duplicateDevModeSyncthingSecretName"`
 	// syncthing local port
 	LocalSyncthingPort                     int               `json:"localSyncthingPort" yaml:"localSyncthingPort"`
 	LocalSyncthingGUIPort                  int               `json:"localSyncthingGUIPort" yaml:"localSyncthingGUIPort"`
@@ -365,54 +364,4 @@ func (s *SvcProfileV2) GetType() string {
 		}
 	}
 	return s.Type
-}
-
-// portStr is like 8080:80, :80 or 80
-func GetPortForwardForString(portStr string) (int, int, error) {
-	var err error
-	s := strings.Split(portStr, ":")
-
-	switch len(s) {
-	case 1:
-		if port, err := strconv.Atoi(portStr); err != nil {
-			return 0, 0, errors.Wrap(err, fmt.Sprintf("Wrong format of port: %s.", portStr))
-		} else if port > 65535 || port < 0 {
-			return 0, 0, errors.New(
-				fmt.Sprintf(
-					"The range of TCP port number is [0, 65535], wrong defined of port: %s.", portStr,
-				),
-			)
-		} else {
-			return port, port, nil
-		}
-	default:
-		var localPort, remotePort int
-		sLocalPort := s[0]
-		if sLocalPort == "" {
-			// get random port in local
-			if localPort, err = ports.GetAvailablePort(); err != nil {
-				return 0, 0, err
-			}
-		} else if localPort, err = strconv.Atoi(sLocalPort); err != nil {
-			return 0, 0, errors.Wrap(err, fmt.Sprintf("Wrong format of local port: %s.", sLocalPort))
-		}
-		if remotePort, err = strconv.Atoi(s[1]); err != nil {
-			return 0, 0, errors.Wrap(err, fmt.Sprintf("wrong format of remote port: %s, skipped", s[1]))
-		}
-		if localPort > 65535 || localPort < 0 {
-			return 0, 0, errors.New(
-				fmt.Sprintf(
-					"The range of TCP port number is [0, 65535], wrong defined of local port: %s.", portStr,
-				),
-			)
-		}
-		if remotePort > 65535 || localPort < 0 {
-			return 0, 0, errors.New(
-				fmt.Sprintf(
-					"The range of TCP port number is [0, 65535], wrong defined of remote port: %s.", portStr,
-				),
-			)
-		}
-		return localPort, remotePort, nil
-	}
 }

@@ -79,6 +79,7 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 			return errors.Wrap(err, "Error while create ns: "+errOutput)
 		},
 	); err != nil {
+		fmt.Printf("Error stack: %v\n", err)
 		panic(err)
 		return
 	}

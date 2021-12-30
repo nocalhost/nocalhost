@@ -61,55 +61,55 @@ func (c *Controller) GetDevSidecarImage(container string) string {
 	return ""
 }
 
-func (c *Controller) markReplicaSetRevision() error {
+//func (c *Controller) markReplicaSetRevision() error {
+//
+//	dep0, err := c.Client.GetDeployment(c.Name)
+//	if err != nil {
+//		return err
+//	}
+//
+//	// Mark current revision for rollback
+//	rss, err := c.Client.GetSortedReplicaSetsByDeployment(c.Name)
+//	if err != nil {
+//		return err
+//	}
+//	if len(rss) > 0 {
+//		// Recording original pod replicas for dev end to recover
+//		originalPodReplicas := 1
+//		if dep0.Spec.Replicas != nil {
+//			originalPodReplicas = int(*dep0.Spec.Replicas)
+//		}
+//		for _, rs := range rss {
+//			if _, ok := rs.Annotations[_const.DevImageRevisionAnnotationKey]; ok {
+//				// already marked
+//				return nil
+//			}
+//		}
+//		rs := rss[0]
+//		retryTimes := 5
+//		for i := 0; i < retryTimes; i++ {
+//			time.Sleep(time.Second * 1)
+//			if err = c.Client.Patch(
+//				"ReplicaSet", rs.Name,
+//				fmt.Sprintf(
+//					`{"metadata":{"annotations":{"%s":"%d", "%s":"%s"}}}`,
+//					_const.DevImageOriginalPodReplicasAnnotationKey, originalPodReplicas,
+//					_const.DevImageRevisionAnnotationKey, _const.DevImageRevisionAnnotationValue,
+//				), "",
+//			); err == nil {
+//				break
+//			}
+//		}
+//		if err != nil {
+//			return errors.New("Failed to update rs's annotation :" + err.Error())
+//		}
+//		log.Infof("%s has been marked as first revision", rs.Name)
+//	}
+//	return nil
+//}
 
-	dep0, err := c.Client.GetDeployment(c.Name)
-	if err != nil {
-		return err
-	}
-
-	// Mark current revision for rollback
-	rss, err := c.Client.GetSortedReplicaSetsByDeployment(c.Name)
-	if err != nil {
-		return err
-	}
-	if len(rss) > 0 {
-		// Recording original pod replicas for dev end to recover
-		originalPodReplicas := 1
-		if dep0.Spec.Replicas != nil {
-			originalPodReplicas = int(*dep0.Spec.Replicas)
-		}
-		for _, rs := range rss {
-			if _, ok := rs.Annotations[_const.DevImageRevisionAnnotationKey]; ok {
-				// already marked
-				return nil
-			}
-		}
-		rs := rss[0]
-		retryTimes := 5
-		for i := 0; i < retryTimes; i++ {
-			time.Sleep(time.Second * 1)
-			if err = c.Client.Patch(
-				"ReplicaSet", rs.Name,
-				fmt.Sprintf(
-					`{"metadata":{"annotations":{"%s":"%d", "%s":"%s"}}}`,
-					_const.DevImageOriginalPodReplicasAnnotationKey, originalPodReplicas,
-					_const.DevImageRevisionAnnotationKey, _const.DevImageRevisionAnnotationValue,
-				), "",
-			); err == nil {
-				break
-			}
-		}
-		if err != nil {
-			return errors.New("Failed to update rs's annotation :" + err.Error())
-		}
-		log.Infof("%s has been marked as first revision", rs.Name)
-	}
-	return nil
-}
-
-func (c *Controller) GetSyncThingSecretName(duplicateDevMode bool) string {
-	if duplicateDevMode {
+func (c *Controller) GetSyncThingSecretName() string {
+	if c.DevModeType.IsDuplicateDevMode() {
 		return strings.Join([]string{c.Name, c.Type.String(), secret_config.SecretName, "dup", c.Identifier}, "-")
 	}
 	return strings.Join([]string{c.Name, c.Type.String(), secret_config.SecretName}, "-")
@@ -131,7 +131,7 @@ func (c *Controller) generateSyncVolumesAndMounts(duplicateDevMode bool) ([]core
 		},
 	}
 
-	secretName := c.GetSyncThingSecretName(duplicateDevMode)
+	secretName := c.GetSyncThingSecretName()
 	defaultMode := int32(_const.DefaultNewFilePermission)
 	syncthingSecretVol := corev1.Volume{
 		Name: secret_config.SecretName,
@@ -182,7 +182,7 @@ func (c *Controller) generateSyncVolumesAndMounts(duplicateDevMode bool) ([]core
 // If PVC exists, use it directly
 // If PVC not exists, try to create one
 // If PVC failed to create, the whole process of entering DevMode will fail
-func (c *Controller) genWorkDirAndPVAndMounts(container, storageClass string, duplicateDevMode bool) (
+func (c *Controller) genWorkDirAndPVAndMounts(container, storageClass string, ignoreWorkDir, duplicateDevMode bool) (
 	[]corev1.Volume, []corev1.VolumeMount, error) {
 
 	volumes := make([]corev1.Volume, 0)
@@ -198,7 +198,6 @@ func (c *Controller) genWorkDirAndPVAndMounts(container, storageClass string, du
 
 	var workDirDefinedInPersistVolume bool // if workDir is specified in persistentVolumeDirs
 	var workDirResideInPersistVolumeDirs bool
-	var err error
 	persistentVolumes := c.GetPersistentVolumeDirs(container)
 	for index, persistentVolume := range persistentVolumes {
 		if persistentVolume.Path == "" {
@@ -209,11 +208,7 @@ func (c *Controller) genWorkDirAndPVAndMounts(container, storageClass string, du
 		// Check if pvc is already exist
 		labels := map[string]string{}
 		if duplicateDevMode {
-			labels, err = c.getDuplicateLabelsMap()
-			if err != nil {
-				log.WarnE(err, "")
-				continue
-			}
+			labels = c.getDuplicateLabelsMap()
 			labels[_const.DevWorkloadIgnored] = "false"
 			labels[_const.AppLabel] = c.AppName
 		} else {
@@ -292,7 +287,7 @@ func (c *Controller) genWorkDirAndPVAndMounts(container, storageClass string, du
 		log.Infof("%s mounts a pvc successfully", persistentVolume.Path)
 	}
 
-	if workDirDefinedInPersistVolume || !workDirResideInPersistVolumeDirs {
+	if (workDirDefinedInPersistVolume || !workDirResideInPersistVolumeDirs) && !ignoreWorkDir {
 		if workDirDefinedInPersistVolume {
 			log.Info("Mount workDir to persist volume")
 		} else {
@@ -337,8 +332,10 @@ func (c *Controller) createPvcForPersistentVolumeDir(
 		return nil, err
 	}
 	if persistentVolume.WaitForFirstConsumer {
-		log.Infof("The volumeBindingMode of this pvc(%s) is WaitForFirstConsumer, "+
-			"we don't need to wait it for being bounded", persistentVolume.Path)
+		log.Infof(
+			"The volumeBindingMode of this pvc(%s) is WaitForFirstConsumer, "+
+				"we don't need to wait it for being bounded", persistentVolume.Path,
+		)
 		return pvc, nil
 	}
 	// wait pvc to be ready
@@ -361,19 +358,24 @@ func (c *Controller) createPvcForPersistentVolumeDir(
 			if condition.Reason == "ProvisioningFailed" {
 				log.Warnf(
 					"Failed to create a pvc for %s, check if your StorageClass is set correctly",
-					persistentVolume.Path)
+					persistentVolume.Path,
+				)
 				break
 			} else if condition.Reason == "WaitForFirstConsumer" {
-				log.Infof("The volumeBindingMode of this pvc(%s) is WaitForFirstConsumer. "+
-					"We don't need to wait it for being bounded", persistentVolume.Path)
+				log.Infof(
+					"The volumeBindingMode of this pvc(%s) is WaitForFirstConsumer. "+
+						"We don't need to wait it for being bounded", persistentVolume.Path,
+				)
 				return pvc, nil
 			}
 		}
 		if es, err := c.Client.SearchEvents(pvc); err == nil {
 			for _, item := range es.Items {
 				if item.Reason == "WaitForFirstConsumer" {
-					log.Infof("The volumeBindingMode of this pvc(%s) is WaitForFirstConsumer. "+
-						"We don't need to wait it for being bounded", persistentVolume.Path)
+					log.Infof(
+						"The volumeBindingMode of this pvc(%s) is WaitForFirstConsumer. "+
+							"We don't need to wait it for being bounded", persistentVolume.Path,
+					)
 					return pvc, nil
 				}
 			}
@@ -480,7 +482,7 @@ func convertToResourceList(cpu string, mem string) (corev1.ResourceList, error) 
 
 func waitingPodToBeReady(f func() (string, error)) error {
 	// Wait podList to be ready
-	log.Info(" Waiting pod to start...")
+	log.Info("Waiting pod to start...")
 
 	for i := 0; i < 300; i++ {
 		<-time.NewTimer(time.Second * 1).C
@@ -503,7 +505,8 @@ func isContainerReadyAndRunning(containerName string, pod *corev1.Pod) bool {
 	return false
 }
 
-func findDevPod(podList []corev1.Pod) (string, error) {
+// Find Ready Dev Pod's name
+func findDevPodName(podList ...corev1.Pod) (string, error) {
 	resultPodList := make([]corev1.Pod, 0)
 	for _, pod := range podList {
 		//if pod.Status.Phase == "Running" && pod.DeletionTimestamp == nil {
@@ -515,6 +518,7 @@ func findDevPod(podList []corev1.Pod) (string, error) {
 			}
 		}
 	}
+
 	if len(resultPodList) > 0 {
 		latestPod := resultPodList[0]
 		for i := 1; i < len(resultPodList); i++ {
@@ -524,12 +528,71 @@ func findDevPod(podList []corev1.Pod) (string, error) {
 				latestPod = resultPodList[i]
 			}
 		}
+
 		if latestPod.Status.Phase == "Running" {
 			return latestPod.Name, nil
 		}
 		return "", errors.New("dev container has not be ready")
 	}
 	return "", errors.New("dev container not found")
+}
+
+// containerStatusForDevPod getting status msg for pod
+// return true if current pod is dev pod
+func containerStatusForDevPod(pod *corev1.Pod, consumeFun func(status string, err error)) bool {
+	if pod.GetDeletionTimestamp() != nil {
+		return false
+	}
+
+	// dev container must have 2 containers: nocalhost-dev & nocalhost-sidecar
+
+	containerFoundCounter := 0
+	for _, container := range pod.Spec.Containers {
+		if container.Name == "nocalhost-dev" || container.Name == "nocalhost-sidecar" {
+			containerFoundCounter++
+		}
+	}
+
+	if containerFoundCounter < 2 {
+		return false
+	}
+
+	head := fmt.Sprintf("Pod %s now %s", pod.Name, pod.Status.Phase)
+	conditionMsg := ""
+	msg := ""
+
+	if len(pod.Status.Conditions) > 0 {
+		for _, condition := range pod.Status.Conditions {
+			if condition.Status != "True" {
+				conditionMsg += "\n * Condition: " + condition.Reason + ", " + condition.Message
+			}
+		}
+	}
+
+	for _, status := range pod.Status.ContainerStatuses {
+		if status.Name != "nocalhost-dev" && status.Name != "nocalhost-sidecar" {
+			continue
+		}
+
+		msg += "\n >> Container: " + status.Name
+
+		if status.State.Running != nil {
+			msg += " is Running"
+		} else if status.State.Terminated != nil {
+			msg += " is Terminated"
+		} else if status.State.Waiting != nil {
+			msg += " is Waiting, Reason: " + status.State.Waiting.Reason
+			if status.State.Waiting.Message != "" {
+				msg += " Msg: " + status.State.Waiting.Message
+			}
+		}
+	}
+
+	if msg != "" || conditionMsg != "" {
+		consumeFun(head+conditionMsg+msg+"\n", nil)
+	}
+
+	return true
 }
 
 func (c *Controller) genContainersAndVolumes(podSpec *corev1.PodSpec,
@@ -544,21 +607,31 @@ func (c *Controller) genContainersAndVolumes(podSpec *corev1.PodSpec,
 	devModeVolumes := make([]corev1.Volume, 0)
 	devModeMounts := make([]corev1.VolumeMount, 0)
 
+	workDir := c.GetWorkDir(containerName)
+	// Check if workDir already mounts a volume
+	var workDirAlreadyMounted bool
+	var workDirVolumeMount corev1.VolumeMount
+	for _, mount := range devContainer.VolumeMounts {
+		if mount.MountPath == workDir {
+			log.Info("WorkDir already mounted, don't mount a emptyDir again")
+			workDirAlreadyMounted = true
+			workDirVolumeMount = mount
+		}
+	}
+
 	// Set volumes
 	syncthingVolumes, syncthingVolumeMounts := c.generateSyncVolumesAndMounts(duplicateDevMode)
 	devModeVolumes = append(devModeVolumes, syncthingVolumes...)
 	devModeMounts = append(devModeMounts, syncthingVolumeMounts...)
 
 	workDirAndPersistVolumes, workDirAndPersistVolumeMounts, err := c.genWorkDirAndPVAndMounts(
-		containerName, storageClass, duplicateDevMode)
+		containerName, storageClass, workDirAlreadyMounted, duplicateDevMode)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
 	devModeVolumes = append(devModeVolumes, workDirAndPersistVolumes...)
 	devModeMounts = append(devModeMounts, workDirAndPersistVolumeMounts...)
-
-	workDir := c.GetWorkDir(containerName)
 
 	if devImage == "" {
 		devImage = c.GetDevImage(containerName) // Default : replace the first container
@@ -585,6 +658,9 @@ func (c *Controller) genContainersAndVolumes(podSpec *corev1.PodSpec,
 	// Add volumeMounts to containers
 	devContainer.VolumeMounts = append(devContainer.VolumeMounts, devModeMounts...)
 	sideCarContainer.VolumeMounts = append(sideCarContainer.VolumeMounts, devModeMounts...)
+	if workDirAlreadyMounted {
+		sideCarContainer.VolumeMounts = append(sideCarContainer.VolumeMounts, workDirVolumeMount)
+	}
 
 	requirements := c.genResourceReq(containerName)
 	if requirements != nil {

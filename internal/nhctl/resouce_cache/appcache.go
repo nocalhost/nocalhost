@@ -89,14 +89,14 @@ func (r *ResourceEventHandlerFuncs) timeUp(f func()) {
 
 func (r *ResourceEventHandlerFuncs) handleAddOrUpdate() {
 	// namespace --> appName
-	var namespaceToApp = sync.Map{}
+	var namespaceToApp = sync.Map{} // key: namespace value: appName
 	list := r.informer.Informer().GetStore().List()
 	// sort by namespace
 	for _, i := range list {
 		object := i.(metav1.Object)
 		if len(object.GetNamespace()) != 0 {
 			v, _ := namespaceToApp.LoadOrStore(object.GetNamespace(), sets.NewString())
-			v.(sets.String).Insert(getAppName(i))
+			v.(sets.String).Insert(getAppName(i)) // Add app name
 		}
 	}
 
@@ -104,7 +104,7 @@ func (r *ResourceEventHandlerFuncs) handleAddOrUpdate() {
 		object := i.(metav1.Object)
 		if len(object.GetNamespace()) != 0 {
 			kindToAppMap, _ := maps.LoadOrStore(r.toKey(object.GetNamespace()), &sync.Map{})
-			kindApp, _ := kindToAppMap.(*sync.Map).LoadOrStore(r.Gvr.Resource, newAppSet())
+			kindApp, _ := kindToAppMap.(*sync.Map).LoadOrStore(r.Gvr.Resource, newAppSet()) // R: AppSet
 			set := kindApp.(*appSet)
 			if value, loaded := namespaceToApp.LoadAndDelete(object.GetNamespace()); loaded {
 				set.lock.Lock()

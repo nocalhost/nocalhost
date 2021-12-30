@@ -28,7 +28,7 @@ import (
 
 var (
 	deployment  string
-	serviceType string
+	serviceType = "deployment"
 	pod         string
 	shell       string
 )
@@ -42,7 +42,7 @@ func init() {
 		"k8s deployment your developing service exists",
 	)
 	devStartCmd.Flags().StringVarP(
-		&serviceType, "controller-type", "t", "",
+		&serviceType, "controller-type", "t", "deployment",
 		"kind of k8s controller,such as deployment,statefulSet",
 	)
 	devStartCmd.Flags().StringVarP(
@@ -113,6 +113,7 @@ var devStartCmd = &cobra.Command{
 		applicationName := args[0]
 		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
 
+		nocalhostSvc.DevModeType = dt
 		if !nocalhostApp.GetAppMeta().IsInstalled() {
 			log.Fatal(nocalhostApp.GetAppMeta().NotInstallTips())
 		}
@@ -120,7 +121,7 @@ var devStartCmd = &cobra.Command{
 		if nocalhostSvc.IsInDevMode() {
 			coloredoutput.Hint(fmt.Sprintf("Already in %s DevMode...", nocalhostSvc.DevModeType.ToString()))
 
-			podName, err := nocalhostSvc.BuildPodController().GetNocalhostDevContainerPod()
+			podName, err := nocalhostSvc.GetDevModePodName()
 			must(err)
 
 			if !devStartOps.NoSyncthing {
@@ -161,8 +162,7 @@ var devStartCmd = &cobra.Command{
 			log.FatalE(err, "")
 		}
 
-		devPodName, err := nocalhostSvc.BuildPodController().
-			GetNocalhostDevContainerPod()
+		devPodName, err := nocalhostSvc.GetDevModePodName()
 		must(err)
 
 		startPortForwardAfterDevStart(devPodName)
@@ -174,7 +174,7 @@ var devStartCmd = &cobra.Command{
 		}
 
 		if !devStartOps.NoTerminal || shell != "" {
-			must(nocalhostSvc.EnterPodTerminal(devPodName, devStartOps.Container, shell))
+			must(nocalhostSvc.EnterPodTerminal(devPodName, "nocalhost-dev", shell))
 		}
 
 	},
@@ -229,12 +229,12 @@ func loadLocalOrCmConfigIfValid() {
 
 		must(associatePath.Associate(svcPack, kubeConfig, true))
 
-		_ = nocalhostApp.ReloadSvcCfg(deployment, base.SvcTypeOf(serviceType), false, false)
+		_ = nocalhostApp.ReloadSvcCfg(deployment, base.SvcType(serviceType), false, false)
 	case 1:
 
 		must(dev_dir.DevPath(devStartOps.LocalSyncDir[0]).Associate(svcPack, kubeConfig, true))
 
-		_ = nocalhostApp.ReloadSvcCfg(deployment, base.SvcTypeOf(serviceType), false, false)
+		_ = nocalhostApp.ReloadSvcCfg(deployment, base.SvcType(serviceType), false, false)
 	default:
 		log.Fatal(errors.New("Can not define multi 'local-sync(-s)'"))
 	}
@@ -271,7 +271,6 @@ func enterDevMode(devModeType profile.DevModeType) error {
 			nocalhostApp.Identifier, devModeType),
 	)
 	must(nocalhostSvc.UpdateSvcProfile(func(v2 *profile.SvcProfileV2) error {
-		//v2.DevModeType = devModeType
 		v2.OriginDevContainer = devStartOps.Container
 		return nil
 	}))
@@ -282,13 +281,6 @@ func enterDevMode(devModeType profile.DevModeType) error {
 	defer func() {
 		if !devStartSuccess {
 			log.Infof("Roll backing dev mode...")
-			//if devModeType != "" {
-			//	err = nocalhostSvc.UpdateSvcProfile(func(v2 *profile.SvcProfileV2) error {
-			//		//v2.DevModeType = ""
-			//		return nil
-			//	})
-			//	log.WarnE(err, "")
-			//}
 			_ = nocalhostSvc.AppMeta.SvcDevEnd(nocalhostSvc.Name, nocalhostSvc.Identifier, nocalhostSvc.Type, devModeType)
 		}
 	}()
@@ -322,7 +314,7 @@ func enterDevMode(devModeType profile.DevModeType) error {
 		}
 	}
 
-	nocalhostSvc.DevModeType = devModeType
+	//nocalhostSvc.DevModeType = devModeType
 	if err = nocalhostSvc.BuildPodController().ReplaceImage(context.TODO(), devStartOps); err != nil {
 		log.WarnE(err, "Failed to replace dev container")
 		log.Info("Resetting workload...")
@@ -338,6 +330,8 @@ func enterDevMode(devModeType profile.DevModeType) error {
 	); err != nil {
 		return err
 	}
+
+	utils.Should(nocalhostSvc.IncreaseDevModeCount())
 
 	// mark dev start as true
 	devStartSuccess = true

@@ -6,13 +6,11 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	authorizationv1 "k8s.io/api/authorization/v1"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"nocalhost/pkg/nhctl/k8sutils"
 	"nocalhost/pkg/nhctl/log"
-	"strings"
 	"sync"
 	"time"
 )
@@ -120,7 +118,7 @@ func (a *authCheckManager) doAuthCheck(namespace string, authCheckers ...*AuthCh
 				wg.Add(1)
 				go func() {
 					defer wg.Done()
-					r := a.resourceFor(checker.ResourceArg)
+					r := a.client.ResourceFor(checker.ResourceArg, true)
 
 					// first try load from cache inner authorizationMap
 
@@ -205,47 +203,6 @@ func (a *authCheckManager) auth(ra *authorizationv1.ResourceAttributes) (*author
 		Create(context.TODO(), arg, metav1.CreateOptions{})
 }
 
-func (a *authCheckManager) resourceFor(resourceArg string) schema.GroupVersionResource {
-	a.lock.Lock()
-	if resource, ok := a.gvrCache[resourceArg]; ok {
-		a.lock.Unlock()
-		return resource
-	}
-	a.lock.Unlock()
-
-	if resourceArg == "*" {
-		return schema.GroupVersionResource{Resource: resourceArg}
-	}
-
-	fullySpecifiedGVR, groupResource := schema.ParseResourceArg(strings.ToLower(resourceArg))
-	gvr := schema.GroupVersionResource{}
-	if fullySpecifiedGVR != nil {
-		gvr, _ = a.restMapper.ResourceFor(*fullySpecifiedGVR)
-	}
-	if gvr.Empty() {
-		var err error
-		gvr, err = a.restMapper.ResourceFor(groupResource.WithVersion(""))
-		if err != nil {
-			if !nonStandardResourceNames.Has(groupResource.String()) {
-				if len(groupResource.Group) == 0 {
-					log.Logf("Warning: the server doesn't have a resource type '%s'\n", groupResource.Resource)
-				} else {
-					log.Logf(
-						"Warning: the server doesn't have a resource type '%s' in group '%s'\n", groupResource.Resource,
-						groupResource.Group,
-					)
-				}
-			}
-			return schema.GroupVersionResource{Resource: resourceArg}
-		}
-	}
-
-	a.lock.Lock()
-	a.gvrCache[resourceArg] = gvr
-	a.lock.Unlock()
-	return gvr
-}
-
 func NewAuthCheckManager(kubeConfigPath string) *authCheckManager {
 	success := true
 
@@ -255,16 +212,9 @@ func NewAuthCheckManager(kubeConfigPath string) *authCheckManager {
 		log.ErrorE(err, "Error while init auth checker ")
 	}
 
-	mapper, err := client.NewFactory().ToRESTMapper()
-	if err != nil {
-		success = false
-		log.ErrorE(err, "Error while init auth checker's RESTMapper ")
-	}
-
 	return &authCheckManager{
 		initSuccess: success,
 		client:      client,
-		restMapper:  mapper,
 
 		gvrCache:         map[string]schema.GroupVersionResource{},
 		lock:             sync.Mutex{},
@@ -279,7 +229,6 @@ type authCheckManager struct {
 	initSuccess bool
 
 	client     *ClientGoUtils
-	restMapper meta.RESTMapper
 
 	gvrCache map[string]schema.GroupVersionResource
 	lock     sync.Mutex

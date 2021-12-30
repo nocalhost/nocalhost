@@ -8,7 +8,8 @@ package winipcfg
 import (
 	"encoding/binary"
 	"fmt"
-	"net"
+	"net/netip"
+	"strconv"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -584,8 +585,8 @@ const (
 
 // RouteData structure describes a route to add
 type RouteData struct {
-	Destination net.IPNet
-	NextHop     net.IP
+	Destination netip.Prefix
+	NextHop     netip.Addr
 	Metric      uint32
 }
 
@@ -685,8 +686,7 @@ func (row *MibIPInterfaceRow) Set() error {
 
 // get method returns all table rows as a Go slice.
 func (tab *mibIPInterfaceTable) get() (s []MibIPInterfaceRow) {
-	unsafeSlice(unsafe.Pointer(&s), unsafe.Pointer(&tab.table[0]), int(tab.numEntries))
-	return
+	return unsafe.Slice(&tab.table[0], tab.numEntries)
 }
 
 // free method frees the buffer allocated by the functions that return tables of network interfaces, addresses, and routes.
@@ -723,8 +723,7 @@ func (row *MibIfRow2) get() (ret error) {
 
 // get method returns all table rows as a Go slice.
 func (tab *mibIfTable2) get() (s []MibIfRow2) {
-	unsafeSlice(unsafe.Pointer(&s), unsafe.Pointer(&tab.table[0]), int(tab.numEntries))
-	return
+	return unsafe.Slice(&tab.table[0], tab.numEntries)
 }
 
 // free method frees the buffer allocated by the functions that return tables of network interfaces, addresses, and routes.
@@ -750,44 +749,61 @@ func htons(i uint16) uint16 {
 	return *(*uint16)(unsafe.Pointer(&b[0]))
 }
 
-// SetIP method sets family, address, and port to the given IPv4 or IPv6 address and port.
+// SetAddrPort method sets family, address, and port to the given IPv4 or IPv6 address and port.
 // All other members of the structure are set to zero.
-func (addr *RawSockaddrInet) SetIP(ip net.IP, port uint16) error {
-	if v4 := ip.To4(); v4 != nil {
+func (addr *RawSockaddrInet) SetAddrPort(addrPort netip.AddrPort) error {
+	if addrPort.Addr().Is4() {
 		addr4 := (*windows.RawSockaddrInet4)(unsafe.Pointer(addr))
 		addr4.Family = windows.AF_INET
-		copy(addr4.Addr[:], v4)
-		addr4.Port = htons(port)
+		addr4.Addr = addrPort.Addr().As4()
+		addr4.Port = htons(addrPort.Port())
 		for i := 0; i < 8; i++ {
 			addr4.Zero[i] = 0
 		}
 		return nil
-	}
-
-	if v6 := ip.To16(); v6 != nil {
+	} else if addrPort.Addr().Is6() {
 		addr6 := (*windows.RawSockaddrInet6)(unsafe.Pointer(addr))
 		addr6.Family = windows.AF_INET6
-		addr6.Port = htons(port)
+		addr6.Addr = addrPort.Addr().As16()
+		addr6.Port = htons(addrPort.Port())
 		addr6.Flowinfo = 0
-		copy(addr6.Addr[:], v6)
-		addr6.Scope_id = 0
+		scopeId := uint32(0)
+		if z := addrPort.Addr().Zone(); z != "" {
+			if s, err := strconv.ParseUint(z, 10, 32); err == nil {
+				scopeId = uint32(s)
+			}
+		}
+		addr6.Scope_id = scopeId
 		return nil
 	}
-
 	return windows.ERROR_INVALID_PARAMETER
 }
 
-// IP returns IPv4 or IPv6 address, or nil if the address is neither.
-func (addr *RawSockaddrInet) IP() net.IP {
+// SetAddr method sets family and address to the given IPv4 or IPv6 address.
+// All other members of the structure are set to zero.
+func (addr *RawSockaddrInet) SetAddr(netAddr netip.Addr) error {
+	return addr.SetAddrPort(netip.AddrPortFrom(netAddr, 0))
+}
+
+// AddrPort returns the IP address and port.
+func (addr *RawSockaddrInet) AddrPort() netip.AddrPort {
+	return netip.AddrPortFrom(addr.Addr(), addr.Port())
+}
+
+// Addr returns IPv4 or IPv6 address, or an invalid address if the address is neither.
+func (addr *RawSockaddrInet) Addr() netip.Addr {
 	switch addr.Family {
 	case windows.AF_INET:
-		return (*windows.RawSockaddrInet4)(unsafe.Pointer(addr)).Addr[:]
-
+		return netip.AddrFrom4((*windows.RawSockaddrInet4)(unsafe.Pointer(addr)).Addr)
 	case windows.AF_INET6:
-		return (*windows.RawSockaddrInet6)(unsafe.Pointer(addr)).Addr[:]
+		raw := (*windows.RawSockaddrInet6)(unsafe.Pointer(addr))
+		a := netip.AddrFrom16(raw.Addr)
+		if raw.Scope_id != 0 {
+			a = a.WithZone(strconv.FormatUint(uint64(raw.Scope_id), 10))
+		}
+		return a
 	}
-
-	return nil
+	return netip.Addr{}
 }
 
 // Port returns the port if the address if IPv4 or IPv6, or 0 if neither.
@@ -795,11 +811,9 @@ func (addr *RawSockaddrInet) Port() uint16 {
 	switch addr.Family {
 	case windows.AF_INET:
 		return ntohs((*windows.RawSockaddrInet4)(unsafe.Pointer(addr)).Port)
-
 	case windows.AF_INET6:
 		return ntohs((*windows.RawSockaddrInet6)(unsafe.Pointer(addr)).Port)
 	}
-
 	return 0
 }
 
@@ -835,8 +849,7 @@ func (row *MibUnicastIPAddressRow) Delete() error {
 
 // get method returns all table rows as a Go slice.
 func (tab *mibUnicastIPAddressTable) get() (s []MibUnicastIPAddressRow) {
-	unsafeSlice(unsafe.Pointer(&s), unsafe.Pointer(&tab.table[0]), int(tab.numEntries))
-	return
+	return unsafe.Slice(&tab.table[0], tab.numEntries)
 }
 
 // free method frees the buffer allocated by the functions that return tables of network interfaces, addresses, and routes.
@@ -865,8 +878,7 @@ func (row *MibAnycastIPAddressRow) Delete() error {
 
 // get method returns all table rows as a Go slice.
 func (tab *mibAnycastIPAddressTable) get() (s []MibAnycastIPAddressRow) {
-	unsafeSlice(unsafe.Pointer(&s), unsafe.Pointer(&tab.table[0]), int(tab.numEntries))
-	return
+	return unsafe.Slice(&tab.table[0], tab.numEntries)
 }
 
 // free method frees the buffer allocated by the functions that return tables of network interfaces, addresses, and routes.
@@ -878,32 +890,30 @@ func (tab *mibAnycastIPAddressTable) free() {
 // IPAddressPrefix structure stores an IP address prefix.
 // https://docs.microsoft.com/en-us/windows/desktop/api/netioapi/ns-netioapi-_ip_address_prefix
 type IPAddressPrefix struct {
-	Prefix       RawSockaddrInet
+	RawPrefix    RawSockaddrInet
 	PrefixLength uint8
 	_            [2]byte
 }
 
-// SetIPNet method sets IP address prefix using net.IPNet.
-func (prefix *IPAddressPrefix) SetIPNet(net net.IPNet) error {
-	err := prefix.Prefix.SetIP(net.IP, 0)
+// SetPrefix method sets IP address prefix using netip.Prefix.
+func (prefix *IPAddressPrefix) SetPrefix(netPrefix netip.Prefix) error {
+	err := prefix.RawPrefix.SetAddr(netPrefix.Addr())
 	if err != nil {
 		return err
 	}
-	ones, _ := net.Mask.Size()
-	prefix.PrefixLength = uint8(ones)
+	prefix.PrefixLength = uint8(netPrefix.Bits())
 	return nil
 }
 
-// IPNet method returns IP address prefix as net.IPNet.
-// If the address is neither IPv4 not IPv6 an empty net.IPNet is returned. The resulting net.IPNet should be checked appropriately.
-func (prefix *IPAddressPrefix) IPNet() net.IPNet {
-	switch prefix.Prefix.Family {
+// Prefix returns IP address prefix as netip.Prefix.
+func (prefix *IPAddressPrefix) Prefix() netip.Prefix {
+	switch prefix.RawPrefix.Family {
 	case windows.AF_INET:
-		return net.IPNet{IP: (*windows.RawSockaddrInet4)(unsafe.Pointer(&prefix.Prefix)).Addr[:], Mask: net.CIDRMask(int(prefix.PrefixLength), 8*net.IPv4len)}
+		return netip.PrefixFrom(netip.AddrFrom4((*windows.RawSockaddrInet4)(unsafe.Pointer(&prefix.RawPrefix)).Addr), int(prefix.PrefixLength))
 	case windows.AF_INET6:
-		return net.IPNet{IP: (*windows.RawSockaddrInet6)(unsafe.Pointer(&prefix.Prefix)).Addr[:], Mask: net.CIDRMask(int(prefix.PrefixLength), 8*net.IPv6len)}
+		return netip.PrefixFrom(netip.AddrFrom16((*windows.RawSockaddrInet6)(unsafe.Pointer(&prefix.RawPrefix)).Addr), int(prefix.PrefixLength))
 	}
-	return net.IPNet{}
+	return netip.Prefix{}
 }
 
 // MibIPforwardRow2 structure stores information about an IP route entry.
@@ -958,8 +968,7 @@ func (row *MibIPforwardRow2) Delete() error {
 
 // get method returns all table rows as a Go slice.
 func (tab *mibIPforwardTable2) get() (s []MibIPforwardRow2) {
-	unsafeSlice(unsafe.Pointer(&s), unsafe.Pointer(&tab.table[0]), int(tab.numEntries))
-	return
+	return unsafe.Slice(&tab.table[0], tab.numEntries)
 }
 
 // free method frees the buffer allocated by the functions that return tables of network interfaces, addresses, and routes.
@@ -1007,21 +1016,3 @@ const (
 	DnsInterfaceSettingsFlagDOH                         = 0x1000 // v3 only
 	DnsInterfaceSettingsFlagDOHProfile                  = 0x2000 // v3 only
 )
-
-// unsafeSlice updates the slice slicePtr to be a slice
-// referencing the provided data with its length & capacity set to
-// lenCap.
-//
-// TODO: when Go 1.16 or Go 1.17 is the minimum supported version,
-// update callers to use unsafe.Slice instead of this.
-func unsafeSlice(slicePtr, data unsafe.Pointer, lenCap int) {
-	type sliceHeader struct {
-		Data unsafe.Pointer
-		Len  int
-		Cap  int
-	}
-	h := (*sliceHeader)(slicePtr)
-	h.Data = data
-	h.Len = lenCap
-	h.Cap = lenCap
-}

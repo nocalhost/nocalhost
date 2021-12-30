@@ -20,25 +20,17 @@ type DuplicateRawPodController struct {
 	*Controller
 }
 
-func (r *DuplicateRawPodController) GetNocalhostDevContainerPod() (string, error) {
-	pods, err := r.GetPodList()
-	if err != nil {
-		return "", err
-	}
-	return findDevPod(pods)
-}
-
 func (r *DuplicateRawPodController) ReplaceImage(ctx context.Context, ops *model.DevStartOptions) error {
 
 	r.Client.Context(ctx)
-	originalPod, err := r.Client.GetPod(r.GetName())
+	originalPod, err := r.Client.GetPod(r.Name)
 	if err != nil {
 		return err
 	}
 
 	// Check if pod managed by controller
 	if len(originalPod.OwnerReferences) > 0 {
-		return errors.New(fmt.Sprintf("Pod %s is manged by a controller, can not enter DevMode", r.GetName()))
+		return errors.New(fmt.Sprintf("Pod %s is manged by a controller, can not enter DevMode", r.Name))
 	}
 
 	if r.IsInReplaceDevMode() {
@@ -65,10 +57,8 @@ func (r *DuplicateRawPodController) ReplaceImage(ctx context.Context, ops *model
 		}
 	}
 
-	labelsMap, err := r.getDuplicateLabelsMap()
-	if err != nil {
-		return err
-	}
+	labelsMap := r.getDuplicateLabelsMap()
+
 	originalPod.Name = r.getDuplicateResourceName()
 	originalPod.Labels = labelsMap
 	originalPod.Status = corev1.PodStatus{}
@@ -89,7 +79,7 @@ func (r *DuplicateRawPodController) ReplaceImage(ctx context.Context, ops *model
 
 	r.patchAfterDevContainerReplaced(ops.Container, originalPod.Kind, originalPod.Name)
 
-	return waitingPodToBeReady(r.GetNocalhostDevContainerPod)
+	return waitingPodToBeReady(r.GetDevModePodName)
 }
 
 func (r *DuplicateRawPodController) RollBack(reset bool) error {
@@ -108,12 +98,4 @@ func (r *DuplicateRawPodController) RollBack(reset bool) error {
 	}
 
 	return r.Client.DeletePod(deploys[0].Name, false, 1*time.Second)
-}
-
-func (r *DuplicateRawPodController) GetPodList() ([]corev1.Pod, error) {
-	labelsMap, err := r.getDuplicateLabelsMap()
-	if err != nil {
-		return nil, err
-	}
-	return r.Client.Labels(labelsMap).ListPods()
 }

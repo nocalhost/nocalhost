@@ -17,7 +17,7 @@ func init() {
 		"k8s deployment which your developing service exists",
 	)
 	devPodCmd.Flags().StringVarP(
-		&serviceType, "controller-type", "t", "",
+		&serviceType, "controller-type", "t", "deployment",
 		"kind of k8s controller,such as deployment,statefulSet",
 	)
 	debugCmd.AddCommand(devPodCmd)
@@ -37,7 +37,7 @@ var devPodCmd = &cobra.Command{
 		applicationName := args[0]
 		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
 
-		podList, err := nocalhostSvc.BuildPodController().GetPodList()
+		podList, err := nocalhostSvc.GetPodList()
 		if err != nil || len(podList) != 1 {
 			return
 		}

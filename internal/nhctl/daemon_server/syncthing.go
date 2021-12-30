@@ -13,7 +13,6 @@ import (
 	"k8s.io/client-go/util/retry"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/appmeta_manager"
-	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/daemon_server/command"
@@ -117,7 +116,7 @@ type backoff struct {
 // reconnectedSyncthingIfNeeded will reconnect syncthing immediately if syncthing service is not available
 func reconnectedSyncthingIfNeeded() {
 
-	defer recoverDaemonFromPanic()
+	defer utils.RecoverFromPanic()
 	clone := appmeta_manager.GetAllApplicationMetas()
 
 	if clone == nil {
@@ -136,7 +135,7 @@ func reconnectedSyncthingIfNeeded() {
 			if svcProfile == nil || appmeta.HasDevStartingSuffix(svcProfile.Name) {
 				continue
 			}
-			svcType, err1 := base.SvcTypeOfMutate(svcProfile.GetType())
+			svcType, err1 := nocalhost.SvcTypeOfMutate(svcProfile.GetType())
 			if err1 != nil {
 				continue
 			}
@@ -158,7 +157,7 @@ func reconnectedSyncthingIfNeeded() {
 			//   detect syncthing service is available or not, if it's still not available
 			// the second time: redo port-forward, and create a new syncthing process
 			go func(svc *controller.Controller) {
-				defer recoverDaemonFromPanic()
+				defer utils.RecoverFromPanic()
 				var err error
 				for i := 0; i < 2; i++ {
 					if err = retry.OnError(wait.Backoff{
@@ -265,7 +264,7 @@ func doPortForward(svc *controller.Controller, svcProfile *profile.SvcProfileV2,
 	if svc.Client, err = clientgoutils.NewClientGoUtils(kubeconfigPath, svc.NameSpace); err != nil {
 		return err
 	}
-	if p.PodName, err = svc.BuildPodController().GetNocalhostDevContainerPod(); err != nil {
+	if p.PodName, err = svc.GetDevModePodName(); err != nil {
 		return err
 	}
 	if err = pfManager.StartPortForwardGoRoutine(p, true); err != nil {

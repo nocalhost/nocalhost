@@ -14,8 +14,10 @@ import (
 	"golang.org/x/text/transform"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
-	"nocalhost/internal/nhctl/controller"
+	"nocalhost/internal/nhctl/common/base"
+	"nocalhost/internal/nhctl/config_validate"
 	"nocalhost/internal/nhctl/fp"
+	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
 	"os"
 	"strings"
@@ -122,14 +124,14 @@ var configEditCmd = &cobra.Command{
 		}
 
 		containers, _ := nocalhostSvc.GetOriginalContainers()
-		profile.PrepareForConfigurationValidate(nocalhostApp.GetClient(), containers)
-		if err := svcConfig.Validate(); err != nil {
+		config_validate.PrepareForConfigurationValidate(nocalhostApp.GetClient(), containers)
+		if err := config_validate.Validate(svcConfig); err != nil {
 			log.Fatal(err)
 		}
 
 		ot := svcConfig.Type
 		svcConfig.Type = strings.ToLower(svcConfig.Type)
-		if !controller.CheckIfControllerTypeSupport(svcConfig.Type) {
+		if !nocalhost.CheckIfResourceTypeIsSupported(base.SvcType(svcConfig.Type)) {
 			must(errors.New(fmt.Sprintf("Service Type %s is unsupported", ot)))
 		}
 		must(nocalhostSvc.UpdateConfig(*svcConfig))

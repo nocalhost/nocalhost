@@ -5,13 +5,6 @@
 
 package base
 
-import (
-	"fmt"
-	"github.com/pkg/errors"
-	"nocalhost/pkg/nhctl/log"
-	"strings"
-)
-
 type SvcType string
 
 const (
@@ -21,41 +14,8 @@ const (
 	Job         SvcType = "job"
 	CronJob     SvcType = "cronjob"
 	Pod         SvcType = "pod"
-
-	DEPLOYMENT SvcType = "D"
+	DEPLOYMENT  SvcType = "D"
 )
-
-func SvcTypeOf(svcType string) SvcType {
-	mutate, err := SvcTypeOfMutate(svcType)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return mutate
-}
-
-func SvcTypeOfMutate(svcType string) (SvcType, error) {
-	serviceType := Deployment
-	if svcType != "" {
-		svcTypeLower := strings.ToLower(svcType)
-		switch svcTypeLower {
-		case strings.ToLower(string(Deployment)):
-			serviceType = Deployment
-		case strings.ToLower(string(StatefulSet)):
-			serviceType = StatefulSet
-		case strings.ToLower(string(DaemonSet)):
-			serviceType = DaemonSet
-		case strings.ToLower(string(Job)):
-			serviceType = Job
-		case strings.ToLower(string(CronJob)):
-			serviceType = CronJob
-		case strings.ToLower(string(Pod)):
-			serviceType = Pod
-		default:
-			return serviceType, errors.New(fmt.Sprintf("Unsupported SvcType %s", svcType))
-		}
-	}
-	return serviceType, nil
-}
 
 // Alias For compatibility with meta
 func (s SvcType) Alias() SvcType {
