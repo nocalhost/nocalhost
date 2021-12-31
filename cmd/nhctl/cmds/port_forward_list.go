@@ -11,7 +11,10 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
+	"nocalhost/internal/nhctl/app_flags"
 )
+
+var listFlags = &app_flags.ListFlags{}
 
 func init() {
 	portForwardListCmd.Flags().BoolVar(&listFlags.Yaml, "yaml", false, "use yaml as out put")
