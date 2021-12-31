@@ -166,6 +166,8 @@ func PortForwardService(client runner.Client) {
 		"service/"+module,
 		fmt.Sprintf("%d:%d", localPort, remotePort),
 	)
+	cmd.Stdout = log.TestLogger(client.SuiteName())
+	cmd.Stderr = log.TestLogger(client.SuiteName())
 	log.Infof("Running command: %v", cmd.Args)
 	if err = cmd.Start(); err != nil {
 		panic(errors.Errorf("fail to port-forward expose service-%s, err: %s", module, err))
