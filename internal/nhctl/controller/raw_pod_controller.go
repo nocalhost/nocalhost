@@ -11,12 +11,13 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/pkg/nhctl/log"
 	"time"
 )
 
-const originalPodDefine = "nocalhost.dev.origin.pod.define"
+//const originalPodDefine = "nocalhost.dev.origin.pod.define"
 
 // RawPodController represents a pod not managed by any controller
 type RawPodController struct {
@@ -41,13 +42,13 @@ func (r *RawPodController) ReplaceImage(ctx context.Context, ops *model.DevStart
 
 	bys, err := json.Marshal(originalPod)
 	if err != nil {
-		return errors.Wrap(err, "")
+		return errors.WithStack(err)
 	}
 
 	if originalPod.Annotations == nil {
 		originalPod.Annotations = make(map[string]string, 0)
 	}
-	originalPod.Annotations[originalPodDefine] = string(bys)
+	originalPod.Annotations[_const.OriginWorkloadDefinition] = string(bys)
 
 	devContainer, sideCarContainer, devModeVolumes, err :=
 		r.genContainersAndVolumes(&originalPod.Spec, ops.Container, ops.DevImage, ops.StorageClass, false)
@@ -79,9 +80,9 @@ func (r *RawPodController) RollBack(reset bool) error {
 	if err != nil {
 		return err
 	}
-	podSpec, ok := originPod.Annotations[originalPodDefine]
+	podSpec, ok := originPod.Annotations[_const.OriginWorkloadDefinition]
 	if !ok {
-		err1 := errors.New(fmt.Sprintf("Annotation %s not found, failed to rollback", originalPodDefine))
+		err1 := errors.New(fmt.Sprintf("Annotation %s not found, failed to rollback", _const.OriginWorkloadDefinition))
 		if reset {
 			log.WarnE(err1, "")
 			return nil
