@@ -77,8 +77,12 @@ var kubeconfigRenderCmd = &cobra.Command{
 				log.Fatal(err)
 			}
 			config, err := factory.ToRawKubeConfigLoader().RawConfig()
-			if cluster, ok := config.Clusters[config.CurrentContext]; ok {
-				cluster.Server = cluster.Server[:strings.LastIndex(cluster.Server, ":")+1] + strconv.Itoa(int(ports[0].Local))
+			if context, ok := config.Contexts[config.CurrentContext]; ok {
+				if cluster, ok := config.Clusters[context.Cluster]; ok {
+					cluster.Server =
+						cluster.Server[:strings.LastIndex(cluster.Server, ":")+1] +
+							strconv.Itoa(int(ports[0].Local))
+				}
 			}
 
 			kubeStruct := &clientcmdapiv1.Config{Kind: "Config", APIVersion: "v1"}
