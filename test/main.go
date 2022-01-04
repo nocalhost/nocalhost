@@ -63,13 +63,13 @@ func main() {
 		t.Run("Deployment Duplicate", suite.DeploymentDuplicate)
 	})
 
-	DoRun(false, &wg, func() {
-		t.Run("Deployment Duplicate and Duplicate", testcase.DeploymentDuplicateAndDuplicate)
-	})
-
-	DoRun(false, &wg, func() {
-		t.Run("Deployment Replace and Duplicate", testcase.DeploymentReplaceAndDuplicate)
-	})
+	//DoRun(false, &wg, func() {
+	//	t.Run("Deployment Duplicate and Duplicate", testcase.DeploymentDuplicateAndDuplicate)
+	//})
+	//
+	//DoRun(false, &wg, func() {
+	//	t.Run("Deployment Replace and Duplicate", testcase.DeploymentReplaceAndDuplicate)
+	//})
 
 	DoRun(false, &wg, func() {
 		t.Run("Application", suite.Upgrade)
@@ -83,13 +83,13 @@ func main() {
 		t.Run("StatefulSet", suite.StatefulSet)
 	})
 
-	DoRun(false, &wg, func() {
-		t.Run("StatefulSet Duplicate and Duplicate", testcase.StatefulsetDuplicateAndDuplicate)
-	})
-
-	DoRun(false, &wg, func() {
-		t.Run("StatefulSet Replicate and Duplicate", testcase.StatefulsetReplaceAndDuplicate)
-	})
+	//DoRun(false, &wg, func() {
+	//	t.Run("StatefulSet Duplicate and Duplicate", testcase.StatefulsetDuplicateAndDuplicate)
+	//})
+	//
+	//DoRun(false, &wg, func() {
+	//	t.Run("StatefulSet Replicate and Duplicate", testcase.StatefulsetReplaceAndDuplicate)
+	//})
 
 	DoRun(false, &wg, func() {
 		t.Run("StatefulSet Duplicate", suite.StatefulSetDuplicate)

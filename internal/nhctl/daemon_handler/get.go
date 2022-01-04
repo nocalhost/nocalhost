@@ -15,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/cache"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/appmeta_manager"
@@ -26,6 +27,7 @@ import (
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/resouce_cache"
+	"nocalhost/internal/nhctl/vpn/util"
 	k8sutil "nocalhost/pkg/nhctl/k8sutils"
 	"nocalhost/pkg/nhctl/log"
 	"sort"
@@ -269,7 +271,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) (inte
 			Label(request.Label).
 			ShowHidden(request.ShowHidden).
 			Query()
-		if err != nil || len(data) == 0 {
+		if err != nil {
 			return nil, nil
 		}
 		// resource namespace filter status is active
@@ -294,8 +296,18 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) (inte
 				result = append(result, item.Item{Metadata: datum})
 			}
 		}
+		// add default namespace if can't list namespace
 		if len(result) == 0 {
-			return nil, nil
+			result = append(result, item.Item{Metadata: &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: ns}}})
+		}
+		for _, i := range result {
+			if connectInfo.IsSameCluster(KubeConfigBytes) {
+				i.VPN = &item.VPNInfo{
+					Mode:   ConnectMode.String(),
+					Status: connectInfo.Status(),
+					IP:     connectInfo.getIPIfIsMe(KubeConfigBytes, ns),
+				}
+			}
 		}
 		if len(request.ResourceName) == 0 {
 			return result[0:], nil
@@ -309,10 +321,17 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) (inte
 		if err != nil {
 			return nil, err
 		}
+		GetOrGenerateConfigMapWatcher(KubeConfigBytes, ns, nil)
 		serviceMap := make(map[string]map[string]*profile.SvcProfileV2)
 		if len(request.AppName) != 0 {
 			//nid := getNidByAppName(ns, request.KubeConfig, request.AppName)
 			serviceMap = getServiceProfile(ns, request.AppName, KubeConfigBytes)
+		}
+		var belongsToMe = NewSet()
+		var reverseReversed = sets.NewString()
+		if load, ok := GetReverseInfo().Load(util.GenerateKey(KubeConfigBytes, ns)); ok {
+			belongsToMe.Insert(load.(*status).reverse.GetBelongToMeResources().List()...)
+			reverseReversed.Insert(load.(*status).reverse.ReversedResource().List()...)
 		}
 
 		items, err := s.Criteria().
@@ -323,9 +342,11 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) (inte
 			ShowHidden(request.ShowHidden).
 			Label(request.Label).
 			Query()
+
 		if err != nil {
 			return nil, err
 		}
+		//mapping, err := s.GetResourceInfo(request.Resource)
 		result := make([]item.Item, 0, len(items))
 		for _, i := range items {
 			tempItem := item.Item{Metadata: i}
@@ -342,6 +363,16 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) (inte
 						tempItem.Description = d
 					}
 				}
+
+				n := fmt.Sprintf("%s/%s", mapping.Gvr.Resource, i.(metav1.Object).GetName())
+				if revering := belongsToMe.HasKey(n) || reverseReversed.Has(n); revering {
+					tempItem.VPN = &item.VPNInfo{
+						Status:      belongsToMe.Get(n).status(),
+						Mode:        ReverseMode.String(),
+						BelongsToMe: belongsToMe.HasKey(n),
+						IP:          connectInfo.getIPIfIsMe(KubeConfigBytes, ns),
+					}
+				}
 			}
 			result = append(result, tempItem)
 		}
@@ -355,16 +386,15 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) (inte
 }
 
 func getNamespace(namespace string, kubeconfigBytes []byte) (ns string) {
-	if namespace != "" {
+	if len(namespace) != 0 {
 		ns = namespace
 		return
 	}
-	config, err := clientcmd.NewClientConfigFromBytes(kubeconfigBytes)
-	if err == nil && config != nil {
+	if config, err := clientcmd.NewClientConfigFromBytes(kubeconfigBytes); err == nil {
 		ns, _, _ = config.Namespace()
-		return ns
+		return
 	}
-	return ""
+	return
 }
 
 //func getApplicationByNs(namespace, kubeconfigPath string, search *resouce_cache.Searcher, label map[string]string, showHidden bool) item.Result {
