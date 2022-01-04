@@ -15,9 +15,10 @@ import (
 )
 
 const (
-	DefaultDaemonPort = 30123
-	SudoDaemonPort    = 30124
-	DaemonHttpPort    = 30125
+	DefaultDaemonPort  = 30123
+	SudoDaemonPort     = 30124
+	DaemonHttpPort     = 30125
+	SudoDaemonHttpPort = 30126
 )
 
 var (
