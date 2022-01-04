@@ -531,6 +531,13 @@ func (c *Controller) RollBack(reset bool) error {
 	return c.RollbackFromAnnotation(reset)
 }
 
+// GetPVCsBySvc
+// Get all PersistVolumeClaims created by specified service
+func (c *Controller) GetPVCsBySvc() ([]v1.PersistentVolumeClaim, error) {
+	return c.Client.GetPvcByLabels(map[string]string{_const.AppLabel: c.AppName, _const.ServiceLabel: c.Name,
+		_const.ServiceTypeLabel: string(c.Type)})
+}
+
 func GetDefaultPodName(ctx context.Context, p *Controller) (string, error) {
 	var (
 		podList []v1.Pod
