@@ -187,7 +187,7 @@ func TestGet(t *testing.T) {
 	bytes, _ := ioutil.ReadFile(path.Join(utils.GetHomePath(), ".kube/config"))
 	//s, err := GetSearcherWithLRU(bytes, "nh2yunf")
 	namespace := "nocalhost-test"
-	_, _ = GetSearcherWithLRU(bytes, "nh7zlua")
+	_, _ = GetSearcherWithLRU(bytes, namespace)
 	time.Sleep(3 * time.Second)
 
 	s, err := GetSearcherWithLRU(bytes, namespace)
