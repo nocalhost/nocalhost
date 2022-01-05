@@ -18,6 +18,12 @@ type testLogger struct {
 	stdoutLogger *zap.SugaredLogger
 }
 
+func (l *testLogger) Write(p []byte) (int, error) {
+	l.stdoutLogger.Info(string(p))
+	l.fileLogger.Info(string(p))
+	return len(p), nil
+}
+
 func (l *testLogger) Info(args ...interface{}) {
 	l.stdoutLogger.Info(args...)
 	l.fileLogger.Info(args...)

@@ -23,6 +23,9 @@ func (c *ClientGoUtils) ListHPA() ([]autoscalingv1.HorizontalPodAutoscaler, erro
 	if len(c.labels) > 0 {
 		ops.LabelSelector = labels.Set(c.labels).String()
 	}
+	if len(c.fieldSelector) > 0 {
+		ops.FieldSelector = c.fieldSelector
+	}
 	hpaList, err := c.ClientSet.AutoscalingV1().HorizontalPodAutoscalers(c.namespace).List(c.ctx, ops)
 	if err != nil {
 		return nil, errors.Wrap(err, "")

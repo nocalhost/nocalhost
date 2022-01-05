@@ -35,9 +35,11 @@ const (
 
 	PersistentVolumeDirLabel = "nocalhost.dev/dir"
 	ServiceLabel             = "nocalhost.dev/service"
+	ServiceTypeLabel         = "nocalhost.dev/service-type"
 	AppLabel                 = "nocalhost.dev/app"
 
 	DefaultSideCarImage = "nocalhost-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:sshversion"
+	DefaultVPNImage     = "nocalhost-docker.pkg.coding.net/nocalhost/public/nocalhost-vpn:v1"
 
 	DefaultApplicationSyncPidFile = "syncthing.pid"
 

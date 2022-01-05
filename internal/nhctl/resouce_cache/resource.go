@@ -19,6 +19,7 @@ var GroupToTypeMap = []struct {
 			"StatefulSet.v1.apps",
 			"DaemonSet.v1.apps",
 			"Job.v1.batch",
+			"CronJob.v1beta1.batch",
 			"CronJob.v1.batch",
 			"Pod.v1",
 		},
