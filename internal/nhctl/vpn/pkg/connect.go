@@ -33,7 +33,7 @@ import (
 )
 
 type ConnectOptions struct {
-	Ctx              context.Context
+	Ctx              context.Context `json:"-"`
 	KubeconfigPath   string
 	KubeconfigBytes  []byte
 	Namespace        string

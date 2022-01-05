@@ -88,22 +88,8 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser)
 					}
 				}()
 			}
-			// if exit
-			//lock.Lock()
-			//defer lock.Unlock()
-			//logger.Info("prepare to exit, cleaning up")
-			//dns.CancelDNS()
-			//if c != nil {
-			//	if err := c.ReleaseIP(); err != nil {
-			//		logger.Errorf("failed to release ip to dhcp, err: %v", err)
-			//	}
-			//	remote.CleanUpTrafficManagerIfRefCountIsZero(c.GetClientSet(), namespace)
-			//	logger.Info("clean up successful")
-			//	connected = nil
-			//}
-			//remote.CancelFunctions = remote.CancelFunctions[:0]
-			//return
 		}(cmd.Namespace, connect, ctx)
+		return nil
 	case command.DisConnect:
 		// stop reverse resource
 		// stop traffic manager
@@ -143,30 +129,11 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser)
 		connected = nil
 		logger.Info(util.EndSignOK)
 		return nil
-	case command.Reconnect:
-		logger.Info(util.EndSignOK)
+	default:
 		return nil
 	}
-	return nil
 }
 
 func init() {
 	util.InitLogger(util.Debug)
-	//go func() {
-	//	if !util.IsAdmin() {
-	//		return
-	//	}
-	//	for {
-	//		var kubeConfigHost, namespace string
-	//		if connected != nil {
-	//			namespace = connected.Namespace
-	//			kubeConfig, _ := clientcmd.RESTConfigFromKubeConfig(connected.KubeconfigBytes)
-	//			if kubeConfig != nil {
-	//				kubeConfigHost = kubeConfig.Host
-	//			}
-	//		}
-	//		fmt.Printf("namespace: %s, kubeconfig: %s\n", namespace, kubeConfigHost)
-	//		<-time.Tick(time.Second * 5)
-	//	}
-	//}()
 }
