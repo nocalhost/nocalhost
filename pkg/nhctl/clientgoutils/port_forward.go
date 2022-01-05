@@ -78,6 +78,7 @@ func (c *ClientGoUtils) PortForward(af *PortForwardFlags) error {
 	if err = o.Validate(); err != nil {
 		return errors.Wrap(err, "")
 	}
+	o.PortForwarder = &clientgoPortForwarder{IOStreams: af.Streams}
 	return errors.Wrap(o.RunPortForward(), "")
 }
 
