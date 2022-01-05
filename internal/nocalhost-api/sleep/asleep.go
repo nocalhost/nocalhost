@@ -30,7 +30,7 @@ func Asleep(c *clientgo.GoClient, s *model.ClusterUserModel, force bool) error {
 		})
 }
 
-func sleep(c *kubernetes.Clientset, namespace string, force bool) error {
+func sleep(c kubernetes.Interface, namespace string, force bool) error {
 	// 1. check ns
 	ns, err := c.CoreV1().
 		Namespaces().
