@@ -183,20 +183,21 @@ func TestConcurrence(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
-	bytes, _ := ioutil.ReadFile("/tmp/admin-large")
-	//bytes, _ := ioutil.ReadFile(path.Join(utils.GetHomePath(), ".kube/config"))
+	//bytes, _ := ioutil.ReadFile("/tmp/admin-large")
+	bytes, _ := ioutil.ReadFile(path.Join(utils.GetHomePath(), ".kube/config"))
 	//s, err := GetSearcherWithLRU(bytes, "nh2yunf")
+	namespace := "nocalhost-test"
 	_, _ = GetSearcherWithLRU(bytes, "nh7zlua")
 	time.Sleep(3 * time.Second)
 
-	s, err := GetSearcherWithLRU(bytes, "nh7zlua")
+	s, err := GetSearcherWithLRU(bytes, namespace)
 	if err != nil {
 		panic(err)
 	}
 	i, e := s.Criteria().ResourceType("cronjob").
 		ResourceName("").
 		//AppName("bookinfo").
-		Namespace("nh7zlua").Query()
+		Namespace(namespace).Query()
 	if e != nil {
 		panic(e)
 	}

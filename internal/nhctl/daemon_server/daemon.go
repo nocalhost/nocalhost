@@ -140,7 +140,7 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 		go cronJobForUpdatingHub()
 		// Listen http
 		go func() {
-			if isSudo {
+			if !isSudo {
 				startHttpServer()
 			} else {
 				_ = http.ListenAndServe("127.0.0.1:"+strconv.Itoa(daemon_common.SudoDaemonHttpPort), nil)
