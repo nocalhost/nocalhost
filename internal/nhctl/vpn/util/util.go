@@ -65,7 +65,15 @@ func GetAvailableUDPPortOrDie() int {
 	return listener.LocalAddr().(*net.UDPAddr).Port
 }
 
-func PortForwardPod(config *rest.Config, clientset *rest.RESTClient, podName, namespace, portPair string, readyChan, stopChan chan struct{}) error {
+func PortForwardPod(
+	config *rest.Config,
+	clientset *rest.RESTClient,
+	podName,
+	namespace,
+	portPair string,
+	readyChan chan struct{},
+	stopChan <-chan struct{},
+) error {
 	url := clientset.
 		Post().
 		Resource("pods").
