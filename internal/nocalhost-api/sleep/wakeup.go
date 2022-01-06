@@ -3,41 +3,62 @@ package sleep
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"fmt"
+	"strings"
+	"time"
+
 	"github.com/jinzhu/gorm"
+	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
+
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service/cluster_user"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
-	"time"
 )
 
 func Wakeup(c *clientgo.GoClient, s *model.ClusterUserModel, force bool) error {
-	// 1. check namespace
-	namespace, err := c.Clientset().
-		CoreV1().
+	// 1. wakeup
+	if err := wakeup(c.Config, c.Clientset(), s.Namespace, force); err != nil {
+		return err
+	}
+
+	// 2. write to database
+	diff := 0
+	if s.SleepAt != nil {
+		diff = int(time.Now().Sub(*s.SleepAt) / time.Minute)
+	}
+	return cluster_user.
+		NewClusterUserService().
+		Modify(context.TODO(), s.ID, map[string]interface{}{
+			"sleep_at":     nil,
+			"sleep_status": KWakeup,
+			"sleep_minute": gorm.Expr("`sleep_minute` + ?", diff),
+		})
+}
+
+func wakeup(config []byte, c kubernetes.Interface, namespace string, force bool) error {
+	// 1. check ns
+	ns, err := c.CoreV1().
 		Namespaces().
-		Get(context.TODO(), s.Namespace, metav1.GetOptions{})
+		Get(context.TODO(), namespace, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 
 	// 2. check replicas
-	if namespace.Annotations == nil || len(namespace.Annotations[KReplicas]) == 0 {
-		return errors.New(fmt.Sprintf("cannot find `%s` from annotations", KReplicas))
+	if ns.Annotations == nil || len(ns.Annotations[KReplicas]) == 0 {
+		return errors.Errorf("cannot find `%s` from annotations", KReplicas)
 	}
 	var replicas map[string]int32
-	err = json.Unmarshal([]byte(namespace.Annotations[KReplicas]), &replicas)
+	err = json.Unmarshal([]byte(ns.Annotations[KReplicas]), &replicas)
 	if err != nil {
 		return err
 	}
 
 	// 3. restore Deployment
-	deps, err := c.Clientset().
-		AppsV1().
-		Deployments(s.Namespace).
+	deps, err := c.AppsV1().
+		Deployments(namespace).
 		List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
@@ -49,9 +70,8 @@ func Wakeup(c *clientgo.GoClient, s *model.ClusterUserModel, force bool) error {
 		n, ok := replicas[KDeployment+":"+dp.Name]
 		if ok {
 			dp.Spec.Replicas = &n
-			_, err = c.Clientset().
-				AppsV1().
-				Deployments(s.Namespace).
+			_, err = c.AppsV1().
+				Deployments(namespace).
 				Update(context.TODO(), &dp, metav1.UpdateOptions{})
 			if err != nil {
 				return err
@@ -60,9 +80,8 @@ func Wakeup(c *clientgo.GoClient, s *model.ClusterUserModel, force bool) error {
 	}
 
 	// 4. restore StatefulSet
-	sets, err := c.Clientset().
-		AppsV1().
-		StatefulSets(s.Namespace).
+	sets, err := c.AppsV1().
+		StatefulSets(namespace).
 		List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
@@ -73,10 +92,15 @@ func Wakeup(c *clientgo.GoClient, s *model.ClusterUserModel, force bool) error {
 		}
 		n, ok := replicas[KStatefulSet+":"+st.Name]
 		if ok {
+			if st.GetLabels()["app"] == "vcluster" {
+				if err := wakeupVCluster(namespace, config, c, force); err != nil {
+					return err
+				}
+				continue
+			}
 			st.Spec.Replicas = &n
-			_, err = c.Clientset().
-				AppsV1().
-				StatefulSets(s.Namespace).
+			_, err = c.AppsV1().
+				StatefulSets(namespace).
 				Update(context.TODO(), &st, metav1.UpdateOptions{})
 			if err != nil {
 				return err
@@ -85,9 +109,8 @@ func Wakeup(c *clientgo.GoClient, s *model.ClusterUserModel, force bool) error {
 	}
 
 	// 5. restore CronJob
-	jobs, err := c.Clientset().
-		BatchV1beta1().
-		CronJobs(s.Namespace).
+	jobs, err := c.BatchV1beta1().
+		CronJobs(namespace).
 		List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
@@ -97,9 +120,8 @@ func Wakeup(c *clientgo.GoClient, s *model.ClusterUserModel, force bool) error {
 			continue
 		}
 		jb.Spec.Suspend = &falsely
-		_, err = c.Clientset().
-			BatchV1beta1().
-			CronJobs(s.Namespace).
+		_, err = c.BatchV1beta1().
+			CronJobs(namespace).
 			Update(context.TODO(), &jb, metav1.UpdateOptions{})
 		if err != nil {
 			return err
@@ -116,24 +138,31 @@ func Wakeup(c *clientgo.GoClient, s *model.ClusterUserModel, force bool) error {
 			},
 		},
 	})
-	_, err = c.Clientset().
-		CoreV1().
+	_, err = c.CoreV1().
 		Namespaces().
-		Patch(context.TODO(), s.Namespace, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
+		Patch(context.TODO(), namespace, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
+	return err
+}
+
+func wakeupVCluster(namespace string, config []byte, c kubernetes.Interface, force bool) error {
+	stopChan := make(chan struct{}, 1)
+	defer close(stopChan)
+
+	vcClient, err := getVClusterConfigAndClient(namespace, config, c, stopChan)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	nsList, err := vcClient.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
-
-	// 7. write to database
-	diff := 0
-	if s.SleepAt != nil {
-		diff = int(time.Now().Sub(*s.SleepAt) / time.Minute)
+	for _, n := range nsList.Items {
+		if strings.HasPrefix(n.Name, "kube-") {
+			continue
+		}
+		if err := wakeup(config, vcClient, n.Name, force); err != nil {
+			return err
+		}
 	}
-	return cluster_user.
-		NewClusterUserService().
-		Modify(context.TODO(), s.ID, map[string]interface{}{
-			"sleep_at":     nil,
-			"sleep_status": KWakeup,
-			"sleep_minute": gorm.Expr("`sleep_minute` + ?", diff),
-		})
+	return nil
 }

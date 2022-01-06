@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"sort"
 	"strconv"
 	"time"
 
@@ -25,6 +24,7 @@ import (
 	"k8s.io/kubectl/pkg/scheme"
 
 	"nocalhost/internal/nocalhost-dep/controllers/vcluster/api/v1alpha1"
+	"nocalhost/pkg/nocalhost-api/pkg/log"
 )
 
 type authConfig struct {
@@ -44,22 +44,79 @@ func (a *authConfig) Get(vc *v1alpha1.VirtualCluster) (string, error) {
 		return "", err
 	}
 
-	// 1. get kubeconfig
+	// 1. get pod
+	pod, err := GetVClusterPod(name, namespace, 5*time.Second, 30*time.Second, clientSet)
+	if err != nil {
+		return "", err
+	}
+
+	// 2. get kubeconfig
+	OriginalKubeConfig, err := GetVClusterKubeConfigFromPod(pod, a.hostConfig, clientSet)
+	if err != nil {
+		return "", err
+	}
+
+	// 3. get address and port for kube-apiserver
+	kubeConfig, err := clientcmd.Load(OriginalKubeConfig)
+	if err != nil {
+		return "", errors.WithStack(err)
+	}
+	addr, port, err := GetAddrAndPort(name, namespace, 2*time.Second, 10*time.Second, clientSet)
+
+	// 4. set address into kubeconfig
+	newClusterName := vc.GetSpaceName()
+	hostClusterName := vc.GetHostClusterName()
+	if hostClusterName == "" {
+		hostClusterName = "vcluster"
+	}
+	newCtxName := hostClusterName + "/" + newClusterName
+	newClusterName = newCtxName
+
+	newCtx := kubeConfig.Contexts[kubeConfig.CurrentContext]
+	if newCtx == nil {
+		return "", errors.New("vcluster kubeconfig context not found")
+	}
+	newCluster := kubeConfig.Clusters[newCtx.Cluster]
+
+	if addr != "" && port != "" {
+		newCluster.Server = fmt.Sprintf("https://%s:%s", addr, port)
+	} else {
+		newCluster.Server = fmt.Sprintf("https://%s:%s", "127.0.0.1", "8443")
+	}
+	newCluster.InsecureSkipTLSVerify = true
+	newCluster.CertificateAuthorityData = nil
+
+	newCtx.Cluster = newClusterName
+
+	kubeConfig.CurrentContext = newCtxName
+	kubeConfig.Contexts = map[string]*api.Context{
+		newCtxName: newCtx,
+	}
+	kubeConfig.Clusters = map[string]*api.Cluster{
+		newClusterName: newCluster,
+	}
+
+	out, err := clientcmd.Write(*kubeConfig)
+	if err != nil {
+		return "", errors.WithStack(err)
+	}
+
+	return string(out), nil
+}
+
+func GetVClusterPod(name, namespace string, interval, timeout time.Duration, c kubernetes.Interface) (*corev1.Pod, error) {
+	pod := corev1.Pod{}
 	options := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=vcluster,release=%s", name)}
-	var pod corev1.Pod
-	var stdout, stderr bytes.Buffer
-	time.Sleep(time.Second * 10)
-	if err = wait.PollImmediate(5*time.Second, 2*time.Minute, func() (bool, error) {
-		pods, err := clientSet.CoreV1().Pods(namespace).List(context.TODO(), options)
+	if err := wait.PollImmediate(interval, timeout, func() (bool, error) {
+		pods, err := c.CoreV1().Pods(namespace).List(context.TODO(), options)
 		if err != nil {
+			log.Warn(err)
 			return false, err
 		}
 		if len(pods.Items) == 0 {
+			log.Warnf("vcluster pod not found,waiting for vcluster pod")
 			return false, nil
 		}
-		sort.Slice(pods.Items, func(i, j int) bool {
-			return pods.Items[i].CreationTimestamp.Unix() > pods.Items[j].CreationTimestamp.Unix()
-		})
 		pod = pods.Items[0]
 		for _, p := range pods.Items {
 			if p.CreationTimestamp.Unix() > pod.CreationTimestamp.Unix() {
@@ -68,58 +125,59 @@ func (a *authConfig) Get(vc *v1alpha1.VirtualCluster) (string, error) {
 		}
 		if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
 			return false, errors.Errorf(
-				"cannot exec into a container in a completed pod; current phase is %s", pod.Status.Phase)
+				"the pod current phase is %s", pod.Status.Phase)
 		}
 		if pod.Status.Phase != corev1.PodRunning {
-			return false, nil
-		}
-
-		req := clientSet.CoreV1().RESTClient().Post().
-			Resource("pods").
-			Name(pod.Name).
-			Namespace(pod.Namespace).
-			SubResource("exec")
-		req.VersionedParams(&corev1.PodExecOptions{
-			Container: "syncer",
-			Command:   []string{"cat", "/root/.kube/config"},
-			Stdin:     false,
-			Stdout:    true,
-			Stderr:    true,
-			TTY:       false,
-		}, scheme.ParameterCodec)
-
-		exec, err := remotecommand.NewSPDYExecutor(a.hostConfig, "POST", req.URL())
-		if err != nil {
-			return false, nil
-		}
-		if err := exec.Stream(remotecommand.StreamOptions{
-			Stdin:  nil,
-			Stdout: &stdout,
-			Stderr: &stderr,
-			Tty:    false,
-		}); err != nil {
+			log.Warnf("the pod current phase is %s,waiting for vcluster pod", pod.Status.Phase)
 			return false, nil
 		}
 		return true, nil
 	}); err != nil {
-		return "", errors.Errorf(
-			"cannot exec into a container in a pod until that pod is running; current phase is %s", pod.Status.Phase)
+		return nil, errors.Errorf("timeout to get pod %s/%s", namespace, name)
 	}
+	return &pod, nil
+}
 
-	kubeConfig, err := clientcmd.Load(stdout.Bytes())
+func GetVClusterKubeConfigFromPod(pod *corev1.Pod, config *rest.Config, c kubernetes.Interface) ([]byte, error) {
+	var stdout, stderr bytes.Buffer
+	req := c.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Name(pod.Name).
+		Namespace(pod.Namespace).
+		SubResource("exec")
+	req.VersionedParams(&corev1.PodExecOptions{
+		Container: "syncer",
+		Command:   []string{"cat", "/root/.kube/config"},
+		Stdin:     false,
+		Stdout:    true,
+		Stderr:    true,
+		TTY:       false,
+	}, scheme.ParameterCodec)
+
+	exec, err := remotecommand.NewSPDYExecutor(config, "POST", req.URL())
 	if err != nil {
-		return "", errors.WithStack(err)
+		return nil, errors.WithStack(err)
 	}
+	if err := exec.Stream(remotecommand.StreamOptions{
+		Stdin:  nil,
+		Stdout: &stdout,
+		Stderr: &stderr,
+		Tty:    false,
+	}); err != nil {
+		return nil, errors.WithStack(err)
+	}
+	return stdout.Bytes(), nil
+}
 
-	// 2. get address and port for kube-apiserver
+func GetAddrAndPort(name, namespace string, interval, timeout time.Duration, c kubernetes.Interface) (string, string, error) {
 	var addr, port string
-	if err := wait.PollImmediate(5*time.Second, 1*time.Minute, func() (bool, error) {
-		svc, err := clientSet.CoreV1().Services(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err := wait.PollImmediate(interval, timeout, func() (bool, error) {
+		svc, err := c.CoreV1().Services(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			return false, nil
 		}
 		if svc.Spec.Type == corev1.ServiceTypeNodePort {
-			nodes, err := clientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+			nodes, err := c.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 			if err != nil {
 				return false, nil
 			}
@@ -168,48 +226,9 @@ func (a *authConfig) Get(vc *v1alpha1.VirtualCluster) (string, error) {
 		}
 		return true, nil
 	}); err != nil {
-		return "", errors.Errorf("cannot get service %s/%s", namespace, name)
+		return "", "", errors.Errorf("cannot get service %s/%s", namespace, name)
 	}
-
-	// 3. set address into kubeconfig
-	newClusterName := vc.GetSpaceName()
-	hostClusterName := vc.GetHostClusterName()
-	if hostClusterName == "" {
-		hostClusterName = "vcluster"
-	}
-	newCtxName := hostClusterName + "/" + newClusterName
-	newClusterName = newCtxName
-	newCluster := api.NewCluster()
-	newCtx := api.NewContext()
-	for _, cluster := range kubeConfig.Clusters {
-		if addr != "" && port != "" {
-			cluster.Server = fmt.Sprintf("https://%s:%s", addr, port)
-		} else {
-			cluster.Server = fmt.Sprintf("https://%s:%s", "127.0.0.1", "8443")
-		}
-		cluster.InsecureSkipTLSVerify = true
-		cluster.CertificateAuthorityData = nil
-		newCluster = cluster
-	}
-
-	for _, ctx := range kubeConfig.Contexts {
-		ctx.Cluster = newClusterName
-		newCtx = ctx
-	}
-	kubeConfig.CurrentContext = newCtxName
-	kubeConfig.Contexts = map[string]*api.Context{
-		newCtxName: newCtx,
-	}
-	kubeConfig.Clusters = map[string]*api.Cluster{
-		newClusterName: newCluster,
-	}
-
-	out, err := clientcmd.Write(*kubeConfig)
-	if err != nil {
-		return "", errors.WithStack(err)
-	}
-
-	return string(out), nil
+	return addr, port, nil
 }
 
 func NewAuthConfig(hostConfig *rest.Config) AuthConfig {
