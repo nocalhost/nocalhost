@@ -52,15 +52,15 @@ func (c *ConnectTotal) IsConnected() bool {
 }
 
 func HandleVPNStatus() (interface{}, error) {
-	if connected == nil {
+	if connectInfo == nil {
 		return nil, nil
 	}
 	return struct {
 		Namespace  string
 		Kubeconfig string
 	}{
-		Namespace:  connected.Namespace,
-		Kubeconfig: string(connected.KubeconfigBytes),
+		Namespace:  connectInfo.GetNamespace(),
+		Kubeconfig: connectInfo.GetKubeconfig(),
 	}, nil
 }
 

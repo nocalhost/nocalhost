@@ -7,7 +7,6 @@ package cmds
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/daemon_client"
@@ -36,17 +35,9 @@ var vpnStatusCmd = &cobra.Command{
 					var result cluster
 					if err = json.Unmarshal(marshal, &result); err == nil {
 						n.Actual = result
-					} else {
-						fmt.Println(err)
 					}
-				} else {
-					fmt.Println(err)
 				}
-			} else {
-				fmt.Println(err)
 			}
-		} else {
-			fmt.Println(err)
 		}
 		if sudoclient, err := daemon_client.GetDaemonClient(true); err == nil {
 			if command, err := sudoclient.SendSudoVPNStatusCommand(); err == nil {
@@ -57,18 +48,11 @@ var vpnStatusCmd = &cobra.Command{
 							Namespace:  result.Namespace,
 							Kubeconfig: string(result.KubeconfigBytes),
 						}
-					} else {
-						fmt.Println(err)
 					}
-				} else {
-					fmt.Println(err)
 				}
-			} else {
-				fmt.Println(err)
 			}
-		} else {
-			fmt.Println(err)
 		}
+		n.isEquals()
 		marshal, _ := yaml.Marshal(n)
 		println(string(marshal))
 	},
@@ -78,6 +62,11 @@ type name struct {
 	Expected cluster
 	Actual   cluster
 	Equal    bool
+}
+
+func (n *name) isEquals() {
+	n.Equal = util.GenerateKey([]byte(n.Actual.Kubeconfig), n.Actual.Namespace) ==
+		util.GenerateKey([]byte(n.Expected.Kubeconfig), n.Expected.Namespace)
 }
 
 type cluster struct {

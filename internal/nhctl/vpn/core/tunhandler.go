@@ -133,8 +133,8 @@ func (h *tunHandler) transportTun(ctx context.Context, tun net.Conn, conn net.Pa
 	go func() {
 		for ctx.Err() == nil {
 			err := func() error {
-				b := util.SPool.Get().([]byte)
-				defer util.SPool.Put(b)
+				b := util.MPool.Get().([]byte)
+				defer util.MPool.Put(b)
 
 				n, err := tun.Read(b)
 				if err != nil {
@@ -199,8 +199,8 @@ func (h *tunHandler) transportTun(ctx context.Context, tun net.Conn, conn net.Pa
 	go func() {
 		for ctx.Err() == nil {
 			err := func() error {
-				b := util.SPool.Get().([]byte)
-				defer util.SPool.Put(b)
+				b := util.MPool.Get().([]byte)
+				defer util.MPool.Put(b)
 
 				n, addr, err := conn.ReadFrom(b)
 				if err != nil {

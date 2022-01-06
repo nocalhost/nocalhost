@@ -2,6 +2,7 @@ package daemon_handler
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -162,6 +163,14 @@ func (c *ConnectInfo) getIPIfIsMe(kubeconfigBytes []byte, namespace string) (ip 
 	return
 }
 
+func (c *ConnectInfo) GetNamespace() string {
+	return c.namespace
+}
+
+func (c *ConnectInfo) GetKubeconfig() string {
+	return string(c.kubeconfigBytes)
+}
+
 type ConfigMapWatcher struct {
 	informer        cache.SharedInformer
 	kubeconfigBytes []byte
@@ -224,8 +233,8 @@ func (h *resourceHandler) OnAdd(obj interface{}) {
 	defer h.statusInfoLock.Unlock()
 
 	configMap := obj.(*corev1.ConfigMap)
-	status := ToStatus(configMap.Data)
-	if status.connect.IsConnected() {
+	toStatus := ToStatus(configMap.Data)
+	if toStatus.connect.IsConnected() {
 		if !connectInfo.IsEmpty() && !connectInfo.IsSame(h.kubeconfigBytes, h.namespace) {
 			// todo someone already connected, release others or myself
 			// release others
@@ -237,10 +246,10 @@ func (h *resourceHandler) OnAdd(obj interface{}) {
 
 			connectInfo.namespace = h.namespace
 			connectInfo.kubeconfigBytes = h.kubeconfigBytes
-			connectInfo.ip = status.mac2ip.GetIPByMac(util.GetMacAddress().String())
+			connectInfo.ip = toStatus.mac2ip.GetIPByMac(util.GetMacAddress().String())
 		}
 	}
-	modifyReverseInfo(h, status)
+	modifyReverseInfo(h, toStatus)
 }
 
 func (h *resourceHandler) OnUpdate(oldObj, newObj interface{}) {
@@ -358,6 +367,14 @@ func notifySudoDaemonToConnect(kubeconfigBytes []byte, namespace string) {
 	if err != nil {
 		return
 	}
+	if info, err := getSudoConnectInfo(); err == nil {
+		if info.IsSame(kubeconfigBytes, namespace) {
+			return
+		} else {
+			notifySudoDaemonToDisConnect(info.kubeconfigBytes, info.namespace)
+			time.Sleep(time.Second * 3)
+		}
+	}
 	path := k8sutils.GetOrGenKubeConfigPath(string(kubeconfigBytes))
 	readCloser, err := client.SendSudoVPNOperateCommand(path, namespace, command.Connect, "")
 	if err == nil && readCloser != nil {
@@ -370,11 +387,31 @@ func notifySudoDaemonToDisConnect(kubeconfigBytes []byte, namespace string) {
 	if err != nil {
 		return
 	}
+	if info, err := getSudoConnectInfo(); err == nil {
+		if !info.IsSame(kubeconfigBytes, namespace) {
+			notifySudoDaemonToDisConnect(info.kubeconfigBytes, info.namespace)
+			return
+		}
+	}
 	path := k8sutils.GetOrGenKubeConfigPath(string(kubeconfigBytes))
 	readCloser, err := client.SendSudoVPNOperateCommand(path, namespace, command.DisConnect, "")
 	if err == nil && readCloser != nil {
 		_ = readCloser.Close()
 	}
+}
+
+func getSudoConnectInfo() (info *ConnectInfo, err error) {
+	if client, err := daemon_client.GetDaemonClient(true); err == nil {
+		if cmd, err := client.SendSudoVPNStatusCommand(); err == nil {
+			if marshal, err := json.Marshal(cmd); err == nil {
+				var result pkg.ConnectOptions
+				if err = json.Unmarshal(marshal, &result); err == nil {
+					return &ConnectInfo{kubeconfigBytes: result.KubeconfigBytes, namespace: result.Namespace}, nil
+				}
+			}
+		}
+	}
+	return
 }
 
 // connection healthy and reverse healthy

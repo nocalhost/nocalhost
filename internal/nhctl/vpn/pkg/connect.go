@@ -33,7 +33,7 @@ import (
 )
 
 type ConnectOptions struct {
-	Ctx              context.Context
+	Ctx              context.Context `json:"-"`
 	KubeconfigPath   string
 	KubeconfigBytes  []byte
 	Namespace        string
@@ -203,9 +203,9 @@ func (c *ConnectOptions) DoConnect(ctx context.Context) (chan error, error) {
 		return nil, err
 	}
 	c.GetLogger().Info("your ip is " + c.localTunIP.IP.String())
-	//if !util.IsPortListening(10800) {
+	for util.IsPortListening(10800) {
+	}
 	c.portForward(ctx)
-	//}
 	return c.startLocalTunServe(ctx)
 }
 
@@ -259,14 +259,14 @@ func (c *ConnectOptions) portForward(ctx context.Context) {
 					}
 				}()
 				readyChan = make(chan struct{}, 1)
-				stopChan := make(chan struct{}, 1)
-				remote.CancelFunctions = append(remote.CancelFunctions, func() {
-					defer func() {
-						if err := recover(); err != nil {
-						}
-					}()
-					close(stopChan)
-				})
+				//stopChan := make(chan struct{}, 1)
+				//remote.CancelFunctions = append(remote.CancelFunctions, func() {
+				//	defer func() {
+				//		if err := recover(); err != nil {
+				//		}
+				//	}()
+				//	close(stopChan)
+				//})
 				err := util.PortForwardPod(
 					c.config,
 					c.restclient,
@@ -274,7 +274,7 @@ func (c *ConnectOptions) portForward(ctx context.Context) {
 					c.Namespace,
 					"10800:10800",
 					readyChan,
-					stopChan,
+					ctx.Done(),
 				)
 				if apierrors.IsNotFound(err) {
 					c.GetLogger().Errorf("can not found port-forward resource, err: %v, exiting\n", err)
@@ -319,6 +319,13 @@ func (c *ConnectOptions) startLocalTunServe(ctx context.Context) (chan error, er
 	errChan, err := Start(ctx, route)
 	if err != nil {
 		return nil, err
+	}
+	select {
+	case err = <-errChan:
+		if err != nil {
+			return nil, err
+		}
+	default:
 	}
 	c.GetLogger().Infof("tunnel create secussfullly")
 	if util.IsWindows() {
