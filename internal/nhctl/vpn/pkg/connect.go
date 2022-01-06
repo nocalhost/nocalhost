@@ -320,6 +320,13 @@ func (c *ConnectOptions) startLocalTunServe(ctx context.Context) (chan error, er
 	if err != nil {
 		return nil, err
 	}
+	select {
+	case err = <-errChan:
+		if err != nil {
+			return nil, err
+		}
+	default:
+	}
 	c.GetLogger().Infof("tunnel create secussfullly")
 	if util.IsWindows() {
 		if !util.FindRule() {
