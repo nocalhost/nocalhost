@@ -3,7 +3,6 @@ package sleep
 import (
 	"context"
 	"encoding/json"
-	"strings"
 	"time"
 
 	"github.com/jinzhu/gorm"
@@ -19,7 +18,7 @@ import (
 
 func Wakeup(c *clientgo.GoClient, s *model.ClusterUserModel, force bool) error {
 	// 1. wakeup
-	if err := wakeup(c.Config, c.Clientset(), s.Namespace, force); err != nil {
+	if err := _wakeup(c.Config, c.Clientset(), s.Namespace, force); err != nil {
 		return err
 	}
 
@@ -37,7 +36,7 @@ func Wakeup(c *clientgo.GoClient, s *model.ClusterUserModel, force bool) error {
 		})
 }
 
-func wakeup(config []byte, c kubernetes.Interface, namespace string, force bool) error {
+func _wakeup(config []byte, c kubernetes.Interface, namespace string, force bool) error {
 	// 1. check ns
 	ns, err := c.CoreV1().
 		Namespaces().
@@ -142,27 +141,4 @@ func wakeup(config []byte, c kubernetes.Interface, namespace string, force bool)
 		Namespaces().
 		Patch(context.TODO(), namespace, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
 	return err
-}
-
-func wakeupVCluster(namespace string, config []byte, c kubernetes.Interface, force bool) error {
-	stopChan := make(chan struct{}, 1)
-	defer close(stopChan)
-
-	vcClient, err := getVClusterConfigAndClient(namespace, config, c, stopChan)
-	if err != nil {
-		return errors.WithStack(err)
-	}
-	nsList, err := vcClient.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-	for _, n := range nsList.Items {
-		if strings.HasPrefix(n.Name, "kube-") {
-			continue
-		}
-		if err := wakeup(config, vcClient, n.Name, force); err != nil {
-			return err
-		}
-	}
-	return nil
 }
