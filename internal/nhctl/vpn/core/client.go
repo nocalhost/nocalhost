@@ -16,9 +16,9 @@ type Client struct {
 }
 
 type Connector interface {
-	ConnectContext(ctx context.Context, conn net.Conn, network, address string) (net.Conn, error)
+	Connect(ctx context.Context, conn net.Conn, network, address string) (net.Conn, error)
 }
 
 type Transporter interface {
-	Dial(addr string) (net.Conn, error)
+	Dial(ctx context.Context, addr string) (net.Conn, error)
 }

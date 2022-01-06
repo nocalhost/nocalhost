@@ -59,7 +59,7 @@ func (c *Chain) dial(ctx context.Context, network, address string) (net.Conn, er
 		return nil, err
 	}
 
-	cc, err := c.Node().Client.ConnectContext(ctx, conn, network, ipAddr)
+	cc, err := c.Node().Client.Connect(ctx, conn, network, ipAddr)
 	if err != nil {
 		_ = conn.Close()
 		return nil, err
@@ -76,9 +76,9 @@ func (*Chain) resolve(addr string) string {
 	return addr
 }
 
-func (c *Chain) getConn(_ context.Context) (net.Conn, error) {
+func (c *Chain) getConn(ctx context.Context) (net.Conn, error) {
 	if c.IsEmpty() {
 		return nil, ErrorEmptyChain
 	}
-	return c.Node().Client.Dial(c.Node().Addr)
+	return c.Node().Client.Dial(ctx, c.Node().Addr)
 }
