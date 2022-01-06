@@ -3,11 +3,11 @@ package sleep
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jinzhu/gorm"
+	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -19,7 +19,7 @@ import (
 
 func Wakeup(c *clientgo.GoClient, s *model.ClusterUserModel, force bool) error {
 	// 1. wakeup
-	if err := wakeup(c.Clientset(), s.Namespace, force); err != nil {
+	if err := wakeup(c.Config, c.Clientset(), s.Namespace, force); err != nil {
 		return err
 	}
 
@@ -37,7 +37,7 @@ func Wakeup(c *clientgo.GoClient, s *model.ClusterUserModel, force bool) error {
 		})
 }
 
-func wakeup(c kubernetes.Interface, namespace string, force bool) error {
+func wakeup(config []byte, c kubernetes.Interface, namespace string, force bool) error {
 	// 1. check ns
 	ns, err := c.CoreV1().
 		Namespaces().
@@ -48,7 +48,7 @@ func wakeup(c kubernetes.Interface, namespace string, force bool) error {
 
 	// 2. check replicas
 	if ns.Annotations == nil || len(ns.Annotations[KReplicas]) == 0 {
-		return errors.New(fmt.Sprintf("cannot find `%s` from annotations", KReplicas))
+		return errors.Errorf("cannot find `%s` from annotations", KReplicas)
 	}
 	var replicas map[string]int32
 	err = json.Unmarshal([]byte(ns.Annotations[KReplicas]), &replicas)
@@ -93,7 +93,9 @@ func wakeup(c kubernetes.Interface, namespace string, force bool) error {
 		n, ok := replicas[KStatefulSet+":"+st.Name]
 		if ok {
 			if st.GetLabels()["app"] == "vcluster" {
-				// TODO wakeup vcluster
+				if err := wakeupVCluster(namespace, config, c, force); err != nil {
+					return err
+				}
 				continue
 			}
 			st.Spec.Replicas = &n
@@ -140,4 +142,24 @@ func wakeup(c kubernetes.Interface, namespace string, force bool) error {
 		Namespaces().
 		Patch(context.TODO(), namespace, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
 	return err
+}
+
+func wakeupVCluster(namespace string, config []byte, c kubernetes.Interface, force bool) error {
+	stopChan := make(chan struct{}, 1)
+	defer close(stopChan)
+
+	vcClient, err := getVClusterConfigAndClient(namespace, config, c, stopChan)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	nsList, err := vcClient.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
+	for _, n := range nsList.Items {
+		if strings.HasPrefix(n.Name, "kube-") {
+			continue
+		}
+		if err := wakeup(config, vcClient, n.Name, force); err != nil {
+			return err
+		}
+	}
+	return nil
 }
