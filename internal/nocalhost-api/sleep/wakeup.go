@@ -153,6 +153,9 @@ func wakeupVCluster(namespace string, config []byte, c kubernetes.Interface, for
 		return errors.WithStack(err)
 	}
 	nsList, err := vcClient.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
 	for _, n := range nsList.Items {
 		if strings.HasPrefix(n.Name, "kube-") {
 			continue
