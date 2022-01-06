@@ -8,11 +8,15 @@ package vcluster
 import (
 	"bytes"
 	"encoding/base64"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -197,16 +201,20 @@ func (m *manager) portForwardAndGetVClusterKubeConfig(namespace string, stopChan
 	clientSet := m.client.Clientset()
 	config, err := clientcmd.RESTConfigFromKubeConfig(m.client.Config)
 	name := global.VClusterPrefix + namespace
+
+	// 1. get vcluster pod
 	pod, err := helper.GetVClusterPod(name, namespace, time.Second, time.Second*5, clientSet)
 	if err != nil {
 		return nil, err
 	}
 
+	// 2. get vcluster kubeconfig
 	OriginalKubeConfig, err := helper.GetVClusterKubeConfigFromPod(pod, config, clientSet)
 	if err != nil {
 		return nil, err
 	}
 
+	// 3. port forward
 	req := clientSet.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Namespace(pod.Namespace).
@@ -234,6 +242,7 @@ func (m *manager) portForwardAndGetVClusterKubeConfig(namespace string, stopChan
 	}
 	port := ports[0].Local
 
+	// 4. get change kubeconfig
 	kubeConfig, err := clientcmd.Load(OriginalKubeConfig)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -265,4 +274,84 @@ func newManager(client *clientgo.GoClient) Manager {
 		client:    client,
 		informers: dynamicinformer.NewDynamicSharedInformerFactory(client.DynamicClient, defaultResync),
 	}
+}
+
+func PortForwardAndGetKubeConfig(namespace string, config *rest.Config, c kubernetes.Interface, stopChan <-chan struct{}) ([]byte, error) {
+	name := global.VClusterPrefix + namespace
+
+	// 1. get vcluster pod
+	pod, err := helper.GetVClusterPod(name, namespace, time.Second, time.Second*5, c)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. get vcluster kubeconfig
+	OriginalKubeConfig, err := helper.GetVClusterKubeConfigFromPod(pod, config, c)
+	if err != nil {
+		return nil, err
+	}
+
+	// 3. port forward
+	req := c.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Namespace(pod.Namespace).
+		Name(pod.Name).
+		Timeout(time.Second * 5).
+		SubResource("portforward")
+
+	transport, upgrader, err := spdy.RoundTripperFor(config)
+	if err != nil {
+		return nil, err
+	}
+	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, "POST", req.URL())
+	var stdout, stderr io.Writer
+	errChan := make(chan error)
+	readyChan := make(chan struct{})
+	fw, err := portforward.NewOnAddresses(dialer, []string{"0.0.0.0"}, []string{":8443"}, stopChan, readyChan, stdout, stderr)
+	if err != nil {
+		return nil, err
+	}
+
+	go func() {
+		errChan <- fw.ForwardPorts()
+	}()
+
+	select {
+	case err = <-errChan:
+		return nil, err
+	case <-readyChan:
+	case <-stopChan:
+		return nil, errors.New("stopped before ready")
+	}
+
+	ports, err := fw.GetPorts()
+	if err != nil {
+		return nil, err
+	}
+	if len(ports) == 0 {
+		return nil, errors.Errorf("no port is forwarded")
+	}
+	port := ports[0].Local
+
+	// 4. get change kubeconfig
+	kubeConfig, err := clientcmd.Load(OriginalKubeConfig)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	ctx := kubeConfig.Contexts[kubeConfig.CurrentContext]
+	if ctx == nil {
+		return nil, errors.Errorf("vcluster kubeconfig context not found")
+	}
+	if _, ok := kubeConfig.Clusters[ctx.Cluster]; !ok {
+		return nil, errors.Errorf("vcluster kubeconfig cluster not found")
+	}
+	server := kubeConfig.Clusters[ctx.Cluster].Server
+	server = strings.Replace(server, "8443", strconv.Itoa(int(port)), -1)
+	kubeConfig.Clusters[ctx.Cluster].Server = server
+	out, err := clientcmd.Write(*kubeConfig)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	return out, nil
 }

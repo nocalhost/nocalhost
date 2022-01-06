@@ -24,6 +24,7 @@ import (
 	"k8s.io/kubectl/pkg/scheme"
 
 	"nocalhost/internal/nocalhost-dep/controllers/vcluster/api/v1alpha1"
+	"nocalhost/pkg/nocalhost-api/pkg/log"
 )
 
 type authConfig struct {
@@ -104,14 +105,16 @@ func (a *authConfig) Get(vc *v1alpha1.VirtualCluster) (string, error) {
 }
 
 func GetVClusterPod(name, namespace string, interval, timeout time.Duration, c kubernetes.Interface) (*corev1.Pod, error) {
-	var pod corev1.Pod
+	pod := corev1.Pod{}
 	options := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=vcluster,release=%s", name)}
 	if err := wait.PollImmediate(interval, timeout, func() (bool, error) {
 		pods, err := c.CoreV1().Pods(namespace).List(context.TODO(), options)
 		if err != nil {
+			log.Warn(err)
 			return false, err
 		}
 		if len(pods.Items) == 0 {
+			log.Warnf("vcluster pod not found,waiting for vcluster pod")
 			return false, nil
 		}
 		pod = pods.Items[0]
@@ -122,15 +125,15 @@ func GetVClusterPod(name, namespace string, interval, timeout time.Duration, c k
 		}
 		if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
 			return false, errors.Errorf(
-				"cannot exec into a container in a completed pod; current phase is %s", pod.Status.Phase)
+				"the pod current phase is %s", pod.Status.Phase)
 		}
 		if pod.Status.Phase != corev1.PodRunning {
+			log.Warnf("the pod current phase is %s,waiting for vcluster pod", pod.Status.Phase)
 			return false, nil
 		}
-		return false, nil
+		return true, nil
 	}); err != nil {
-		return nil, errors.Errorf(
-			"cannot exec into a container in a pod until that pod is running; current phase is %s", pod.Status.Phase)
+		return nil, errors.Errorf("timeout to get pod %s/%s", namespace, name)
 	}
 	return &pod, nil
 }
