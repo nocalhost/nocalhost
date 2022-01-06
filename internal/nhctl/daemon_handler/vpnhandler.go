@@ -49,7 +49,10 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 	}
 	_ = remote.NewDHCPManager(connect.GetClientSet(), cmd.Namespace, &util.RouterIP).InitDHCPIfNecessary(logCtx)
 	GetOrGenerateConfigMapWatcher(connect.KubeconfigBytes, cmd.Namespace, connect.GetClientSet().CoreV1().RESTClient())
-	client, _ := daemon_client.GetDaemonClient(true)
+	client, err := daemon_client.GetDaemonClient(true)
+	if err != nil {
+		return err
+	}
 	switch cmd.Action {
 	case command.Connect:
 		// pre-check if resource already in reversing mode
