@@ -23,7 +23,7 @@ func UDPOverTCPTunnelConnector() Connector {
 	return &fakeUDPTunConnector{}
 }
 
-func (c *fakeUDPTunConnector) ConnectContext(_ context.Context, conn net.Conn, network, address string) (net.Conn, error) {
+func (c *fakeUDPTunConnector) Connect(ctx context.Context, conn net.Conn, network, address string) (net.Conn, error) {
 	switch network {
 	case "tcp", "tcp4", "tcp6":
 		return nil, fmt.Errorf("%s unsupported", network)
