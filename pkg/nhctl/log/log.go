@@ -39,12 +39,20 @@ func init() {
 	fields["PPID"] = strconv.Itoa(os.Getppid())
 }
 
+func RedirectionDefaultLogger(w zapcore.WriteSyncer) {
+	stdoutLogger = getDefaultOutLogger(w)
+}
+
+func GetLogger(w zapcore.WriteSyncer) *zap.SugaredLogger {
+	return getDefaultOutLogger(w)
+}
+
 func getDefaultOutLogger(w zapcore.WriteSyncer) *zap.SugaredLogger {
 	encoderConfig0 := zap.NewProductionEncoderConfig()
 	encoderConfig0.EncodeTime = nil
 	encoderConfig0.EncodeLevel = nil
 	encoder2 := zapcore.NewConsoleEncoder(encoderConfig0)
-	return zap.New(zapcore.NewCore(encoder2, zapcore.AddSync(os.Stdout), zap.InfoLevel), zap.ErrorOutput(w)).Sugar()
+	return zap.New(zapcore.NewCore(encoder2, zapcore.AddSync(w), zap.InfoLevel), zap.ErrorOutput(w)).Sugar()
 }
 
 func Init(level zapcore.Level, dir, fileName string) error {

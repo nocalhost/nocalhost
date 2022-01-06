@@ -37,7 +37,7 @@ func ExecCommand(
 		fmt.Println("command with ctx")
 		cmd = exec.CommandContext(ctx, commandName, params...)
 	}
-	fmt.Printf("Executing %s %v\n", commandName, params)
+	log.Infof("Executing %s %v\n", commandName, params)
 	cmdStr := []string{commandName}
 	cmdStr = append(cmdStr, params...)
 	if isDisplay {

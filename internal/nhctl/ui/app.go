@@ -21,27 +21,30 @@ type ClusterInfo struct {
 	NameSpace  string
 	KubeConfig string // path
 	User       string
-	K8sVer     string
-	NhctlVer   string
+	K8sVer     string `json:"-" yaml:"-"`
+	NhctlVer   string `json:"-" yaml:"-"`
 	k8sClient  *clientgoutils.ClientGoUtils
 }
 
 type TviewApplication struct {
-	app         *tview.Application
-	pages       *tview.Pages
-	mainLayout  *tview.Flex
-	header      *tview.Flex
-	cacheView   map[string]tview.Primitive
-	clusterInfo *ClusterInfo
+	app          *tview.Application
+	pages        *tview.Pages
+	mainLayout   *tview.Flex
+	header       *tview.Flex
+	cacheView    []tview.Primitive
+	maxCacheView int
+	clusterInfo  *ClusterInfo
 }
+
+//type Nocalhost
 
 func NewTviewApplication() *TviewApplication {
 	t := TviewApplication{app: tview.NewApplication()}
-	t.cacheView = make(map[string]tview.Primitive, 1)
+	t.cacheView = make([]tview.Primitive, 0)
+	t.maxCacheView = 10
 	t.pages = tview.NewPages()
 	t.mainLayout = tview.NewFlex().SetDirection(tview.FlexRow)
 	mainMenu := t.buildMainMenu()
-	t.cacheView["mainMenu"] = mainMenu
 	t.header = buildHeader()
 	t.clusterInfo = loadLocalClusterInfo()
 	t.RefreshHeader()
@@ -54,17 +57,21 @@ func NewTviewApplication() *TviewApplication {
 		tview.NewTextView().SetText("Current path: "+str),
 		1, 1, false,
 	)
-	t.mainLayout.SetBackgroundColor(tcell.ColorBlack)
+	//t.mainLayout.SetBackgroundColor(tcell.ColorBlack)
 
-	t.pages.AddPage("Main", t.mainLayout, true, true)
+	//t.pages.AddPage("Main", t.mainLayout, true, true)
 
-	t.app.SetRoot(t.pages, true).EnableMouse(true)
+	t.app.SetRoot(t.mainLayout, true).EnableMouse(true)
 	t.initEventHandler()
 	return &t
 }
 
 func loadLocalClusterInfo() *ClusterInfo {
-	client, err := clientgoutils.NewClientGoUtils("", "")
+	path := defaultKubeConfigPath
+	if _, err := os.Stat(path); err != nil {
+		path = os.Getenv("KUBECONFIG")
+	}
+	client, err := clientgoutils.NewClientGoUtils(path, "")
 	if err != nil {
 		return nil
 	}
@@ -83,12 +90,13 @@ func loadLocalClusterInfo() *ClusterInfo {
 
 	k8sVer, _ := client.ClientSet.ServerVersion()
 	return &ClusterInfo{
-		Cluster:   currentCxt.Cluster,
-		Context:   config.CurrentContext,
-		NameSpace: currentCxt.Namespace,
-		User:      currentCxt.AuthInfo,
-		K8sVer:    k8sVer.GitVersion,
-		k8sClient: client,
+		Cluster:    currentCxt.Cluster,
+		Context:    config.CurrentContext,
+		NameSpace:  currentCxt.Namespace,
+		User:       currentCxt.AuthInfo,
+		K8sVer:     k8sVer.GitVersion,
+		KubeConfig: path,
+		k8sClient:  client,
 	}
 }
 
@@ -152,6 +160,8 @@ func (t *TviewApplication) initEventHandler() {
 			os.Exit(0)
 		case tcell.KeyEscape:
 			t.switchMainMenu()
+		case tcell.KeyLeft:
+			t.switchBodyToPre()
 		}
 		return event
 	})
@@ -170,6 +180,24 @@ func (t *TviewApplication) switchBodyTo(m tview.Primitive) {
 	t.app.SetFocus(m)
 }
 
+func (t *TviewApplication) switchBodyToC(from, to tview.Primitive) {
+	t.cacheView = append(t.cacheView, from)
+	if len(t.cacheView) > t.maxCacheView && t.maxCacheView > 1 {
+		t.cacheView = t.cacheView[1:]
+	}
+	t.mainLayout.RemoveItemAtIndex(1)
+	t.mainLayout.AddItemAtIndex(1, to, 0, 2, true)
+	t.app.SetFocus(to)
+}
+
 func (t *TviewApplication) switchMainMenu() {
 	t.switchBodyTo(t.buildMainMenu())
+}
+
+func (t *TviewApplication) switchBodyToPre() {
+	if len(t.cacheView) > 0 {
+		item := t.cacheView[len(t.cacheView)-1]
+		t.cacheView = t.cacheView[0 : len(t.cacheView)-1]
+		t.switchBodyTo(item)
+	}
 }

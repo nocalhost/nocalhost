@@ -7,11 +7,24 @@ package ui
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/gdamore/tcell/v2"
+	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"time"
-
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"nocalhost/internal/nhctl/app_flags"
+	"nocalhost/internal/nhctl/appmeta"
+	"nocalhost/internal/nhctl/common"
+	"nocalhost/internal/nhctl/daemon_client"
+	"nocalhost/internal/nhctl/daemon_handler/item"
+	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/internal/nhctl/utils"
+	"nocalhost/pkg/nhctl/log"
+	"os"
+	"reflect"
+	"strconv"
+	"strings"
 	//"github.com/rivo/tview"
 	"github.com/derailed/tview"
 )
@@ -22,7 +35,8 @@ const (
 
 	// Main Menu
 	deployApplicationOption = " Deploy Application"
-	switchContext           = " Switch Context"
+	switchContextOption     = " Switch Context"
+	selectAppOption         = " List applications"
 
 	deployDemoAppOption      = " Quickstart: Deploy BookInfo demo application"
 	deployHelmAppOption      = " Helm: Use my own Helm chart (e.g. local via ./chart/ or any remote chart)"
@@ -38,12 +52,11 @@ func RunTviewApplication() {
 }
 
 func (t *TviewApplication) buildMainMenu() tview.Primitive {
-	mainMenu := NewBorderTable(" Menu")
+	mainMenu := NewBorderedTable(" Menu")
 	mainMenu.SetCell(0, 0, coloredCell(deployApplicationOption))
-	mainMenu.SetCell(1, 0, coloredCell(" Use a existing application"))
+	mainMenu.SetCell(1, 0, coloredCell(selectAppOption))
 	mainMenu.SetCell(2, 0, coloredCell(" Start DevMode Here"))
-	mainMenu.SetCell(3, 0, coloredCell(switchContext))
-	mainMenu.SetCell(4, 0, coloredCell(" view"))
+	mainMenu.SetCell(3, 0, coloredCell(switchContextOption))
 
 	// Make selected eventHandler the same as clicked
 	mainMenu.SetSelectedFunc(func(row, column int) {
@@ -52,18 +65,150 @@ func (t *TviewApplication) buildMainMenu() tview.Primitive {
 		switch selectedCell.Text {
 		case deployApplicationOption:
 			m = t.buildDeployApplicationMenu()
-		case switchContext:
+		case switchContextOption:
 			m = t.buildSelectContextMenu()
+		case selectAppOption:
+			m = t.buildSelectAppList()
 		default:
 			return
 		}
-		t.switchBodyTo(m)
+		t.switchBodyToC(mainMenu, m)
 	})
 	return mainMenu
 }
 
+func (t *TviewApplication) buildSelectAppList() *tview.Table {
+	selectAppTable := NewBorderedTable(" Select a application")
+
+	metas, err := nocalhost.GetApplicationMetas(t.clusterInfo.NameSpace, t.clusterInfo.KubeConfig)
+	if err != nil {
+		panic(err)
+	}
+
+	for col, section := range []string{" Application", "State", "Type"} {
+		selectAppTable.SetCell(0, col, infoCell(section))
+	}
+
+	for i, c := range metas {
+		selectAppTable.SetCell(i+1, 0, coloredCell(" "+c.Application))
+		selectAppTable.SetCell(i+1, 1, coloredCell(string(c.ApplicationState)))
+		selectAppTable.SetCell(i+1, 2, coloredCell(string(c.ApplicationType)))
+	}
+
+	selectAppTable.SetSelectedFunc(func(row, column int) {
+		if row > 0 {
+			nextTable := t.buildSelectWorkloadList(metas[row-1])
+			t.switchBodyToC(selectAppTable, nextTable)
+		}
+	})
+	selectAppTable.Select(1, 0)
+	return selectAppTable
+}
+
+func (t *TviewApplication) buildSelectWorkloadList(appMeta *appmeta.ApplicationMeta) *tview.Table {
+	workloadListTable := NewBorderedTable(" Select a workload")
+
+	cli, err := daemon_client.GetDaemonClient(utils.IsSudoUser())
+	if err != nil {
+		showErr(err)
+		return nil
+	}
+
+	data, err := cli.SendGetResourceInfoCommand(
+		t.clusterInfo.KubeConfig, t.clusterInfo.NameSpace, appMeta.Application, "deployment",
+		"", nil, false)
+
+	bytes, err := json.Marshal(data)
+	if err != nil {
+		showErr(err)
+		return nil
+	}
+
+	multiple := reflect.ValueOf(data).Kind() == reflect.Slice
+	var items []item.Item
+	var item2 item.Item
+	if multiple {
+		_ = json.Unmarshal(bytes, &items)
+	} else {
+		_ = json.Unmarshal(bytes, &item2)
+	}
+	if !multiple {
+		items = append(items, item2)
+	}
+
+	for col, section := range []string{" Name", "Kind", "DevMode", "DevStatus", "Syncing", "SyncGUIPort", "PortForward"} {
+		workloadListTable.SetCell(0, col, infoCell(section))
+	}
+
+	for i, it := range items {
+		workloadListTable.SetCell(i+1, 0, coloredCell(" "+"name"))
+		um, ok := it.Metadata.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		name, ok, err := unstructured.NestedString(um, "metadata", "name")
+		if err != nil || !ok {
+			continue
+		}
+		workloadListTable.SetCell(i+1, 0, coloredCell(" "+name))
+
+		kind, _, _ := unstructured.NestedString(um, "kind")
+		if kind != "" {
+			workloadListTable.SetCell(i+1, 1, coloredCell(kind))
+		}
+
+		if it.Description == nil {
+			continue
+		}
+
+		workloadListTable.SetCell(i+1, 2, coloredCell(string(it.Description.DevModeType)))
+		workloadListTable.SetCell(i+1, 3, coloredCell(it.Description.DevelopStatus))
+		workloadListTable.SetCell(i+1, 4, coloredCell(strconv.FormatBool(it.Description.Syncing)))
+		workloadListTable.SetCell(i+1, 5, coloredCell(strconv.Itoa(it.Description.LocalSyncthingGUIPort)))
+		pfList := make([]string, 0)
+		for _, forward := range it.Description.DevPortForwardList {
+			pfList = append(pfList, fmt.Sprintf("%d->%d", forward.LocalPort, forward.RemotePort))
+		}
+		workloadListTable.SetCell(i+1, 6, coloredCell(fmt.Sprintf("%v", pfList)))
+
+		//workloadListTable.SetCell(i+1, 2, coloredCell(it.Description.DevelopStatus))
+	}
+
+	var selectAppFunc = func(row, column int) {
+		if row > 0 {
+			//selectedMeta := metas[row-1]
+			//nsTable := NewBorderedTable("Select a workload")
+			//cli, err := daemon_client.GetDaemonClient(utils.IsSudoUser())
+			//if err != nil {
+			//	showErr(err)
+			//	return
+			//}
+			//data, err := cli.SendGetResourceInfoCommand(
+			//	t.clusterInfo.KubeConfig, t.clusterInfo.NameSpace, selectedMeta.Application, "deployment",
+			//	"", nil, false)
+			//
+			//nsTable.SetSelectedFunc(func(row, column int) {
+			//	cell := nsTable.GetCell(row, column)
+			//	t.clusterInfo.NameSpace = strings.Trim(cell.Text, " ")
+			//	t.clusterInfo.k8sClient.NameSpace(strings.Trim(cell.Text, " "))
+			//	t.RefreshHeader()
+			//	t.switchMainMenu()
+			//})
+			//t.switchBodyTo(nsTable)
+		}
+	}
+	workloadListTable.SetSelectedFunc(selectAppFunc)
+	workloadListTable.Select(1, 0)
+	return workloadListTable
+}
+
+func showErr(err error) {
+	panic(err)
+}
+
 func (t *TviewApplication) buildSelectContextMenu() *tview.Table {
-	table := NewBorderTable(" Select a context")
+	table := NewBorderedTable(" Select a context")
 
 	for col, section := range []string{" Context", "Cluster", "User", "NameSpace", "K8s Rev"} {
 		table.SetCell(0, col, infoCell(section))
@@ -90,18 +235,18 @@ func (t *TviewApplication) buildSelectContextMenu() *tview.Table {
 				if err != nil {
 					return
 				}
-				nsTable := NewBorderTable("Select a namespace")
+				nsTable := NewBorderedTable("Select a namespace")
 				for i, item := range ns.Items {
 					nsTable.SetCell(i, 0, coloredCell(" "+item.Name))
 				}
 				nsTable.SetSelectedFunc(func(row, column int) {
 					cell := nsTable.GetCell(row, column)
-					t.clusterInfo.NameSpace = cell.Text
-					t.clusterInfo.k8sClient.NameSpace(cell.Text)
+					t.clusterInfo.NameSpace = strings.Trim(cell.Text, " ")
+					t.clusterInfo.k8sClient.NameSpace(strings.Trim(cell.Text, " "))
 					t.RefreshHeader()
 					t.switchMainMenu()
 				})
-				t.switchBodyTo(nsTable)
+				t.switchBodyToC(table, nsTable)
 			}
 		}
 	})
@@ -110,32 +255,20 @@ func (t *TviewApplication) buildSelectContextMenu() *tview.Table {
 	return table
 }
 
-func (t *TviewApplication) buildView() tview.Primitive {
-	view := tview.NewTextView()
-	view.SetTitle(" Text view")
-	view.SetBorder(true)
-	view.SetText(" hhh")
-	view.SetScrollable(true)
-	view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyEnter {
-			go func() {
-				for i := 0; i < 100; i++ {
-					time.Sleep(1 * time.Second)
-					ttx := view.GetText(true)
-					t.app.QueueUpdateDraw(func() {
-						view.SetText(fmt.Sprintf("%d %s\n", i, ttx))
-					})
-					t.app.SetFocus(view)
-				}
-			}()
-		}
-		return event
-	})
-	return view
+type SyncBuilder struct {
+	WriteFunc func(p []byte) (int, error)
+}
+
+func (s *SyncBuilder) Write(p []byte) (int, error) {
+	return s.WriteFunc(p)
+}
+
+func (s *SyncBuilder) Sync() error {
+	return nil
 }
 
 func (t *TviewApplication) buildDeployApplicationMenu() *tview.Table {
-	menu := NewBorderTable(" Deploy Application")
+	menu := NewBorderedTable(" Deploy Application")
 	menu.SetCell(0, 0, coloredCell(deployDemoAppOption))
 	menu.SetCell(1, 0, coloredCell(deployHelmAppOption))
 	menu.SetCell(2, 0, coloredCell(deployKubectlAppOption))
@@ -149,13 +282,33 @@ func (t *TviewApplication) buildDeployApplicationMenu() *tview.Table {
 			view := tview.NewTextView()
 			view.SetTitle(" Deploy BookInfo demo application")
 			view.SetBorder(true)
-			view.SetText(fmt.Sprintf(" nhctl install bookinfo --git-url https://github.com/nocalhost/bookinfo.git --type rawManifest --kubeconfig %s --namespace %s\n", t.clusterInfo.KubeConfig, t.clusterInfo.NameSpace))
+			//view.SetText(fmt.Sprintf(" nhctl install bookinfo --git-url https://github.com/nocalhost/bookinfo.git --type rawManifest --kubeconfig %s --namespace %s\n", t.clusterInfo.KubeConfig, t.clusterInfo.NameSpace))
 			view.SetScrollable(true)
 			m = view
+			f := app_flags.InstallFlags{
+				GitUrl:  "https://github.com/nocalhost/bookinfo.git",
+				AppType: string(appmeta.ManifestGit),
+			}
+
+			sbd := SyncBuilder{func(p []byte) (int, error) {
+				t.app.QueueUpdateDraw(func() {
+					view.Write([]byte(" " + string(p)))
+				})
+				return 0, nil
+			}}
+
+			log.RedirectionDefaultLogger(&sbd)
+			go func() {
+				_, err := common.InstallApplication(&f, "bookinfo", t.clusterInfo.KubeConfig, t.clusterInfo.NameSpace)
+				if err != nil {
+					panic(errors.Wrap(err, t.clusterInfo.KubeConfig))
+				}
+				log.RedirectionDefaultLogger(os.Stdout)
+			}()
 		default:
 			return
 		}
-		t.switchBodyTo(m)
+		t.switchBodyToC(menu, m)
 	})
 	return menu
 }
@@ -174,6 +327,13 @@ func infoCell(t string) *tview.TableCell {
 
 func sectionCell(t string) *tview.TableCell {
 	cell := tview.NewTableCell(t + ":")
+	cell.SetAlign(tview.AlignLeft)
+	cell.SetTextColor(tcell.ColorPaleGreen)
+	return cell
+}
+
+func keyCell(t string) *tview.TableCell {
+	cell := tview.NewTableCell("<" + t + ">")
 	cell.SetAlign(tview.AlignLeft)
 	cell.SetTextColor(tcell.ColorPaleGreen)
 	return cell

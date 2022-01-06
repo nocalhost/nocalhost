@@ -7,14 +7,19 @@ package ui
 
 import (
 	"github.com/derailed/tview"
-	"github.com/gdamore/tcell/v2"
+	"nocalhost/internal/nhctl/utils"
+	"path/filepath"
 )
 
-func NewBorderTable(s string) *tview.Table {
+var (
+	defaultKubeConfigPath = filepath.Join(utils.GetHomePath(), ".kube", "config")
+)
+
+func NewBorderedTable(s string) *tview.Table {
 	t := tview.NewTable()
 	t.SetBorder(true)
 	t.SetTitle(s)
 	t.SetSelectable(true, false)
-	t.SetBackgroundColor(tcell.ColorBlack)
+	//t.SetBackgroundColor(tcell.ColorBlack)
 	return t
 }

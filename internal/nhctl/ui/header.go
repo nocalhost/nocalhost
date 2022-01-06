@@ -42,6 +42,7 @@ func buildHeader() *tview.Flex {
 	}
 
 	header.AddItem(clusterInfo(), clWidth, 1, false)
+	header.AddItem(keyInfo(), clWidth, 1, false)
 	return header
 }
 
@@ -51,6 +52,18 @@ func clusterInfo() tview.Primitive {
 	for row, section := range []string{"Context", "Cluster", "User", "NameSpace", "K8s Rev", "Nhctl Rev"} {
 		table.SetCell(row, 0, sectionCell(section))
 		table.SetCell(row, 1, infoCell("nil"))
+	}
+	return table
+}
+
+func keyInfo() tview.Primitive {
+	table := tview.NewTable()
+	table.SetBorderPadding(0, 0, 1, 0)
+	keyList := []string{"Esc", "Left", "Ctrl+C"}
+	descList := []string{"Back to main", "Back to previous", "Exit"}
+	for row, section := range keyList {
+		table.SetCell(row, 0, keyCell(section))
+		table.SetCell(row, 1, infoCell(descList[row]))
 	}
 	return table
 }
