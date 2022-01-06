@@ -91,7 +91,7 @@ func getSupportedSchema(apiResources []*restmapper.APIGroupResources) ([]GvkGvrW
 			if len(gvkStrs) > 1 {
 				gvk.Version = gvkStrs[1]
 				if len(gvkStrs) > 2 {
-					gvk.Group = gvkStrs[2]
+					gvk.Group = strings.Join(gvkStrs[2:], ".")
 				}
 			}
 		}
