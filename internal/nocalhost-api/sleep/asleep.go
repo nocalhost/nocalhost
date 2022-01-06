@@ -7,18 +7,15 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-
-	"nocalhost/pkg/nocalhost-api/pkg/manager/vcluster"
-
-	"k8s.io/client-go/tools/clientcmd"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service/cluster_user"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
+	"nocalhost/pkg/nocalhost-api/pkg/manager/vcluster"
 )
 
 func Asleep(c *clientgo.GoClient, s *model.ClusterUserModel, force bool) error {
