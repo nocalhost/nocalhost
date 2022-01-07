@@ -18,7 +18,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic/dynamicinformer"
-	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
@@ -53,14 +52,15 @@ type Searcher struct {
 	//informerFactory        informers.SharedInformerFactory
 	dynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory
 	// [string]*meta.RESTMapping
-	supportSchema *sync.Map // ResourceType: GvkGvrWithAlias
-	stopChan      chan struct{}
+	supportSchemaWithAlias *sync.Map // ResourceType: GvkGvrWithAlias
+	SupportSchemaList      []GvkGvrWithAlias
+	stopChan               chan struct{}
 	// last used this searcher, for release informer resource
 	lastUsedTime time.Time
 }
 
 func (s *Searcher) GetSupportSchema() *sync.Map {
-	return s.supportSchema
+	return s.supportSchemaWithAlias
 }
 
 type GvkGvrWithAlias struct {
@@ -69,6 +69,15 @@ type GvkGvrWithAlias struct {
 	alias []string
 	// namespaced indicates if a resource is namespaced or not.
 	Namespaced bool
+}
+
+func (g *GvkGvrWithAlias) GetFullName() string {
+	name := g.Gvr.Resource
+	if g.Gvr.Version != "" && g.Gvr.Group != "" {
+		name += "." + g.Gvr.Version
+		name += "." + g.Gvr.Group
+	}
+	return name
 }
 
 // getSupportedSchema return restMapping of each resource, [string]*meta.RESTMapping
@@ -111,38 +120,11 @@ func getSupportedSchema(apiResources []*restmapper.APIGroupResources) ([]GvkGvrW
 				Namespaced: apiR.Namespaced,
 			}
 			ggwa.alias = append(ggwa.alias, apiR.ShortNames...)
+			ggwa.alias = append(ggwa.alias, ggwa.GetFullName())
 			nameToMapping = append(nameToMapping, ggwa)
 		}
 	}
 
-	//for _, resourceList := range apiResources {
-	//	for version, resource := range resourceList.VersionedResources {
-	//		for _, apiResource := range resource {
-	//			if _, need := resourceNeeded[apiResource.Name]; need {
-	//				r := GvkGvrWithAlias{
-	//					Gvr: schema.GroupVersionResource{
-	//						Group:    resourceList.Group.Name,
-	//						Version:  version,
-	//						Resource: apiResource.Name,
-	//					},
-	//					Gvk: schema.GroupVersionKind{
-	//						Group:   resourceList.Group.Name,
-	//						Version: version,
-	//						Kind:    apiResource.Kind,
-	//					},
-	//					alias:      []string{},
-	//					Namespaced: apiResource.Namespaced,
-	//				}
-	//				if apiResource.ShortNames != nil {
-	//					r.alias = append(r.alias, apiResource.ShortNames...)
-	//				}
-	//				r.alias = append(r.alias, strings.ToLower(apiResource.Kind))
-	//				r.alias = append(r.alias, strings.ToLower(apiResource.Name))
-	//				nameToMapping = append(nameToMapping, r)
-	//			}
-	//		}
-	//	}
-	//}
 	if len(nameToMapping) == 0 {
 		return nil, errors.New("RestMapping is empty, this should not happened")
 	}
@@ -391,50 +373,29 @@ func initSearcher(kubeconfigBytes []byte, namespace string, clientUtils *clientg
 		return nil, err
 	}
 
-	for _, aliases := range crdRestMappingList {
-		restMappingList = append(restMappingList, aliases)
-	}
-
-	supportedSchema := sync.Map{} // alias: GvkGvrWithAlias
-
-	//for name, groupVersionResourceList := range restMappingList {
-	//	createInformerSuccess := false
-	//	for _, resource := range groupVersionResourceList {
-	//		if informer, err := informerFactory.ForResource(resource.Gvr); err != nil {
-	//			if k8serrors.IsForbidden(err) {
-	//				log.Warnf("user account is forbidden to list resource: %v, ignored", resource)
-	//				createInformerSuccess = true
-	//			} else if strings.Contains(err.Error(), "no informer found for") {
-	//				continue
-	//			} else {
-	//				log.Warnf("Can't create informer for resource: %v, error info: %v, ignored", resource, err)
-	//			}
-	//		} else {
-	//			if sets.NewString(GroupToTypeMap[0].V...).Has(resource.Gvr.Resource) {
-	//				informer.Informer().
-	//					AddEventHandler(NewResourceEventHandlerFuncs(informer, kubeconfigBytes, resource.Gvr))
-	//			}
-	//			createInformerSuccess = true
-	//			for _, alias := range resource.alias {
-	//				supportedSchema.Store(alias, resource)
-	//			}
-	//			break
-	//		}
-	//	}
-	//	if !createInformerSuccess {
-	//		log.Warnf("Can't create informer for resource: %v, this should not happened", name)
-	//	}
-	//}
-
-	for _, resource := range restMappingList {
+	supportedSchema := sync.Map{}
+	for index, resource := range restMappingList {
 		informer := dynamicInformerFactory.ForResource(resource.Gvr)
 
-		informer.Informer().
-			AddEventHandler(NewResourceEventHandlerFuncs(informer, kubeconfigBytes, resource.Gvr))
+		if index == 0 {
+			informer.Informer().
+				AddEventHandler(NewResourceEventHandlerFuncs(informer, kubeconfigBytes, resource.Gvr))
+		}
 
 		for _, alias := range resource.alias {
 			supportedSchema.Store(alias, resource)
 		}
+	}
+
+	for _, resource := range crdRestMappingList {
+		dynamicInformerFactory.ForResource(resource.Gvr)
+		for _, alias := range resource.alias {
+			supportedSchema.Store(alias, resource)
+		}
+	}
+
+	for _, aliases := range crdRestMappingList {
+		restMappingList = append(restMappingList, aliases)
 	}
 
 	stopCRDChannel := make(chan struct{}, 1)
@@ -445,7 +406,8 @@ func initSearcher(kubeconfigBytes []byte, namespace string, clientUtils *clientg
 	newSearcher := &Searcher{
 		kubeconfigBytes:        kubeconfigBytes,
 		dynamicInformerFactory: dynamicInformerFactory,
-		supportSchema:          &supportedSchema,
+		supportSchemaWithAlias: &supportedSchema,
+		SupportSchemaList:      restMappingList,
 		stopChan:               stopCRDChannel,
 	}
 	return newSearcher, nil
@@ -470,7 +432,7 @@ func (s *Searcher) GetKubeconfigBytes() []byte {
 }
 
 func (s *Searcher) GetResourceInfo(resourceType string) (GvkGvrWithAlias, error) {
-	if value, found := s.supportSchema.Load(strings.ToLower(resourceType)); found && value != nil {
+	if value, found := s.supportSchemaWithAlias.Load(strings.ToLower(resourceType)); found && value != nil {
 		if restMapping, convert := value.(GvkGvrWithAlias); convert {
 			return restMapping, nil
 		}
@@ -580,7 +542,7 @@ func (c *criteria) Query() (data []interface{}, e error) {
 	defer func() {
 		if err := recover(); err != nil {
 			fmt.Println("Recover in query")
-			e = err.(error)
+			e, _ = err.(error)
 		}
 		if mapping, errs := c.search.GetResourceInfo(c.resourceType); errs == nil {
 			for i, d := range data {
@@ -605,24 +567,16 @@ func (c *criteria) Query() (data []interface{}, e error) {
 	if len(c.resourceType) == 0 {
 		return nil, errors.New("resource type should not be null")
 	}
-	var informer informers.GenericInformer
 	mapping, err := c.search.GetResourceInfo(c.resourceType)
 	if err != nil {
 		return nil, err
 	}
-	//genericInformer, err := c.search.informerFactory.ForResource(mapping.Gvr)
-	//if err != nil {
-	//	genericInformer = c.search.dynamicInformerFactory.ForResource(mapping.Gvr)
-	//	//return nil, errors.Wrapf(err, "get informer failed for resource type: %v", c.resourceType)
-	//}
-	////informer = genericInformer.Informer()
-	informer = c.search.dynamicInformerFactory.ForResource(mapping.Gvr)
+	informer := c.search.dynamicInformerFactory.ForResource(mapping.Gvr)
 	if informer == nil {
 		return nil, errors.New("create informer failed, please check your code")
 	}
 
 	if !mapping.Namespaced {
-		//list := informer.Informer().GetIndexer().List()
 		list := informer.Informer().GetStore().List()
 		if len(c.resourceName) != 0 {
 			for _, i := range list {
@@ -637,7 +591,15 @@ func (c *criteria) Query() (data []interface{}, e error) {
 			iters = append(iters, object)
 		}
 		//SortByNameAsc(iters)
-		return iters, nil
+		result := newFilter(iters).
+			namespace(c.ns).
+			appName(c.appName).
+			label(c.label)
+		if !c.showHidden {
+			result.notLabel(map[string]string{_const.DevWorkloadIgnored: "true"})
+		}
+		return result.sort().toSlice(), nil
+		//return iters, nil
 	}
 
 	// if namespace and resourceName is not empty both, using indexer to query data
@@ -660,7 +622,6 @@ func (c *criteria) Query() (data []interface{}, e error) {
 	}
 
 	objs := informer.Informer().GetStore().List()
-	//objs := informer.Informer().GetIndexer().List()
 	iters := make([]interface{}, 0)
 	for _, obj := range objs {
 		iters = append(iters, obj)
