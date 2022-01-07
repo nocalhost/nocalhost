@@ -24,7 +24,6 @@ import (
 	"k8s.io/kubectl/pkg/scheme"
 
 	"nocalhost/internal/nocalhost-dep/controllers/vcluster/api/v1alpha1"
-	"nocalhost/pkg/nocalhost-api/pkg/log"
 )
 
 type authConfig struct {
@@ -110,11 +109,9 @@ func GetVClusterPod(name, namespace string, interval, timeout time.Duration, c k
 	if err := wait.PollImmediate(interval, timeout, func() (bool, error) {
 		pods, err := c.CoreV1().Pods(namespace).List(context.TODO(), options)
 		if err != nil {
-			log.Warn(err)
 			return false, err
 		}
 		if len(pods.Items) == 0 {
-			log.Warnf("vcluster pod not found,waiting for vcluster pod")
 			return false, nil
 		}
 		pod = pods.Items[0]
@@ -128,7 +125,6 @@ func GetVClusterPod(name, namespace string, interval, timeout time.Duration, c k
 				"the pod current phase is %s", pod.Status.Phase)
 		}
 		if pod.Status.Phase != corev1.PodRunning {
-			log.Warnf("the pod current phase is %s,waiting for vcluster pod", pod.Status.Phase)
 			return false, nil
 		}
 		return true, nil
