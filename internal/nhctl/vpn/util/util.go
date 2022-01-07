@@ -470,28 +470,21 @@ func GetMacAddress() net.HardwareAddr {
 	if mac != nil {
 		return mac
 	}
-	var maps = make(map[string]net.HardwareAddr)
 	if interfaces, err := net.Interfaces(); err == nil {
-		for _, ifce := range interfaces {
-			if len(ifce.HardwareAddr) != 0 {
-				maps[ifce.Name] = ifce.HardwareAddr
+		for _, ifc := range interfaces {
+			if ifc.HardwareAddr != nil {
+				if ifc.Flags&net.FlagUp|net.FlagMulticast|net.FlagBroadcast ==
+					net.FlagUp|net.FlagMulticast|net.FlagBroadcast {
+					return ifc.HardwareAddr
+				}
 			}
 		}
-		for i := 0; i < 10; i++ {
-			if v, found := maps[fmt.Sprintf("en%v", i)]; found {
-				mac = v
-				return v
+		for _, ifc := range interfaces {
+			if ifc.HardwareAddr != nil {
+				if ifc.Flags&net.FlagUp == net.FlagUp {
+					return ifc.HardwareAddr
+				}
 			}
-		}
-		for k, addr := range maps {
-			if strings.Contains(k, "Ethernet") {
-				mac = addr
-				return addr
-			}
-		}
-		for _, addr := range maps {
-			mac = addr
-			return addr
 		}
 	}
 	return net.HardwareAddr{0x00, 0x00, 0x5e, 0x00, 0x53, 0x01}
