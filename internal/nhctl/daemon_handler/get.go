@@ -294,6 +294,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) (inte
 			}
 			if namespace.Status.Phase == v1.NamespaceActive {
 				result = append(result, item.Item{Metadata: datum})
+				go GetOrGenerateConfigMapWatcher(KubeConfigBytes, namespace.Name, nil)
 			}
 		}
 		// add default namespace if can't list namespace
@@ -321,7 +322,6 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) (inte
 		if err != nil {
 			return nil, err
 		}
-		GetOrGenerateConfigMapWatcher(KubeConfigBytes, ns, nil)
 		serviceMap := make(map[string]map[string]*profile.SvcProfileV2)
 		if len(request.AppName) != 0 {
 			//nid := getNidByAppName(ns, request.KubeConfig, request.AppName)

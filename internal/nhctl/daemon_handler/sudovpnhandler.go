@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"k8s.io/client-go/util/retry"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/vpn/dns"
 	"nocalhost/internal/nhctl/vpn/pkg"
@@ -121,7 +122,9 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser)
 		//}
 		logger.Info("prepare to exit, cleaning up")
 		dns.CancelDNS()
-		if err := connected.ReleaseIP(); err != nil {
+		if err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+			return connected.ReleaseIP()
+		}); err != nil {
 			logger.Errorf("failed to release ip to dhcp, err: %v", err)
 		}
 		remote.CleanUpTrafficManagerIfRefCountIsZero(connected.GetClientSet(), connected.Namespace)

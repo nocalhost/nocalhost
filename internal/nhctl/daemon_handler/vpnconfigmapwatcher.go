@@ -34,9 +34,9 @@ func ReleaseWatcher(kubeconfigBytes []byte, namespace string) {
 }
 
 func GetOrGenerateConfigMapWatcher(kubeconfigBytes []byte, namespace string, getter cache.Getter) *ConfigMapWatcher {
+	k := util.GenerateKey(kubeconfigBytes, namespace)
 	watchersLock.Lock()
 	defer watchersLock.Unlock()
-	k := util.GenerateKey(kubeconfigBytes, namespace)
 	if v, ok := watchers[k]; ok && v != nil {
 		return v
 	} else {
@@ -205,8 +205,8 @@ func NewConfigMapWatcher(kubeconfigBytes []byte, namespace string, getter cache.
 
 func (w *ConfigMapWatcher) Start() {
 	go w.informer.Run(w.stopChan)
-	for !w.informer.HasSynced() {
-	}
+	//for !w.informer.HasSynced() {
+	//}
 }
 
 func (w *ConfigMapWatcher) Stop() {
