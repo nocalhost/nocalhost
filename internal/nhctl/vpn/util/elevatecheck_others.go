@@ -17,7 +17,7 @@ import (
 )
 
 func RunWithElevated() {
-	cmd := exec.Command("sudo", "-S", os.Args[0], os.Args[1], "elevate")
+	cmd := exec.Command("sudo", "-p", "Password:", "-S", os.Args[0], os.Args[1], "elevate")
 	//log.Info(cmd.Args)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
