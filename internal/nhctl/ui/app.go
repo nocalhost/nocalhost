@@ -59,9 +59,9 @@ func NewTviewApplication() *TviewApplication {
 	)
 	//t.mainLayout.SetBackgroundColor(tcell.ColorBlack)
 
-	//t.pages.AddPage("Main", t.mainLayout, true, true)
+	t.pages.AddPage("Main", t.mainLayout, true, true)
 
-	t.app.SetRoot(t.mainLayout, true).EnableMouse(true)
+	t.app.SetRoot(t.pages, true).EnableMouse(true)
 	t.initEventHandler()
 	return &t
 }

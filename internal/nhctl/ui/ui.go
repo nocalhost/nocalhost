@@ -16,6 +16,7 @@ import (
 	"nocalhost/internal/nhctl/app_flags"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/common"
+	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_handler/item"
 	"nocalhost/internal/nhctl/nocalhost"
@@ -42,6 +43,8 @@ const (
 	deployHelmAppOption      = " Helm: Use my own Helm chart (e.g. local via ./chart/ or any remote chart)"
 	deployKubectlAppOption   = " Kubectl: Use existing Kubernetes manifests (e.g. ./kube/deployment.yaml)"
 	deployKustomizeAppOption = " Kustomize: Use an existing Kustomization (e.g. ./kube/kustomization/)"
+
+	startDevModeOpt = " Start DevMode"
 )
 
 func RunTviewApplication() {
@@ -162,40 +165,38 @@ func (t *TviewApplication) buildSelectWorkloadList(appMeta *appmeta.ApplicationM
 			continue
 		}
 
-		workloadListTable.SetCell(i+1, 2, coloredCell(string(it.Description.DevModeType)))
-		workloadListTable.SetCell(i+1, 3, coloredCell(it.Description.DevelopStatus))
-		workloadListTable.SetCell(i+1, 4, coloredCell(strconv.FormatBool(it.Description.Syncing)))
+		workloadListTable.SetCell(i+1, 2, coloredCell(strings.ToUpper(string(it.Description.DevModeType))))
+		workloadListTable.SetCell(i+1, 3, coloredCell(strings.ToUpper(it.Description.DevelopStatus)))
+		workloadListTable.SetCell(i+1, 4, coloredCell(strings.ToUpper(strconv.FormatBool(it.Description.Syncing))))
 		workloadListTable.SetCell(i+1, 5, coloredCell(strconv.Itoa(it.Description.LocalSyncthingGUIPort)))
 		pfList := make([]string, 0)
 		for _, forward := range it.Description.DevPortForwardList {
 			pfList = append(pfList, fmt.Sprintf("%d->%d", forward.LocalPort, forward.RemotePort))
 		}
 		workloadListTable.SetCell(i+1, 6, coloredCell(fmt.Sprintf("%v", pfList)))
-
-		//workloadListTable.SetCell(i+1, 2, coloredCell(it.Description.DevelopStatus))
 	}
 
 	var selectAppFunc = func(row, column int) {
 		if row > 0 {
 			//selectedMeta := metas[row-1]
-			//nsTable := NewBorderedTable("Select a workload")
-			//cli, err := daemon_client.GetDaemonClient(utils.IsSudoUser())
-			//if err != nil {
-			//	showErr(err)
-			//	return
-			//}
-			//data, err := cli.SendGetResourceInfoCommand(
-			//	t.clusterInfo.KubeConfig, t.clusterInfo.NameSpace, selectedMeta.Application, "deployment",
-			//	"", nil, false)
-			//
-			//nsTable.SetSelectedFunc(func(row, column int) {
-			//	cell := nsTable.GetCell(row, column)
-			//	t.clusterInfo.NameSpace = strings.Trim(cell.Text, " ")
-			//	t.clusterInfo.k8sClient.NameSpace(strings.Trim(cell.Text, " "))
-			//	t.RefreshHeader()
-			//	t.switchMainMenu()
-			//})
-			//t.switchBodyTo(nsTable)
+			table := NewBorderedTable("Menu")
+			table.SetBorderPadding(0, 0, 0, 0)
+			//table.SetBorderAttributes(tcell.A)
+			table.SetCellSimple(0, 0, startDevModeOpt)
+			table.SetCellSimple(1, 0, " Start DevMode(Duplicate)")
+			table.SetCellSimple(2, 0, " Port Forward")
+			table.SetCellSimple(3, 0, " Reset Pod")
+			table.SetCellSimple(4, 0, " View Logs")
+			table.SetCellSimple(5, 0, " Open Terminal")
+			table.SetRect(20, 10, 30, 10)
+			t.pages.AddPage("menu", table, false, true)
+			t.pages.ShowPage("menu")
+
+			t.app.SetFocus(table)
+			table.SetSelectedFunc(func(row1, column1 int) {
+				t.pages.HidePage("menu")
+				controller.GetOriginalContainers()
+			})
 		}
 	}
 	workloadListTable.SetSelectedFunc(selectAppFunc)
