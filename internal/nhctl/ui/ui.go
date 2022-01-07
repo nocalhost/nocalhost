@@ -13,10 +13,13 @@ import (
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	common2 "nocalhost/cmd/nhctl/cmds/common"
+	"nocalhost/cmd/nhctl/cmds/dev"
+
+	//common2 "nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/app_flags"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/common"
-	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_handler/item"
 	"nocalhost/internal/nhctl/nocalhost"
@@ -176,12 +179,10 @@ func (t *TviewApplication) buildSelectWorkloadList(appMeta *appmeta.ApplicationM
 		workloadListTable.SetCell(i+1, 6, coloredCell(fmt.Sprintf("%v", pfList)))
 	}
 
-	var selectAppFunc = func(row, column int) {
+	var selectWorkloadFunc = func(row, column int) {
 		if row > 0 {
-			//selectedMeta := metas[row-1]
+			cell := workloadListTable.GetCell(row, column)
 			table := NewBorderedTable("Menu")
-			table.SetBorderPadding(0, 0, 0, 0)
-			//table.SetBorderAttributes(tcell.A)
 			table.SetCellSimple(0, 0, startDevModeOpt)
 			table.SetCellSimple(1, 0, " Start DevMode(Duplicate)")
 			table.SetCellSimple(2, 0, " Port Forward")
@@ -195,11 +196,55 @@ func (t *TviewApplication) buildSelectWorkloadList(appMeta *appmeta.ApplicationM
 			t.app.SetFocus(table)
 			table.SetSelectedFunc(func(row1, column1 int) {
 				t.pages.HidePage("menu")
-				controller.GetOriginalContainers()
+				common2.WorkloadName = strings.Trim(cell.Text, " ")
+				common2.ServiceType = "deployment"
+				common2.KubeConfig = t.clusterInfo.KubeConfig
+				common2.NameSpace = t.clusterInfo.NameSpace
+				common2.InitAppAndCheckIfSvcExist(appMeta.Application, common2.WorkloadName, common2.ServiceType)
+
+				containerList, err := common2.NocalhostSvc.GetOriginalContainers()
+				if err != nil {
+					showErr(err)
+					return
+				}
+				containerTable := NewBorderedTable("Containers")
+				for i, container := range containerList {
+					containerTable.SetCellSimple(i, 0, " "+container.Name)
+				}
+				containerTable.SetRect(20, 10, 50, 10)
+				t.app.SetFocus(containerTable)
+				t.pages.AddPage("containers", containerTable, false, true)
+				t.pages.ShowPage("containers")
+				containerTable.SetSelectedFunc(func(row, column int) {
+					t.pages.HidePage("containers")
+					dev.DevStartOps.Container = trimSpaceStr(containerTable.GetCell(row, column).Text)
+					str, _ := os.Getwd()
+					dev.DevStartOps.LocalSyncDir = []string{str}
+
+					view := tview.NewTextView()
+					view.SetTitle(" Start DevMode")
+					view.SetBorder(true)
+					view.SetScrollable(true)
+
+					sbd := SyncBuilder{func(p []byte) (int, error) {
+						t.app.QueueUpdateDraw(func() {
+							view.Write([]byte(" " + string(p)))
+						})
+						return 0, nil
+					}}
+
+					log.RedirectionDefaultLogger(&sbd)
+					go func() {
+						dev.StartDevMode(appMeta.Application)
+						//log.RedirectionDefaultLogger(os.Stdout)
+					}()
+					t.switchBodyToC(workloadListTable, view)
+				})
+
 			})
 		}
 	}
-	workloadListTable.SetSelectedFunc(selectAppFunc)
+	workloadListTable.SetSelectedFunc(selectWorkloadFunc)
 	workloadListTable.Select(1, 0)
 	return workloadListTable
 }

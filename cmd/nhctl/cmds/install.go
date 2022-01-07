@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	common2 "nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/common"
 	"nocalhost/internal/nhctl/const"
@@ -28,7 +29,7 @@ var installFlags = &app_flags.InstallFlags{}
 func init() {
 
 	installCmd.Flags().StringVarP(
-		&nameSpace, "namespace", "n", "",
+		&common2.NameSpace, "namespace", "n", "",
 		"kubernetes namespace",
 	)
 	installCmd.Flags().StringVarP(
@@ -114,7 +115,7 @@ var installCmd = &cobra.Command{
 			applicationName = args[0]
 		)
 
-		must(Prepare())
+		must(common2.Prepare())
 
 		if applicationName == _const.DefaultNocalhostApplication {
 			log.Error(_const.DefaultNocalhostApplicationOperateErr)
@@ -140,16 +141,16 @@ var installCmd = &cobra.Command{
 		}
 
 		log.Info("Installing application...")
-		nocalhostApp, err = common.InstallApplication(installFlags, applicationName, kubeConfig, nameSpace)
+		common2.NocalhostApp, err = common.InstallApplication(installFlags, applicationName, common2.KubeConfig, common2.NameSpace)
 		must(err)
 		log.Infof("Application %s installed", applicationName)
 
-		configV2 := nocalhostApp.GetApplicationConfigV2()
+		configV2 := common2.NocalhostApp.GetApplicationConfigV2()
 
 		// Start port forward
 		for _, svcProfile := range configV2.ServiceConfigs {
-			checkIfSvcExist(svcProfile.Name, svcProfile.Type)
-			nhSvc := nocalhostSvc
+			common2.CheckIfSvcExist(svcProfile.Name, svcProfile.Type)
+			nhSvc := common2.NocalhostSvc
 			for _, cc := range svcProfile.ContainerConfigs {
 				if cc.Install == nil || len(cc.Install.PortForward) == 0 {
 					continue
@@ -173,7 +174,7 @@ var installCmd = &cobra.Command{
 						continue
 					}
 					log.Infof("Waiting pod %s to be ready", podName)
-					pod, err := nocalhostApp.GetClient().GetPod(podName)
+					pod, err := common2.NocalhostApp.GetClient().GetPod(podName)
 					if err != nil {
 						log.Info(err.Error())
 						continue

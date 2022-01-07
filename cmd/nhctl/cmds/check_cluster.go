@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/daemon_client"
 
 	//"github.com/syncthing/syncthing/lib/discover"
@@ -37,7 +38,7 @@ var checkClusterCmd = &cobra.Command{
 			fmt.Println(string(bys))
 		}()
 
-		err := checkClusterAvailable(kubeConfig)
+		err := checkClusterAvailable(common.KubeConfig)
 		if err != nil {
 			jsonResp.Code = 201
 			jsonResp.Info = err.Error()

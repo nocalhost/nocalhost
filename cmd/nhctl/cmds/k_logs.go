@@ -11,6 +11,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/kubectl/pkg/cmd/logs"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/pkg/nhctl/clientgoutils"
 )
 
@@ -22,8 +23,8 @@ var cmdLogs = &cobra.Command{
 	Long:    `nhctl logs [podName] -c [containerName] -t [lines] -f true --kubeconfig=[kubeconfigPath]`,
 	Short:   `Print the logs for a container in a pod or specified resource`,
 	Run: func(cmd *cobra.Command, args []string) {
-		must(Prepare())
-		clientGoUtils, err := clientgoutils.NewClientGoUtils(kubeConfig, nameSpace)
+		must(common.Prepare())
+		clientGoUtils, err := clientgoutils.NewClientGoUtils(common.KubeConfig, common.NameSpace)
 		must(err)
 		cmdutil.CheckErr(logOptions.Complete(clientGoUtils.NewFactory(), cmd, args))
 		cmdutil.CheckErr(logOptions.Validate())

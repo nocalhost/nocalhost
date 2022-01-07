@@ -8,6 +8,7 @@ package cmds
 import (
 	"fmt"
 	"github.com/spf13/cobra"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/nocalhost"
 )
 
@@ -23,7 +24,7 @@ var dbAllCmd = &cobra.Command{
 	Short: "Get all leveldb data",
 	Long:  `Get all leveldb data`,
 	Run: func(cmd *cobra.Command, args []string) {
-		result, err := nocalhost.ListAllFromApplicationDb(nameSpace, appName, nid)
+		result, err := nocalhost.ListAllFromApplicationDb(common.NameSpace, appName, nid)
 		must(err)
 		for key, val := range result {
 			fmt.Printf("%s=%s\n", key, val)

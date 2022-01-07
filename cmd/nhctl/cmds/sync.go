@@ -6,31 +6,22 @@
 package cmds
 
 import (
-	"context"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"nocalhost/cmd/nhctl/cmds/common"
+	"nocalhost/cmd/nhctl/cmds/dev"
 	"nocalhost/internal/nhctl/app"
-	"nocalhost/internal/nhctl/coloredoutput"
-	_const "nocalhost/internal/nhctl/const"
-	"nocalhost/internal/nhctl/nocalhost_path"
-	"nocalhost/internal/nhctl/syncthing"
-	"nocalhost/internal/nhctl/utils"
-	"nocalhost/pkg/nhctl/log"
-	utils2 "nocalhost/pkg/nhctl/utils"
-	"os"
-	"strings"
-	"time"
 )
 
 var fileSyncOps = &app.FileSyncOptions{}
 
 func init() {
 	fileSyncCmd.Flags().StringVarP(
-		&deployment, "deployment", "d", "",
+		&common.WorkloadName, "deployment", "d", "",
 		"k8s deployment which your developing service exists",
 	)
 	fileSyncCmd.Flags().StringVarP(
-		&serviceType, "controller-type", "t", "deployment",
+		&common.ServiceType, "controller-type", "t", "deployment",
 		"kind of k8s controller,such as deployment,statefulSet",
 	)
 	fileSyncCmd.Flags().BoolVarP(
@@ -71,129 +62,11 @@ var fileSyncCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		applicationName := args[0]
 
-		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
+		common.InitAppAndCheckIfSvcExist(applicationName, common.WorkloadName, common.ServiceType)
 
-		StartSyncthing(
+		dev.StartSyncthing(
 			"", fileSyncOps.Resume, fileSyncOps.Stop, fileSyncOps.Container,
 			&fileSyncOps.SyncDouble, fileSyncOps.Override,
 		)
 	},
-}
-
-func StartSyncthing(podName string, resume bool, stop bool, container string, syncDouble *bool, override bool) {
-	if !nocalhostSvc.IsInReplaceDevMode() && !nocalhostSvc.IsInDuplicateDevMode() {
-		log.Fatalf("Service \"%s\" is not in developing", deployment)
-	}
-
-	if !nocalhostSvc.IsProcessor() {
-		log.Fatalf(
-			"Service \"%s\" is not process by current device (DevMode is start by other device),"+
-				" so can not operate the file sync", deployment,
-		)
-	}
-
-	// resume port-forward and syncthing
-	if resume || stop {
-		utils.ShouldI(nocalhostSvc.StopFileSyncOnly(), "Error occurs when stopping sync process")
-		if stop {
-			return
-		}
-	} else {
-		if err := nocalhostSvc.FindOutSyncthingProcess(
-			func(pid int) error {
-				coloredoutput.Hint("Syncthing has been started")
-				return errors.New("")
-			},
-		); err != nil {
-			return
-		}
-	}
-
-	svcProfile, _ := nocalhostSvc.GetProfile()
-	if podName == "" {
-		var err error
-		if podName, err = nocalhostSvc.GetDevModePodName(); err != nil {
-			must(err)
-		}
-	}
-	log.Infof("Syncthing port-forward pod %s, namespace %s", podName, nocalhostApp.NameSpace)
-
-	// Start a pf for syncthing
-	must(nocalhostSvc.PortForward(podName, svcProfile.RemoteSyncthingPort, svcProfile.RemoteSyncthingPort, "SYNC"))
-
-	str := strings.ReplaceAll(nocalhostSvc.GetApplicationSyncDir(), nocalhost_path.GetNhctlHomeDir(), "")
-
-	utils2.KillSyncthingProcess(str)
-
-	if syncDouble == nil {
-		flag := false
-
-		config := nocalhostSvc.Config()
-		if cfg := config.GetContainerDevConfig(container); cfg != nil && cfg.Sync != nil {
-			switch cfg.Sync.Type {
-
-			case _const.DefaultSyncType:
-				flag = true
-
-			default:
-				flag = false
-			}
-		}
-
-		syncDouble = &flag
-	}
-
-	// Delete service folder
-	dir := nocalhostSvc.GetApplicationSyncDir()
-	if err2 := os.RemoveAll(dir); err2 != nil {
-		log.Logf("Failed to delete dir: %s before starting syncthing, err: %v", dir, err2)
-	}
-
-	// TODO
-	// If the file is deleted remotely, but the syncthing database is not reset (the development is not finished),
-	// the files that have been synchronized will not be synchronized.
-	newSyncthing, err := nocalhostSvc.NewSyncthing(
-		container, svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin, *syncDouble,
-	)
-	utils.ShouldI(err, "Failed to new syncthing")
-
-	// try install syncthing
-	var downloadVersion = Version
-
-	// for debug only
-	if devStartOps.SyncthingVersion != "" {
-		downloadVersion = devStartOps.SyncthingVersion
-	}
-
-	_, err = syncthing.NewInstaller(newSyncthing.BinPath, downloadVersion, GitCommit).InstallIfNeeded()
-	mustI(
-		err, "Failed to install syncthing, no syncthing available locally in "+
-			newSyncthing.BinPath+" please try again.",
-	)
-
-	// starts up a local syncthing
-	utils.ShouldI(newSyncthing.Run(context.TODO()), "Failed to run syncthing")
-
-	must(nocalhostSvc.SetSyncingStatus(true))
-
-	if override {
-		var i = 10
-		for {
-			time.Sleep(time.Second)
-
-			i--
-			// to force override the remote changing
-			client := nocalhostSvc.NewSyncthingHttpClient(2)
-			err = client.FolderOverride()
-			if err == nil {
-				log.Info("Force overriding workDir's remote changing")
-				break
-			}
-
-			if i < 0 {
-				log.WarnE(err, "Fail to overriding workDir's remote changing")
-				break
-			}
-		}
-	}
 }

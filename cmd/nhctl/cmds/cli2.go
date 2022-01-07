@@ -135,13 +135,13 @@ package cmds
 //			log.FatalE(err, "")
 //		}
 //
-//		initAppAndCheckIfSvcExist(devConfig.Application, devConfig.WorkLoad, devConfig.Type)
-//		//client, err := clientgoutils.NewClientGoUtils(kubeConfig, nameSpace)
+//		common.InitAppAndCheckIfSvcExist(devConfig.Application, devConfig.WorkLoad, devConfig.Type)
+//		//client, err := clientgoutils.NewClientGoUtils(kubeConfig, common.NameSpace)
 //		//if err != nil {
 //		//	log.FatalE(err, "")
 //		//}
 //		//containers, err := controller.GetOriginalContainers(devConfig.WorkLoad, base.SvcType(devConfig.Type), client)
-//		containers, err := nocalhostSvc.GetOriginalContainers()
+//		containers, err := common.NocalhostSvc.GetOriginalContainers()
 //		if err != nil {
 //			log.FatalE(err, "")
 //		}

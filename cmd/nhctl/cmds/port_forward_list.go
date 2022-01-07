@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
+	"nocalhost/cmd/nhctl/cmds/common"
 )
 
 func init() {
@@ -43,9 +44,9 @@ var portForwardListCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		applicationName := args[0]
-		initApp(applicationName)
+		common.InitApp(applicationName)
 
-		p, err := nocalhostApp.GetProfile()
+		p, err := common.NocalhostApp.GetProfile()
 		must(err)
 
 		pfList := make([]PortForwardItem, 0)

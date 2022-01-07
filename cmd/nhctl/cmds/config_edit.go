@@ -14,6 +14,7 @@ import (
 	"golang.org/x/text/transform"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/config_validate"
 	"nocalhost/internal/nhctl/fp"
@@ -40,7 +41,7 @@ func init() {
 		"k8s deployment which your developing service exists",
 	)
 	configEditCmd.Flags().StringVarP(
-		&serviceType, "controller-type", "t", "deployment",
+		&common.ServiceType, "controller-type", "t", "deployment",
 		"kind of k8s controller,such as deployment,statefulSet",
 	)
 	configEditCmd.Flags().StringVarP(
@@ -68,7 +69,7 @@ var configEditCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		configEditFlags.AppName = args[0]
 
-		initApp(configEditFlags.AppName)
+		common.InitApp(configEditFlags.AppName)
 
 		if len(configEditFlags.Content) == 0 && len(configEditFlags.file) == 0 {
 			log.Fatal("one of --content or --filename is required")
@@ -112,19 +113,19 @@ var configEditCmd = &cobra.Command{
 		if configEditFlags.AppConfig {
 			applicationConfig := &profile.ApplicationConfig{}
 			must(errors.Wrap(unmashaler(applicationConfig), "fail to unmarshal content"))
-			must(nocalhostApp.SaveAppProfileV2(applicationConfig))
+			must(common.NocalhostApp.SaveAppProfileV2(applicationConfig))
 			return
 		}
 
 		svcConfig := &profile.ServiceConfigV2{}
-		checkIfSvcExist(configEditFlags.SvcName, serviceType)
+		common.CheckIfSvcExist(configEditFlags.SvcName, common.ServiceType)
 
 		if err := unmashaler(svcConfig); err != nil {
 			log.Fatal(err)
 		}
 
-		containers, _ := nocalhostSvc.GetOriginalContainers()
-		config_validate.PrepareForConfigurationValidate(nocalhostApp.GetClient(), containers)
+		containers, _ := common.NocalhostSvc.GetOriginalContainers()
+		config_validate.PrepareForConfigurationValidate(common.NocalhostApp.GetClient(), containers)
 		if err := config_validate.Validate(svcConfig); err != nil {
 			log.Fatal(err)
 		}
@@ -134,6 +135,6 @@ var configEditCmd = &cobra.Command{
 		if !nocalhost.CheckIfResourceTypeIsSupported(base.SvcType(svcConfig.Type)) {
 			must(errors.New(fmt.Sprintf("Service Type %s is unsupported", ot)))
 		}
-		must(nocalhostSvc.UpdateConfig(*svcConfig))
+		must(common.NocalhostSvc.UpdateConfig(*svcConfig))
 	},
 }

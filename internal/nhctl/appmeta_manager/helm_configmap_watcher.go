@@ -20,7 +20,7 @@ import (
 )
 
 type helmCmWatcher struct {
-	// todo recreate HSW if kubeConfig changed
+	// todo recreate HSW if common.KubeConfig changed
 	configBytes []byte
 	ns          string
 

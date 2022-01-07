@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/dev_dir"
 	"nocalhost/pkg/nhctl/log"
@@ -35,7 +36,7 @@ func init() {
 		"k8s deployment which your developing service exists",
 	)
 	devAssociateCmd.Flags().StringVarP(
-		&serviceType, "controller-type", "t", "deployment",
+		&common.ServiceType, "controller-type", "t", "deployment",
 		"kind of k8s controller,such as deployment,statefulSet",
 	)
 	devAssociateCmd.Flags().StringVarP(
@@ -70,12 +71,12 @@ var devAssociateCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		commonFlags.AppName = args[0]
 
-		must(Prepare())
+		must(common.Prepare())
 
 		svcPack := dev_dir.NewSvcPack(
-			nameSpace,
+			common.NameSpace,
 			commonFlags.AppName,
-			base.SvcType(serviceType),
+			base.SvcType(common.ServiceType),
 			commonFlags.SvcName,
 			container,
 		)
@@ -95,22 +96,22 @@ var devAssociateCmd = &cobra.Command{
 			log.Fatal("--local-sync must specify")
 		}
 
-		initApp(commonFlags.AppName)
-		checkIfSvcExist(commonFlags.SvcName, serviceType)
+		common.InitApp(commonFlags.AppName)
+		common.CheckIfSvcExist(commonFlags.SvcName, common.ServiceType)
 
-		if (nocalhostSvc.IsInReplaceDevMode() && nocalhostSvc.IsProcessor()) || nocalhostSvc.IsInDuplicateDevMode() {
+		if (common.NocalhostSvc.IsInReplaceDevMode() && common.NocalhostSvc.IsProcessor()) || common.NocalhostSvc.IsInDuplicateDevMode() {
 			if !dev_dir.DevPath(workDir).AlreadyAssociate(svcPack) {
 				log.PWarn("Current svc is already in DevMode, so can not switch associate dir, please exit the DevMode and try again.")
 				os.Exit(1)
 			} else {
-				if profile, err := nocalhostSvc.GetProfile(); err != nil {
+				if profile, err := common.NocalhostSvc.GetProfile(); err != nil {
 					log.PWarn("Fail to get profile of current svc, please exit the DevMode and try again.")
 					os.Exit(1)
 				} else {
 					svcPack = dev_dir.NewSvcPack(
-						nameSpace,
+						common.NameSpace,
 						commonFlags.AppName,
-						base.SvcType(serviceType),
+						base.SvcType(common.ServiceType),
 						commonFlags.SvcName,
 						profile.OriginDevContainer,
 					)
@@ -118,8 +119,8 @@ var devAssociateCmd = &cobra.Command{
 			}
 		}
 
-		must(dev_dir.DevPath(workDir).Associate(svcPack, kubeConfig, !migrate))
+		must(dev_dir.DevPath(workDir).Associate(svcPack, common.KubeConfig, !migrate))
 
-		must(nocalhostApp.ReloadSvcCfg(nocalhostSvc.Name, nocalhostSvc.Type, false, false))
+		must(common.NocalhostApp.ReloadSvcCfg(common.NocalhostSvc.Name, common.NocalhostSvc.Type, false, false))
 	},
 }

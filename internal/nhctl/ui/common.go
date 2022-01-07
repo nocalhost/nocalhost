@@ -9,6 +9,7 @@ import (
 	"github.com/derailed/tview"
 	"nocalhost/internal/nhctl/utils"
 	"path/filepath"
+	"strings"
 )
 
 var (
@@ -22,4 +23,8 @@ func NewBorderedTable(s string) *tview.Table {
 	t.SetSelectable(true, false)
 	//t.SetBackgroundColor(tcell.ColorBlack)
 	return t
+}
+
+func trimSpaceStr(str string) string {
+	return strings.Trim(str, " ")
 }

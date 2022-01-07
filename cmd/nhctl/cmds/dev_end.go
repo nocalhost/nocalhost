@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/coloredoutput"
 	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/utils"
@@ -17,8 +18,8 @@ import (
 )
 
 func init() {
-	devEndCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which your developing service exists")
-	devEndCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "deployment",
+	devEndCmd.Flags().StringVarP(&common.WorkloadName, "deployment", "d", "", "k8s deployment which your developing service exists")
+	devEndCmd.Flags().StringVarP(&common.ServiceType, "controller-type", "t", "deployment",
 		"kind of k8s controller,such as deployment,statefulSet")
 	debugCmd.AddCommand(devEndCmd)
 }
@@ -35,24 +36,24 @@ var devEndCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		applicationName := args[0]
-		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
+		common.InitAppAndCheckIfSvcExist(applicationName, common.WorkloadName, common.ServiceType)
 
-		if !nocalhostSvc.IsInReplaceDevMode() && !nocalhostSvc.IsInDuplicateDevMode() {
-			log.Fatalf("Service %s is not in DevMode", deployment)
+		if !common.NocalhostSvc.IsInReplaceDevMode() && !common.NocalhostSvc.IsInDuplicateDevMode() {
+			log.Fatalf("Service %s is not in DevMode", common.WorkloadName)
 		}
 
 		var needToRecoverHPA bool
-		if !nocalhostSvc.IsInDuplicateDevMode() {
+		if !common.NocalhostSvc.IsInDuplicateDevMode() {
 			needToRecoverHPA = true
 		}
 
-		must(nocalhostSvc.DevEnd(false))
-		utils.Should(nocalhostSvc.DecreaseDevModeCount())
+		must(common.NocalhostSvc.DevEnd(false))
+		utils.Should(common.NocalhostSvc.DecreaseDevModeCount())
 
 		// Recover hpa
 		if needToRecoverHPA {
 			log.Info("Recovering HPA...")
-			hl, err := nocalhostSvc.ListHPA()
+			hl, err := common.NocalhostSvc.ListHPA()
 			if err != nil {
 				log.WarnE(err, "Failed to find HPA")
 			}
@@ -80,7 +81,7 @@ var devEndCmd = &cobra.Command{
 					minInt32 := int32(minInt)
 					h.Spec.MinReplicas = &minInt32
 				}
-				if _, err = nocalhostSvc.Client.UpdateHPA(&h); err != nil {
+				if _, err = common.NocalhostSvc.Client.UpdateHPA(&h); err != nil {
 					log.WarnE(err, fmt.Sprintf("Failed to update hpa %s", h.Name))
 				} else {
 					log.Infof("HPA %s has been recovered", h.Name)
