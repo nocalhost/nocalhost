@@ -249,7 +249,8 @@ func (c *ConnectOptions) heartbeats(ctx context.Context) {
 }
 
 func (c *ConnectOptions) portForward(ctx context.Context) {
-	var readyChan chan struct{}
+	var readyChan = make(chan struct{}, 1)
+	var first = true
 	go func(ctx context.Context) {
 		for ctx.Err() == nil {
 			func() {
@@ -258,7 +259,10 @@ func (c *ConnectOptions) portForward(ctx context.Context) {
 						c.GetLogger().Warnf("recover error: %v, ignore", err)
 					}
 				}()
-				readyChan = make(chan struct{}, 1)
+				if !first {
+					readyChan = make(chan struct{}, 1)
+				}
+				first = false
 				//stopChan := make(chan struct{}, 1)
 				//remote.CancelFunctions = append(remote.CancelFunctions, func() {
 				//	defer func() {
@@ -287,8 +291,6 @@ func (c *ConnectOptions) portForward(ctx context.Context) {
 			}()
 		}
 	}(ctx)
-	for readyChan == nil {
-	}
 	c.GetLogger().Infoln("port-forwarding...")
 	select {
 	case <-readyChan:
