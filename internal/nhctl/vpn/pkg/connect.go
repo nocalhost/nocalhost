@@ -204,7 +204,8 @@ func (c *ConnectOptions) DoConnect(ctx context.Context) (chan error, error) {
 		return nil, errors2.WithStack(err)
 	}
 	c.GetLogger().Info("your ip is " + c.localTunIP.IP.String())
-	for util.IsPortListening(10800) {
+	if err = util.WaitPortToBeFree(10800, time.Minute*2); err != nil {
+		return nil, err
 	}
 	c.portForward(ctx)
 	return c.startLocalTunServe(ctx)

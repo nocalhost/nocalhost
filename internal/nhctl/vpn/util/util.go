@@ -37,6 +37,7 @@ import (
 	"nocalhost/internal/nhctl/daemon_common"
 	"regexp"
 	"strconv"
+	"time"
 
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -590,5 +591,18 @@ func Ping(targetIP string) (bool, error) {
 		return true, nil
 	default:
 		return false, nil
+	}
+}
+
+func WaitPortToBeFree(port int, timeout time.Duration) error {
+	for {
+		select {
+		case <-time.Tick(timeout):
+			return fmt.Errorf("wait port %v to be free timeout", port)
+		case <-time.Tick(time.Second * 1):
+			if !IsPortListening(port) {
+				return nil
+			}
+		}
 	}
 }
