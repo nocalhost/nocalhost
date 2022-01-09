@@ -75,7 +75,7 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser)
 					}()
 					errChan, err := c.DoConnect(ctx)
 					if err != nil {
-						log.Warn(err)
+						c.GetLogger().Errorln(err)
 						c.GetLogger().Infoln(util.EndSignFailed)
 						time.Sleep(time.Second * 2)
 						return

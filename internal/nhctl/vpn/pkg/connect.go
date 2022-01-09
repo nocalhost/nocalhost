@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	errors2 "github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	v1 "k8s.io/api/core/v1"
@@ -200,7 +201,7 @@ func (c *ConnectOptions) DoConnect(ctx context.Context) (chan error, error) {
 	var err error
 	c.trafficManagerIP, err = createOutboundRouterPodIfNecessary(c.clientset, c.Namespace, &util.RouterIP, c.cidrs, c.GetLogger())
 	if err != nil {
-		return nil, err
+		return nil, errors2.WithStack(err)
 	}
 	c.GetLogger().Info("your ip is " + c.localTunIP.IP.String())
 	for util.IsPortListening(10800) {
@@ -320,12 +321,12 @@ func (c *ConnectOptions) startLocalTunServe(ctx context.Context) (chan error, er
 	}
 	errChan, err := Start(ctx, route)
 	if err != nil {
-		return nil, err
+		return nil, errors2.WithStack(err)
 	}
 	select {
 	case err = <-errChan:
 		if err != nil {
-			return nil, err
+			return nil, errors2.WithStack(err)
 		}
 	default:
 	}
@@ -347,7 +348,7 @@ func (c *ConnectOptions) startLocalTunServe(ctx context.Context) (chan error, er
 	}
 	c.heartbeats(ctx)
 	if err = c.setupDNS(); err != nil {
-		return nil, err
+		return nil, errors2.WithStack(err)
 	}
 	log.Info("setup DNS service successfully")
 	return errChan, nil
