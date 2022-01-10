@@ -21,7 +21,14 @@ func NewBorderedTable(s string) *tview.Table {
 	t.SetBorder(true)
 	t.SetTitle(s)
 	t.SetSelectable(true, false)
-	//t.SetBackgroundColor(tcell.ColorBlack)
+	return t
+}
+
+func NewScrollingTextView(title string) *tview.TextView {
+	t := tview.NewTextView()
+	t.SetBorder(true)
+	t.SetTitle(title)
+	t.SetScrollable(true)
 	return t
 }
 

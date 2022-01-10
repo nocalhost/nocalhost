@@ -7,6 +7,7 @@ package common
 
 import (
 	"github.com/pkg/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/common"
 	_const "nocalhost/internal/nhctl/const"
@@ -102,4 +103,17 @@ func Prepare() error {
 	}
 
 	return nil
+}
+
+func Must(err error) {
+	MustI(err, "")
+}
+
+func MustI(err error, info string) {
+	if k8serrors.IsForbidden(err) {
+		log.FatalE(err, "Permission Denied! Please check that"+
+			" your ServiceAccount(KubeConfig) has appropriate permissions.\n\n")
+	} else if err != nil {
+		log.FatalE(err, info)
+	}
 }

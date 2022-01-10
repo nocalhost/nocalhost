@@ -6,8 +6,10 @@
 package ui
 
 import (
+	"fmt"
 	"github.com/derailed/tview"
 	"github.com/gdamore/tcell/v2"
+	"go.uber.org/zap/zapcore"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
@@ -36,9 +38,12 @@ type TviewApplication struct {
 	clusterInfo  *ClusterInfo
 }
 
-//type Nocalhost
+const (
+	mainPage = "Main"
+)
 
 func NewTviewApplication() *TviewApplication {
+	fmt.Println("new tview")
 	t := TviewApplication{app: tview.NewApplication()}
 	t.cacheView = make([]tview.Primitive, 0)
 	t.maxCacheView = 10
@@ -59,7 +64,7 @@ func NewTviewApplication() *TviewApplication {
 	)
 	//t.mainLayout.SetBackgroundColor(tcell.ColorBlack)
 
-	t.pages.AddPage("Main", t.mainLayout, true, true)
+	t.pages.AddPage(mainPage, t.mainLayout, true, true)
 
 	t.app.SetRoot(t.pages, true).EnableMouse(true)
 	t.initEventHandler()
@@ -190,6 +195,20 @@ func (t *TviewApplication) switchBodyToC(from, to tview.Primitive) {
 	t.app.SetFocus(to)
 }
 
+func (t *TviewApplication) switchBodyToScrollingView(title string, from tview.Primitive) zapcore.WriteSyncer {
+	to := NewScrollingTextView(title)
+	sbd := SyncBuilder{func(p []byte) (int, error) {
+		t.app.QueueUpdateDraw(func() {
+			to.Write([]byte(" " + string(p)))
+		})
+		return 0, nil
+	}}
+
+	//log.RedirectionDefaultLogger(&sbd) // Write log to text view
+	t.switchBodyToC(from, to)
+	return &sbd
+}
+
 func (t *TviewApplication) switchMainMenu() {
 	t.switchBodyTo(t.buildMainMenu())
 }
@@ -200,4 +219,21 @@ func (t *TviewApplication) switchBodyToPre() {
 		t.cacheView = t.cacheView[0 : len(t.cacheView)-1]
 		t.switchBodyTo(item)
 	}
+}
+
+func (t *TviewApplication) showErr(err string) {
+
+	modal := tview.NewModal().
+		SetText(err).
+		AddButtons([]string{"Quit", "Cancel"}).
+		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+			if buttonLabel == "Quit" {
+				t.pages.HidePage("ErrPage")
+			}
+		})
+	modal.SetRect(30, 30, 30, 30)
+	t.pages.AddPage("ErrPage", modal, false, true)
+	t.pages.ShowPage("ErrPage")
+	t.app.SetFocus(modal)
+
 }

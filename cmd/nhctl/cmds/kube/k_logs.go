@@ -3,7 +3,7 @@
 * This source code is licensed under the Apache License Version 2.0.
  */
 
-package cmds
+package kube
 
 import (
 	dockerterm "github.com/moby/term"
@@ -15,26 +15,44 @@ import (
 	"nocalhost/pkg/nhctl/clientgoutils"
 )
 
-var logOptions *logs.LogsOptions
+var LogOptions *logs.LogsOptions
 
-var cmdLogs = &cobra.Command{
+var CmdLogs = &cobra.Command{
 	Use:     "logs",
 	Example: `nhctl logs [podName] -c [containerName] -f=true --tail=1 --namespace nocalhost-reserved --kubeconfig=[path]`,
 	Long:    `nhctl logs [podName] -c [containerName] -t [lines] -f true --kubeconfig=[kubeconfigPath]`,
 	Short:   `Print the logs for a container in a pod or specified resource`,
 	Run: func(cmd *cobra.Command, args []string) {
-		must(common.Prepare())
-		clientGoUtils, err := clientgoutils.NewClientGoUtils(common.KubeConfig, common.NameSpace)
-		must(err)
-		cmdutil.CheckErr(logOptions.Complete(clientGoUtils.NewFactory(), cmd, args))
-		cmdutil.CheckErr(logOptions.Validate())
-		cmdutil.CheckErr(logOptions.RunLogs())
+		RunLogs(cmd, args)
 	}}
 
 func init() {
+	//stdIn, stdOut, stderr := dockerterm.StdStreams()
+	//LogOptions = logs.NewLogsOptions(
+	//	genericclioptions.IOStreams{In: stdIn, Out: stdOut, ErrOut: stderr}, false)
+	//LogOptions.AddFlags(CmdLogs)
+	InitLogOptions()
+}
+
+var flagAdded bool
+
+func InitLogOptions() {
 	stdIn, stdOut, stderr := dockerterm.StdStreams()
-	logOptions = logs.NewLogsOptions(
+	LogOptions = logs.NewLogsOptions(
 		genericclioptions.IOStreams{In: stdIn, Out: stdOut, ErrOut: stderr}, false)
-	logOptions.AddFlags(cmdLogs)
-	kubectlCmd.AddCommand(cmdLogs)
+	if !flagAdded {
+		flagAdded = true
+		LogOptions.AddFlags(CmdLogs)
+	}
+}
+
+func RunLogs(cmd *cobra.Command, args []string) {
+	common.Must(common.Prepare())
+	clientGoUtils, err := clientgoutils.NewClientGoUtils(common.KubeConfig, common.NameSpace)
+	//ps, err := clientGoUtils.ListPods()
+	//fmt.Println(ps, err)
+	common.Must(err)
+	cmdutil.CheckErr(LogOptions.Complete(clientGoUtils.NewFactory(), cmd, args))
+	cmdutil.CheckErr(LogOptions.Validate())
+	cmdutil.CheckErr(LogOptions.RunLogs())
 }
