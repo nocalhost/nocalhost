@@ -23,7 +23,7 @@ import (
 	"strings"
 )
 
-var ErrorButSkip = "rror while uninstall application but skipped,"
+var ErrorButSkip = "Error while uninstall application but skipped,"
 
 type ClientGoUtilClient struct {
 	ClientInner     *clientgoutils.ClientGoUtils
@@ -79,7 +79,7 @@ func (cso *ClientGoUtilClient) GetKubeconfigBytes() []byte {
 func (cso *ClientGoUtilClient) getCustomResourceDaemon(app, ns string) item.App {
 	s, err := resouce_cache.GetSearcherWithLRU(cso.KubeconfigBytes, ns)
 	if err != nil {
-		log.Infof("Error while uninstall application, ", s)
+		log.Infof("Error while uninstall application: %s", err.Error())
 		return item.App{}
 	}
 
@@ -180,11 +180,16 @@ func (cso *ClientGoUtilClient) CleanCustomResource(app, ns string) {
 					continue
 				}
 
+				strs := strings.Split(resource.Name, ".")
+				resourceType := resource.Name
+				if len(strs) > 0 {
+					resourceType = strs[0]
+				}
 				cso.doCleanCustomResource(
 					schema.GroupVersionResource{
 						Group:    objectMeta.GroupVersionKind().Group,
 						Version:  objectMeta.GroupVersionKind().Version,
-						Resource: resource.Name,
+						Resource: resourceType,
 					}, objectMeta.Namespace, objectMeta.GroupVersionKind().Kind, objectMeta.Name,
 				)
 			}
