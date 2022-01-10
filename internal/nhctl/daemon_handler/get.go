@@ -294,7 +294,6 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) (inte
 			}
 			if namespace.Status.Phase == v1.NamespaceActive {
 				result = append(result, item.Item{Metadata: datum})
-				go GetOrGenerateConfigMapWatcher(KubeConfigBytes, namespace.Name, nil)
 			}
 		}
 		// add default namespace if can't list namespace
@@ -302,6 +301,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) (inte
 			result = append(result, item.Item{Metadata: &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: ns}}})
 		}
 		for _, i := range result {
+			go GetOrGenerateConfigMapWatcher(KubeConfigBytes, i.Metadata.(metav1.Object).GetName(), nil)
 			if connectInfo.IsSameCluster(KubeConfigBytes) {
 				i.VPN = &item.VPNInfo{
 					Mode:   ConnectMode.String(),
