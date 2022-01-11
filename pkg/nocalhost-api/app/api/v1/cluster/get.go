@@ -8,9 +8,13 @@ package cluster
 import (
 	"context"
 	"encoding/base64"
+	"sync"
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
 	"k8s.io/apimachinery/pkg/util/wait"
+
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
@@ -20,8 +24,6 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
 	"nocalhost/pkg/nocalhost-api/pkg/errno"
 	"nocalhost/pkg/nocalhost-api/pkg/log"
-	"sync"
-	"time"
 )
 
 type ClusterStatus struct {
@@ -328,7 +330,7 @@ func GetStorageClass(c *gin.Context) {
 		api.SendResponse(c, errno.ErrGetClusterStorageClass, nil)
 		return
 	}
-	var typeName []string
+	typeName := make([]string, 0)
 	for _, st := range storageClassList.Items {
 		typeName = append(typeName, st.Name)
 	}
