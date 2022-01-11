@@ -94,7 +94,8 @@ type SyncConfig struct {
 }
 
 type DebugConfig struct {
-	RemoteDebugPort int `validate:"Port" json:"remoteDebugPort" yaml:"remoteDebugPort"`
+	RemoteDebugPort int    `validate:"Port" json:"remoteDebugPort" yaml:"remoteDebugPort"`
+	Language        string `validate:"Language" json:"language" yaml:"language"`
 }
 
 type DependLabelSelector struct {

@@ -35,6 +35,7 @@ var (
 	PortForward  = "PortForward"
 	Port         = "Port"
 	Container    = "Container"
+	Language     = "Language"
 
 	SUPPORT_SC = "NOCALHOST_SUPPORT_SC"
 	CONTAINERS = "NOCALHOST_CONTAINERS"
@@ -51,6 +52,7 @@ func init() {
 	_ = validate.RegisterValidationWithErrorMsg(PortForward, PortForwardCheck)
 	_ = validate.RegisterValidationWithErrorMsg(Port, PortCheck)
 	_ = validate.RegisterValidationWithErrorMsg(Container, ContainerCheck)
+	_ = validate.RegisterValidationWithErrorMsg(Language, LanguageCheck)
 
 	validate.RegisterTagNameFunc(
 		func(field reflect.StructField) string {
@@ -177,6 +179,23 @@ func StorageClassSupported(fl validator.FieldLevel) string {
 	} else {
 		return ""
 	}
+}
+
+func LanguageCheck(fl validator.FieldLevel) string {
+	val := fl.Field().String()
+
+	if val == "" {
+		return ""
+	}
+
+	languages := []string{"node", "java", "go", "python", "php", "ruby"}
+	set := sets.NewString(languages...)
+	return hintIfNoPass(
+		set.Has(val),
+		func() string {
+			return fmt.Sprintf("language %s is unsupported, only %v supported", val, languages)
+		},
+	)
 }
 
 func ContainerCheck(fl validator.FieldLevel) string {
