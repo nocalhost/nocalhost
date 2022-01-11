@@ -331,7 +331,7 @@ func (c *ConnectOptions) startLocalTunServe(ctx context.Context) (chan error, er
 		}
 	default:
 	}
-	c.GetLogger().Infof("tunnel create secussfullly")
+	c.GetLogger().Infof("tunnel create successfully")
 	if util.IsWindows() {
 		if !util.FindRule() {
 			util.AddFirewallRule()
