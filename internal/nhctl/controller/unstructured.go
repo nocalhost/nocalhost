@@ -222,6 +222,17 @@ func (c *Controller) RollbackFromAnnotation(reset bool) error {
 		if len(originalWorkload) != 1 {
 			return errors.New(fmt.Sprintf("Original workload is not 1(%d)?", len(originalWorkload)))
 		}
+
+		if um, ok := originalWorkload[0].Object.(*unstructured.Unstructured); ok {
+			ans := um.GetAnnotations()
+			if ans == nil {
+				ans = map[string]string{}
+			}
+			ans["nocalhost-dep-ignore"] = "true"
+			ans[_const.NocalhostApplicationName] = c.AppName
+			ans[_const.NocalhostApplicationNamespace] = c.NameSpace
+			um.SetAnnotations(ans)
+		}
 	}
 
 	return c.Client.ApplyResourceInfo(originalWorkload[0], nil)
