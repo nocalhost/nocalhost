@@ -180,6 +180,24 @@ func GenKubeconfig(
 	// rewrite context info if needed
 	// for un privilege cluster, should append all devspace to it's context
 	kubeConfigStruct, _, _ := reader.ToStruct()
+	hostConfig, err := clientcmd.Load([]byte(cp.GetKubeConfig()))
+	if err != nil {
+		log.Warnf("load host kubeconfig error: %v", err)
+		return
+	}
+
+	hostCtx := hostConfig.Contexts[hostConfig.CurrentContext]
+	if hostCtx == nil {
+		log.Warn("host kubeconfig context not found")
+		return
+	}
+	hostCluster := hostConfig.Clusters[hostCtx.Cluster]
+	v1Cluster := &clientcmdapiv1.Cluster{}
+	if err := clientcmdapiv1.Convert_api_Cluster_To_v1_Cluster(hostCluster, v1Cluster, nil); err != nil {
+		log.Warnf("convert host kubeconfig error: %v", err)
+		return
+	}
+	kubeConfigStruct.Clusters[0].Cluster = *v1Cluster
 	kubeConfigStruct.Clusters[0].Name = cp.GetClusterName()
 	kubeConfigStruct.Contexts[0].Context.Cluster = cp.GetClusterName()
 	authInfo := kubeConfigStruct.Contexts[0].Context.AuthInfo
