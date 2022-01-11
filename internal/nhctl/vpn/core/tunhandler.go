@@ -15,7 +15,6 @@ import (
 	"golang.org/x/net/ipv6"
 	"net"
 	"nocalhost/internal/nhctl/vpn/util"
-	"runtime"
 	"sync"
 )
 
@@ -99,7 +98,6 @@ func (h *tunHandler) Handle(ctx context.Context, conn net.Conn) {
 			h.chExit <- struct{}{}
 		default:
 			log.Infoln("next loop")
-			runtime.GC()
 		}
 	}
 }
