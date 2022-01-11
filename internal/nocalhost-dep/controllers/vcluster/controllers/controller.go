@@ -166,7 +166,7 @@ func (r *Reconciler) delete(ctx context.Context, vc *helmv1alpha1.VirtualCluster
 	lg := log.FromContext(ctx)
 	var opts []helper.UninstallOption
 	_, err := ac.Uninstall(vc.GetReleaseName(), opts...)
-	if errors.Cause(err) == driver.ErrReleaseNotFound {
+	if errors.Is(err, driver.ErrReleaseNotFound) {
 		lg.Info(fmt.Sprintf("skip uninstall release: %s/%s", vc.GetNamespace(), vc.GetReleaseName()))
 		return nil
 	}

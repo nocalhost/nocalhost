@@ -148,7 +148,7 @@ func (a *actions) getChart(chartRef string) (*chart.Chart, error) {
 func (a *actions) GetState(name string) ActionState {
 	_, err := a.Get(name)
 	if err != nil {
-		if errors.Cause(err) == driver.ErrReleaseNotFound {
+		if errors.Is(err, driver.ErrReleaseNotFound) {
 			return ActionInstall
 		}
 		return ActionError
