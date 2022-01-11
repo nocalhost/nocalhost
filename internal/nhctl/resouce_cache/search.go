@@ -604,7 +604,8 @@ func (c *criteria) Query() (data []interface{}, e error) {
 
 	// if namespace and resourceName is not empty both, using indexer to query data
 	if len(c.ns) != 0 && len(c.resourceName) != 0 {
-		item, exists, err := informer.Informer().GetIndexer().GetByKey(nsResource(c.ns, c.resourceName))
+		//item, exists, err := informer.Informer().GetIndexer().GetByKey(nsResource(c.ns, c.resourceName))
+		item, exists, err := informer.Informer().GetStore().GetByKey(nsResource(c.ns, c.resourceName))
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}
@@ -616,7 +617,8 @@ func (c *criteria) Query() (data []interface{}, e error) {
 
 		// this is a filter, if appName is empty, just return value
 		if len(c.appName) == 0 || c.appName == getAppName(item) {
-			return append(data, item), nil
+			data = append(data, item)
+			return data, nil
 		}
 		return
 	}

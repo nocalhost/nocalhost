@@ -379,9 +379,10 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) (inte
 		// get all resource in namespace
 		if len(request.ResourceName) == 0 {
 			return result, nil
-		} else {
+		} else if len(result) > 0 {
 			return result[0], nil
 		}
+		return result, nil
 	}
 }
 
