@@ -136,7 +136,7 @@ func TestGetPods(t *testing.T) {
 
 }
 
-func TestGetDefault(t *testing.T) {
+func TestConcurrence(t *testing.T) {
 	//bytes, _ := ioutil.ReadFile("/tmp/test.txt")
 	bytes, _ := ioutil.ReadFile(path.Join(utils.GetHomePath(), ".kube/config"))
 	//s, err := GetSearcherWithLRU(bytes, "nh2yunf")
@@ -172,6 +172,39 @@ func TestGetDefault(t *testing.T) {
 			//fmt.Printf("%d Get len %d, takes: %d ms\n", ii, len(i), start.Sub(time.Now()).Microseconds())
 		}()
 	}
+
+	/*i, e = s.GetByAppAndNs(&v1.Deployment{}, "default.application", "default")
+	  if e != nil {
+	  	log.Error(e)
+	  }
+	  for _, dep := range i {
+	  	fmt.Println(dep.(metav1.Object).GetName())
+	  }*/
+}
+
+func TestGet(t *testing.T) {
+	//bytes, _ := ioutil.ReadFile("/tmp/admin-large")
+	bytes, _ := ioutil.ReadFile(path.Join(utils.GetHomePath(), ".kube/config"))
+	//s, err := GetSearcherWithLRU(bytes, "nh2yunf")
+	namespace := "nocalhost-test"
+	_, _ = GetSearcherWithLRU(bytes, namespace)
+	time.Sleep(3 * time.Second)
+
+	s, err := GetSearcherWithLRU(bytes, namespace)
+	if err != nil {
+		panic(err)
+	}
+	i, e := s.Criteria().ResourceType("cronjob").
+		ResourceName("").
+		//AppName("bookinfo").
+		Namespace(namespace).Query()
+	if e != nil {
+		panic(e)
+	}
+	for _, dep := range i {
+		fmt.Println(dep.(metav1.Object).GetName())
+	}
+	//fmt.Printf("%d Get len %d, takes: %d ms\n", ii, len(i), start.Sub(time.Now()).Microseconds())
 
 	/*i, e = s.GetByAppAndNs(&v1.Deployment{}, "default.application", "default")
 	  if e != nil {

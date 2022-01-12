@@ -13,7 +13,6 @@ import (
 	flag "nocalhost/internal/nhctl/app_flags"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/fp"
-	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/pkg/nhctl/tools"
@@ -24,6 +23,7 @@ func (a *Application) PrepareForUpgrade(flags *flag.InstallFlags) error {
 
 	var err error
 	a.ResourceTmpDir, _ = ioutil.TempDir("", "")
+	a.shouldClean = true
 	if err = os.MkdirAll(a.ResourceTmpDir, DefaultNewFilePermission); err != nil {
 		return errors.New("Fail to create tmp dir for upgrade")
 	}
@@ -32,9 +32,8 @@ func (a *Application) PrepareForUpgrade(flags *flag.InstallFlags) error {
 			return err
 		}
 	} else if flags.LocalPath != "" {
-		if err = utils.CopyDir(flags.LocalPath, a.ResourceTmpDir); err != nil {
-			return err
-		}
+		a.ResourceTmpDir = flags.LocalPath
+		a.shouldClean = false
 	}
 
 	if flags.OuterConfig == "" && a.GetType() == appmeta.HelmRepo {

@@ -79,6 +79,7 @@ func PrepareForConfigurationValidate(client *clientgoutils.ClientGoUtils, contai
 	if list, err := client.ClientSet.StorageV1().StorageClasses().List(
 		context.TODO(), metav1.ListOptions{},
 	); err != nil {
+		_ = os.Unsetenv(SUPPORT_SC)
 		return
 	} else {
 		storageClasses := ""

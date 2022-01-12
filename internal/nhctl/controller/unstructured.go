@@ -44,15 +44,15 @@ func (c *Controller) GetPodTemplate() (*corev1.PodTemplateSpec, error) {
 // If in Replace DevMode and DevModeAction.Create is true, return pods of generated deployment
 // Others, return pods of the workload
 func (c *Controller) GetPodList() ([]corev1.Pod, error) {
+	if c.DevModeType.IsDuplicateDevMode() {
+		return c.GetDuplicateModePodList()
+	}
 	if c.Type == base.Pod {
 		pod, err := c.Client.GetPod(c.Name)
 		if err != nil {
 			return nil, err
 		}
 		return []corev1.Pod{*pod}, nil
-	}
-	if c.DevModeType.IsDuplicateDevMode() {
-		return c.GetDuplicateModePodList()
 	}
 	if c.IsInReplaceDevMode() && c.DevModeAction.Create {
 		return c.ListPodOfGeneratedDeployment()
@@ -65,15 +65,12 @@ func (c *Controller) GetPodList() ([]corev1.Pod, error) {
 	return c.Client.Labels(pt.Labels).ListPods()
 }
 
-func (c *Controller) getGeneratedDeployment() (*v1.Deployment, error) {
+func (c *Controller) getGeneratedDeployment() ([]v1.Deployment, error) {
 	ds, err := c.Client.Labels(c.getGeneratedDeploymentLabels()).ListDeployments()
 	if err != nil {
 		return nil, err
 	}
-	if len(ds) != 1 {
-		return nil, errors.New(fmt.Sprintf("Generated deployment is %d(not 1?)", len(ds)))
-	}
-	return &ds[0], nil
+	return ds, nil
 }
 
 func (c *Controller) ListPodOfGeneratedDeployment() ([]corev1.Pod, error) {
@@ -81,7 +78,10 @@ func (c *Controller) ListPodOfGeneratedDeployment() ([]corev1.Pod, error) {
 	if err != nil {
 		return nil, err
 	}
-	return c.Client.ListPodsOfDeployment(ds.Name)
+	if len(ds) != 1 {
+		return nil, errors.New(fmt.Sprintf("Generated deployment is %d(not 1?)", len(ds)))
+	}
+	return c.Client.ListPodsOfDeployment(ds[0].Name)
 }
 
 func (c *Controller) IncreaseDevModeCount() error {
@@ -146,7 +146,7 @@ func (c *Controller) DecreaseDevModeCount() error {
 	return c.Client.Patch(c.Type.String(), c.Name, string(bys), "json")
 }
 
-func (c *Controller) RollbackFromAnnotation() error {
+func (c *Controller) RollbackFromAnnotation(reset bool) error {
 
 	if c.DevModeAction.Create {
 		log.Info("Destroying generated deployment")
@@ -154,8 +154,21 @@ func (c *Controller) RollbackFromAnnotation() error {
 		if err != nil {
 			return err
 		}
-		if err = c.Client.DeleteDeployment(ds.Name, false); err != nil {
-			return err
+		if len(ds) != 1 {
+			if reset {
+				for _, d := range ds {
+					// Clean up generated deployment
+					if err = c.Client.DeleteDeployment(d.Name, false); err != nil {
+						log.WarnE(err, "")
+					}
+				}
+			} else {
+				return errors.New(fmt.Sprintf("Generated deployment is %d(not 1?)", len(ds)))
+			}
+		} else {
+			if err = c.Client.DeleteDeployment(ds[0].Name, false); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -197,25 +210,36 @@ func (c *Controller) RollbackFromAnnotation() error {
 		return errors.New(fmt.Sprintf("Original workload is not 1(%d)?", len(originalWorkload)))
 	}
 
-	// Recreate
-	if err := clientgoutils.DeleteResourceInfo(originalWorkload[0]); err != nil {
-		return err
-	}
+	if !c.DevModeAction.Create {
+		// Recreate
+		if err := clientgoutils.DeleteResourceInfo(originalWorkload[0]); err != nil {
+			return err
+		}
+		originalWorkload, err = c.Client.GetResourceInfoFromString(osj, true)
+		if err != nil {
+			return err
+		}
+		if len(originalWorkload) != 1 {
+			return errors.New(fmt.Sprintf("Original workload is not 1(%d)?", len(originalWorkload)))
+		}
 
-	originalWorkload, err = c.Client.GetResourceInfoFromString(osj, true)
-	if err != nil {
-		return err
-	}
-
-	if len(originalWorkload) != 1 {
-		return errors.New(fmt.Sprintf("Original workload is not 1(%d)?", len(originalWorkload)))
+		if um, ok := originalWorkload[0].Object.(*unstructured.Unstructured); ok {
+			ans := um.GetAnnotations()
+			if ans == nil {
+				ans = map[string]string{}
+			}
+			ans["nocalhost-dep-ignore"] = "true"
+			ans[_const.NocalhostApplicationName] = c.AppName
+			ans[_const.NocalhostApplicationNamespace] = c.NameSpace
+			um.SetAnnotations(ans)
+		}
 	}
 
 	return c.Client.ApplyResourceInfo(originalWorkload[0], nil)
 }
 
-// GetUnstructuredMapBySpecificPath Path must be like: /spec/template
-func GetUnstructuredMapBySpecificPath(path string, u map[string]interface{}) (map[string]interface{}, error) {
+// GetUnstructuredMapByPath Path must be like: /spec/template
+func GetUnstructuredMapByPath(path string, u map[string]interface{}) (map[string]interface{}, error) {
 	if strings.HasPrefix(path, "\\/") {
 		return nil, errors.New(fmt.Sprintf("Path %s invalid. It must be like: /spec/template, and start with /", path))
 	}
@@ -274,7 +298,23 @@ func GetUnstructuredMapBySpecificPath(path string, u map[string]interface{}) (ma
 }
 
 func GetPodTemplateFromSpecPath(path string, unstructuredObj map[string]interface{}) (*corev1.PodTemplateSpec, error) {
-	currentPathMap, err := GetUnstructuredMapBySpecificPath(path, unstructuredObj)
+
+	p := &corev1.PodTemplateSpec{}
+
+	// For Pod
+	if path == "" {
+		podSpecMap, err := GetUnstructuredMapByPath("/spec", unstructuredObj)
+		if err != nil {
+			return nil, err
+		}
+		podBytes, err := json.Marshal(podSpecMap)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+		return p, errors.WithStack(json.Unmarshal(podBytes, &p.Spec))
+	}
+
+	currentPathMap, err := GetUnstructuredMapByPath(path, unstructuredObj)
 	if err != nil {
 		return nil, err
 	}
@@ -283,12 +323,7 @@ func GetPodTemplateFromSpecPath(path string, unstructuredObj map[string]interfac
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-	p := &corev1.PodTemplateSpec{}
-	if err = json.Unmarshal(jsonBytes, p); err != nil {
-		return nil, errors.WithStack(err)
-	} else {
-		return p, nil
-	}
+	return p, errors.WithStack(json.Unmarshal(jsonBytes, p))
 }
 
 // GetAnnotationFromUnstructured get annotation from unstructured

@@ -135,7 +135,7 @@ func CheckKubeconfig(kubeconfigParams string, contextParam string) CheckInfo {
 			FAIL, msg,
 		}
 	} else {
-		specifiedNs := ctx.Namespace == ""
+		specifiedNs := ctx.Namespace != ""
 		_ = Prepare()
 
 		kubeCOnfigContent := fp.NewFilePath(kubeConfig).ReadFile()
@@ -158,7 +158,7 @@ func CheckKubeconfig(kubeconfigParams string, contextParam string) CheckInfo {
 				if specifiedNs {
 					if err := clientgoutils.CheckForResource(
 						kubeCOnfigContent,
-						"",
+						ctx.Namespace,
 						[]string{"list"}, "pod",
 					); err != nil {
 						return CheckInfo{FAIL, fmt.Sprintf(invalidNamespaceFmt, err.Error())}

@@ -17,6 +17,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common"
@@ -34,6 +35,7 @@ func CreateK8s() (*task, error) {
 		return nil, errors.New("SECRET_ID or SECRET_KEY is null, please make sure you have set it correctly")
 	}
 	t := NewTask(id, key)
+	t.DeleteIdlingCluster()
 	t.CreateTKE()
 	t.WaitClusterToBeReady()
 	t.WaitInstanceToBeReady()
@@ -49,7 +51,7 @@ func DeleteTke(t *task) {
 	t.Delete()
 }
 
-// NewTask
+// NewTask create a task with secret id and secret key
 func NewTask(secretId, secretKey string) *task {
 	return &task{
 		secretId:  secretId,
@@ -287,7 +289,36 @@ func (t *task) WaitClusterToBeReady() {
 	}
 }
 
-// WaitInstanceToBeReady
+// DeleteIdlingCluster Delete idling tke cluster
+func (t *task) DeleteIdlingCluster() {
+	request := tke.NewDescribeClustersRequest()
+	request.ClusterIds = []*string{}
+	response, err := t.GetClient().DescribeClusters(request)
+	if err != nil {
+		log.Infof("error while delete useless cluster, response: %v, err: %v", response, err)
+		return
+	}
+	if response != nil &&
+		response.Response != nil &&
+		response.Response.Clusters != nil &&
+		len(response.Response.Clusters) != 0 {
+		var wg sync.WaitGroup
+		for _, cluster := range response.Response.Clusters {
+			if "Idling" == *cluster.ClusterStatus &&
+				strings.Contains(*cluster.ClusterName, "test") &&
+				*cluster.ClusterNodeNum == 0 {
+				wg.Add(1)
+				go func(clusterId string) {
+					defer wg.Done()
+					t.DeleteOne(clusterId)
+				}(*cluster.ClusterId)
+			}
+		}
+		wg.Wait()
+	}
+}
+
+// WaitInstanceToBeReady wait instance to be ready
 func (t task) WaitInstanceToBeReady() {
 	request := tke.NewDescribeClusterInstancesRequest()
 	request.ClusterId = &t.clusterId
@@ -396,10 +427,16 @@ func (t *task) GetKubeconfig() {
 
 // Delete Cluster
 func (t *task) Delete() {
+	t.DeleteOne(t.clusterId)
+}
+func (t *task) DeleteOne(clusterId string) {
+	if len(clusterId) == 0 {
+		clusterId = t.clusterId
+	}
 	mode := "terminate"
 	cbs := "CBS"
 	request := tke.NewDeleteClusterRequest()
-	request.ClusterId = &t.clusterId
+	request.ClusterId = &clusterId
 	request.InstanceDeleteMode = &mode
 	option := tke.ResourceDeleteOption{
 		ResourceType: &cbs,
@@ -407,13 +444,13 @@ func (t *task) Delete() {
 	}
 	request.ResourceDeleteOptions = []*tke.ResourceDeleteOption{&option}
 	for {
-		time.Sleep(time.Second * 5)
+		time.Sleep(time.Second * 1)
 		_, err := t.GetClient().DeleteCluster(request)
 		if err != nil {
-			log.Infof("delete tke cluster: %s error, retrying, error info: %v", t.clusterId, err)
+			log.Infof("delete tke cluster: %s error, retrying, error info: %v", clusterId, err)
 			continue
 		}
-		log.Infof("delete tke cluster: %s successfully", t.clusterId)
+		log.Infof("delete tke cluster: %s successfully", clusterId)
 		return
 	}
 }

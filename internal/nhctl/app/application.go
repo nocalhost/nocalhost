@@ -46,6 +46,7 @@ type Application struct {
 	// may be nil, only for install or upgrade
 	// dir use to load the user's resource
 	ResourceTmpDir string
+	shouldClean    bool
 
 	appMeta *appmeta.ApplicationMeta
 	client  *clientgoutils.ClientGoUtils
@@ -152,10 +153,12 @@ func newApplication(name string, ns string, kubeconfig string, meta *appmeta.App
 	}
 
 	if profileV2.Identifier == "" {
-		if err = app.UpdateProfile(func(v2 *profile.AppProfileV2) error {
-			v2.GenerateIdentifierIfNeeded()
-			return nil
-		}); err != nil {
+		if err = app.UpdateProfile(
+			func(v2 *profile.AppProfileV2) error {
+				v2.GenerateIdentifierIfNeeded()
+				return nil
+			},
+		); err != nil {
 			return nil, err
 		}
 		if profileV2, err = app.GetProfile(); err != nil {
@@ -235,7 +238,7 @@ func (a *Application) loadSvcCfmFromAnnotationIfValid(svcName string, svcType ba
 		return false
 	} else {
 		_, // local config should not contain app config
-			svcCfg, err := LoadSvcCfgFromStrIfValid(v, svcName, svcType)
+		svcCfg, err := LoadSvcCfgFromStrIfValid(v, svcName, svcType)
 		if err != nil {
 			hint(
 				"Load nocalhost svc config from [Resource:%s, Name:%s] annotation fail, err: %s",
@@ -295,7 +298,7 @@ func (a *Application) loadSvcCfgFromCmIfValid(svcName string, svcType base.SvcTy
 	}
 
 	_, // local config should not contain app config
-		svcCfg, err := LoadSvcCfgFromStrIfValid(cfgStr, svcName, svcType)
+	svcCfg, err := LoadSvcCfgFromStrIfValid(cfgStr, svcName, svcType)
 	if err != nil {
 		hint("Load nocalhost svc config from cm fail, err: %s", err.Error())
 		return false
@@ -696,6 +699,9 @@ func (a *Application) PortForward(pod string, localPort, remotePort int, readyCh
 }
 
 func (a *Application) CleanUpTmpResources() error {
+	if !a.shouldClean {
+		return nil
+	}
 	log.Log("Clean up tmp resources...")
 	return errors.Wrap(
 		os.RemoveAll(a.ResourceTmpDir),

@@ -211,9 +211,12 @@ func (c *Controller) genWorkDirAndPVAndMounts(container, storageClass string, ig
 			labels = c.getDuplicateLabelsMap()
 			labels[_const.DevWorkloadIgnored] = "false"
 			labels[_const.AppLabel] = c.AppName
+			labels[_const.ServiceLabel] = c.Name
+			labels[_const.ServiceTypeLabel] = string(c.Type)
 		} else {
 			labels[_const.AppLabel] = c.AppName
 			labels[_const.ServiceLabel] = c.Name
+			labels[_const.ServiceTypeLabel] = string(c.Type)
 		}
 		labels[_const.PersistentVolumeDirLabel] = utils.Sha1ToString(persistentVolume.Path)
 		claims, err := c.Client.GetPvcByLabels(labels)
@@ -529,9 +532,17 @@ func findDevPodName(podList ...corev1.Pod) (string, error) {
 			}
 		}
 
-		if latestPod.Status.Phase == "Running" {
+		count := 0
+		for _, status := range latestPod.Status.ContainerStatuses {
+			if (status.Name == "nocalhost-dev" || status.Name == "nocalhost-sidecar") &&
+				status.Ready {
+				count++
+			}
+		}
+		if count == 2 {
 			return latestPod.Name, nil
 		}
+
 		return "", errors.New("dev container has not be ready")
 	}
 	return "", errors.New("dev container not found")
@@ -625,7 +636,8 @@ func (c *Controller) genContainersAndVolumes(podSpec *corev1.PodSpec,
 	devModeMounts = append(devModeMounts, syncthingVolumeMounts...)
 
 	workDirAndPersistVolumes, workDirAndPersistVolumeMounts, err := c.genWorkDirAndPVAndMounts(
-		containerName, storageClass, workDirAlreadyMounted, duplicateDevMode)
+		containerName, storageClass, workDirAlreadyMounted, duplicateDevMode,
+	)
 	if err != nil {
 		return nil, nil, nil, err
 	}
