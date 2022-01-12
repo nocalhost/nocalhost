@@ -35,7 +35,7 @@ require (
 	github.com/lestrrat-go/strftime v1.0.3 // indirect
 	github.com/mattn/go-sqlite3 v2.0.1+incompatible // indirect
 	github.com/mattn/psutil v0.0.0-20170126005127-e6c88f1e9be6
-	github.com/miekg/dns v1.0.14
+	github.com/miekg/dns v1.1.25
 	github.com/milosgajdos/tenus v0.0.3
 	github.com/mitchellh/go-ps v1.0.0
 	github.com/moby/term v0.0.0-20210610120745-9d4ed1856297

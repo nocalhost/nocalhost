@@ -237,7 +237,7 @@ github.com/mattn/go-runewidth
 github.com/mattn/psutil
 # github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369
 github.com/matttproud/golang_protobuf_extensions/pbutil
-# github.com/miekg/dns v1.0.14
+# github.com/miekg/dns v1.1.25
 ## explicit
 github.com/miekg/dns
 # github.com/milosgajdos/tenus v0.0.3
