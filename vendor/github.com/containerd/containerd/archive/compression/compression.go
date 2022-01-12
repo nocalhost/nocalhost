@@ -29,7 +29,6 @@ import (
 	"sync"
 
 	"github.com/containerd/containerd/log"
-	"github.com/klauspost/compress/zstd"
 )
 
 type (
@@ -42,8 +41,6 @@ const (
 	Uncompressed Compression = iota
 	// Gzip is gzip compression algorithm.
 	Gzip
-	// Zstd is zstd compression algorithm.
-	Zstd
 )
 
 const disablePigzEnv = "CONTAINERD_DISABLE_PIGZ"
@@ -129,7 +126,6 @@ func (r *bufferedReader) Peek(n int) ([]byte, error) {
 func DetectCompression(source []byte) Compression {
 	for compression, m := range map[Compression][]byte{
 		Gzip: {0x1F, 0x8B, 0x08},
-		Zstd: {0x28, 0xb5, 0x2f, 0xfd},
 	} {
 		if len(source) < len(m) {
 			// Len too short
@@ -178,19 +174,6 @@ func DecompressStream(archive io.Reader) (DecompressReadCloser, error) {
 				return gzReader.Close()
 			},
 		}, nil
-	case Zstd:
-		zstdReader, err := zstd.NewReader(buf)
-		if err != nil {
-			return nil, err
-		}
-		return &readCloserWrapper{
-			Reader:      zstdReader,
-			compression: compression,
-			closer: func() error {
-				zstdReader.Close()
-				return nil
-			},
-		}, nil
 
 	default:
 		return nil, fmt.Errorf("unsupported compression format %s", (&compression).Extension())
@@ -204,8 +187,6 @@ func CompressStream(dest io.Writer, compression Compression) (io.WriteCloser, er
 		return &writeCloserWrapper{dest, nil}, nil
 	case Gzip:
 		return gzip.NewWriter(dest), nil
-	case Zstd:
-		return zstd.NewWriter(dest)
 	default:
 		return nil, fmt.Errorf("unsupported compression format %s", (&compression).Extension())
 	}
@@ -216,8 +197,6 @@ func (compression *Compression) Extension() string {
 	switch *compression {
 	case Gzip:
 		return "gz"
-	case Zstd:
-		return "zst"
 	}
 	return ""
 }
