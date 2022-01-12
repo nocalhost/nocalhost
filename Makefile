@@ -27,6 +27,10 @@ dep-docker: ## Build nocalhost-dep docker image
 dep-installer-job-docker: ## Build dep-installer-job-docker docker image
 	@bash ./scripts/build/dep/installer-job
 
+.PHONY: vpn-docker
+vpn-docker: nhctl-linux ## Build vpn docker image
+	@bash ./scripts/build/vpn/docker
+
 .PHONY: nhctl
 nhctl: ## Build nhctl for current OS
 	@echo "WARNING: binary creates a current os executable."

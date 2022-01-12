@@ -10,8 +10,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
+	"io"
 	"io/ioutil"
 	"net"
+	"net/http"
+	_ "net/http/pprof"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/appmeta_manager"
@@ -23,9 +26,11 @@ import (
 	"nocalhost/internal/nhctl/nocalhost_cleanup"
 	"nocalhost/internal/nhctl/syncthing/daemon"
 	"nocalhost/internal/nhctl/utils"
+	"nocalhost/internal/nhctl/vpn/util"
+	"nocalhost/pkg/nhctl/clientgoutils"
 	k8sutil "nocalhost/pkg/nhctl/k8sutils"
 	"nocalhost/pkg/nhctl/log"
-	"runtime/debug"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -62,7 +67,7 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 
 	version = v
 	commitId = c
-	if isSudoUser && !utils.IsSudoUser() {
+	if isSudoUser && !util.IsAdmin() {
 		return errors.New("Failed to start daemon server with sudo")
 	}
 	isSudo = isSudoUser // Mark daemon server if it is run as sudo
@@ -77,6 +82,12 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 		appmeta_manager.Init()
 		appmeta_manager.RegisterListener(
 			func(pack *appmeta_manager.ApplicationEventPack) error {
+
+				if strings.Contains(pack.Event.ResourceName, appmeta.DEV_STARTING_SUFFIX) {
+					log.Infof("Ignore event %s", pack.Event.ResourceName)
+					return nil
+				}
+
 				kubeconfig := k8sutil.GetOrGenKubeConfigPath(string(pack.KubeConfigBytes))
 				nhApp, err := app.NewApplication(pack.AppName, pack.Ns, kubeconfig, true)
 				if err != nil {
@@ -102,7 +113,10 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 
 					_ = nhController.StopSyncAndPortForwardProcess(true)
 				} else if pack.Event.EventType == appmeta.DEV_STA {
-					profile, _ := nhApp.GetProfile()
+					profile, err := nhApp.GetProfile()
+					if err != nil {
+						return nil
+					}
 
 					// ignore the event from local
 					if profile.Identifier == pack.Event.Identifier {
@@ -120,12 +134,30 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 			},
 		)
 		appmeta_manager.Start()
+
+		dev_dir.Initial()
+		// update nocalhost-hub
+		go cronJobForUpdatingHub()
+		// Listen http
+		go func() {
+			if !isSudo {
+				startHttpServer()
+			} else {
+				_ = http.ListenAndServe("127.0.0.1:"+strconv.Itoa(daemon_common.SudoDaemonHttpPort), nil)
+			}
+		}()
+
+		go checkClusterStatusCronJob()
+
+		go reconnectSyncthingIfNeededWithPeriod(time.Second * 30)
+
+		go func() {
+			time.Sleep(30 * time.Second)
+			if err := nocalhost_cleanup.CleanUp(false); err != nil {
+				log.Logf("Clean up application in daemon failed: %s", err.Error())
+			}
+		}()
 	}
-
-	dev_dir.Initial()
-
-	// update nocalhost-hub
-	go cronJobForUpdatingHub()
 
 	go func() {
 		defer func() {
@@ -148,13 +180,15 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 
 			go func() {
 				defer func() {
-					_ = conn.Close()
-					recoverDaemonFromPanic()
+					if conn != nil {
+						_ = conn.Close()
+					}
+					utils.RecoverFromPanic()
 				}()
 
 				var err error
 
-				start := time.Now()
+				//start := time.Now()
 				errChan := make(chan error, 1)
 				bytesChan := make(chan []byte, 1)
 
@@ -185,20 +219,18 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 					log.LogE(err)
 					return
 				}
-				log.Tracef("Handling %s command", cmdType)
+				//log.Tracef("Handling %s command", cmdType)
 				handleCommand(conn, bytes, cmdType, clientStack)
-				takes := time.Now().Sub(start).Seconds()
-				log.WriteToEsWithField(map[string]interface{}{"take": takes}, "%s command done", cmdType)
+				//takes := time.Now().Sub(start).Seconds()
+				//log.WriteToEsWithField(map[string]interface{}{"take": takes}, "%s command done", cmdType)
 			}()
 		}
 	}()
 
-	// Listen http
-	go startHttpServer()
+	// recover
+	go func() {
 
-	go checkClusterStatusCronJob()
-
-	go reconnectSyncthingIfNeededWithPeriod(time.Second * 30)
+	}()
 
 	go func() {
 		select {
@@ -213,12 +245,6 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 
 	//// Recovering syncthing
 	//go recoverSyncthing()
-	go func() {
-		time.Sleep(30 * time.Second)
-		if err := nocalhost_cleanup.CleanUp(false); err != nil {
-			log.Logf("Clean up application in daemon failed: %s", err.Error())
-		}
-	}()
 
 	select {
 	case <-daemonCtx.Done():
@@ -230,9 +256,7 @@ func StartDaemon(isSudoUser bool, v string, c string) error {
 func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType, clientStack string) {
 	var err error
 	defer func() {
-		if err != nil {
-			log.Log("Client Stack: " + clientStack)
-		}
+		utils.RecoverFromPanic()
 	}()
 
 	// prevent elder version to send cmd to daemon
@@ -327,6 +351,21 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 			},
 		)
 
+	case command.AuthCheck:
+		err = Process(
+			conn, func(conn net.Conn) (interface{}, error) {
+				acCmd := &command.AuthCheckCommand{}
+				if err = json.Unmarshal(bys, acCmd); err != nil {
+					return nil, err
+				}
+
+				return nil, clientgoutils.CheckForResource(
+					acCmd.KubeConfigContent,
+					acCmd.NameSpace,
+					nil,
+					acCmd.NeedChecks...)
+			})
+
 	case command.GetApplicationMeta:
 		err = Process(
 			conn, func(conn net.Conn) (interface{}, error) {
@@ -361,7 +400,7 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 					return nil, errors.Wrap(err, "")
 				}
 
-				return daemon_handler.HandleGetResourceInfoRequest(cmd), nil
+				return daemon_handler.HandleGetResourceInfoRequest(cmd)
 			},
 		)
 
@@ -407,6 +446,42 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 				return HandleCheckClusterStatus(cmd)
 			},
 		)
+	case command.VPNOperate:
+		err = ProcessStream(
+			conn, func(conn net.Conn) (io.ReadCloser, error) {
+				cmd := &command.VPNOperateCommand{}
+				if err = json.Unmarshal(bys, cmd); err != nil {
+					return nil, errors.Wrap(err, "")
+				}
+				reader, writer := io.Pipe()
+				go daemon_handler.HandleVPNOperate(cmd, writer)
+				return reader, err
+			},
+		)
+	case command.SudoVPNOperate:
+		err = ProcessStream(
+			conn, func(conn net.Conn) (io.ReadCloser, error) {
+				cmd := &command.VPNOperateCommand{}
+				if err = json.Unmarshal(bys, cmd); err != nil {
+					return nil, errors.Wrap(err, "")
+				}
+				reader, writer := io.Pipe()
+				go daemon_handler.HandleSudoVPNOperate(cmd, writer)
+				return reader, err
+			},
+		)
+	case command.VPNStatus:
+		err = Process(
+			conn, func(conn net.Conn) (interface{}, error) {
+				return daemon_handler.HandleVPNStatus()
+			},
+		)
+	case command.SudoVPNStatus:
+		err = Process(
+			conn, func(conn net.Conn) (interface{}, error) {
+				return daemon_handler.HandleSudoVPNStatus()
+			},
+		)
 	}
 
 	if err != nil {
@@ -414,6 +489,16 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 	}
 }
 
+func ProcessStream(conn net.Conn, fun func(conn net.Conn) (io.ReadCloser, error)) error {
+	defer conn.Close()
+	n, err := fun(conn)
+	if err != nil {
+		return err
+	}
+	defer n.Close()
+	_, _ = io.Copy(conn, n)
+	return nil
+}
 func Process(conn net.Conn, fun func(conn net.Conn) (interface{}, error)) error {
 	defer conn.Close()
 
@@ -494,10 +579,4 @@ func handleStopPortForwardCommand(cmd *command.PortForwardCommand) error {
 // If a port-forward already exist, skip it(don't do anything), and return an error
 func handleStartPortForwardCommand(startCmd *command.PortForwardCommand) error {
 	return pfManager.StartPortForwardGoRoutine(startCmd, true)
-}
-
-func recoverDaemonFromPanic() {
-	if r := recover(); r != nil {
-		log.Errorf("DAEMON-RECOVER: %s", string(debug.Stack()))
-	}
 }

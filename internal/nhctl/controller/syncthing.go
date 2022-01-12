@@ -12,7 +12,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/nocalhost"
-	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing/network/req"
 	"nocalhost/internal/nhctl/syncthing/ports"
 	secret_config "nocalhost/internal/nhctl/syncthing/secret-config"
@@ -172,7 +171,7 @@ func (c *Controller) CreateSyncThingSecret(container string, localSyncDir []stri
 
 	newSyncthing, err := c.NewSyncthing(container, localSyncDir, false)
 	if err != nil {
-		return errors.Wrap(err, "Failed to create syncthing process, please try again")
+		return errors.Wrap(err, "Failed to create syncthing process")
 	}
 	// set syncthing secret
 	config, err := newSyncthing.GetRemoteConfigXML()
@@ -182,7 +181,7 @@ func (c *Controller) CreateSyncThingSecret(container string, localSyncDir []stri
 
 	syncSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: c.GetSyncThingSecretName(duplicateDevMode),
+			Name: c.GetSyncThingSecretName(),
 		},
 		Type: corev1.SecretTypeOpaque,
 		Data: map[string][]byte{
@@ -197,19 +196,19 @@ func (c *Controller) CreateSyncThingSecret(container string, localSyncDir []stri
 	if exist != nil && exist.Name != "" {
 		_ = c.Client.DeleteSecret(syncSecret.Name)
 	}
-	sc, err := c.Client.CreateSecret(syncSecret, metav1.CreateOptions{})
-	if err != nil {
-		return err
-	}
+	_, err = c.Client.CreateSecret(syncSecret, metav1.CreateOptions{})
+	//if err != nil {
+	return err
+	//}
 
-	return c.UpdateSvcProfile(
-		func(svcPro *profile.SvcProfileV2) error {
-			if duplicateDevMode {
-				svcPro.DuplicateDevModeSyncthingSecretName = sc.Name
-			} else {
-				svcPro.SyncthingSecret = sc.Name
-			}
-			return nil
-		},
-	)
+	//return c.UpdateSvcProfile(
+	//	func(svcPro *profile.SvcProfileV2) error {
+	//		if duplicateDevMode {
+	//			svcPro.DuplicateDevModeSyncthingSecretName = sc.Name
+	//		} else {
+	//			svcPro.SyncthingSecret = sc.Name
+	//		}
+	//		return nil
+	//	},
+	//)
 }

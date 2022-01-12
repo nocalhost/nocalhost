@@ -6,22 +6,24 @@
 package _const
 
 const (
-	UintEnable = uint64(1)
+	UintEnable  = uint64(1)
 	UintDisable = uint64(0)
 
 	DefaultEmailSuffix = "@nocalhost.dev"
 
-	DefaultNewFilePermission        = 0700
-	DefaultApplicationDirName       = "application"
-	DefaultBinDirName               = "bin"
-	DefaultBinSyncThingDirName      = "syncthing"
-	DefaultLogDirName               = "logs"
-	DefaultLogFileName              = "nhctl.log"
-	DefaultApplicationProfilePath   = ".profile.yaml" // runtime config
-	DefaultApplicationProfileV2Path = ".profile_v2.yaml"
+	DefaultNewFilePermission   = 0700
+	DefaultApplicationDirName  = "application"
+	DefaultBinDirName          = "bin"
+	DefaultBinSyncThingDirName = "syncthing"
+	DefaultLogDirName          = "logs"
+	DefaultLogFileName         = "nhctl.log"
+	//DefaultApplicationProfilePath   = ".profile.yaml" // runtime config
+	//DefaultApplicationProfileV2Path = ".profile_v2.yaml"
 
 	NocalhostApplicationName      = "dev.nocalhost/application-name"
 	NocalhostApplicationNamespace = "dev.nocalhost/application-namespace"
+	OriginWorkloadDefinition      = "dev.nocalhost/origin-workload-definition"
+	DevModeCount                  = "dev.nocalhost/dev-mode-count"
 	AppManagedByLabel             = "app.kubernetes.io/managed-by"
 	AppManagedByNocalhost         = "nocalhost"
 	DefaultNocalhostSideCarName   = "nocalhost-sidecar"
@@ -33,9 +35,11 @@ const (
 
 	PersistentVolumeDirLabel = "nocalhost.dev/dir"
 	ServiceLabel             = "nocalhost.dev/service"
+	ServiceTypeLabel         = "nocalhost.dev/service-type"
 	AppLabel                 = "nocalhost.dev/app"
 
 	DefaultSideCarImage = "nocalhost-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:sshversion"
+	DefaultVPNImage     = "nocalhost-docker.pkg.coding.net/nocalhost/public/nocalhost-vpn:v1"
 
 	DefaultApplicationSyncPidFile = "syncthing.pid"
 

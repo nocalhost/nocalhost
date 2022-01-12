@@ -195,7 +195,7 @@ func (svcPackKey *SvcPackKey) toPack() *SvcPack {
 	return &SvcPack{
 		Ns:        array[0],
 		App:       array[1],
-		SvcType:   base.SvcTypeOf(array[2]),
+		SvcType:   base.SvcType(array[2]),
 		Svc:       array[3],
 		Container: array[4],
 	}

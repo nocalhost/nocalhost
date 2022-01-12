@@ -48,7 +48,7 @@ func GenKubeconfig(kube, ns string) {
 	must(err)
 
 	labels := map[string]string{"nocalhost.dev/generated-by": "nocalhost"}
-	k8sClient.Labels(labels)
+	k8sClient = k8sClient.Labels(labels)
 
 	must(k8sClient.CreateNamespaceINE(ns))
 

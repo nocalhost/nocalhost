@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package tools
 
@@ -37,6 +37,7 @@ func ExecCommand(
 		fmt.Println("command with ctx")
 		cmd = exec.CommandContext(ctx, commandName, params...)
 	}
+	fmt.Printf("Executing %s %v\n", commandName, params)
 	cmdStr := []string{commandName}
 	cmdStr = append(cmdStr, params...)
 	if isDisplay {
@@ -103,7 +104,6 @@ func copyAndCapture(w io.Writer, r io.Reader, isDisplay bool) ([]byte, error) {
 	return nil, nil
 }
 
-
 // check kubectl and helm
 func CheckThirdPartyCLI() (string, error) {
 	kubectl := "kubectl"
@@ -122,7 +122,6 @@ func CheckThirdPartyCLI() (string, error) {
 	}
 	return kubectl, nil
 }
-
 
 func GenerateRangeNum(min, max int) int {
 	rand.Seed(time.Now().Unix())

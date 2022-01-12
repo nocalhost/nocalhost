@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/app"
-	"nocalhost/internal/nhctl/profile"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 )
 
@@ -70,7 +70,7 @@ var portForwardStartCmd = &cobra.Command{
 		log.Info("Starting port-forwarding")
 
 		// find deployment pods
-		podName, err := nocalhostSvc.BuildPodController().GetNocalhostDevContainerPod()
+		podName, err := nocalhostSvc.GetDevModePodName()
 		if err != nil {
 			// use serviceType get pods name
 			// can not find devContainer, means need port-forward normal service, get pods from command flags
@@ -79,7 +79,7 @@ var portForwardStartCmd = &cobra.Command{
 
 		var localPorts, remotePorts []int
 		for _, port := range portForwardOptions.DevPort {
-			localPort, remotePort, err := profile.GetPortForwardForString(port)
+			localPort, remotePort, err := utils.GetPortForwardForString(port)
 			if err != nil {
 				log.WarnE(err, "")
 				continue

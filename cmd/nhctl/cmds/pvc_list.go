@@ -10,14 +10,11 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
-	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/const"
 	"nocalhost/pkg/nhctl/clientgoutils"
 
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
-
-	"nocalhost/pkg/nhctl/log"
 )
 
 type PVCFlags struct {
@@ -35,6 +32,9 @@ func init() {
 	pvcListCmd.Flags().StringVar(&pvcFlags.Svc, "svc", "", "List PVCs of specified service")
 	pvcListCmd.Flags().BoolVar(&pvcFlags.Yaml, "yaml", false, "Use yaml as the output format")
 	pvcListCmd.Flags().BoolVar(&pvcFlags.Json, "json", false, "Use json as the output format")
+	pvcListCmd.Flags().StringVarP(
+		&serviceType, "controller-type", "t", "deployment",
+		"kind of k8s controller,such as deployment,statefulSet")
 	pvcCmd.AddCommand(pvcListCmd)
 }
 
@@ -47,21 +47,12 @@ var pvcListCmd = &cobra.Command{
 		var pvcList []v1.PersistentVolumeClaim
 		if pvcFlags.App != "" {
 			var err error
-			initApp(pvcFlags.App)
 			if pvcFlags.Svc != "" {
-				c, err := nocalhostApp.Controller(pvcFlags.Svc, base.Deployment)
-				if err != nil {
-					log.FatalE(err, "")
-				}
-				exist, err := c.CheckIfExist()
-				if err != nil {
-					log.FatalE(err, "failed to check if controller exists")
-				} else if !exist {
-					log.Fatalf("\"%s\" not found", pvcFlags.Svc)
-				}
-				pvcList, err = nocalhostApp.GetPVCsBySvc(pvcFlags.Svc)
+				initAppAndCheckIfSvcExist(pvcFlags.App, pvcFlags.Svc, serviceType)
+				pvcList, err = nocalhostSvc.GetPVCsBySvc()
 				must(err)
 			} else {
+				initApp(pvcFlags.App)
 				pvcList, err = nocalhostApp.GetAllPVCs()
 				must(err)
 			}

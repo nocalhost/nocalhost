@@ -6,8 +6,10 @@
 package clientgoutils
 
 import (
+	"encoding/json"
 	"fmt"
-	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"testing"
 )
 
@@ -65,18 +67,53 @@ func TestClientGoUtils_ListHPA(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	hs, err := c.FieldSelector(
-		fields.AndSelectors(
-			fields.OneTermEqualSelector("spec.scaleTargetRef.apiVersion", "apps/v1"),
-			fields.OneTermEqualSelector("spec.scaleTargetRef.kind", "Deployment"),
-			fields.OneTermEqualSelector("spec.scaleTargetRef.name", "reviews"),
-			//fields.OneTermEqualSelector("metadata.name", "reviews"),
-		).String(),
-	).ListHPA()
+	hs, err := c.ListHPA()
 	if err != nil {
 		panic(err)
 	}
 	for _, h := range hs {
 		fmt.Println(h.Name)
 	}
+}
+
+func TestClientGoUtils_ListResourceInfo(t *testing.T) {
+	client := getClient()
+	//crds, err := client.ListResourceInfo("crd")
+	//if err != nil {
+	//	return
+	//}
+	////for _, crd := range crds {
+	////fmt.Printf("%v\n", crds[0].Object)
+	//////fmt.Printf("%s %s %s\n", cc.Name, cc.Kind, cc.APIVersion)
+	//////}
+	//err := client.GetInformer("deployments.v1.apps")
+	//if err != nil {
+	//	panic(err)
+	//}
+
+	gr, err := client.GetAPIGroupResources()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(gr)
+
+	crds, err := client.ListResourceInfo("all")
+	if err != nil {
+		return
+	}
+	crd := crds[0]
+	um, ok := crd.Object.(*unstructured.Unstructured)
+	if !ok {
+		panic(err)
+	}
+	jsonBytes, err := um.MarshalJSON()
+	if err != nil {
+		panic(err)
+	}
+	crdObj := &apiextensions.CustomResourceDefinition{}
+	err = json.Unmarshal(jsonBytes, crdObj)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(crds)
 }

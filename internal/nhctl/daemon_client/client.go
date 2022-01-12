@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
+	"io"
 	"io/ioutil"
 	v1 "k8s.io/api/core/v1"
 	"net"
@@ -264,6 +265,25 @@ func (d *DaemonClient) SendGetDaemonServerStatusCommand() (*daemon_common.Daemon
 	return status, nil
 }
 
+func (d *DaemonClient) SendAuthCheckCommand(ns, kubeConfigContent string, needChecks ...string) (bool, error) {
+	acCmd := &command.AuthCheckCommand{
+		CommandType: command.AuthCheck,
+		ClientStack: string(debug.Stack()),
+
+		NameSpace:         ns,
+		KubeConfigContent: kubeConfigContent,
+		NeedChecks:        needChecks,
+	}
+
+	bys, err := json.Marshal(acCmd)
+
+	var nothing interface{}
+	if err = d.sendAndWaitForResponse(bys, &nothing); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // the reason why return a interface is applicationMeta needs to using this client,
 // otherwise it will cause cycle import
 func (d *DaemonClient) SendGetApplicationMetaCommand(ns, appName, kubeConfigContent string) (interface{}, error) {
@@ -386,7 +406,7 @@ func (d *DaemonClient) SendGetResourceInfoCommand(
 	}
 
 	var result interface{}
-	if err := d.sendAndWaitForResponse(bys, &result); err != nil {
+	if err = d.sendAndWaitForResponse(bys, &result); err != nil {
 		return nil, err
 	}
 	return result, nil
@@ -438,6 +458,76 @@ func (d *DaemonClient) SendKubeconfigOperationCommand(kubeconfigBytes []byte, ns
 	return d.sendDataToDaemonServer(bys)
 }
 
+func (d *DaemonClient) SendVPNOperateCommand(
+	kubeconfig, ns string, operation command.VPNOperation, workloads string,
+) (io.ReadCloser, error) {
+	cmd := &command.VPNOperateCommand{
+		CommandType: command.VPNOperate,
+		ClientStack: string(debug.Stack()),
+
+		KubeConfig: kubeconfig,
+		Namespace:  ns,
+		Action:     operation,
+		Resource:   workloads,
+	}
+	bys, err := json.Marshal(cmd)
+	if err != nil {
+		return nil, errors.Wrap(err, "")
+	}
+	return d.sendAndWaitForStream(bys)
+}
+
+func (d *DaemonClient) SendSudoVPNOperateCommand(
+	kubeconfig, ns string, operation command.VPNOperation, workloads string,
+) (io.ReadCloser, error) {
+	cmd := &command.VPNOperateCommand{
+		CommandType: command.SudoVPNOperate,
+		ClientStack: string(debug.Stack()),
+
+		KubeConfig: kubeconfig,
+		Namespace:  ns,
+		Action:     operation,
+		Resource:   workloads,
+	}
+	bys, err := json.Marshal(cmd)
+	if err != nil {
+		return nil, errors.Wrap(err, "")
+	}
+	return d.sendAndWaitForStream(bys)
+}
+
+func (d *DaemonClient) SendVPNStatusCommand() (interface{}, error) {
+	cmd := &command.VPNOperateCommand{
+		CommandType: command.VPNStatus,
+		ClientStack: string(debug.Stack()),
+	}
+	bys, err := json.Marshal(cmd)
+	if err != nil {
+		return nil, errors.Wrap(err, "")
+	}
+	var result interface{}
+	if err = d.sendAndWaitForResponse(bys, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (d *DaemonClient) SendSudoVPNStatusCommand() (interface{}, error) {
+	cmd := &command.VPNOperateCommand{
+		CommandType: command.SudoVPNStatus,
+		ClientStack: string(debug.Stack()),
+	}
+	bys, err := json.Marshal(cmd)
+	if err != nil {
+		return nil, errors.Wrap(err, "")
+	}
+	var result interface{}
+	if err = d.sendAndWaitForResponse(bys, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
 // sendDataToDaemonServer send data only to daemon
 func (d *DaemonClient) sendDataToDaemonServer(data []byte) error {
 	baseCmd := command.BaseCommand{}
@@ -461,6 +551,28 @@ func (d *DaemonClient) sendDataToDaemonServer(data []byte) error {
 }
 
 // sendAndWaitForResponse send data to daemon and wait for response
+func (d *DaemonClient) sendAndWaitForStream(req []byte) (io.ReadCloser, error) {
+	var conn net.Conn
+	var err error
+	baseCmd := command.BaseCommand{}
+	err = json.Unmarshal(req, &baseCmd)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to unmarshal command")
+	}
+	conn, err = net.DialTimeout("tcp", fmt.Sprintf("%s:%d", "127.0.0.1", d.daemonServerListenPort), time.Second*30)
+	if err != nil {
+		return nil, errors.Wrap(err, fmt.Sprintf("%s failed to dial to daemon", baseCmd.CommandType))
+	}
+	if _, err = conn.Write(req); err != nil {
+		return nil, errors.Wrap(err, fmt.Sprintf("%s failed to write to daemon", baseCmd.CommandType))
+	}
+	cw, ok := conn.(interface{ CloseWrite() error })
+	if !ok {
+		return nil, errors.New(fmt.Sprintf("%s failed to close write to daemon server", baseCmd.CommandType))
+	}
+	log.WrapAndLogE(cw.CloseWrite())
+	return conn, nil
+}
 func (d *DaemonClient) sendAndWaitForResponse(req []byte, resp interface{}) error {
 	var (
 		conn net.Conn

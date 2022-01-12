@@ -35,7 +35,7 @@ func init() {
 		"k8s deployment which your developing service exists",
 	)
 	devAssociateCmd.Flags().StringVarP(
-		&serviceType, "controller-type", "t", "",
+		&serviceType, "controller-type", "t", "deployment",
 		"kind of k8s controller,such as deployment,statefulSet",
 	)
 	devAssociateCmd.Flags().StringVarP(
@@ -75,7 +75,7 @@ var devAssociateCmd = &cobra.Command{
 		svcPack := dev_dir.NewSvcPack(
 			nameSpace,
 			commonFlags.AppName,
-			base.SvcTypeOf(serviceType),
+			base.SvcType(serviceType),
 			commonFlags.SvcName,
 			container,
 		)
@@ -110,7 +110,7 @@ var devAssociateCmd = &cobra.Command{
 					svcPack = dev_dir.NewSvcPack(
 						nameSpace,
 						commonFlags.AppName,
-						base.SvcTypeOf(serviceType),
+						base.SvcType(serviceType),
 						commonFlags.SvcName,
 						profile.OriginDevContainer,
 					)

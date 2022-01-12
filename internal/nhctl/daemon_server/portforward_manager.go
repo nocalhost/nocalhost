@@ -22,6 +22,7 @@ import (
 	"nocalhost/internal/nhctl/nocalhost/db"
 	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/profile"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"os"
@@ -46,7 +47,11 @@ func (p *PortForwardManager) StopPortForwardGoRoutine(cmd *command.PortForwardCo
 	pfProfile, ok := p.pfList[key]
 	if ok {
 		pfProfile.Cancel()
-		err := <-pfProfile.StopCh
+		var err error
+		select {
+		case err = <-pfProfile.StopCh:
+		default:
+		}
 		delete(p.pfList, key)
 		return err
 	}
@@ -135,7 +140,7 @@ func (p *PortForwardManager) RecoverPortForwardForApplication(ns, appName, nid s
 }
 
 func (p *PortForwardManager) RecoverAllPortForward() {
-	defer recoverDaemonFromPanic()
+	defer utils.RecoverFromPanic()
 
 	log.Info("Recovering all port-forward")
 	var scanned bool
@@ -265,7 +270,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 		RemotePort: startCmd.RemotePort,
 	}
 	go func() {
-		defer recoverDaemonFromPanic()
+		defer utils.RecoverFromPanic()
 
 		log.Logf("Forwarding %d:%d", localPort, remotePort)
 
@@ -310,7 +315,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 			}
 
 			go func() {
-				defer recoverDaemonFromPanic()
+				defer utils.RecoverFromPanic()
 				<-readyCh
 				log.Infof("Port forward %d:%d is ready", localPort, remotePort)
 				p.lock.Lock()
@@ -319,7 +324,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 			}()
 
 			go func() {
-				defer recoverDaemonFromPanic()
+				defer utils.RecoverFromPanic()
 				errCh <- nocalhostApp.PortForward(startCmd.PodName, localPort, remotePort, readyCh, stopCh, stream)
 				log.Logf("Port-forward %d:%d occurs errors", localPort, remotePort)
 			}()
@@ -336,6 +341,19 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 					p.lock.Unlock()
 					if err2 != nil {
 						log.LogE(err2)
+					}
+					delete(p.pfList, key)
+					close(stopCh)
+					return
+				} else if errs != nil && strings.Contains(errs.Error(), "failed to find socat") {
+					log.Logf("failed to find socat, err: %v", errs)
+					p.lock.Lock()
+					err = nhController.UpdatePortForwardStatus(
+						localPort, remotePort, "Socat not found", "failed to find socat",
+					)
+					p.lock.Unlock()
+					if err != nil {
+						log.LogE(err)
 					}
 					delete(p.pfList, key)
 					close(stopCh)
