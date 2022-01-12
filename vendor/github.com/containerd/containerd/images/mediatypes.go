@@ -49,9 +49,6 @@ const (
 	MediaTypeContainerd1CheckpointRuntimeOptions = "application/vnd.containerd.container.checkpoint.runtime.options+proto"
 	// Legacy Docker schema1 manifest
 	MediaTypeDockerSchema1Manifest = "application/vnd.docker.distribution.manifest.v1+prettyjws"
-	// Encypted media types
-	MediaTypeImageLayerEncrypted     = ocispec.MediaTypeImageLayer + "+encrypted"
-	MediaTypeImageLayerGzipEncrypted = ocispec.MediaTypeImageLayerGzip + "+encrypted"
 )
 
 // DiffCompression returns the compression as defined by the layer diff media
@@ -81,8 +78,6 @@ func DiffCompression(ctx context.Context, mediaType string) (string, error) {
 			switch ext[len(ext)-1] {
 			case "gzip":
 				return "gzip", nil
-			case "zstd":
-				return "zstd", nil
 			}
 		}
 		return "", nil
@@ -105,13 +100,7 @@ func parseMediaTypes(mt string) (string, []string) {
 	return s[0], ext
 }
 
-// IsNonDistributable returns true if the media type is non-distributable.
-func IsNonDistributable(mt string) bool {
-	return strings.HasPrefix(mt, "application/vnd.oci.image.layer.nondistributable.") ||
-		strings.HasPrefix(mt, "application/vnd.docker.image.rootfs.foreign.")
-}
-
-// IsLayerType returns true if the media type is a layer
+// IsLayerTypes returns true if the media type is a layer
 func IsLayerType(mt string) bool {
 	if strings.HasPrefix(mt, "application/vnd.oci.image.layer.") {
 		return true
@@ -127,45 +116,7 @@ func IsLayerType(mt string) bool {
 	return false
 }
 
-// IsDockerType returns true if the media type has "application/vnd.docker." prefix
-func IsDockerType(mt string) bool {
-	return strings.HasPrefix(mt, "application/vnd.docker.")
-}
-
-// IsManifestType returns true if the media type is an OCI-compatible manifest.
-// No support for schema1 manifest.
-func IsManifestType(mt string) bool {
-	switch mt {
-	case MediaTypeDockerSchema2Manifest, ocispec.MediaTypeImageManifest:
-		return true
-	default:
-		return false
-	}
-}
-
-// IsIndexType returns true if the media type is an OCI-compatible index.
-func IsIndexType(mt string) bool {
-	switch mt {
-	case ocispec.MediaTypeImageIndex, MediaTypeDockerSchema2ManifestList:
-		return true
-	default:
-		return false
-	}
-}
-
-// IsConfigType returns true if the media type is an OCI-compatible image config.
-// No support for containerd checkpoint configs.
-func IsConfigType(mt string) bool {
-	switch mt {
-	case MediaTypeDockerSchema2Config, ocispec.MediaTypeImageConfig:
-		return true
-	default:
-		return false
-	}
-}
-
-// IsKnownConfig returns true if the media type is a known config type,
-// including containerd checkpoint configs
+// IsKnownConfig returns true if the media type is a known config type
 func IsKnownConfig(mt string) bool {
 	switch mt {
 	case MediaTypeDockerSchema2Config, ocispec.MediaTypeImageConfig,

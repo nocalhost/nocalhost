@@ -10,7 +10,6 @@ require (
 	github.com/alicebob/miniredis v2.5.0+incompatible
 	github.com/briandowns/spinner v1.11.1
 	github.com/cheggaaa/pb/v3 v3.0.5
-	github.com/containerd/containerd v1.5.8
 	github.com/docker/libcontainer v2.2.1+incompatible
 	github.com/fastly/go-utils v0.0.0-20180712184237-d95a45783239 // indirect
 	github.com/fatih/color v1.7.0

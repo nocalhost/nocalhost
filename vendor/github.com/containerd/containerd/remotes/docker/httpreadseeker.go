@@ -26,16 +26,12 @@ import (
 	"github.com/pkg/errors"
 )
 
-const maxRetry = 3
-
 type httpReadSeeker struct {
 	size   int64
 	offset int64
 	rc     io.ReadCloser
 	open   func(offset int64) (io.ReadCloser, error)
 	closed bool
-
-	errsWithNoProgress int
 }
 
 func newHTTPReadSeeker(size int64, open func(offset int64) (io.ReadCloser, error)) (io.ReadCloser, error) {
@@ -57,27 +53,6 @@ func (hrs *httpReadSeeker) Read(p []byte) (n int, err error) {
 
 	n, err = rd.Read(p)
 	hrs.offset += int64(n)
-	if n > 0 || err == nil {
-		hrs.errsWithNoProgress = 0
-	}
-	if err == io.ErrUnexpectedEOF {
-		// connection closed unexpectedly. try reconnecting.
-		if n == 0 {
-			hrs.errsWithNoProgress++
-			if hrs.errsWithNoProgress > maxRetry {
-				return // too many retries for this offset with no progress
-			}
-		}
-		if hrs.rc != nil {
-			if clsErr := hrs.rc.Close(); clsErr != nil {
-				log.L.WithError(clsErr).Errorf("httpReadSeeker: failed to close ReadCloser")
-			}
-			hrs.rc = nil
-		}
-		if _, err2 := hrs.reader(); err2 == nil {
-			return n, nil
-		}
-	}
 	return
 }
 
@@ -146,7 +121,7 @@ func (hrs *httpReadSeeker) reader() (io.Reader, error) {
 
 		rc, err := hrs.open(hrs.offset)
 		if err != nil {
-			return nil, errors.Wrapf(err, "httpReadSeeker: failed open")
+			return nil, errors.Wrapf(err, "httpReaderSeeker: failed open")
 		}
 
 		if hrs.rc != nil {

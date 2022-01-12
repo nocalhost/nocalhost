@@ -8,7 +8,6 @@ package util
 import (
 	"errors"
 	"fmt"
-	containerderrors "github.com/containerd/containerd/errdefs"
 	"io"
 	"io/ioutil"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -404,7 +403,7 @@ firstCreateStream:
 			pf.closeChannel()
 		} else
 		// containerd
-		if containerderrors.IsNotFound(err) {
+		if errors.Is(err, errors.New("not found")) {
 			pf.closeChannel()
 		} else
 		// others
