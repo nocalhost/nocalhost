@@ -51,6 +51,7 @@ func init() {
 		{Group: "apps", Version: "v1", Kind: "DaemonSet"},
 		{Group: "batch", Version: "v1", Kind: "Job"},
 		{Group: "batch", Version: "v1", Kind: "CronJob"},
+		{Group: "batch", Version: "v1beta1", Kind: "CronJob"},
 		{Group: "", Version: "v1", Kind: "Pod"},
 	}
 

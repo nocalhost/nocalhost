@@ -89,8 +89,8 @@ func TestGetIPFromDHCP(t *testing.T) {
 			fmt.Printf("%s->%s\n", ipNet.String(), ipNet2.String())
 		}
 		time.Sleep(time.Millisecond * 10)
-		err = manager.ReleaseIpToDHCP(ipNet)
-		err = manager.ReleaseIpToDHCP(ipNet2)
+		err = manager.ReleaseIP(int(ipNet.IP[3]))
+		err = manager.ReleaseIP(int(ipNet2.IP[3]))
 		if err != nil {
 			fmt.Println(err)
 		}

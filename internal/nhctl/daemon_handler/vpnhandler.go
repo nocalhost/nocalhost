@@ -49,12 +49,13 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 	}
 	_ = remote.NewDHCPManager(connect.GetClientSet(), cmd.Namespace, &util.RouterIP).InitDHCPIfNecessary(logCtx)
 	GetOrGenerateConfigMapWatcher(connect.KubeconfigBytes, cmd.Namespace, connect.GetClientSet().CoreV1().RESTClient())
-	client, err := daemon_client.GetDaemonClient(true)
-	if err != nil {
-		return err
-	}
 	switch cmd.Action {
 	case command.Connect:
+		var client *daemon_client.DaemonClient
+		client, err = daemon_client.GetDaemonClient(true)
+		if err != nil {
+			return err
+		}
 		// pre-check if resource already in reversing mode
 		if load, ok := GetReverseInfo().Load(util.GenerateKey(connect.KubeconfigBytes, connect.Namespace)); ok {
 			if mac := load.(*status).getMacByResource(cmd.Resource); len(mac) != 0 {
@@ -132,7 +133,7 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 			cmd.KubeConfig, cmd.Namespace, command.Connect, cmd.Resource); err == nil {
 			transStreamToWriterWithoutExit(writer, r)
 		}
-		logger.Infof("connectted to new namespace\n")
+		logger.Infof("connected to new namespace\n")
 		// reverse resource if needed
 		if len(cmd.Resource) != 0 {
 			logger.Infof("prepare to reverse resource: %s...\n", cmd.Resource)
@@ -142,11 +143,15 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 			if err = connect.DoReverse(logCtx); err != nil {
 				return
 			} else {
-				logger.Infof("reverse resource: %s suecessfully\n", cmd.Resource)
+				logger.Infof("reverse resource: %s successfully\n", cmd.Resource)
 			}
 		}
 		return
 	case command.Reconnect:
+		client, err := daemon_client.GetDaemonClient(true)
+		if err != nil {
+			return err
+		}
 		if len(cmd.Resource) != 0 {
 			return connect.DoReverse(context.TODO())
 		}
@@ -190,6 +195,10 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 						list.Delete(address)
 					})
 					logger.Infof("have no reverse resource, disconnectting from namespace: %s ...\n", cmd.Namespace)
+					client, err := daemon_client.GetDaemonClient(true)
+					if err != nil {
+						return err
+					}
 					if r, err := client.SendSudoVPNOperateCommand(
 						cmd.KubeConfig, cmd.Namespace, command.DisConnect, cmd.Resource); err == nil {
 						transStreamToWriter(writer, r)
@@ -228,6 +237,11 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 					temp.Workloads = []string{resource}
 					_ = temp.RemoveInboundPod()
 				}
+			}
+			var client *daemon_client.DaemonClient
+			client, err = daemon_client.GetDaemonClient(true)
+			if err != nil {
+				return err
 			}
 			if r, err := client.SendSudoVPNOperateCommand(
 				cmd.KubeConfig, cmd.Namespace, command.DisConnect, cmd.Resource); err == nil {

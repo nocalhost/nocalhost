@@ -15,7 +15,6 @@ import (
 	"golang.org/x/net/ipv6"
 	"net"
 	"nocalhost/internal/nhctl/vpn/util"
-	"runtime"
 	"sync"
 )
 
@@ -67,7 +66,7 @@ func (h *tunHandler) Handle(ctx context.Context, conn net.Conn) {
 			var err error
 			var pc net.PacketConn
 			if raddr != nil && !h.options.Chain.IsEmpty() {
-				cc, err := h.options.Chain.DialContext(context.Background(), "udp", raddr.String())
+				cc, err := h.options.Chain.DialContext(ctx, "udp", raddr.String())
 				if err != nil {
 					return err
 				}
@@ -99,7 +98,6 @@ func (h *tunHandler) Handle(ctx context.Context, conn net.Conn) {
 			h.chExit <- struct{}{}
 		default:
 			log.Infoln("next loop")
-			runtime.GC()
 		}
 	}
 }

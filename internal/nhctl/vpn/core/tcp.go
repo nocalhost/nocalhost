@@ -6,6 +6,7 @@
 package core
 
 import (
+	"context"
 	"crypto/tls"
 	"net"
 	"nocalhost/internal/nhctl/vpn/tlsconfig"
@@ -18,9 +19,12 @@ func TCPTransporter() Transporter {
 	return &tcpTransporter{}
 }
 
-func (tr *tcpTransporter) Dial(addr string) (net.Conn, error) {
-	dialer := &net.Dialer{Timeout: util.DialTimeout}
-	return tls.DialWithDialer(dialer, "tcp", addr, tlsconfig.Client)
+func (tr *tcpTransporter) Dial(ctx context.Context, addr string) (net.Conn, error) {
+	dialer := &tls.Dialer{
+		NetDialer: &net.Dialer{Timeout: util.DialTimeout},
+		Config:    tlsconfig.Client,
+	}
+	return dialer.DialContext(ctx, "tcp", addr)
 }
 
 type tcpListener struct {

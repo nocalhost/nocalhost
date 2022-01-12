@@ -47,7 +47,11 @@ func (p *PortForwardManager) StopPortForwardGoRoutine(cmd *command.PortForwardCo
 	pfProfile, ok := p.pfList[key]
 	if ok {
 		pfProfile.Cancel()
-		err := <-pfProfile.StopCh
+		var err error
+		select {
+		case err = <-pfProfile.StopCh:
+		default:
+		}
 		delete(p.pfList, key)
 		return err
 	}
@@ -337,6 +341,19 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 					p.lock.Unlock()
 					if err2 != nil {
 						log.LogE(err2)
+					}
+					delete(p.pfList, key)
+					close(stopCh)
+					return
+				} else if errs != nil && strings.Contains(errs.Error(), "failed to find socat") {
+					log.Logf("failed to find socat, err: %v", errs)
+					p.lock.Lock()
+					err = nhController.UpdatePortForwardStatus(
+						localPort, remotePort, "Socat not found", "failed to find socat",
+					)
+					p.lock.Unlock()
+					if err != nil {
+						log.LogE(err)
 					}
 					delete(p.pfList, key)
 					close(stopCh)

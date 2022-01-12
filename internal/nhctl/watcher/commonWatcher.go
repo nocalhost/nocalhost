@@ -38,32 +38,31 @@ func NewController(watcher Watcher, lw cache.ListerWatcher, objType rt.Object) *
 	// whenever the cache is updated, the secret key is added to the workqueue.
 	// Note that when we finally process the item from the workqueue, we might see a newer version
 	// of the Secret than the version which was responsible for triggering the update.
-	indexer, informer := cache.NewIndexerInformer(
-		lw, objType, 0, cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
-				key, err := cache.MetaNamespaceKeyFunc(obj)
-				if err == nil {
-					queue.Add(key)
-				}
-			},
-			UpdateFunc: func(old interface{}, new interface{}) {
-				key, err := cache.MetaNamespaceKeyFunc(new)
-				if err == nil {
-					queue.Add(key)
-				}
-			},
-			DeleteFunc: func(obj interface{}) {
-				// IndexerInformer uses a delta queue, therefore for deletes we have to use this
-				// key function.
-				key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
-				if err == nil {
-					queue.Add(key)
-				}
-			},
-		}, cache.Indexers{},
-	)
+	informer := cache.NewSharedIndexInformer(lw, objType, 0, cache.Indexers{})
+	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			key, err := cache.MetaNamespaceKeyFunc(obj)
+			if err == nil {
+				queue.Add(key)
+			}
+		},
+		UpdateFunc: func(old interface{}, new interface{}) {
+			key, err := cache.MetaNamespaceKeyFunc(new)
+			if err == nil {
+				queue.Add(key)
+			}
+		},
+		DeleteFunc: func(obj interface{}) {
+			// IndexerInformer uses a delta queue, therefore for deletes we have to use this
+			// key function.
+			key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
+			if err == nil {
+				queue.Add(key)
+			}
+		},
+	})
 
-	return newController(queue, indexer, informer, watcher)
+	return newController(queue, informer.GetIndexer(), informer, watcher)
 }
 
 func newController(
