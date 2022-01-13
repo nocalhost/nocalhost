@@ -594,16 +594,6 @@ func (d *DaemonClient) sendAndWaitForResponse(req []byte, resp interface{}) erro
 		return errors.Wrap(err, fmt.Sprintf("%s failed to dial to daemon", baseCmd.CommandType))
 	}
 
-	//if err = conn.SetDeadline(time.Now().Add(time.Second * 30)); err != nil {
-	//	log.Logf("set connection deadline, err: %v", err)
-	//}
-	//if err = conn.SetReadDeadline(time.Now().Add(time.Second * 30)); err != nil {
-	//	log.Logf("set connection read deadline, err: %v", err)
-	//}
-	//if err = conn.SetWriteDeadline(time.Now().Add(time.Second * 30)); err != nil {
-	//	log.Logf("set connection write deadline, err: %v", err)
-	//}
-
 	if _, err = conn.Write(req); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("%s failed to write to daemon", baseCmd.CommandType))
 	}

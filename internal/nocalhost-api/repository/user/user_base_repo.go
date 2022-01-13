@@ -54,6 +54,38 @@ func (repo *userBaseRepo) GetUserList(ctx context.Context) ([]*model.UserList, e
 	return result, nil
 }
 
+func (repo *userBaseRepo) GetUserHasNotSa(ctx context.Context) ([]*model.UserBaseModel, error) {
+	var result []*model.UserBaseModel
+	repo.db.
+		Raw("select * from users where sa_name is null").
+		Scan(&result)
+	return result, nil
+}
+
+func (repo *userBaseRepo) GetUserPageable(ctx context.Context, page, limit int) ([]*model.UserBaseModel, error) {
+	var result []*model.UserBaseModel
+
+	raw := repo.db.
+		Raw("select * from users where deleted_at is null")
+
+	if page > 0 && limit > 0 {
+		raw = raw.Offset((page - 1) * limit).
+			Limit(limit)
+	}
+
+	raw.Scan(&result)
+	return result, nil
+}
+
+func (repo *userBaseRepo) ListStartById(ctx context.Context, idStart uint64, limit uint64) ([]*model.UserBaseModel, error) {
+	var result []*model.UserBaseModel
+	repo.db.Raw(
+		"SELECT * FROM users "+
+			"WHERE id > ? ORDER BY id LIMIT ?", idStart, limit,
+	).Scan(&result)
+	return result, nil
+}
+
 // Delete
 func (repo *userBaseRepo) Delete(ctx context.Context, id uint64) error {
 	users := model.UserBaseModel{

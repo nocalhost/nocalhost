@@ -303,16 +303,20 @@ type ContainerProfileV2 struct {
 }
 
 type DevPortForward struct {
-	LocalPort       int    `json:"localport" yaml:"localport"`
-	RemotePort      int    `json:"remoteport" yaml:"remoteport"`
-	Role            string `json:"role" yaml:"role"`
-	Status          string `json:"status" yaml:"status"`
-	Reason          string `json:"reason" yaml:"reason"`
-	PodName         string `json:"podName" yaml:"podName"`
-	Updated         string `json:"updated" yaml:"updated"`
-	Sudo            bool   `json:"sudo" yaml:"sudo"`
-	DaemonServerPid int    `json:"daemonserverpid" yaml:"daemonserverpid"`
-	ServiceType     string `json:"servicetype" yaml:"servicetype"`
+	LocalPort       int               `json:"localport" yaml:"localport"`
+	RemotePort      int               `json:"remoteport" yaml:"remoteport"`
+	Role            string            `json:"role" yaml:"role"`
+	Status          string            `json:"status" yaml:"status"`
+	Reason          string            `json:"reason" yaml:"reason"`
+	PodName         string            `json:"podName" yaml:"podName"`
+	Labels          map[string]string `json:"labels" yaml:"labels"`
+	OwnerKind       string            `json:"ownerKind" yaml:"ownerKind"`
+	OwnerApiVersion string            `json:"ownerApiVersion" yaml:"ownerApiVersion"`
+	OwnerName       string            `json:"ownerName" yaml:"ownerName"`
+	Updated         string            `json:"updated" yaml:"updated"`
+	Sudo            bool              `json:"sudo" yaml:"sudo"`
+	DaemonServerPid int               `json:"daemonserverpid" yaml:"daemonserverpid"`
+	ServiceType     string            `json:"servicetype" yaml:"servicetype"`
 }
 
 // Compatible for v1
