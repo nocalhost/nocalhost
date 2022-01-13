@@ -441,7 +441,7 @@ func checkConnect() {
 		defer cancelFunc()
 		cmd := exec.CommandContext(ctx, "ping", "-c", "4", util.IpRange.String())
 		_ = cmd.Run()
-		if cmd.ProcessState.Success() {
+		if cmd.ProcessState!=nil && cmd.ProcessState.Success() {
 			connectInfo.health = Healthy
 		} else {
 			connectInfo.health = UnHealthy
