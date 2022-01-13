@@ -299,7 +299,7 @@ func Apply(cli runner.Client) {
 func Upgrade(cli runner.Client) {
 	util.Retry("Upgrade", []func() error{func() error { return testcase.Upgrade(cli) }})
 	clientgoutils.Must(testcase.List(cli))
-	Reset(cli)
+	//Reset(cli)
 	Apply(cli)
 }
 
