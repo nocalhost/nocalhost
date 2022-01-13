@@ -15,6 +15,7 @@ const (
 	NocalhostVClusterForTest   = "NOCALHOST_VCLUSTER_FOR_TEST"
 	WebDevSpace                = "/v1/dev_space"
 	WebDevSpaceStatus          = "/v1/dev_space/status"
+	WebDevSpaceDetail          = "/v1/dev_space/%v/detail"
 	WebServerServiceAccountApi = "/v1/plugin/service_accounts"
 	TestcaseWebhook            = "TESTCASE_WEBHOOK"
 	TimeoutWebhook             = "TIMEOUT_WEBHOOK"

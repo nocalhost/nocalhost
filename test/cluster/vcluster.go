@@ -16,7 +16,6 @@ import (
 	"nocalhost/internal/nhctl/request"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/pkg/nhctl/log"
-	"nocalhost/test/testcase"
 	"nocalhost/test/util"
 	"os"
 	"runtime"
@@ -65,7 +64,6 @@ func (bc *vCluster) Create() (string, error) {
 	var c CreateDevSpaceResponse
 	err = resp.ToJSON(&c)
 	bc.id = c.Data.ID
-	clusterID := c.Data.ClusterId
 
 	// wait for vCluster ready
 	for {
@@ -82,19 +80,19 @@ func (bc *vCluster) Create() (string, error) {
 		time.Sleep(time.Second * 1)
 	}
 
-	r, err := req.New().Get(res.BaseUrl+util.WebServerServiceAccountApi, header)
+	r, err := req.New().Get(res.BaseUrl+fmt.Sprintf(util.WebDevSpaceDetail, bc.id), header)
 	if err != nil {
 		log.Infof("get kubeconfig error, err: %v, response: %v, retrying", err, r)
 		return "", err
 	}
-	re := testcase.Response{}
+	re := DevSpaceDetailResponse{}
 	err = r.ToJSON(&re)
-	if re.Code != 0 || len(re.Data) == 0 || re.Data[clusterID] == nil || re.Data[clusterID].KubeConfig == "" {
+	if re.Code != 0 || re.Data.KubeConfig == "" {
 		toString, _ := r.ToString()
 		log.Infof("get kubeconfig response error, response: %v, string: %s, retrying", re, toString)
 		return "", nil
 	}
-	config := re.Data[clusterID].KubeConfig
+	config := re.Data.KubeConfig
 	if config == "" {
 		return "", errors.New("Can't not get kubeconfig from webserver, please check your code")
 	}
@@ -139,4 +137,10 @@ type CreateDevSpaceResponse struct {
 	Code    int                    `json:"code"`
 	Message string                 `json:"message"`
 	Data    model.ClusterUserModel `json:"data"`
+}
+
+type DevSpaceDetailResponse struct {
+	Code    int                                       `json:"code"`
+	Message string                                    `json:"message"`
+	Data    model.ClusterUserJoinClusterAndAppAndUser `json:"data"`
 }
