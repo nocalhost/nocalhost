@@ -300,7 +300,7 @@ func Upgrade(cli runner.Client) {
 	util.Retry("Upgrade", []func() error{func() error { return testcase.Upgrade(cli) }})
 	clientgoutils.Must(testcase.List(cli))
 	//Reset(cli)
-	Apply(cli)
+	//Apply(cli)
 }
 
 func ProfileAndAssociate(cli runner.Client) {
