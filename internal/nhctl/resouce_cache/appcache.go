@@ -7,11 +7,15 @@ package resouce_cache
 
 import (
 	"crypto/sha1"
+	"fmt"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
+	"nocalhost/internal/nhctl/daemon_client"
+	"nocalhost/internal/nhctl/daemon_server/command"
+	"nocalhost/pkg/nhctl/k8sutils"
 	"sync"
 	"time"
 )
@@ -83,32 +87,79 @@ func (r *ResourceEventHandlerFuncs) timeUp(f func()) {
 	r.nextTime = time.Now().Add(time.Second * 5)
 }
 
-func (r *ResourceEventHandlerFuncs) handle() {
-	var m sync.Map
-	for _, i := range r.informer.Informer().GetStore().List() {
+func (r *ResourceEventHandlerFuncs) handleAddOrUpdate() {
+	// namespace --> appName
+	var namespaceToApp = sync.Map{} // key: namespace value: appName
+	list := r.informer.Informer().GetStore().List()
+	// sort by namespace
+	for _, i := range list {
+		object := i.(metav1.Object)
+		if len(object.GetNamespace()) != 0 {
+			v, _ := namespaceToApp.LoadOrStore(object.GetNamespace(), sets.NewString())
+			v.(sets.String).Insert(getAppName(i)) // Add app name
+		}
+	}
+
+	for _, i := range list {
 		object := i.(metav1.Object)
 		if len(object.GetNamespace()) != 0 {
 			kindToAppMap, _ := maps.LoadOrStore(r.toKey(object.GetNamespace()), &sync.Map{})
-			kindApp, _ := kindToAppMap.(*sync.Map).LoadOrStore(r.Gvr.Resource, newAppSet())
+			kindApp, _ := kindToAppMap.(*sync.Map).LoadOrStore(r.Gvr.Resource, newAppSet()) // R: AppSet
 			set := kindApp.(*appSet)
-			set.lock.Lock()
-			if _, loaded := m.LoadOrStore(object.GetNamespace(), true); !loaded {
-				set.set = sets.NewString()
+			if value, loaded := namespaceToApp.LoadAndDelete(object.GetNamespace()); loaded {
+				set.lock.Lock()
+				set.set, _ = value.(sets.String)
+				set.lock.Unlock()
 			}
-			set.set.Insert(getAppName(i))
-			set.lock.Unlock()
 		}
 	}
 }
 
 func (r *ResourceEventHandlerFuncs) OnAdd(interface{}) {
-	r.timeUp(r.handle)
+	r.timeUp(r.handleAddOrUpdate)
 }
 
 func (r *ResourceEventHandlerFuncs) OnUpdate(_, _ interface{}) {
-	r.timeUp(r.handle)
+	r.timeUp(r.handleAddOrUpdate)
 }
 
-func (r *ResourceEventHandlerFuncs) OnDelete(interface{}) {
-	r.timeUp(r.handle)
+func (r *ResourceEventHandlerFuncs) OnDelete(obj interface{}) {
+	// delete vpn reverse proxy status
+	go func() {
+		// if vpn reverse type is pod, it will delete origin pod, and create a new pod with same name
+		objectTemp := obj.(metav1.Object)
+		if !("pods" == r.Gvr.Resource && objectTemp.GetOwnerReferences() != nil) {
+			name := fmt.Sprintf("%s/%s", r.Gvr.Resource, objectTemp.GetName())
+			if client, err := daemon_client.GetDaemonClient(false); err == nil {
+				path := k8sutils.GetOrGenKubeConfigPath(string(r.kubeconfigBytes))
+				if readClose, _ := client.SendVPNOperateCommand(
+					path, objectTemp.GetNamespace(), command.DisConnect, name); readClose != nil {
+					readClose.Close()
+				}
+			}
+		}
+	}()
+
+	// kubeconfig+namespace --> appName
+	var namespaceToApp = sync.Map{}
+	for _, i := range r.informer.Informer().GetStore().List() {
+		object := i.(metav1.Object)
+		if len(object.GetNamespace()) != 0 {
+			v, _ := namespaceToApp.LoadOrStore(r.toKey(object.GetNamespace()), sets.NewString())
+			v.(sets.String).Insert(getAppName(i))
+		}
+	}
+	maps.Range(func(uniqueKey, resourcesMap interface{}) bool {
+		// resource --> appName
+		resourcesMap.(*sync.Map).Range(func(resource, apps interface{}) bool {
+			if r.Gvr.Resource == resource.(string) {
+				v, _ := namespaceToApp.LoadOrStore(uniqueKey, sets.NewString())
+				apps.(*appSet).lock.Lock()
+				apps.(*appSet).set = sets.NewString(v.(sets.String).List()...)
+				apps.(*appSet).lock.Unlock()
+			}
+			return true
+		})
+		return true
+	})
 }

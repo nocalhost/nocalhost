@@ -26,7 +26,6 @@ import (
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 )
 
@@ -47,6 +46,7 @@ type Application struct {
 	// may be nil, only for install or upgrade
 	// dir use to load the user's resource
 	ResourceTmpDir string
+	shouldClean    bool
 
 	appMeta *appmeta.ApplicationMeta
 	client  *clientgoutils.ClientGoUtils
@@ -130,10 +130,7 @@ func newApplication(name string, ns string, kubeconfig string, meta *appmeta.App
 	// load from secret
 	profileV2, err := nocalhost.GetProfileV2(app.NameSpace, app.Name, app.appMeta.NamespaceId)
 	if err != nil {
-		profileV2 = &profile.AppProfileV2{}
-		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, app.appMeta.NamespaceId, profileV2); err != nil {
-			return nil, err
-		}
+		return nil, err
 	}
 	// Migrate config to meta
 	if app.appMeta.Config == nil || !app.appMeta.Config.Migrated {
@@ -152,16 +149,19 @@ func newApplication(name string, ns string, kubeconfig string, meta *appmeta.App
 			if err = app.appMeta.Update(); err != nil {
 				return nil, err
 			}
-			if err = nocalhost.UpdateProfileV2(
-				app.NameSpace, app.Name, app.appMeta.NamespaceId, profileV2,
-			); err != nil {
-				return nil, err
-			}
 		}
 	}
 
 	if profileV2.Identifier == "" {
-		if err = nocalhost.UpdateProfileV2(app.NameSpace, app.Name, app.appMeta.NamespaceId, profileV2); err != nil {
+		if err = app.UpdateProfile(
+			func(v2 *profile.AppProfileV2) error {
+				v2.GenerateIdentifierIfNeeded()
+				return nil
+			},
+		); err != nil {
+			return nil, err
+		}
+		if profileV2, err = app.GetProfile(); err != nil {
 			return nil, err
 		}
 	}
@@ -186,9 +186,6 @@ func newApplication(name string, ns string, kubeconfig string, meta *appmeta.App
 		}
 	}
 
-	// can not successful migrate because we are not record
-	// the kubeconfig before
-	//migrateAssociate(profileV2, app)
 	return app, nil
 }
 
@@ -196,7 +193,7 @@ func newApplication(name string, ns string, kubeconfig string, meta *appmeta.App
 func (a *Application) ReloadCfg(reloadFromMeta, silence bool) error {
 	secretCfg := a.appMeta.Config
 	for _, config := range secretCfg.ApplicationConfig.ServiceConfigs {
-		if err := a.ReloadSvcCfg(config.Name, base.SvcTypeOf(config.Type), reloadFromMeta, silence); err != nil {
+		if err := a.ReloadSvcCfg(config.Name, base.SvcType(config.Type), reloadFromMeta, silence); err != nil {
 			log.LogE(err)
 		}
 	}
@@ -241,7 +238,7 @@ func (a *Application) loadSvcCfmFromAnnotationIfValid(svcName string, svcType ba
 		return false
 	} else {
 		_, // local config should not contain app config
-			svcCfg, err := LoadSvcCfgFromStrIfValid(v, svcName, svcType)
+		svcCfg, err := LoadSvcCfgFromStrIfValid(v, svcName, svcType)
 		if err != nil {
 			hint(
 				"Load nocalhost svc config from [Resource:%s, Name:%s] annotation fail, err: %s",
@@ -301,7 +298,7 @@ func (a *Application) loadSvcCfgFromCmIfValid(svcName string, svcType base.SvcTy
 	}
 
 	_, // local config should not contain app config
-		svcCfg, err := LoadSvcCfgFromStrIfValid(cfgStr, svcName, svcType)
+	svcCfg, err := LoadSvcCfgFromStrIfValid(cfgStr, svcName, svcType)
 	if err != nil {
 		hint("Load nocalhost svc config from cm fail, err: %s", err.Error())
 		return false
@@ -468,7 +465,7 @@ func doLoadProfileFromSvcConfig(renderItem envsubst.RenderItem, svcName string, 
 	}
 
 	for _, svcConfig := range config {
-		if svcConfig.Name == svcName && base.SvcTypeOf(svcConfig.Type) == svcType {
+		if svcConfig.Name == svcName && base.SvcType(svcConfig.Type) == svcType {
 			return svcConfig, nil
 		}
 	}
@@ -495,13 +492,11 @@ func (a *Application) newConfigFromProfile() *profile.NocalHostAppConfigV2 {
 			Version: "v2",
 		},
 		ApplicationConfig: profile.ApplicationConfig{
-			Name:         a.Name,
-			Type:         profileV2.AppType,
-			ResourcePath: profileV2.ResourcePath,
-			IgnoredPath:  profileV2.IgnoredPath,
-			PreInstall:   profileV2.PreInstall,
-			//Env:            profileV2.Env,
-			//EnvFrom:        profileV2.EnvFrom,
+			Name:           a.Name,
+			Type:           profileV2.AppType,
+			ResourcePath:   profileV2.ResourcePath,
+			IgnoredPath:    profileV2.IgnoredPath,
+			PreInstall:     profileV2.PreInstall,
 			ServiceConfigs: loadServiceConfigsFromProfile(profileV2.SvcProfile),
 		},
 	}
@@ -518,9 +513,6 @@ func loadServiceConfigsFromProfile(profiles []*profile.SvcProfileV2) []*profile.
 				configs, &profile.ServiceConfigV2{
 					Name: p.GetName(),
 					Type: p.GetType(),
-					//PriorityClass:       p.PriorityClass,
-					//DependLabelSelector: p.DependLabelSelector,
-					//ContainerConfigs:    p.ContainerConfigs,
 				},
 			)
 		}
@@ -531,9 +523,15 @@ func loadServiceConfigsFromProfile(profiles []*profile.SvcProfileV2) []*profile.
 
 func (a *Application) createLevelDbIfNotExists() (err error) {
 	if db, err := nocalhostDb.OpenApplicationLevelDB(a.NameSpace, a.Name, a.appMeta.NamespaceId, true); err != nil {
-		return nocalhostDb.CreateApplicationLevelDB(
-			a.NameSpace, a.Name, a.appMeta.NamespaceId, true,
-		)
+		if errors.Is(err, os.ErrNotExist) {
+			p := profile.AppProfileV2{}
+			p.GenerateIdentifierIfNeeded()
+			pBytes, _ := yaml.Marshal(&p)
+			return nocalhostDb.CreateApplicationLevelDBWithProfile(
+				a.NameSpace, a.Name, a.appMeta.NamespaceId, profile.ProfileV2Key(a.NameSpace, a.Name), pBytes, true,
+			)
+		}
+		return err
 	} else {
 		_ = db.Close()
 	}
@@ -562,36 +560,36 @@ func (a *Application) getProfileForUpdate() (*profile.AppProfileV2, error) {
 	return profile.NewAppProfileV2ForUpdate(a.NameSpace, a.Name, a.appMeta.NamespaceId)
 }
 
-func (a *Application) LoadConfigFromLocalV2() (*profile.NocalHostAppConfigV2, error) {
-
-	isV2, err := a.checkIfAppConfigIsV2()
-	if err != nil {
-		return nil, err
-	}
-
-	if !isV2 {
-		log.Log("Upgrade config V1 to V2 ...")
-		err = a.UpgradeAppConfigV1ToV2()
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	config := &profile.NocalHostAppConfigV2{}
-	rbytes, err := ioutil.ReadFile(a.GetConfigV2Path())
-	if err != nil {
-		return nil, errors.New(fmt.Sprintf("fail to load configFile : %s", a.GetConfigV2Path()))
-	}
-	if err = yaml.Unmarshal(rbytes, config); err != nil {
-		re, _ := regexp.Compile("remoteDebugPort: \"[0-9]*\"")
-		rep := re.ReplaceAllString(string(rbytes), "")
-		if err = yaml.Unmarshal([]byte(rep), config); err != nil {
-			return nil, errors.Wrap(err, "")
-		}
-	}
-
-	return config, nil
-}
+//func (a *Application) LoadConfigFromLocalV2() (*profile.NocalHostAppConfigV2, error) {
+//
+//	isV2, err := a.checkIfAppConfigIsV2()
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	if !isV2 {
+//		log.Log("Upgrade config V1 to V2 ...")
+//		err = a.UpgradeAppConfigV1ToV2()
+//		if err != nil {
+//			return nil, err
+//		}
+//	}
+//
+//	config := &profile.NocalHostAppConfigV2{}
+//	rbytes, err := ioutil.ReadFile(a.GetConfigV2Path())
+//	if err != nil {
+//		return nil, errors.New(fmt.Sprintf("fail to load configFile : %s", a.GetConfigV2Path()))
+//	}
+//	if err = yaml.Unmarshal(rbytes, config); err != nil {
+//		re, _ := regexp.Compile("remoteDebugPort: \"[0-9]*\"")
+//		rep := re.ReplaceAllString(string(rbytes), "")
+//		if err = yaml.Unmarshal([]byte(rep), config); err != nil {
+//			return nil, errors.Wrap(err, "")
+//		}
+//	}
+//
+//	return config, nil
+//}
 
 type HelmFlags struct {
 	Debug    bool
@@ -662,7 +660,7 @@ func (a *Application) GetDescription() *profile.AppProfileV2 {
 		for _, svcProfile := range appProfile.SvcProfile {
 			appmeta.FillingExtField(svcProfile, meta, a.Name, a.NameSpace, appProfile.Identifier)
 
-			if m := devMeta[base.SvcTypeOf(svcProfile.GetType()).Alias()]; m != nil {
+			if m := devMeta[base.SvcType(svcProfile.GetType()).Alias()]; m != nil {
 				delete(m, svcProfile.GetName())
 			}
 		}
@@ -701,6 +699,9 @@ func (a *Application) PortForward(pod string, localPort, remotePort int, readyCh
 }
 
 func (a *Application) CleanUpTmpResources() error {
+	if !a.shouldClean {
+		return nil
+	}
 	log.Log("Clean up tmp resources...")
 	return errors.Wrap(
 		os.RemoveAll(a.ResourceTmpDir),

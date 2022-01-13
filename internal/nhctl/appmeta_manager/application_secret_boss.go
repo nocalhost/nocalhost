@@ -12,7 +12,6 @@ import (
 	"fmt"
 	v1 "k8s.io/api/core/v1"
 	"nocalhost/internal/nhctl/appmeta"
-	_const "nocalhost/internal/nhctl/const"
 	profile2 "nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/resouce_cache"
 	"nocalhost/pkg/nhctl/log"
@@ -46,10 +45,6 @@ func UpdateApplicationMetasManually(ns string, configBytes []byte, secretName st
 		log.Debugf("receive update secret operation, name: %s, err: %v", secretName, err)
 		return err
 	}
-}
-
-func VALID_APPLICATION(meta *appmeta.ApplicationMeta) bool {
-	return !(meta.Application != _const.DefaultNocalhostApplication && meta.IsNotInstall())
 }
 
 func GetApplicationMetas(ns string, configBytes []byte, filter func(*appmeta.ApplicationMeta) bool) []*appmeta.ApplicationMeta {

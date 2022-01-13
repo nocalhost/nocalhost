@@ -33,7 +33,7 @@ func Hook(client runner.Client) {
 					time.Minute*2, func() error {
 						return testcase.InstallBookInfoHelmForTestHook(client)
 					}, func() error {
-						return testcase.UninstallBookInfoWithNativeHelm(client,"HelmHook")
+						return testcase.UninstallBookInfoWithNativeHelm(client, "HelmHook")
 					},
 				)
 			},
@@ -153,12 +153,12 @@ func PortForward(client runner.Client, module, moduleType string) {
 	util.Retry(fmt.Sprintf("PortForward-%s-%s", moduleType, module), funcs)
 }
 
-func PortForwardService(client runner.Client) {
+func PortForwardService(client runner.Client) error {
 	module := "productpage"
 	remotePort := 9080
 	localPort, err := ports.GetAvailablePort()
 	if err != nil {
-		panic(errors.Errorf("fail to get available port, err: %s", err))
+		return errors.Errorf("fail to get available port, err: %s", err)
 	}
 	cmd := client.GetKubectl().Command(
 		context.Background(),
@@ -166,18 +166,21 @@ func PortForwardService(client runner.Client) {
 		"service/"+module,
 		fmt.Sprintf("%d:%d", localPort, remotePort),
 	)
+	cmd.Stdout = log.TestLogger(client.SuiteName())
+	cmd.Stderr = log.TestLogger(client.SuiteName())
 	log.Infof("Running command: %v", cmd.Args)
 	if err = cmd.Start(); err != nil {
-		panic(errors.Errorf("fail to port-forward expose service-%s, err: %s", module, err))
+		return errors.Errorf("fail to port-forward expose service-%s, err: %s", module, err)
 	}
-	clientgoutils.Must(testcase.PortForwardCheck(localPort))
-	_ = cmd.Process.Kill()
+	defer cmd.Process.Kill()
+	err = testcase.PortForwardCheck(localPort)
+	return err
 }
 
 func test(cli runner.Client, moduleName, moduleType string, modeType profile.DevModeType) {
 	PortForward(cli, moduleName, moduleType)
-	PortForwardService(cli)
 	funcs := []func() error{
+		func() error { return PortForwardService(cli) },
 		func() error {
 			if err := testcase.DevStartT(cli, moduleName, moduleType, modeType); err != nil {
 				_ = testcase.DevEndT(cli, moduleName, moduleType)
@@ -484,7 +487,9 @@ func Prepare() (cancelFunc func(), namespaceResult, kubeconfigResult string) {
 			}
 		}()
 	}
-	go util.TimeoutChecker(1*time.Hour, cancelFunc)
+
+	go util.TimeoutChecker(30*time.Minute, cancelFunc)
+
 	_, currentVersion := testcase.GetVersion()
 	util.Retry("Prepare", []func() error{func() error { return testcase.InstallNhctl(currentVersion) }})
 	kubeconfig := util.GetKubeconfig()

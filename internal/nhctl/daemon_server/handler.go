@@ -6,7 +6,10 @@
 package daemon_server
 
 import (
+	"context"
 	"github.com/pkg/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/internal/nhctl/daemon_common"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/pkg/nhctl/clientgoutils"
@@ -47,8 +50,26 @@ func checkClusterStatus(kubePath string, timeout time.Duration) error {
 			errChan <- err
 			return
 		}
-		_, err = c.ClientSet.ServerVersion()
-		errChan <- err
+
+		// first check the server version is valid
+		// then check
+
+		if _, err := c.ClientSet.ServerVersion(); err != nil {
+			errChan <- err
+			return
+		}
+
+		if _, err := c.ClientSet.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{}); err != nil &&
+			k8serrors.IsForbidden(err) {
+			if _, err := c.ClientSet.CoreV1().Pods(c.GetNameSpace()).Get(
+				context.Background(), "nothing", metav1.GetOptions{},
+			); err != nil && !k8serrors.IsNotFound(err) {
+				errChan <- err
+				return
+			}
+		}
+
+		errChan <- nil
 	}()
 
 	var err error
@@ -64,21 +85,23 @@ func checkClusterStatusCronJob() {
 	// todo: add a recover
 	for {
 		var wg sync.WaitGroup
-		clusterStatusMap.Range(func(k, v interface{}) bool {
-			wg.Add(1)
-			go func(key, value interface{}) {
-				defer wg.Done()
-				css := value.(*daemon_common.CheckClusterStatus)
-				if err := checkClusterStatus(key.(string), time.Minute); err != nil {
-					css.Available = false
-					css.Info = err.Error()
-				} else {
-					css.Available = true
-					css.Info = ""
-				}
-			}(k, v)
-			return true
-		})
+		clusterStatusMap.Range(
+			func(k, v interface{}) bool {
+				wg.Add(1)
+				go func(key, value interface{}) {
+					defer wg.Done()
+					css := value.(*daemon_common.CheckClusterStatus)
+					if err := checkClusterStatus(key.(string), time.Minute); err != nil {
+						css.Available = false
+						css.Info = err.Error()
+					} else {
+						css.Available = true
+						css.Info = ""
+					}
+				}(k, v)
+				return true
+			},
+		)
 		wg.Wait()
 		<-time.After(time.Minute)
 	}

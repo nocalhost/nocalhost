@@ -28,6 +28,11 @@ const (
 	KubeconfigOperation   DaemonCommandType = "KubeconfigOperationCommand"
 	CheckClusterStatus    DaemonCommandType = "CheckClusterStatus"
 	FlushDirMappingCache  DaemonCommandType = "FlushDirMappingCache"
+	VPNOperate            DaemonCommandType = "VPNOperate"
+	SudoVPNOperate        DaemonCommandType = "SudoVPNOperate"
+	VPNStatus             DaemonCommandType = "VPNStatus"
+	SudoVPNStatus         DaemonCommandType = "SudoVPNStatus"
+	AuthCheck             DaemonCommandType = "AuthCheck"
 
 	PREVIEW_VERSION = 0
 	SUCCESS         = 200
@@ -100,6 +105,15 @@ type GetResourceInfoCommand struct {
 	ShowHidden   bool              `json:"showHidden" yaml:"showHidden"`
 }
 
+type AuthCheckCommand struct {
+	CommandType DaemonCommandType
+	ClientStack string
+
+	KubeConfigContent string   `json:"kubeConfig" yaml:"kubeConfig"`
+	NameSpace         string   `json:"namespace" yaml:"namespace"`
+	NeedChecks        []string `json:"needChecks" yaml:"needChecks"`
+}
+
 type UpdateApplicationMetaCommand struct {
 	CommandType DaemonCommandType
 	ClientStack string
@@ -118,6 +132,25 @@ type KubeconfigOperationCommand struct {
 	Namespace       string    `json:"namespace" yaml:"namespace"`
 	Operation       Operation `json:"operation" yaml:"operation"`
 }
+
+type VPNOperateCommand struct {
+	CommandType DaemonCommandType
+	ClientStack string
+
+	KubeConfig string       `json:"kubeConfig" yaml:"kubeConfig"`
+	Namespace  string       `json:"namespace" yaml:"namespace"`
+	Resource   string       `json:"resource" yaml:"resource"`
+	Action     VPNOperation `json:"operation" yaml:"operation"`
+}
+
+type VPNOperation string
+
+const (
+	Connect    VPNOperation = "connect"
+	DisConnect VPNOperation = "disConnect"
+	Reconnect  VPNOperation = "reconnect"
+	Status     VPNOperation = "status"
+)
 
 type Operation string
 

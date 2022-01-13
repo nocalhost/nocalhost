@@ -6,6 +6,7 @@
 package clientgoutils
 
 import (
+	"bytes"
 	"github.com/pkg/errors"
 	"io"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -79,6 +80,9 @@ func DeleteResourceInfo(info *resource.Info) error {
 
 // Similar to `kubectl apply`, but apply a resourceInfo instead a file
 func (c *ClientGoUtils) ApplyResourceInfo(info *resource.Info, af *ApplyFlags) error {
+	if af == nil {
+		af = &ApplyFlags{}
+	}
 	o, err := c.generateCompletedApplyOption(af)
 	if err != nil {
 		return err
@@ -167,6 +171,11 @@ func (c *ClientGoUtils) generateCompletedApplyOption(af *ApplyFlags) (*apply.App
 	return o, nil
 }
 
+// GetResourceInfoFromString Str is in json format (Can be a yaml ?)
+func (c *ClientGoUtils) GetResourceInfoFromString(str string, continueOnError bool) ([]*resource.Info, error) {
+	return c.GetResourceInfoFromReader(bytes.NewBufferString(str), continueOnError)
+}
+
 func (c *ClientGoUtils) GetResourceInfoFromReader(reader io.Reader, continueOnError bool) ([]*resource.Info, error) {
 
 	f := c.NewFactory()
@@ -176,7 +185,7 @@ func (c *ClientGoUtils) GetResourceInfoFromReader(reader io.Reader, continueOnEr
 		if continueOnError {
 			log.Warnf("Build validator err: %v", err.Error())
 		} else {
-			return nil, errors.Wrap(err, "")
+			return nil, errors.WithStack(err)
 		}
 	}
 	if continueOnError {

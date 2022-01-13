@@ -30,7 +30,7 @@ func init() {
 		"k8s deployment which your developing service exists",
 	)
 	fileSyncCmd.Flags().StringVarP(
-		&serviceType, "controller-type", "t", "",
+		&serviceType, "controller-type", "t", "deployment",
 		"kind of k8s controller,such as deployment,statefulSet",
 	)
 	fileSyncCmd.Flags().BoolVarP(
@@ -112,7 +112,7 @@ func StartSyncthing(podName string, resume bool, stop bool, container string, sy
 	svcProfile, _ := nocalhostSvc.GetProfile()
 	if podName == "" {
 		var err error
-		if podName, err = nocalhostSvc.BuildPodController().GetNocalhostDevContainerPod(); err != nil {
+		if podName, err = nocalhostSvc.GetDevModePodName(); err != nil {
 			must(err)
 		}
 	}

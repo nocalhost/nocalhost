@@ -3,12 +3,14 @@ package profile
 import (
 	"errors"
 	"fmt"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
+	"strings"
 	"testing"
 )
 
 func TestParse(t *testing.T) {
-	_, _, err := GetPortForwardForString("z")
+	_, _, err := utils.GetPortForwardForString("z")
 	if err == nil {
 		t.Error(err)
 	} else {
@@ -17,7 +19,7 @@ func TestParse(t *testing.T) {
 }
 
 func TestParseOverload(t *testing.T) {
-	l, r, err := GetPortForwardForString("65536")
+	l, r, err := utils.GetPortForwardForString("65536")
 	if err != nil {
 		log.Info(err.Error())
 	} else {
@@ -26,7 +28,7 @@ func TestParseOverload(t *testing.T) {
 }
 
 func TestParseOverload1(t *testing.T) {
-	l, r, err := GetPortForwardForString("-65535")
+	l, r, err := utils.GetPortForwardForString("-65535")
 	if err != nil {
 		log.Info(err.Error())
 	} else {
@@ -35,7 +37,7 @@ func TestParseOverload1(t *testing.T) {
 }
 
 func TestParseSingle(t *testing.T) {
-	l, r, err := GetPortForwardForString("8080")
+	l, r, err := utils.GetPortForwardForString("8080")
 	if err != nil {
 		log.Info(err.Error())
 		t.Error(err)
@@ -47,7 +49,7 @@ func TestParseSingle(t *testing.T) {
 }
 
 func TestParseComplete(t *testing.T) {
-	l, r, err := GetPortForwardForString("8080:80")
+	l, r, err := utils.GetPortForwardForString("8080:80")
 	if err != nil {
 		log.Info(err.Error())
 		t.Error(err)
@@ -59,7 +61,7 @@ func TestParseComplete(t *testing.T) {
 }
 
 func TestParseRandom(t *testing.T) {
-	l, r, err := GetPortForwardForString(":80")
+	l, r, err := utils.GetPortForwardForString(":80")
 	if err != nil {
 		log.Info(err.Error())
 		t.Error(err)
@@ -68,4 +70,10 @@ func TestParseRandom(t *testing.T) {
 	if l < 0 || r != 80 {
 		t.Error(errors.New("err"))
 	}
+}
+
+func TestMacAddress(t *testing.T) {
+	s := getMacAddress().String()
+	all := strings.ReplaceAll(s, ":", "")
+	fmt.Println(all)
 }

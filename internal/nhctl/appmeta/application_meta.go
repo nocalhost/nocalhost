@@ -336,8 +336,7 @@ func (a *ApplicationMeta) ReAssignmentBySecret(secret *corev1.Secret) error {
 }
 
 func Decode(secret *corev1.Secret) (*ApplicationMeta, error) {
-	appMeta := &ApplicationMeta{
-	}
+	appMeta := &ApplicationMeta{}
 
 	if err := appMeta.ReAssignmentBySecret(secret); err != nil {
 		return nil, err
@@ -347,9 +346,9 @@ func Decode(secret *corev1.Secret) (*ApplicationMeta, error) {
 }
 
 func FillingExtField(s *profile2.SvcProfileV2, meta *ApplicationMeta, appName, ns, identifier string) {
-	svcType := base.SvcTypeOf(s.GetType())
+	svcType := base.SvcType(s.GetType())
 
-	s.DevModeType = meta.GetCurrentDevModeTypeOfWorkload(s.GetName(), base.SvcTypeOf(s.GetType()), identifier)
+	s.DevModeType = meta.GetCurrentDevModeTypeOfWorkload(s.GetName(), base.SvcType(s.GetType()), identifier)
 	devStatus := meta.CheckIfSvcDeveloping(s.GetName(), identifier, svcType, s.DevModeType)
 
 	pack := dev_dir.NewSvcPack(
@@ -469,7 +468,7 @@ func (a *ApplicationMeta) initialFreshSecret() (*corev1.Secret, error) {
 // params: force - force to re initial the appmeta, (while app uninstall, there is 10s re initial protect)
 // if want to disable the protect, set force as true
 func (a *ApplicationMeta) Initial(force bool) error {
-	return a.doInitial(
+	return a.doPreCheckThen(
 		func(exists bool) error {
 			if exists {
 				a.ApplicationState = INSTALLING
@@ -502,7 +501,7 @@ func (a *ApplicationMeta) Initial(force bool) error {
 // or modify the exists secret as INSTALLED if the secret state is UNINSTALL
 func (a *ApplicationMeta) OneTimesInitial(fun func(meta *ApplicationMeta), force bool) error {
 
-	return a.doInitial(
+	return a.doPreCheckThen(
 		func(exists bool) error {
 			if exists {
 				a.ApplicationState = INSTALLED
@@ -540,7 +539,7 @@ func (a *ApplicationMeta) OneTimesInitial(fun func(meta *ApplicationMeta), force
 }
 
 // do some pre check of initial a secret
-func (a *ApplicationMeta) doInitial(howToPersistMeta func(bool) error, force bool) error {
+func (a *ApplicationMeta) doPreCheckThen(howToInitialMeta func(bool) error, skipProtectedCheck bool) error {
 	exists := true
 	get, err := a.operator.Get(a.Ns, SecretNamePrefix+a.Application)
 	if err != nil {
@@ -566,9 +565,17 @@ func (a *ApplicationMeta) doInitial(howToPersistMeta func(bool) error, force boo
 			return errors.Wrap(err, "Error while Initial Application meta, fail to decode secret ")
 		}
 
-		if a.IsNotInstall() {
+		// if secret already exist, and we want to re init it
+		// we should check it's protect from UninstallBackOff
+		// after it last uninstall
+		//
+		// and we can set skipProtectedCheck as true to skip
+		// this check
+		if skipProtectedCheck {
 
-			if a.ProtectedFromReInstall(force) {
+		} else if a.IsNotInstall() {
+
+			if a.ProtectedFromReInstall() {
 				return errors.New(
 					"Application may uninstalling, " +
 						"the secret is protected to re initial, please try again later ",
@@ -577,7 +584,7 @@ func (a *ApplicationMeta) doInitial(howToPersistMeta func(bool) error, force boo
 		}
 	}
 
-	return howToPersistMeta(exists)
+	return howToInitialMeta(exists)
 }
 
 func (a *ApplicationMeta) InitGoClient(kubeConfigPath string) error {
@@ -674,6 +681,8 @@ func (a *ApplicationMeta) SvcDevStartComplete(name string, svcType base.SvcType,
 	}
 
 	m[name] = identifier
+	inDevStartingMark := devStartMarkSign(name)
+	delete(m, inDevStartingMark)
 	return a.Update()
 }
 
@@ -736,6 +745,9 @@ func (a *ApplicationMeta) Update() error {
 			if a.Secret == nil {
 				return errors.New("secret not found")
 			}
+			if a.Secret.Data == nil {
+				return errors.New("secret data is nil")
+			}
 			a.prepare()
 			secret, err := a.operator.Update(a.Ns, a.Secret)
 			if err != nil {
@@ -793,8 +805,8 @@ func (a *ApplicationMeta) IsNotInstall() bool {
 	return a.ApplicationState == UNINSTALLED
 }
 
-func (a *ApplicationMeta) ProtectedFromReInstall(force bool) bool {
-	return !force && a.UninstallBackOff > time.Now().UnixNano()
+func (a *ApplicationMeta) ProtectedFromReInstall() bool {
+	return a.UninstallBackOff > time.Now().UnixNano()
 }
 
 func (a *ApplicationMeta) NotInstallTips() string {
@@ -941,7 +953,6 @@ func (a *ApplicationMeta) Delete() error {
 	a.PostDeleteManifest = ""
 	a.Manifest = ""
 	a.DevMeta = map[base.SvcType]map[string]string{}
-	a.Config = &profile2.NocalHostAppConfigV2{}
 	a.UninstallBackOff = time.Now().Add(time.Second * 10).UnixNano()
 
 	return a.Update()
