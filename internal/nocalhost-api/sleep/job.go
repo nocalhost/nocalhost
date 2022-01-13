@@ -52,7 +52,7 @@ func execCluster(cs *model.ClusterList) {
 		return
 	}
 	// 4. obtain dev spaces
-	spaces, err := cluster_user.NewClusterUserService().GetList(context.TODO(), model.ClusterUserModel{})
+	spaces, err := cluster_user.NewClusterUserService().GetList(context.TODO(), model.ClusterUserModel{ClusterId: cs.ID})
 	if err != nil {
 		log.Errorf("Failed to resolve namespace list, cluster: %s, err: %v", cs.ClusterName, err)
 		return
