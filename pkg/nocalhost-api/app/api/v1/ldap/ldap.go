@@ -147,10 +147,11 @@ func TestSearch(c *gin.Context) {
 				[]string{
 					"dn", params.EmailAttr, params.UserNameAttr,
 				},
-				[]ldap2.Control{ldap2.NewControlPaging(5)},
+				nil,
+				//[]ldap2.Control{ldap2.NewControlPaging(5)},
 			)
 
-			sr, err := conn.SearchWithPaging(searchRequest, 5)
+			sr, err := conn.Search(searchRequest)
 			if err != nil {
 				return errors.Wrap(err, "Error when sending search request to ldap server ")
 			}
