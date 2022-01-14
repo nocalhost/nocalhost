@@ -433,13 +433,17 @@ jobs:
           name: synchthing-linux-arm64-cache-${GITHUB_SHA}
 
   build-syncthing-macos-windows:
-    name: Build syncthing macos
-    runs-on: macos-latest
+    name: Build syncthing macos windows
+    runs-on: macos-11
     steps:
       - name: Set up Go 1.x
         uses: actions/setup-go@v2
         with:
           go-version: 1.16.7
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '12.4.0'
 
       - name: Get tag
         run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
@@ -453,10 +457,12 @@ jobs:
 
       - name: Build syncthing
         working-directory: ./syncthing-source
+        env:
+          ARCHFLAGS: "-arch x86_64"
         run: |
+          ./build.sh artifact mac-arm64 ${{ env.RELEASE_VERSION }} ${GITHUB_SHA}
           go run build.go -nocalhostVersion=${{ env.RELEASE_VERSION }} -nocalhostCommitId="${GITHUB_SHA}" -goarch amd64 zip
           go run build.go -nocalhostVersion=${{ env.RELEASE_VERSION }} -nocalhostCommitId="${GITHUB_SHA}" -goos=windows -goos=windows -goarch amd64 zip
-          go run build.go -nocalhostVersion=${{ env.RELEASE_VERSION }} -nocalhostCommitId="${GITHUB_SHA}" -goarch arm64 zip
 
       - name: Push to Coding Articact
         working-directory: ./syncthing-source
@@ -464,6 +470,7 @@ jobs:
           curl -T syncthing-macos-amd64.zip -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-amd64.zip?version=${{ env.RELEASE_VERSION }}"
           curl -T syncthing-macos-arm64.zip -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-arm64.zip?version=${{ env.RELEASE_VERSION }}"
           curl -T syncthing-windows-amd64.zip -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/syncthing/syncthing-windows-amd64.zip?version=${{ env.RELEASE_VERSION }}"
+
       - name: Update macos and windows synchting to artifact
         uses: actions/upload-artifact@v2
         with:

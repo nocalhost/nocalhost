@@ -133,7 +133,7 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 			cmd.KubeConfig, cmd.Namespace, command.Connect, cmd.Resource); err == nil {
 			transStreamToWriterWithoutExit(writer, r)
 		}
-		logger.Infof("connectted to new namespace\n")
+		logger.Infof("connected to new namespace\n")
 		// reverse resource if needed
 		if len(cmd.Resource) != 0 {
 			logger.Infof("prepare to reverse resource: %s...\n", cmd.Resource)
@@ -143,7 +143,7 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 			if err = connect.DoReverse(logCtx); err != nil {
 				return
 			} else {
-				logger.Infof("reverse resource: %s suecessfully\n", cmd.Resource)
+				logger.Infof("reverse resource: %s successfully\n", cmd.Resource)
 			}
 		}
 		return

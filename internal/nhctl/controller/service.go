@@ -413,6 +413,8 @@ func (c *Controller) waitDevPodToBeReady() {
 
 	var currentPod atomic.Value
 
+	readyChan := make(chan struct{}, 0)
+
 	quitChan := watcher.NewSimpleWatcher(
 		c.Client,
 		"pod",
@@ -433,7 +435,7 @@ func (c *Controller) waitDevPodToBeReady() {
 					}
 
 					if _, err := findDevPodName(pod); err == nil {
-						close(quitChan)
+						readyChan <- struct{}{}
 					}
 					return
 				}
@@ -476,7 +478,10 @@ func (c *Controller) waitDevPodToBeReady() {
 		defer close(c)
 	}
 
-	<-quitChan
+	select {
+	case _, _ = <-quitChan:
+	case <-readyChan:
+	}
 }
 
 func (c *Controller) CheckDevModePodIsRunning() (string, error) {
