@@ -283,8 +283,6 @@ definitions:
         type: integer
       info:
         type: string
-      inspect_at:
-        type: string
       is_ready:
         type: boolean
       modifiable:
@@ -295,6 +293,8 @@ definitions:
         type: string
       server:
         type: string
+      sleep_lock:
+        type: integer
       storage_class:
         type: string
       user_id:
@@ -312,8 +312,6 @@ definitions:
         type: integer
       info:
         type: string
-      inspect_at:
-        type: string
       is_ready:
         type: boolean
       modifiable:
@@ -328,6 +326,8 @@ definitions:
         type: array
       server:
         type: string
+      sleep_lock:
+        type: integer
       storage_class:
         type: string
       user_id:
@@ -343,14 +343,14 @@ definitions:
         type: integer
       info:
         type: string
-      inspect_at:
-        type: string
       kubeconfig:
         type: string
       name:
         type: string
       server:
         type: string
+      sleep_lock:
+        type: integer
       storage_class:
         type: string
       user_id:

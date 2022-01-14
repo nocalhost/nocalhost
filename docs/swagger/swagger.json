@@ -2421,9 +2421,6 @@
                 "info": {
                     "type": "string"
                 },
-                "inspect_at": {
-                    "type": "string"
-                },
                 "is_ready": {
                     "type": "boolean"
                 },
@@ -2438,6 +2435,9 @@
                 },
                 "server": {
                     "type": "string"
+                },
+                "sleep_lock": {
+                    "type": "integer"
                 },
                 "storage_class": {
                     "type": "string"
@@ -2465,9 +2465,6 @@
                 "info": {
                     "type": "string"
                 },
-                "inspect_at": {
-                    "type": "string"
-                },
                 "is_ready": {
                     "type": "boolean"
                 },
@@ -2488,6 +2485,9 @@
                 },
                 "server": {
                     "type": "string"
+                },
+                "sleep_lock": {
+                    "type": "integer"
                 },
                 "storage_class": {
                     "type": "string"
@@ -2516,9 +2516,6 @@
                 "info": {
                     "type": "string"
                 },
-                "inspect_at": {
-                    "type": "string"
-                },
                 "kubeconfig": {
                     "type": "string"
                 },
@@ -2527,6 +2524,9 @@
                 },
                 "server": {
                     "type": "string"
+                },
+                "sleep_lock": {
+                    "type": "integer"
                 },
                 "storage_class": {
                     "type": "string"
