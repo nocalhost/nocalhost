@@ -136,7 +136,7 @@ func StartDevMode(applicationName string) {
 
 		if common.NocalhostSvc.IsProcessor() {
 			if !DevStartOps.NoTerminal || shell != "" {
-				must(common.NocalhostSvc.EnterPodTerminal(podName, DevStartOps.Container, shell))
+				must(common.NocalhostSvc.EnterPodTerminal(podName, DevStartOps.Container, shell, ""))
 			}
 			return
 		}
@@ -177,7 +177,7 @@ func StartDevMode(applicationName string) {
 	}
 
 	if !DevStartOps.NoTerminal || shell != "" {
-		must(common.NocalhostSvc.EnterPodTerminal(devPodName, "nocalhost-dev", shell))
+		must(common.NocalhostSvc.EnterPodTerminal(devPodName, "nocalhost-dev", shell, ""))
 	}
 }
 
@@ -253,7 +253,7 @@ func stopPreviousSyncthing() {
 		),
 	)
 	// kill syncthing process by find find it with terminal
-	str := strings.ReplaceAll(common.NocalhostSvc.GetApplicationSyncDir(), nocalhost_path.GetNhctlHomeDir(), "")
+	str := strings.ReplaceAll(common.NocalhostSvc.GetSyncDir(), nocalhost_path.GetNhctlHomeDir(), "")
 	utils2.KillSyncthingProcess(str)
 }
 

@@ -13,6 +13,7 @@ import (
 func init() {
 	rootCmd.AddCommand(debugCmd)
 	debugCmd.AddCommand(dev.DevStartCmd)
+	debugCmd.AddCommand(dev.DevEndCmd)
 }
 
 var debugCmd = &cobra.Command{

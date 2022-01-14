@@ -6,9 +6,7 @@
 package kube
 
 import (
-	dockerterm "github.com/moby/term"
 	"github.com/spf13/cobra"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/kubectl/pkg/cmd/logs"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"nocalhost/cmd/nhctl/cmds/common"
@@ -37,9 +35,9 @@ func init() {
 var flagAdded bool
 
 func InitLogOptions() {
-	stdIn, stdOut, stderr := dockerterm.StdStreams()
+	//stdIn, stdOut, stderr := dockerterm.StdStreams()
 	LogOptions = logs.NewLogsOptions(
-		genericclioptions.IOStreams{In: stdIn, Out: stdOut, ErrOut: stderr}, false)
+		*clientgoutils.IoStreams, false)
 	if !flagAdded {
 		flagAdded = true
 		LogOptions.AddFlags(CmdLogs)
@@ -49,8 +47,6 @@ func InitLogOptions() {
 func RunLogs(cmd *cobra.Command, args []string) {
 	common.Must(common.Prepare())
 	clientGoUtils, err := clientgoutils.NewClientGoUtils(common.KubeConfig, common.NameSpace)
-	//ps, err := clientGoUtils.ListPods()
-	//fmt.Println(ps, err)
 	common.Must(err)
 	cmdutil.CheckErr(LogOptions.Complete(clientGoUtils.NewFactory(), cmd, args))
 	cmdutil.CheckErr(LogOptions.Validate())

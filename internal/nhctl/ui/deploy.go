@@ -6,7 +6,6 @@
 package ui
 
 import (
-	"github.com/derailed/tview"
 	"github.com/pkg/errors"
 	"nocalhost/internal/nhctl/app_flags"
 	"nocalhost/internal/nhctl/appmeta"
@@ -15,8 +14,8 @@ import (
 	"os"
 )
 
-func (t *TviewApplication) buildDeployApplicationMenu() *tview.Table {
-	menu := NewBorderedTable(" Deploy Application")
+func (t *TviewApplication) buildDeployApplicationMenu() *EnhancedTable {
+	menu := t.NewBorderedTable(" Deploy Application")
 	menu.SetCell(0, 0, coloredCell(deployDemoAppOption))
 	menu.SetCell(1, 0, coloredCell(deployHelmAppOption))
 	menu.SetCell(2, 0, coloredCell(deployKubectlAppOption))
@@ -24,25 +23,15 @@ func (t *TviewApplication) buildDeployApplicationMenu() *tview.Table {
 
 	menu.SetSelectedFunc(func(row, column int) {
 		selectedCell := menu.GetCell(row, column)
-		var m tview.Primitive
 		switch selectedCell.Text {
 		case deployDemoAppOption:
-			view := NewScrollingTextView(" Deploy BookInfo demo application")
+			writer := t.switchBodyToScrollingView(" Deploy BookInfo demo application", menu)
 			//nhctl install bookinfo --git-url https://github.com/nocalhost/bookinfo.git --type rawManifest --kubeconfig %s --namespace %s
-			m = view
 			f := app_flags.InstallFlags{
 				GitUrl:  "https://github.com/nocalhost/bookinfo.git",
 				AppType: string(appmeta.ManifestGit),
 			}
-
-			sbd := SyncBuilder{func(p []byte) (int, error) {
-				t.app.QueueUpdateDraw(func() {
-					view.Write([]byte(" " + string(p)))
-				})
-				return 0, nil
-			}}
-
-			log.RedirectionDefaultLogger(&sbd)
+			log.RedirectionDefaultLogger(writer)
 			go func() {
 				_, err := common.InstallApplication(&f, "bookinfo", t.clusterInfo.KubeConfig, t.clusterInfo.NameSpace)
 				if err != nil {
@@ -53,7 +42,6 @@ func (t *TviewApplication) buildDeployApplicationMenu() *tview.Table {
 		default:
 			return
 		}
-		t.switchBodyToC(menu, m)
 	})
 	return menu
 }

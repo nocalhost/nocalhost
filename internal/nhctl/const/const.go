@@ -5,6 +5,8 @@
 
 package _const
 
+import "github.com/fatih/color"
+
 const (
 	UintEnable  = uint64(1)
 	UintDisable = uint64(0)
@@ -85,6 +87,15 @@ const (
 	// sync mode
 	GitIgnoreMode = "gitIgnore"
 	PatternMode   = "pattern"
+
+	banner = `
+****************************************
+*      Nocalhost DevMode Terminal      *
+****************************************
+`
 )
 
-var IsDaemon = false
+var (
+	IsDaemon              = false
+	DevModeTerminalBanner = color.New(color.BgGreen).Add(color.FgBlack).Add(color.Bold).Sprint(banner)
+)

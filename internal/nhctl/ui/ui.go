@@ -9,8 +9,9 @@ import (
 	"context"
 	"github.com/gdamore/tcell/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"nocalhost/internal/nhctl/nocalhost"
 	"strings"
+	"time"
+
 	//"github.com/rivo/tview"
 	"github.com/derailed/tview"
 )
@@ -22,29 +23,76 @@ const (
 	// Main Menu
 	deployApplicationOption = " Deploy Application"
 	switchContextOption     = " Switch Context"
-	selectAppOption         = " List applications"
 
 	deployDemoAppOption      = " Quickstart: Deploy BookInfo demo application"
 	deployHelmAppOption      = " Helm: Use my own Helm chart (e.g. local via ./chart/ or any remote chart)"
 	deployKubectlAppOption   = " Kubectl: Use existing Kubernetes manifests (e.g. ./kube/deployment.yaml)"
 	deployKustomizeAppOption = " Kustomize: Use an existing Kustomization (e.g. ./kube/kustomization/)"
 
-	startDevModeOpt = " Start DevMode"
-	viewLogsOpt     = " View Logs"
+	startDevModeOpt  = " Start DevMode"
+	endDevModeOpt    = " End DevMode"
+	viewDevConfigOpt = " View Dev Config"
+	viewLogsOpt      = " View Logs"
+	portForwardOpt   = " Port Forward"
+	syncLogsOpt      = " File Sync Logs"
+	openGuiOpt       = " Open Sync GUI"
+	openTerminalOpt  = " Open Terminal"
+	showTreeOpt      = " Show Tree"
 )
 
 func RunTviewApplication() {
 	app := NewTviewApplication()
-	if err := app.Run(); err != nil {
+	stopChan := make(chan struct{})
+	go func() {
+		if err := app.Run(); err != nil {
+			stopChan <- struct{}{}
+		}
+	}()
+
+	lp := getLastPosition()
+	if lp == "" {
 		return
 	}
+
+	strs := strings.Split(lp, "/")
+	if len(strs) == 0 {
+		return
+	}
+
+	//go func() {
+	app.app.SetFocus(app.treeInBody)
+	r := app.treeInBody.GetRoot()
+	for _, str := range strs {
+		var found bool
+		for _, node := range r.GetChildren() {
+			if node.GetText() == str {
+				app.treeInBody.SetCurrentNode(node)
+				r = node
+				go func() {
+					app.app.QueueEvent(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone))
+				}()
+				for i := 0; i < 200; i++ {
+					time.Sleep(100 * time.Millisecond)
+					if len(r.GetChildren()) > 0 {
+						node.SetExpanded(true)
+						break
+					}
+				}
+				found = true
+				break
+			}
+		}
+		if !found {
+			return
+		}
+	}
+	<-stopChan
 }
 
 func (t *TviewApplication) buildMainMenu() tview.Primitive {
-	mainMenu := NewBorderedTable(" Menu")
-	mainMenu.SetCell(0, 0, coloredCell(deployApplicationOption))
-	mainMenu.SetCell(1, 0, coloredCell(selectAppOption))
-	mainMenu.SetCell(2, 0, coloredCell(" Start DevMode Here"))
+	mainMenu := t.NewBorderedTable(" Menu")
+	mainMenu.SetCell(1, 0, coloredCell(deployApplicationOption))
+	mainMenu.SetCell(2, 0, coloredCell(showTreeOpt))
 	mainMenu.SetCell(3, 0, coloredCell(switchContextOption))
 
 	// Make selected eventHandler the same as clicked
@@ -56,50 +104,16 @@ func (t *TviewApplication) buildMainMenu() tview.Primitive {
 			m = t.buildDeployApplicationMenu()
 		case switchContextOption:
 			m = t.buildSelectContextMenu()
-		case selectAppOption:
-			m = t.buildSelectAppList()
 		default:
 			return
 		}
-		t.switchBodyToC(mainMenu, m)
+		t.switchRightBodyToC(mainMenu, m)
 	})
 	return mainMenu
 }
 
-func (t *TviewApplication) buildSelectAppList() *tview.Table {
-	selectAppTable := NewBorderedTable(" Select a application")
-
-	metas, err := nocalhost.GetApplicationMetas(t.clusterInfo.NameSpace, t.clusterInfo.KubeConfig)
-	if err != nil {
-		panic(err)
-	}
-
-	for col, section := range []string{" Application", "State", "Type"} {
-		selectAppTable.SetCell(0, col, infoCell(section))
-	}
-
-	for i, c := range metas {
-		selectAppTable.SetCell(i+1, 0, coloredCell(" "+c.Application))
-		selectAppTable.SetCell(i+1, 1, coloredCell(string(c.ApplicationState)))
-		selectAppTable.SetCell(i+1, 2, coloredCell(string(c.ApplicationType)))
-	}
-
-	selectAppTable.SetSelectedFunc(func(row, column int) {
-		if row > 0 {
-			nextTable := t.buildSelectWorkloadList(metas[row-1])
-			t.switchBodyToC(selectAppTable, nextTable)
-		}
-	})
-	selectAppTable.Select(1, 0)
-	return selectAppTable
-}
-
-func showErr(err error) {
-	panic(err)
-}
-
-func (t *TviewApplication) buildSelectContextMenu() *tview.Table {
-	table := NewBorderedTable(" Select a context")
+func (t *TviewApplication) buildSelectContextMenu() *EnhancedTable {
+	table := t.NewBorderedTable(" Select a context")
 
 	for col, section := range []string{" Context", "Cluster", "User", "NameSpace", "K8s Rev"} {
 		table.SetCell(0, col, infoCell(section))
@@ -126,7 +140,7 @@ func (t *TviewApplication) buildSelectContextMenu() *tview.Table {
 				if err != nil {
 					return
 				}
-				nsTable := NewBorderedTable("Select a namespace")
+				nsTable := t.NewBorderedTable("Select a namespace")
 				for i, item := range ns.Items {
 					nsTable.SetCell(i, 0, coloredCell(" "+item.Name))
 				}
@@ -137,7 +151,7 @@ func (t *TviewApplication) buildSelectContextMenu() *tview.Table {
 					t.RefreshHeader()
 					t.switchMainMenu()
 				})
-				t.switchBodyToC(table, nsTable)
+				t.switchRightBodyToC(table, nsTable)
 			}
 		}
 	})

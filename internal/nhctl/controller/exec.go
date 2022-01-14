@@ -12,9 +12,7 @@ import (
 // EnterPodTerminal Try to use shell defined in devContainerShell to enter pod's terminal
 // If devContainerShell is not defined or shell defined in devContainerShell failed to enter terminal, use /bin/sh
 // If container not specified, the first container will be used
-func (c *Controller) EnterPodTerminal(podName, container string, shell string) error {
-	pod := podName
-
+func (c *Controller) EnterPodTerminal(podName, container, shell, banner string) error {
 	if shell == "" {
 		profile := c.Config()
 		if profile != nil {
@@ -29,5 +27,5 @@ func (c *Controller) EnterPodTerminal(podName, container string, shell string) e
 	if shell != "" {
 		cmd = fmt.Sprintf("(%s || zsh || bash || sh)", shell)
 	}
-	return c.Client.ExecShell(pod, container, cmd)
+	return c.Client.ExecShell(podName, container, cmd, banner)
 }

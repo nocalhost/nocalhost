@@ -63,7 +63,7 @@ func StartSyncthing(podName string, resume bool, stop bool, container string, sy
 	// Start a pf for syncthing
 	must(common.NocalhostSvc.PortForward(podName, svcProfile.RemoteSyncthingPort, svcProfile.RemoteSyncthingPort, "SYNC"))
 
-	str := strings.ReplaceAll(common.NocalhostSvc.GetApplicationSyncDir(), nocalhost_path.GetNhctlHomeDir(), "")
+	str := strings.ReplaceAll(common.NocalhostSvc.GetSyncDir(), nocalhost_path.GetNhctlHomeDir(), "")
 
 	utils2.KillSyncthingProcess(str)
 
@@ -86,7 +86,7 @@ func StartSyncthing(podName string, resume bool, stop bool, container string, sy
 	}
 
 	// Delete service folder
-	dir := common.NocalhostSvc.GetApplicationSyncDir()
+	dir := common.NocalhostSvc.GetSyncDir()
 	if err2 := os.RemoveAll(dir); err2 != nil {
 		log.Logf("Failed to delete dir: %s before starting syncthing, err: %v", dir, err2)
 	}

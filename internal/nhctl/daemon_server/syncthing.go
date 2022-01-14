@@ -222,7 +222,7 @@ func doReconnectSyncthing(svc *controller.Controller, container string, kubeconf
 	// stop syncthing process with pid
 	_ = svc.FindOutSyncthingProcess(func(pid int) error { return syncthing.Stop(pid, true) })
 	// stop syncthing process with keywords
-	str := strings.ReplaceAll(svc.GetApplicationSyncDir(), nocalhost_path.GetNhctlHomeDir(), "")
+	str := strings.ReplaceAll(svc.GetSyncDir(), nocalhost_path.GetNhctlHomeDir(), "")
 	utils2.KillSyncthingProcess(str)
 	flag := false
 	config := svc.Config()

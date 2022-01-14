@@ -62,6 +62,6 @@ var devTerminalCmd = &cobra.Command{
 			}
 			pod = runningPod[0].Name
 		}
-		must(common.NocalhostSvc.EnterPodTerminal(pod, container, shell))
+		must(common.NocalhostSvc.EnterPodTerminal(pod, container, shell, ""))
 	},
 }
