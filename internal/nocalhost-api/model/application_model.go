@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package model
 
@@ -19,6 +19,7 @@ type ApplicationModel struct {
 	CreatedAt       time.Time  `gorm:"column:created_at" json:"created_at"`
 	UpdatedAt       time.Time  `gorm:"column:updated_at" json:"-"`
 	DeletedAt       *time.Time `gorm:"column:deleted_at" json:"-"`
+	UserName        string     `json:"user_name"`
 	Public          uint8      `json:"public" gorm:"column:public;not null" binding:"required"`
 	Status          uint8      `json:"status" gorm:"column:status;not null" binding:"required"`
 	Editable        uint8      `json:"editable"`
@@ -49,6 +50,10 @@ func (u *ApplicationModel) FillEditable(admin bool, currentUser uint64) {
 	} else {
 		u.Editable = 0
 	}
+}
+
+func (u *ApplicationModel) FillUserName(usrName string){
+	u.UserName = usrName
 }
 
 func (u *ApplicationModel) FillApplicationType(ApplicationType string) {

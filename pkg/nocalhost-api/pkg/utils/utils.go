@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package utils
 
@@ -57,7 +57,8 @@ func GetQiNiuPublicAccessURL(path string) string {
 }
 
 func IsEmail(email string) bool {
-	match, err := regexp.Match(emailReg, []byte(email))
+
+	match, err := regexp.Match(emailReg, []byte(strings.ToLower(email)))
 	return err == nil && match
 }
 
@@ -94,14 +95,16 @@ var (
 
 // GetLocalIP
 func GetLocalIP() string {
-	once.Do(func() {
-		ips, _ := tnet.IntranetIP()
-		if len(ips) > 0 {
-			clientIP = ips[0]
-		} else {
-			clientIP = "127.0.0.1"
-		}
-	})
+	once.Do(
+		func() {
+			ips, _ := tnet.IntranetIP()
+			if len(ips) > 0 {
+				clientIP = ips[0]
+			} else {
+				clientIP = "127.0.0.1"
+			}
+		},
+	)
 	return clientIP
 }
 
