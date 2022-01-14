@@ -116,7 +116,7 @@ func (repo *clusterBaseRepo) Lockup(
 	cm := model.ClusterModel{}
 	db := repo.db.Model(&cm).
 		Where("`id` = ? and `sleep_lock` = ?", id, lock).
-		Update("sleep_lock", time.Now().UTC())
+		Update("sleep_lock", time.Now().Unix())
 
 	if db.Error != nil {
 		return db.Error
