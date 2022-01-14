@@ -132,10 +132,13 @@ func (repo *clusterBaseRepo) Lockup(
 	}
 	return errors.New("0 rows affected")
 }
-
 func (repo *clusterBaseRepo) Unlock(_ context.Context, id uint64) error {
 	cm := model.ClusterModel{}
-	db := repo.db.Model(&cm).Where("`id` = ?", id).Update("inspect_at", nil)
+	// Mariadb: if a NULL value is assigned to a TIMESTAMP field, the current date and time is assigned instead.
+	// https://mariadb.com/kb/en/null-values/
+	db := repo.db.Model(&cm).
+		Where("`id` = ?", id).
+		Update("inspect_at", time.Date(2014, 6, 7, 0, 0, 0, 0, time.UTC))
 	return db.Error
 }
 

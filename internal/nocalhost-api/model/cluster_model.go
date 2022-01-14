@@ -63,7 +63,7 @@ type ClusterModel struct {
 	CreatedAt    time.Time  `gorm:"column:created_at" json:"created_at"`
 	UpdatedAt    time.Time  `gorm:"column:updated_at" json:"-"`
 	DeletedAt    *time.Time `gorm:"column:deleted_at" json:"-"`
-	InspectAt    *time.Time `gorm:"column:inspect_at;type:timestamp" json:"inspect_at"`
+	InspectAt    *time.Time `gorm:"column:inspect_at;type:timestamp;default:'2014-06-07 00:00:00'" json:"inspect_at"`
 }
 
 type ClusterList struct {
