@@ -28,9 +28,9 @@ var (
 	PermissionDenied = errors.New("Permission Denied")
 )
 
-func CheckForResource(kubeConfigContent, namespace string, verbs []string, resources ...string) error {
+func CheckForResource(kubeConfigContent, namespace string, verbs []string, passWhenTimeout bool, resources ...string) error {
 	return getManagerCached(kubeConfigContent).
-		AuthCheckForResource(namespace, verbs, resources...)
+		AuthCheckForResource(namespace, verbs, passWhenTimeout, resources...)
 }
 
 func getManagerCached(kubeConfigContent string) *authCheckManager {
@@ -50,7 +50,7 @@ func getManagerCached(kubeConfigContent string) *authCheckManager {
 	return mgr
 }
 
-func (a *authCheckManager) AuthCheckForResource(namespace string, verbs []string, resources ...string) error {
+func (a *authCheckManager) AuthCheckForResource(namespace string, verbs []string, passWhenTimeout bool, resources ...string) error {
 	if !a.initSuccess {
 		log.Errorf("AuthCheckManager init fail before, so skip auth check...")
 		return nil
@@ -65,7 +65,7 @@ func (a *authCheckManager) AuthCheckForResource(namespace string, verbs []string
 		acs = append(acs, &AuthChecker{ResourceArg: resource, Verb: verbs})
 	}
 
-	return a.doAuthCheck(namespace, acs...)
+	return a.doAuthCheck(namespace, passWhenTimeout, acs...)
 }
 
 func (a *authCheckManager) doFastCheck(namespace string) bool {
@@ -94,7 +94,7 @@ func (a *authCheckManager) doFastCheck(namespace string) bool {
 	return a.fastCheckMap[namespace]
 }
 
-func (a *authCheckManager) doAuthCheck(namespace string, authCheckers ...*AuthChecker) error {
+func (a *authCheckManager) doAuthCheck(namespace string, passWhenTimeout bool, authCheckers ...*AuthChecker) error {
 	a.client.namespace = namespace
 
 	forbiddenCheckers := make([]*authorizationv1.ResourceAttributes, 0)
@@ -174,6 +174,9 @@ func (a *authCheckManager) doAuthCheck(namespace string, authCheckers ...*AuthCh
 
 		// if check over 5 second, stopping to check the result
 	case <-time.NewTicker(time.Second * 5).C:
+		if !passWhenTimeout {
+			return errors.New("Time out when auth check, please try again!")
+		}
 	case e := <-errChan:
 		return e
 	}
@@ -228,7 +231,7 @@ func NewAuthCheckManager(kubeConfigPath string) *authCheckManager {
 type authCheckManager struct {
 	initSuccess bool
 
-	client     *ClientGoUtils
+	client *ClientGoUtils
 
 	gvrCache map[string]schema.GroupVersionResource
 	lock     sync.Mutex
