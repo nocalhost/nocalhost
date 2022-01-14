@@ -80,7 +80,7 @@ func Inspect(c *clientgo.GoClient, s *model.ClusterUserModel) (ToBe, error) {
 		println(ns.Name, "Cursor: 【"+strconv.Itoa(cursor)+"】", " Asleep:【"+strconv.Itoa(index0)+"】", "Wakeup:【"+strconv.Itoa(index1)+"】")
 
 		// case: sleep at Monday 20:00, wakeup at Tuesday 09:00
-		if index0 < index1 && cursor > index0 && cursor < index1 {
+		if index0 < index1 && cursor >= index0 && cursor < index1 {
 			if ns.Annotations[KSleepStatus] == KAsleep {
 				return ToBeIgnore, nil
 			}
@@ -88,7 +88,7 @@ func Inspect(c *clientgo.GoClient, s *model.ClusterUserModel) (ToBe, error) {
 		}
 
 		// case: sleep at Friday 20:00, wakeup at Monday 09:00
-		if index1 < index0 && (cursor > index0 || cursor < index1) {
+		if index1 < index0 && (cursor >= index0 || cursor < index1) {
 			if ns.Annotations[KSleepStatus] == KAsleep {
 				return ToBeIgnore, nil
 			}
