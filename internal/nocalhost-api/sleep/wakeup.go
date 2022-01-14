@@ -30,7 +30,6 @@ func Wakeup(c *clientgo.GoClient, s *model.ClusterUserModel, force bool) error {
 	return cluster_user.
 		NewClusterUserService().
 		Modify(context.TODO(), s.ID, map[string]interface{}{
-			"sleep_at":     nil,
 			"sleep_status": KWakeup,
 			"sleep_minute": gorm.Expr("`sleep_minute` + ?", diff),
 		})
