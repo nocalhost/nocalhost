@@ -24,8 +24,8 @@ var Job = &model.Job{
 			return
 		}
 		for _, it := range clusters {
-			// 2. skip this cluster if `InspectAt` has not expired
-			if it.InspectAt == nil || isExpired(*it.InspectAt) {
+			// 2. check lock
+			if it.SleepLock == 0 || isExpired(it.SleepLock) {
 				go execCluster(it)
 			}
 		}
@@ -40,7 +40,7 @@ func execCluster(cs *model.ClusterList) {
 		}
 	}()
 	// 2. create lock
-	err := cluster.NewClusterService().Lockup(context.TODO(), cs.ID, cs.InspectAt)
+	err := cluster.NewClusterService().Lockup(context.TODO(), cs.ID, cs.SleepLock)
 	if err != nil {
 		log.Errorf("Failed to create lock, cluster: %s, err: %v", cs.ClusterName, err)
 		return
@@ -98,6 +98,6 @@ func execDevSpace(c *clientgo.GoClient, s *model.ClusterUserModel) {
 	}
 }
 
-func isExpired(other time.Time) bool {
-	return time.Now().Sub(other) > 5*time.Minute
+func isExpired(lock int64) bool {
+	return time.Now().Sub(time.Unix(lock, 0)) > 5*time.Minute
 }

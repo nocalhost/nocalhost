@@ -11,7 +11,6 @@ import (
 	"nocalhost/internal/nocalhost-api/cache"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/repository/cluster"
-	"time"
 )
 
 type ClusterService interface {
@@ -28,7 +27,7 @@ type ClusterService interface {
 	Close()
 	DeleteByCreator(ctx context.Context, id uint64) error
 
-	Lockup(ctx context.Context, id uint64, prev *time.Time) error
+	Lockup(ctx context.Context, id uint64, lock int64) error
 	Unlock(ctx context.Context, id uint64) error
 }
 
@@ -65,8 +64,8 @@ func (srv *clusterService) GetCache(id uint64) (model.ClusterModel, error) {
 	return result, nil
 }
 
-func (srv *clusterService) Lockup(ctx context.Context, id uint64, prev *time.Time) error {
-	err := srv.clusterRepo.Lockup(ctx, id, prev)
+func (srv *clusterService) Lockup(ctx context.Context, id uint64, lock int64) error {
+	err := srv.clusterRepo.Lockup(ctx, id, lock)
 	if err != nil {
 		return err
 	}

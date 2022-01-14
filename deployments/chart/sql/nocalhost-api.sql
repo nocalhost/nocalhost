@@ -96,6 +96,7 @@ CREATE TABLE `clusters` (
   `kubeconfig` text NOT NULL,
   `storage_class` varchar(100) NOT NULL DEFAULT '' COMMENT 'specify the k8s storage class',
   `info` text DEFAULT NULL COMMENT 'cluster extra info, such as versions, nodes',
+  `sleep_lock` bigint(20) NOT NULL DEFAULT 0,
   `deleted_at` timestamp NULL DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,

@@ -24,7 +24,7 @@ type ClusterRepo interface {
 	GetList(ctx context.Context) ([]*model.ClusterList, error)
 	Close()
 
-	Lockup(ctx context.Context, id uint64, prev *time.Time) error
+	Lockup(ctx context.Context, id uint64, lock int64) error
 	Unlock(ctx context.Context, id uint64) error
 }
 
@@ -84,7 +84,7 @@ func (repo *clusterBaseRepo) GetAny(ctx context.Context, where map[string]interf
 func (repo *clusterBaseRepo) GetList(ctx context.Context) ([]*model.ClusterList, error) {
 	var result []*model.ClusterList
 	repo.db.Raw(
-		"select c.id,c.kubeconfig,c.name,c.server,c.storage_class,c.info,c.user_id,c.created_at,c.inspect_at,count" +
+		"select c.id,c.kubeconfig,c.name,c.server,c.storage_class,c.info,c.user_id,c.created_at,c.sleep_lock,count" +
 			"(distinct cu.id) as users_count from clusters as c left join clusters_users as cu on c.id=cu.cluster_id" +
 			" where c.deleted_at is null and cu.deleted_at is null group by c.id",
 	).
@@ -111,19 +111,13 @@ func (repo *clusterBaseRepo) Get(ctx context.Context, clusterId uint64) (model.C
 }
 
 func (repo *clusterBaseRepo) Lockup(
-	_ context.Context, id uint64, prev *time.Time,
+	_ context.Context, id uint64, lock int64,
 ) error {
 	cm := model.ClusterModel{}
-	db := repo.db.Model(&cm)
-	if prev == nil {
-		db = db.
-			Where("`id` = ? and `inspect_at` is NULL", id).
-			Update("inspect_at", time.Now().UTC())
-	} else {
-		db = db.
-			Where("`id` = ? and `inspect_at` = ?", id, prev).
-			Update("inspect_at", time.Now().UTC())
-	}
+	db := repo.db.Model(&cm).
+		Where("`id` = ? and `sleep_lock` = ?", id, lock).
+		Update("sleep_lock", time.Now().UTC())
+
 	if db.Error != nil {
 		return db.Error
 	}
@@ -138,7 +132,7 @@ func (repo *clusterBaseRepo) Unlock(_ context.Context, id uint64) error {
 	// https://mariadb.com/kb/en/null-values/
 	db := repo.db.Model(&cm).
 		Where("`id` = ?", id).
-		Update("inspect_at", time.Date(2014, 6, 7, 0, 0, 0, 0, time.UTC))
+		Update("sleep_lock", 0)
 	return db.Error
 }
 
