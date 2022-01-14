@@ -15,7 +15,6 @@ type DaemonCommandType string
 
 const (
 	StartPortForward      DaemonCommandType = "StartPortForward"
-	RestartPortForward    DaemonCommandType = "RestartPortForward"
 	StopPortForward       DaemonCommandType = "StopPortForward"
 	StopDaemonServer      DaemonCommandType = "StopDaemonServer"
 	RestartDaemonServer   DaemonCommandType = "RestartDaemonServer"
@@ -57,15 +56,19 @@ type PortForwardCommand struct {
 	CommandType DaemonCommandType
 	ClientStack string
 
-	NameSpace   string `json:"nameSpace"`
-	AppName     string `json:"appName"`
-	Service     string `json:"service"`
-	ServiceType string `json:"serviceType"`
-	PodName     string `json:"podName"`
-	LocalPort   int    `json:"localPort"`
-	RemotePort  int    `json:"remotePort"`
-	Role        string `json:"role"`
-	Nid         string `json:"nid"`
+	NameSpace       string            `json:"nameSpace"`
+	AppName         string            `json:"appName"`
+	Service         string            `json:"service"`
+	ServiceType     string            `json:"serviceType"`
+	PodName         string            `json:"podName"`
+	LocalPort       int               `json:"localPort"`
+	RemotePort      int               `json:"remotePort"`
+	Role            string            `json:"role"`
+	Nid             string            `json:"nid"`
+	Labels          map[string]string `json:"labels"`
+	OwnerKind       string            `json:"ownerKind"`
+	OwnerApiVersion string            `json:"ownerApiVersion"`
+	OwnerName       string            `json:"ownerName"`
 }
 
 type GetApplicationMetaCommand struct {

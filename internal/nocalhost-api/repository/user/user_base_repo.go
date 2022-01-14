@@ -95,11 +95,16 @@ func (repo *userBaseRepo) GetUserHasNotSa(ctx context.Context) ([]*model.UserBas
 
 func (repo *userBaseRepo) GetUserPageable(ctx context.Context, page, limit int) ([]*model.UserBaseModel, error) {
 	var result []*model.UserBaseModel
-	repo.db.
-		Raw("select * from users where deleted_at is null").
-		Offset((page - 1) * limit).
-		Limit(limit).
-		Scan(&result)
+
+	raw := repo.db.
+		Raw("select * from users where deleted_at is null")
+
+	if page > 0 && limit > 0 {
+		raw = raw.Offset((page - 1) * limit).
+			Limit(limit)
+	}
+
+	raw.Scan(&result)
 	return result, nil
 }
 
