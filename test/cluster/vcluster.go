@@ -54,7 +54,7 @@ func (bc *vCluster) Create() (string, error) {
 	resp, err := req.New().Post(
 		res.BaseUrl+util.WebDevSpace, header,
 		fmt.Sprintf(`{"cluster_id":1,"cluster_admin":0,"user_id":1,"space_name":"%s","space_resource_limit":null,
-"dev_space_type":3,"virtual_cluster":{"service_type":"NodePort","version":"0.4.5","values":null}}`, spaceName),
+"dev_space_type":3,"virtual_cluster":{"service_type":"NodePort","version":"0.5.2","values":null}}`, spaceName),
 	)
 	if err != nil || resp == nil {
 		log.Infof("Get kubeconfig error, err: %v", err)
