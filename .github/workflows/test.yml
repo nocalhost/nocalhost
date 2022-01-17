@@ -93,7 +93,9 @@ jobs:
           export TESTCASE_WEBHOOK=${{ secrets.TESTCASE_WEBHOOK }}
           export HELM_REPO_USERNAME=${{ secrets.CODING_ARTIFACTS_USER }}
           export HELM_REPO_PASSWORD=${{ secrets.CODING_ARTIFACTS_PASS }}
-          export NOCALHOST_VCLUSTER_FOR_TEST=${{ secrets.NOCALHOST_VCLUSTER_FOR_TEST }}
+          export NOCALHOST_VCLUSTER_HOST_FOR_TEST=${{ secrets.NOCALHOST_VCLUSTER_HOST_FOR_TEST }}
+          export NOCALHOST_VCLUSTER_EMAIL_FOR_TEST=${{ secrets.NOCALHOST_VCLUSTER_EMAIL_FOR_TEST }}
+          export NOCALHOST_VCLUSTER_PASSWORD_FOR_TEST=${{ secrets.NOCALHOST_VCLUSTER_PASSWORD_FOR_TEST }}
           export DISABLE_SPINNER=true
           cd test
           go build
@@ -132,7 +134,9 @@ jobs:
           export TESTCASE_WEBHOOK=${{ secrets.TESTCASE_WEBHOOK }}
           export HELM_REPO_USERNAME=${{ secrets.CODING_ARTIFACTS_USER }}
           export HELM_REPO_PASSWORD=${{ secrets.CODING_ARTIFACTS_PASS }}
-          export NOCALHOST_VCLUSTER_FOR_TEST=${{ secrets.NOCALHOST_VCLUSTER_FOR_TEST }}
+          export NOCALHOST_VCLUSTER_HOST_FOR_TEST=${{ secrets.NOCALHOST_VCLUSTER_HOST_FOR_TEST }}
+          export NOCALHOST_VCLUSTER_EMAIL_FOR_TEST=${{ secrets.NOCALHOST_VCLUSTER_EMAIL_FOR_TEST }}
+          export NOCALHOST_VCLUSTER_PASSWORD_FOR_TEST=${{ secrets.NOCALHOST_VCLUSTER_PASSWORD_FOR_TEST }}
           export DISABLE_SPINNER=true
           cd test
           go build
@@ -172,7 +176,9 @@ jobs:
           export TESTCASE_WEBHOOK=${{ secrets.TESTCASE_WEBHOOK }}
           export HELM_REPO_USERNAME=${{ secrets.CODING_ARTIFACTS_USER }}
           export HELM_REPO_PASSWORD=${{ secrets.CODING_ARTIFACTS_PASS }}
-          export NOCALHOST_VCLUSTER_FOR_TEST=${{ secrets.NOCALHOST_VCLUSTER_FOR_TEST }}
+          export NOCALHOST_VCLUSTER_HOST_FOR_TEST=${{ secrets.NOCALHOST_VCLUSTER_HOST_FOR_TEST }}
+          export NOCALHOST_VCLUSTER_EMAIL_FOR_TEST=${{ secrets.NOCALHOST_VCLUSTER_EMAIL_FOR_TEST }}
+          export NOCALHOST_VCLUSTER_PASSWORD_FOR_TEST=${{ secrets.NOCALHOST_VCLUSTER_PASSWORD_FOR_TEST }}
           export DISABLE_SPINNER=true
           cd test
           go build

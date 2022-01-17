@@ -31,15 +31,23 @@ type vCluster struct {
 }
 
 func NewDefaultVCluster() Cluster {
-	addr := os.Getenv(util.NocalhostVClusterForTest)
-	return NewVCluster(addr)
+	addr := os.Getenv(util.NocalhostVClusterHostForTest)
+	email := os.Getenv(util.NocalhostVClusterEmailForTest)
+	passwd := os.Getenv(util.NocalhostVClusterPasswordForTest)
+	if len(email) == 0 {
+		email = app.DefaultInitAdminUserName
+	}
+	if len(passwd) == 0 {
+		passwd = app.DefaultInitPassword
+	}
+	return NewVCluster(addr, email, passwd)
 }
 
-func NewVCluster(addr string) Cluster {
+func NewVCluster(addr, email, password string) Cluster {
 	return &vCluster{
 		host:     addr,
-		email:    app.DefaultInitAdminUserName,
-		password: app.DefaultInitPassword,
+		email:    email,
+		password: password,
 	}
 }
 
@@ -54,7 +62,7 @@ func (bc *vCluster) Create() (string, error) {
 	resp, err := req.New().Post(
 		res.BaseUrl+util.WebDevSpace, header,
 		fmt.Sprintf(`{"cluster_id":1,"cluster_admin":0,"user_id":1,"space_name":"%s","space_resource_limit":null,
-"dev_space_type":3,"virtual_cluster":{"service_type":"NodePort","version":"0.5.2","values":null}}`, spaceName),
+"dev_space_type":3,"virtual_cluster":{"service_type":"NodePort","version":"","values":null}}`, spaceName),
 	)
 	if err != nil || resp == nil {
 		log.Infof("Get kubeconfig error, err: %v", err)
