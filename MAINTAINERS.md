@@ -15,4 +15,4 @@ Please keep the below list sorted in ascending order.
 | Yicai Yu | @yuyicai | Tencent | <yuyicai@hotmail.com> |
 | Caiwen Feng | @wencaiwulue | Tencent | <wencaiwulue@gmail.com> |
 | Jinming Guo | @vgjm |  | <vgjm456@qq.com> |
-| Hongchao Deng | @hongchaodeng |  | <hongchaodeng1@gmail.com> |
+| Hongchao Deng | @hongchaodeng | Alibaba | <hongchaodeng1@gmail.com> |
