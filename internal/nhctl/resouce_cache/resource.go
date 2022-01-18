@@ -39,7 +39,7 @@ var GroupToTypeMap = []struct {
 			"ConfigMap.v1.",
 			"Secret.v1.",
 			"HorizontalPodAutoscaler.v1.autoscaling",
-			"ResourceQuota.v1",
+			"ResourceQuota.v1.",
 			"PodDisruptionBudget.v1.policy",
 		},
 	},
