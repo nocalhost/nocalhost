@@ -17,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/restmapper"
@@ -82,8 +83,8 @@ func (g *GvkGvrWithAlias) GetFullName() string {
 
 // getSupportedSchema return restMapping of each resource, [string]*meta.RESTMapping
 // Key: resourceType
-func getSupportedSchema(apiResources []*restmapper.APIGroupResources) ([]GvkGvrWithAlias, error) {
-	var resourceNeeded = map[string]string{"namespaces": "Namespace.v1"} // deployment/statefulset...
+func getSupportedSchema(apiResources []*restmapper.APIGroupResources) ([]GvkGvrWithAlias, sets.String, error) {
+	var resourceNeeded = map[string]string{"namespaces": "Namespace.v1."} // deployment/statefulset...
 	for _, v := range GroupToTypeMap {
 		for _, s := range v.V {
 			resourceNeeded[s] = s
@@ -93,19 +94,11 @@ func getSupportedSchema(apiResources []*restmapper.APIGroupResources) ([]GvkGvrW
 	nameToMapping := make([]GvkGvrWithAlias, 0) // []GvkGvrWithAlias
 
 	for _, s := range resourceNeeded {
-		gvk := schema.GroupVersionKind{}
-		gvkStrs := strings.Split(s, ".")
-		if len(gvkStrs) > 0 {
-			gvk.Kind = gvkStrs[0]
-			if len(gvkStrs) > 1 {
-				gvk.Version = gvkStrs[1]
-				if len(gvkStrs) > 2 {
-					gvk.Group = strings.Join(gvkStrs[2:], ".")
-				}
-			}
+		gvk, gk := schema.ParseKindArg(s)
+		if gvk == nil {
+			gvk = &schema.GroupVersionKind{Kind: gk.Group, Group: gk.Group}
 		}
-
-		apiR, err := ConvertGvkToApiResource(&gvk, apiResources)
+		apiR, err := ConvertGvkToApiResource(gvk, apiResources)
 		if err == nil {
 			ggwa := GvkGvrWithAlias{
 				Gvr: schema.GroupVersionResource{
@@ -113,7 +106,7 @@ func getSupportedSchema(apiResources []*restmapper.APIGroupResources) ([]GvkGvrW
 					Version:  gvk.Version,
 					Resource: apiR.Name,
 				},
-				Gvk: gvk,
+				Gvk: *gvk,
 				alias: []string{
 					apiR.Name, apiR.SingularName, strings.ToLower(apiR.Kind),
 				},
@@ -126,9 +119,18 @@ func getSupportedSchema(apiResources []*restmapper.APIGroupResources) ([]GvkGvrW
 	}
 
 	if len(nameToMapping) == 0 {
-		return nil, errors.New("RestMapping is empty, this should not happened")
+		return nil, nil, errors.New("RestMapping is empty, this should not happened")
 	}
-	return nameToMapping, nil
+
+	// workloads need to parse app from annotation
+	set := sets.NewString()
+	for _, s := range GroupToTypeMap[0].V {
+		arg, _ := schema.ParseKindArg(s)
+		if arg != nil {
+			set.Insert(arg.String())
+		}
+	}
+	return nameToMapping, set, nil
 }
 
 func ConvertRuntimeObjectToCRD(obj runtime.Object) (*apiextensions.CustomResourceDefinition, error) {
@@ -368,18 +370,16 @@ func initSearcher(kubeconfigBytes []byte, namespace string, clientUtils *clientg
 		}
 	}
 
-	restMappingList, err := getSupportedSchema(gr)
+	restMappingList, workloads, err := getSupportedSchema(gr)
 	if err != nil {
 		return nil, err
 	}
 
 	supportedSchema := sync.Map{}
-	for index, resource := range restMappingList {
+	for _, resource := range restMappingList {
 		informer := dynamicInformerFactory.ForResource(resource.Gvr)
-
-		if index == 0 {
-			informer.Informer().
-				AddEventHandler(NewResourceEventHandlerFuncs(informer, kubeconfigBytes, resource.Gvr))
+		if workloads.Has(resource.Gvk.String()) {
+			informer.Informer().AddEventHandler(NewResourceEventHandlerFuncs(informer, kubeconfigBytes, resource.Gvr))
 		}
 
 		for _, alias := range resource.alias {
