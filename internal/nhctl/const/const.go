@@ -12,26 +12,24 @@ const (
 	DefaultEmailSuffix = "@nocalhost.dev"
 
 	DefaultNewFilePermission   = 0700
-	DefaultApplicationDirName  = "application"
 	DefaultBinDirName          = "bin"
 	DefaultBinSyncThingDirName = "syncthing"
 	DefaultLogDirName          = "logs"
 	DefaultLogFileName         = "nhctl.log"
-	//DefaultApplicationProfilePath   = ".profile.yaml" // runtime config
-	//DefaultApplicationProfileV2Path = ".profile_v2.yaml"
 
-	NocalhostApplicationName      = "dev.nocalhost/application-name"
-	NocalhostApplicationNamespace = "dev.nocalhost/application-namespace"
+	NocalhostApplicationName         = "dev.nocalhost/application-name"
+	NocalhostApplicationNamespace    = "dev.nocalhost/application-namespace"
+	NocalhostDevContainerAnnotations = "dev.nocalhost/nocalhost-dev"
+
+	NocalhostDefaultDevContainerName = "nocalhost-dev"
+	NocalhostDefaultDevSidecarName   = "nocalhost-sidecar"
+
 	OriginWorkloadDefinition      = "dev.nocalhost/origin-workload-definition"
 	DevModeCount                  = "dev.nocalhost/dev-mode-count"
 	AppManagedByLabel             = "app.kubernetes.io/managed-by"
 	AppManagedByNocalhost         = "nocalhost"
 	DefaultNocalhostSideCarName   = "nocalhost-sidecar"
 	DefaultSidecarImagePullPolicy = "Always"
-
-	DevImageRevisionAnnotationKey            = "nhctl.dev.image.revision"
-	DevImageOriginalPodReplicasAnnotationKey = "nhctl.dev.image.original.pod.replicas"
-	DevImageRevisionAnnotationValue          = "first"
 
 	PersistentVolumeDirLabel = "nocalhost.dev/dir"
 	ServiceLabel             = "nocalhost.dev/service"

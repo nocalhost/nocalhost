@@ -231,6 +231,15 @@ func (c *Controller) getDuplicateLabelsMap() map[string]string {
 	return labelsMap
 }
 
+func (c *Controller) getDevContainerAnnotations(devContainer string, originAnnos map[string]string) map[string]string {
+	if len(originAnnos) == 0 {
+		originAnnos = map[string]string{}
+	}
+
+	originAnnos[_const.NocalhostDevContainerAnnotations] = c.GetDevContainerName(devContainer)
+	return originAnnos
+}
+
 func (c *Controller) getDuplicateResourceName() string {
 	uuid, _ := utils.GetShortUuid()
 	return strings.Join([]string{c.Name, c.Identifier[0:5], uuid}, "-")
@@ -245,31 +254,6 @@ func (c *Controller) patchAfterDevContainerReplaced(containerName, resourceType,
 	}
 	<-time.Tick(time.Second)
 }
-
-//func genDevContainerPatches(podSpec *v1.PodSpec, path, originalSpecJson string) []profile.PatchItem {
-//
-//	jsonPatches := make([]jsonPatch, 0)
-//	jsonPatches = append(jsonPatches, jsonPatch{
-//		Op:    "replace",
-//		Path:  path,
-//		Value: podSpec,
-//	})
-//
-//	//jsonPatches = append(jsonPatches, jsonPatch{
-//	//	Op:    "add",
-//	//	Path:  fmt.Sprintf("/metadata/annotations/%s", _const.OriginWorkloadDefinition),
-//	//	Value: originalSpecJson,
-//	//})
-//	m := map[string]interface{}{"metadata": map[string]interface{}{"annotations": map[string]string{_const.OriginWorkloadDefinition: originalSpecJson}}}
-//
-//	mBytes, _ := json.Marshal(m)
-//	bys, _ := json.Marshal(jsonPatches)
-//	result := make([]profile.PatchItem, 0)
-//	result = append(result, profile.PatchItem{Patch: string(mBytes), Type: "strategic"})
-//	result = append(result, profile.PatchItem{Patch: string(bys), Type: "json"})
-//
-//	return result
-//}
 
 func (c *Controller) getGeneratedDeploymentName() string {
 	id, _ := utils.GetShortUuid()
@@ -305,14 +289,15 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 		return err
 	}
 
+	devContainerName := c.GetDevContainerName(ops.Container)
 	for _, container := range podTemplate.Spec.Containers {
-		if container.Name == "nocalhost-dev" || container.Name == "nocalhost-sidecar" {
+		if container.Name == devContainerName || container.Name == _const.NocalhostDefaultDevSidecarName {
 			return errors.New(fmt.Sprintf("Container %s already exists, you need to reset it first", container.Name))
 		}
 	}
 
-	m := map[string]interface{}{"metadata": map[string]interface{}{"annotations": map[string]string{_const.OriginWorkloadDefinition: string(originalSpecJson)}}}
-	mBytes, _ := json.Marshal(m)
+	mBytes, _ := json.Marshal(map[string]interface{}{"metadata": map[string]interface{}{"annotations": map[string]string{_const.OriginWorkloadDefinition: string(originalSpecJson)}}})
+
 	if err = c.Client.Patch(c.Type.String(), c.Name, string(mBytes), "merge"); err != nil {
 		return err
 	}
@@ -353,12 +338,32 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 		if err = c.Client.Patch(c.Type.String(), c.Name, string(bys), "json"); err != nil {
 			return err
 		}
+
+		log.Info("Patching development annotations...")
+		specPath = c.DevModeAction.PodTemplatePath + "/metadata/annotations"
+		jsonPatches = make([]jsonPatch, 0)
+		jsonPatches = append(
+			jsonPatches, jsonPatch{
+				Op:    "replace",
+				Path:  specPath,
+				Value: c.getDevContainerAnnotations(ops.Container, map[string]string{}),
+			},
+		)
+		bys, _ = json.Marshal(jsonPatches)
+		patchContent := string(bys)
+
+		if err = c.Client.Patch(c.Type.String(), c.Name, patchContent, "json"); err != nil {
+			return err
+		}
+
 		c.patchAfterDevContainerReplaced(ops.Container, c.Type.String(), c.Name)
 	} else {
 		// Some workload's pod may not have labels, such as cronjob, we need to give it one
 		if len(podTemplate.Labels) == 0 {
 			podTemplate.Labels = c.getGeneratedDeploymentLabels()
 		}
+
+		podTemplate.Annotations = c.getDevContainerAnnotations(ops.Container, podTemplate.Annotations)
 		generatedDeployment := &appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:   c.getGeneratedDeploymentName(),
@@ -468,7 +473,11 @@ func (c *Controller) waitDevPodToBeReady() {
 							return
 						}
 
-						printer.ChangeContent(fmt.Sprintf("### Notable events: %s: %s ###", event.Reason, event.Message))
+						printer.ChangeContent(
+							fmt.Sprintf(
+								"### Notable events: %s: %s ###", event.Reason, event.Message,
+							),
+						)
 						return
 					}
 				}
@@ -539,8 +548,10 @@ func (c *Controller) RollBack(reset bool) error {
 // GetPVCsBySvc
 // Get all PersistVolumeClaims created by specified service
 func (c *Controller) GetPVCsBySvc() ([]v1.PersistentVolumeClaim, error) {
-	return c.Client.GetPvcByLabels(map[string]string{_const.AppLabel: c.AppName, _const.ServiceLabel: c.Name,
-		_const.ServiceTypeLabel: string(c.Type)})
+	return c.Client.GetPvcByLabels(
+		map[string]string{_const.AppLabel: c.AppName, _const.ServiceLabel: c.Name,
+			_const.ServiceTypeLabel: string(c.Type)},
+	)
 }
 
 func GetDefaultPodName(ctx context.Context, p *Controller) (string, error) {
