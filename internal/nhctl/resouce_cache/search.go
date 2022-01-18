@@ -127,7 +127,7 @@ func getSupportedSchema(apiResources []*restmapper.APIGroupResources) ([]GvkGvrW
 	for _, s := range GroupToTypeMap[0].V {
 		arg, _ := schema.ParseKindArg(s)
 		if arg != nil {
-			set.Insert(arg.String())
+			set.Insert(arg.GroupKind().String())
 		}
 	}
 	return nameToMapping, set, nil
@@ -378,7 +378,7 @@ func initSearcher(kubeconfigBytes []byte, namespace string, clientUtils *clientg
 	supportedSchema := sync.Map{}
 	for _, resource := range restMappingList {
 		informer := dynamicInformerFactory.ForResource(resource.Gvr)
-		if workloads.Has(resource.Gvk.String()) {
+		if workloads.Has(resource.Gvk.GroupKind().String()) {
 			informer.Informer().AddEventHandler(NewResourceEventHandlerFuncs(informer, kubeconfigBytes, resource.Gvr))
 		}
 
