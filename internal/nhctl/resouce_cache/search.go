@@ -376,9 +376,12 @@ func initSearcher(kubeconfigBytes []byte, namespace string, clientUtils *clientg
 
 	supportedSchema := sync.Map{}
 	for _, resource := range restMappingList {
-		informer, _ := innerInformerFactory.ForResource(resource.Gvr)
-		if workloads.Has(resource.Gvk.String()) {
-			informer.Informer().AddEventHandler(NewResourceEventHandlerFuncs(informer, kubeconfigBytes, resource.Gvr))
+		// todo retry
+		informer, err := innerInformerFactory.ForResource(resource.Gvr)
+		if err == nil {
+			if workloads.Has(resource.Gvk.String()) {
+				informer.Informer().AddEventHandler(NewResourceEventHandlerFuncs(informer, kubeconfigBytes, resource.Gvr))
+			}
 		}
 
 		for _, alias := range resource.alias {
