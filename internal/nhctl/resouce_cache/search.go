@@ -19,6 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic/dynamicinformer"
+	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
@@ -42,15 +43,14 @@ var searchMap, _ = simplelru.NewLRU(20, func(_ interface{}, value interface{}) {
 })
 var searchMapLock = &sync.Mutex{}
 
-var clusterMap = make(map[string]bool)
-var clusterMapLock = &sync.Mutex{}
+var isClusterAdminClusterMap = sync.Map{}
 
 // key: generateKey(kubeconfigBytes, namespace) value: []*restmapper.APIGroupResources
 var apiGroupResourcesMap sync.Map
 
 type Searcher struct {
-	kubeconfigBytes []byte
-	//informerFactory        informers.SharedInformerFactory
+	kubeconfigBytes        []byte
+	informerFactory        informers.SharedInformerFactory
 	dynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory
 	// [string]*meta.RESTMapping
 	supportSchemaWithAlias *sync.Map // ResourceType: GvkGvrWithAlias
@@ -157,19 +157,20 @@ func getCrdSchema(client *clientgoutils.ClientGoUtils, apiGroupResources []*rest
 		return nil, err
 	}
 	nameToMapping := make([]GvkGvrWithAlias, 0)
-
-	for _, crd := range crds {
-		crdObj, err := ConvertRuntimeObjectToCRD(crd.Object)
-		if err != nil {
-			continue
-		}
-
-		gs := ConvertCRDToGgwa(crdObj, apiGroupResources)
-		if len(gs) > 0 {
-			nameToMapping = append(nameToMapping, gs...)
-		}
+	wg := &sync.WaitGroup{}
+	wg.Add(len(crds))
+	for index := range crds {
+		go func(index int) {
+			defer wg.Done()
+			if crdObj, err := ConvertRuntimeObjectToCRD(crds[index].Object); err == nil {
+				gs := ConvertCRDToGgwa(crdObj, apiGroupResources)
+				if len(gs) > 0 {
+					nameToMapping = append(nameToMapping, gs...)
+				}
+			}
+		}(index)
 	}
-
+	wg.Wait()
 	crdGvk := schema.GroupVersionKind{
 		Group:   "apiextensions.k8s.io",
 		Version: "v1",
@@ -310,7 +311,6 @@ func GetSearcherWithLRU(kubeconfigBytes []byte, namespace string) (search *Searc
 		searchMapLock.Lock()
 		defer searchMapLock.Unlock()
 		log.Infof("Search map is len is %d", searchMap.Len()+1)
-		clusterKey = generateKey(kubeconfigBytes, namespace)
 		if searcher, exist = searchMap.Get(clusterKey); exist && searcher != nil {
 			newSearcher.Stop()
 			search = searcher.(*Searcher)
@@ -331,9 +331,7 @@ func generateKey(kubeconfigBytes []byte, namespace string) string {
 	h := sha1.New()
 	h.Write(kubeconfigBytes)
 	// if it's a cluster admin kubeconfig, then generate key without namespace
-	clusterMapLock.Lock()
-	defer clusterMapLock.Unlock()
-	if _, found := clusterMap[string(kubeconfigBytes)]; found {
+	if _, found := isClusterAdminClusterMap.Load(string(kubeconfigBytes)); found {
 		return string(h.Sum(nil))
 	} else {
 		return string(h.Sum([]byte(namespace)))
@@ -350,20 +348,21 @@ func initSearcher(kubeconfigBytes []byte, namespace string, clientUtils *clientg
 
 	//var informerFactory informers.SharedInformerFactory
 	var dynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory
+	var innerInformerFactory informers.SharedInformerFactory
 	var err error
-
-	if clientUtils.IsClusterAdmin() {
+	isClusterAdmin := clientUtils.IsClusterAdmin()
+	if isClusterAdmin {
 		dynamicInformerFactory = dynamicinformer.NewDynamicSharedInformerFactory(clientUtils.GetDynamicClient(), time.Second*5)
-		clusterMapLock.Lock()
-		clusterMap[string(kubeconfigBytes)] = true
-		clusterMapLock.Unlock()
+		innerInformerFactory = informers.NewSharedInformerFactory(clientUtils.ClientSet, time.Second*5)
+		isClusterAdminClusterMap.Store(string(kubeconfigBytes), true)
 	} else {
 		dynamicInformerFactory = dynamicinformer.NewFilteredDynamicSharedInformerFactory(clientUtils.GetDynamicClient(), time.Second*5, namespace, nil)
+		innerInformerFactory = informers.NewSharedInformerFactoryWithOptions(clientUtils.ClientSet, time.Second*5, informers.WithNamespace(namespace))
 	}
 
 	var crdRestMappingList []GvkGvrWithAlias
 
-	if clientUtils.IsClusterAdmin() {
+	if isClusterAdmin {
 		crdRestMappingList, err = getCrdSchema(clientUtils, gr)
 		if err != nil {
 			log.WarnE(err, "Failed to get crd schema")
@@ -377,20 +376,24 @@ func initSearcher(kubeconfigBytes []byte, namespace string, clientUtils *clientg
 
 	supportedSchema := sync.Map{}
 	for _, resource := range restMappingList {
-		informer := dynamicInformerFactory.ForResource(resource.Gvr)
+		informer, _ := innerInformerFactory.ForResource(resource.Gvr)
 		if workloads.Has(resource.Gvk.GroupKind().String()) {
 			informer.Informer().AddEventHandler(NewResourceEventHandlerFuncs(informer, kubeconfigBytes, resource.Gvr))
 		}
 
 		for _, alias := range resource.alias {
-			supportedSchema.Store(alias, resource)
+			if len(alias) != 0 {
+				supportedSchema.Store(alias, resource)
+			}
 		}
 	}
 
 	for _, resource := range crdRestMappingList {
 		dynamicInformerFactory.ForResource(resource.Gvr)
 		for _, alias := range resource.alias {
-			supportedSchema.Store(alias, resource)
+			if len(alias) != 0 {
+				supportedSchema.Store(alias, resource)
+			}
 		}
 	}
 
@@ -400,11 +403,13 @@ func initSearcher(kubeconfigBytes []byte, namespace string, clientUtils *clientg
 
 	stopCRDChannel := make(chan struct{}, 1)
 	dynamicInformerFactory.Start(stopCRDChannel)
+	innerInformerFactory.Start(stopCRDChannel)
 	ctx, _ := context.WithTimeout(context.Background(), 3*time.Second)
-	dynamicInformerFactory.WaitForCacheSync(ctx.Done())
+	innerInformerFactory.WaitForCacheSync(ctx.Done())
 
 	newSearcher := &Searcher{
 		kubeconfigBytes:        kubeconfigBytes,
+		informerFactory:        innerInformerFactory,
 		dynamicInformerFactory: dynamicInformerFactory,
 		supportSchemaWithAlias: &supportedSchema,
 		SupportSchemaList:      restMappingList,
@@ -571,7 +576,10 @@ func (c *criteria) Query() (data []interface{}, e error) {
 	if err != nil {
 		return nil, err
 	}
-	informer := c.search.dynamicInformerFactory.ForResource(mapping.Gvr)
+	informer, err := c.search.informerFactory.ForResource(mapping.Gvr)
+	if err != nil {
+		informer = c.search.dynamicInformerFactory.ForResource(mapping.Gvr)
+	}
 	if informer == nil {
 		return nil, errors.New("create informer failed, please check your code")
 	}
@@ -586,13 +594,13 @@ func (c *criteria) Query() (data []interface{}, e error) {
 			}
 			return []interface{}{}, nil
 		}
-		iters := make([]interface{}, 0)
-		for _, object := range list {
-			iters = append(iters, object)
-		}
+		//iters := make([]interface{}, 0)
+		//for _, object := range list {
+		//	iters = append(iters, object)
+		//}
 		//SortByNameAsc(iters)
-		result := newFilter(iters).
-			namespace(c.ns).
+		result := newFilter(list).
+			//namespace(c.ns).
 			appName(c.appName).
 			label(c.label)
 		if !c.showHidden {
