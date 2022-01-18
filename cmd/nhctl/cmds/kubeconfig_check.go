@@ -73,7 +73,7 @@ var kubeconfigCheckCmd = &cobra.Command{
 			checkInfo := CheckKubeconfig(kubeConfig, context)
 			checkInfos = append(checkInfos, checkInfo)
 
-			if checkInfo.Tips != "" {
+			if checkInfo.Status == FAIL {
 				notEmpty = true
 				warnMsg += fmt.Sprintf("%s <br>", checkInfo.Tips)
 			}
@@ -143,7 +143,7 @@ func CheckKubeconfig(kubeconfigParams string, contextParam string) CheckInfo {
 		err := clientgoutils.CheckForResource(
 			kubeCOnfigContent,
 			"",
-			[]string{"list", "get", "watch"}, "namespaces",
+			[]string{"list", "get", "watch"}, false, "namespaces",
 		)
 
 		if err != nil {
@@ -159,7 +159,7 @@ func CheckKubeconfig(kubeconfigParams string, contextParam string) CheckInfo {
 					if err := clientgoutils.CheckForResource(
 						kubeCOnfigContent,
 						ctx.Namespace,
-						[]string{"list"}, "pod",
+						[]string{"list"}, false, "pod",
 					); err != nil {
 						return CheckInfo{FAIL, fmt.Sprintf(invalidNamespaceFmt, err.Error())}
 					}
