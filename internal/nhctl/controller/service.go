@@ -289,9 +289,8 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 		return err
 	}
 
-	devContainerName := c.GetDevContainerName(ops.Container)
 	for _, container := range podTemplate.Spec.Containers {
-		if container.Name == devContainerName || container.Name == _const.NocalhostDefaultDevSidecarName {
+		if container.Name == _const.NocalhostDefaultDevSidecarName {
 			return errors.New(fmt.Sprintf("Container %s already exists, you need to reset it first", container.Name))
 		}
 	}
