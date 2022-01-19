@@ -18,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -83,54 +84,89 @@ func (g *GvkGvrWithAlias) GetFullName() string {
 
 // getSupportedSchema return restMapping of each resource, [string]*meta.RESTMapping
 // Key: resourceType
-func getSupportedSchema(apiResources []*restmapper.APIGroupResources) ([]GvkGvrWithAlias, sets.String, error) {
-	var resourceNeeded = map[string]string{"namespaces": "Namespace.v1."} // deployment/statefulset...
+func getSupportedSchema(apiResources []*restmapper.APIGroupResources,
+	filter func(resource GvkGvrWithAlias) (informers.GenericInformer, error),
+	addEventHandler func(informer informers.GenericInformer, resource GvkGvrWithAlias)) ([]GvkGvrWithAlias, error) {
+	var resourceNeeded = []string{"Namespace.v1."} // deployment/statefulset...
 	for _, v := range GroupToTypeMap {
 		for _, s := range v.V {
-			resourceNeeded[s] = s
+			resourceNeeded = append(resourceNeeded, s)
 		}
 	}
-
-	nameToMapping := make([]GvkGvrWithAlias, 0) // []GvkGvrWithAlias
-
+	// kind
+	m := sets.NewString()
 	for _, s := range resourceNeeded {
-		gvk, gk := schema.ParseKindArg(s)
-		if gvk == nil {
-			gvk = &schema.GroupVersionKind{Kind: gk.Group, Group: gk.Group}
-		}
-		apiR, err := ConvertGvkToApiResource(gvk, apiResources)
-		if err == nil {
-			ggwa := GvkGvrWithAlias{
-				Gvr: schema.GroupVersionResource{
-					Group:    gvk.Group,
-					Version:  gvk.Version,
-					Resource: apiR.Name,
-				},
-				Gvk: *gvk,
-				alias: []string{
-					apiR.Name, apiR.SingularName, strings.ToLower(apiR.Kind),
-				},
-				Namespaced: apiR.Namespaced,
-			}
-			ggwa.alias = append(ggwa.alias, apiR.ShortNames...)
-			ggwa.alias = append(ggwa.alias, ggwa.GetFullName())
-			nameToMapping = append(nameToMapping, ggwa)
+		gvk, _ := schema.ParseKindArg(s)
+		if gvk != nil {
+			m.Insert(gvk.Kind)
 		}
 	}
 
-	if len(nameToMapping) == 0 {
-		return nil, nil, errors.New("RestMapping is empty, this should not happened")
+	// group resource to multiple version, like deployment to v1, v1beta1
+	nameToMapping := make(map[schema.GroupKind][]GvkGvrWithAlias) // []GvkGvrWithAlias
+	for _, apiGroupResources := range apiResources {
+		for version, resources := range apiGroupResources.VersionedResources {
+			for _, apiResource := range resources {
+				if !m.Has(apiResource.Kind) {
+					continue
+				}
+				if strings.Count(apiResource.Name, "/") > 0 {
+					continue
+				}
+				ggwa := GvkGvrWithAlias{
+					Gvr: schema.GroupVersionResource{
+						Group:    apiGroupResources.Group.Name,
+						Version:  version,
+						Resource: apiResource.Name,
+					},
+					Gvk: schema.GroupVersionKind{
+						Group:   apiGroupResources.Group.Name,
+						Version: version,
+						Kind:    apiResource.Kind,
+					},
+					alias: []string{
+						apiResource.Name, apiResource.SingularName, strings.ToLower(apiResource.Kind),
+					},
+					Namespaced: apiResource.Namespaced,
+				}
+				ggwa.alias = append(ggwa.alias, apiResource.ShortNames...)
+				ggwa.alias = append(ggwa.alias, ggwa.GetFullName())
+				if v, found := nameToMapping[ggwa.Gvk.GroupKind()]; found {
+					nameToMapping[ggwa.Gvk.GroupKind()] = append(v, ggwa)
+				} else {
+					nameToMapping[ggwa.Gvk.GroupKind()] = []GvkGvrWithAlias{ggwa}
+				}
+			}
+		}
 	}
 
 	// workloads need to parse app from annotation
 	set := sets.NewString()
 	for _, s := range GroupToTypeMap[0].V {
-		arg, _ := schema.ParseKindArg(s)
-		if arg != nil {
-			set.Insert(arg.String())
+		gvk, _ := schema.ParseKindArg(s)
+		if gvk != nil {
+			set.Insert(gvk.Kind)
 		}
 	}
-	return nameToMapping, set, nil
+
+	var result []GvkGvrWithAlias
+	for k, gvrGvkList := range nameToMapping {
+		for _, gvrGvk := range gvrGvkList {
+			if informer, err := filter(gvrGvk); err == nil {
+				if set.Has(k.Kind) {
+					addEventHandler(informer, gvrGvk)
+				}
+				result = append(result, gvrGvk)
+				break
+			}
+		}
+	}
+
+	if len(result) == 0 {
+		return nil, errors.New("Origin restMapping is empty, this should not happened")
+	}
+
+	return result, nil
 }
 
 func ConvertRuntimeObjectToCRD(obj runtime.Object) (*apiextensions.CustomResourceDefinition, error) {
@@ -159,16 +195,18 @@ func getCrdSchema(client *clientgoutils.ClientGoUtils, apiGroupResources []*rest
 	nameToMapping := make([]GvkGvrWithAlias, 0)
 	wg := &sync.WaitGroup{}
 	wg.Add(len(crds))
-	for index := range crds {
-		go func(index int) {
+	for _, crd := range crds {
+		go func(info *resource.Info) {
 			defer wg.Done()
-			if crdObj, err := ConvertRuntimeObjectToCRD(crds[index].Object); err == nil {
-				gs := ConvertCRDToGgwa(crdObj, apiGroupResources)
-				if len(gs) > 0 {
-					nameToMapping = append(nameToMapping, gs...)
+			if info != nil {
+				if crdObj, err := ConvertRuntimeObjectToCRD(info.Object); err == nil {
+					gs := ConvertCRDToGgwa(crdObj, apiGroupResources)
+					if len(gs) > 0 {
+						nameToMapping = append(nameToMapping, gs...)
+					}
 				}
 			}
-		}(index)
+		}(crd)
 	}
 	wg.Wait()
 	crdGvk := schema.GroupVersionKind{
@@ -369,26 +407,25 @@ func initSearcher(kubeconfigBytes []byte, namespace string, clientUtils *clientg
 		}
 	}
 
-	restMappingList, workloads, err := getSupportedSchema(gr)
+	supportedSchema := &sync.Map{}
+	restMappingList, err := getSupportedSchema(
+		gr,
+		func(resource GvkGvrWithAlias) (informers.GenericInformer, error) {
+			informer, err := innerInformerFactory.ForResource(resource.Gvr)
+			if err == nil {
+				for _, alias := range resource.alias {
+					if len(alias) != 0 {
+						supportedSchema.Store(alias, resource)
+					}
+				}
+			}
+			return informer, err
+		},
+		func(informer informers.GenericInformer, resource GvkGvrWithAlias) {
+			informer.Informer().AddEventHandler(NewResourceEventHandlerFuncs(informer, kubeconfigBytes, resource.Gvr))
+		})
 	if err != nil {
 		return nil, err
-	}
-
-	supportedSchema := sync.Map{}
-	for _, resource := range restMappingList {
-		// todo retry
-		informer, err := innerInformerFactory.ForResource(resource.Gvr)
-		if err == nil {
-			if workloads.Has(resource.Gvk.String()) {
-				informer.Informer().AddEventHandler(NewResourceEventHandlerFuncs(informer, kubeconfigBytes, resource.Gvr))
-			}
-		}
-
-		for _, alias := range resource.alias {
-			if len(alias) != 0 {
-				supportedSchema.Store(alias, resource)
-			}
-		}
 	}
 
 	for _, resource := range crdRestMappingList {
@@ -414,7 +451,7 @@ func initSearcher(kubeconfigBytes []byte, namespace string, clientUtils *clientg
 		kubeconfigBytes:        kubeconfigBytes,
 		informerFactory:        innerInformerFactory,
 		dynamicInformerFactory: dynamicInformerFactory,
-		supportSchemaWithAlias: &supportedSchema,
+		supportSchemaWithAlias: supportedSchema,
 		SupportSchemaList:      restMappingList,
 		stopChan:               stopCRDChannel,
 	}
