@@ -158,6 +158,12 @@ func (t *T) RunWithBookInfo(withBookInfo bool, name string, fn func(cli runner.C
 
 	doneChan := make(chan struct{}, 1)
 	go func() {
+		defer func() {
+			if err := recover(); err != nil {
+				t.Clean()
+				panic(err)
+			}
+		}()
 		fn(clientForRunner)
 		doneChan <- struct{}{}
 	}()
