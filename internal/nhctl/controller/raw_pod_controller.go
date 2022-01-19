@@ -49,8 +49,6 @@ func (r *RawPodController) ReplaceImage(ctx context.Context, ops *model.DevStart
 		originalPod.Annotations = make(map[string]string, 0)
 	}
 	originalPod.Annotations[_const.OriginWorkloadDefinition] = string(bys)
-	originalPod.Annotations[_const.NocalhostDevContainerAnnotations] =
-		r.GetDevContainerName(ops.Container)
 
 	devContainer, sideCarContainer, devModeVolumes, err :=
 		r.genContainersAndVolumes(&originalPod.Spec, ops.Container, ops.DevImage, ops.StorageClass, false)
@@ -74,8 +72,7 @@ func (r *RawPodController) ReplaceImage(ctx context.Context, ops *model.DevStart
 
 	r.patchAfterDevContainerReplaced(ops.Container, originalPod.Kind, originalPod.Name)
 
-	r.waitDevPodToBeReady()
-	return nil
+	return r.waitDevPodToBeReady(r.GetDevContainerName(ops.Container))
 }
 
 func (r *RawPodController) RollBack(reset bool) error {

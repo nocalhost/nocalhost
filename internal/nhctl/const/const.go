@@ -19,7 +19,6 @@ const (
 
 	NocalhostApplicationName         = "dev.nocalhost/application-name"
 	NocalhostApplicationNamespace    = "dev.nocalhost/application-namespace"
-	NocalhostDevContainerAnnotations = "dev.nocalhost/nocalhost-dev"
 
 	NocalhostDefaultDevContainerName = "nocalhost-dev"
 	NocalhostDefaultDevSidecarName   = "nocalhost-sidecar"

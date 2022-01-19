@@ -452,7 +452,7 @@ func convertToResourceList(cpu string, mem string) (corev1.ResourceList, error) 
 }
 
 // Find Ready Dev Pod's name
-func findDevPodName(podList ...corev1.Pod) (string, error) {
+func findDevPodName(devContainerName string, podList ...corev1.Pod) (string, error) {
 	resultPodList := make([]corev1.Pod, 0)
 	for _, pod := range podList {
 		//if pod.Status.Phase == "Running" && pod.DeletionTimestamp == nil {
@@ -475,11 +475,6 @@ func findDevPodName(podList ...corev1.Pod) (string, error) {
 			}
 		}
 
-		devContainerName, ok := latestPod.Annotations[_const.NocalhostDevContainerAnnotations]
-		if !ok {
-			devContainerName = _const.NocalhostDefaultDevContainerName
-		}
-
 		count := 0
 		for _, status := range latestPod.Status.ContainerStatuses {
 
@@ -499,14 +494,9 @@ func findDevPodName(podList ...corev1.Pod) (string, error) {
 
 // containerStatusForDevPod getting status msg for pod
 // return true if current pod is dev pod
-func containerStatusForDevPod(pod *corev1.Pod, consumeFun func(status string, err error)) bool {
+func containerStatusForDevPod(devContainerName string, pod *corev1.Pod, consumeFun func(status string, err error)) bool {
 	if pod.GetDeletionTimestamp() != nil {
 		return false
-	}
-
-	devContainerName, ok := pod.Annotations[_const.NocalhostDevContainerAnnotations]
-	if !ok {
-		devContainerName = _const.NocalhostDefaultDevContainerName
 	}
 
 	// dev container must have 2 containers: nocalhost-dev & nocalhost-sidecar

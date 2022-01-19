@@ -98,7 +98,8 @@ func reconnectSyncthingIfNeededWithPeriod(duration time.Duration) {
 var maps sync.Map
 
 func toKey(controller2 *controller.Controller) string {
-	return fmt.Sprintf("%s-%s-%s-%s-%s",
+	return fmt.Sprintf(
+		"%s-%s-%s-%s-%s",
 		controller2.NameSpace,
 		controller2.AppMeta.NamespaceId,
 		controller2.AppName,
@@ -140,8 +141,10 @@ func reconnectedSyncthingIfNeeded() {
 				continue
 			}
 
-			svc, err := controller.NewController(meta.Ns, svcProfile.GetName(), meta.Application, appProfile.Identifier,
-				svcType, nil, meta)
+			svc, err := controller.NewController(
+				meta.Ns, svcProfile.GetName(), meta.Application, appProfile.Identifier,
+				svcType, nil, meta,
+			)
 			if err != nil {
 				log.WarnE(err, "")
 				continue
@@ -160,19 +163,21 @@ func reconnectedSyncthingIfNeeded() {
 				defer utils.RecoverFromPanic()
 				var err error
 				for i := 0; i < 2; i++ {
-					if err = retry.OnError(wait.Backoff{
-						Steps:    3,
-						Duration: 10 * time.Millisecond,
-						Factor:   5,
-					}, func(err error) bool {
-						return err != nil
-					}, func() error {
-						connected, err := svc.NewSyncthingHttpClient(2).SystemConnections()
-						if connected && err == nil {
-							return nil
-						}
-						return errors.New("needs to reconnect")
-					}); err == nil {
+					if err = retry.OnError(
+						wait.Backoff{
+							Steps:    3,
+							Duration: 10 * time.Millisecond,
+							Factor:   5,
+						}, func(err error) bool {
+							return err != nil
+						}, func() error {
+							connected, err := svc.NewSyncthingHttpClient(2).SystemConnections()
+							if connected && err == nil {
+								return nil
+							}
+							return errors.New("needs to reconnect")
+						},
+					); err == nil {
 						maps.Delete(toKey(svc))
 						return
 					}
@@ -193,7 +198,8 @@ func reconnectedSyncthingIfNeeded() {
 					if err = doReconnectSyncthing(svc, "", appProfile.Kubeconfig, i == 1); err != nil {
 						log.Errorf(
 							"error while reconnect syncthing, ns: %s, app: %s, svc: %s, type: %s, err: %v",
-							svc.AppMeta.Ns, svc.AppMeta.Application, svc.Name, svc.Type, err)
+							svc.AppMeta.Ns, svc.AppMeta.Application, svc.Name, svc.Type, err,
+						)
 					}
 				}
 			}(svc)
@@ -264,7 +270,8 @@ func doPortForward(svc *controller.Controller, svcProfile *profile.SvcProfileV2,
 	if svc.Client, err = clientgoutils.NewClientGoUtils(kubeconfigPath, svc.NameSpace); err != nil {
 		return err
 	}
-	if p.PodName, err = svc.GetDevModePodName(); err != nil {
+
+	if p.PodName, err = svc.GetDevModePodName(svc.GetDevContainerName(svcProfile.OriginDevContainer)); err != nil {
 		return err
 	}
 	if err = pfManager.StartPortForwardGoRoutine(p, true); err != nil {

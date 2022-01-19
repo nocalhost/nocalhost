@@ -23,7 +23,6 @@ func init() {
 		&portForwardOptions.DevPort, "dev-port", "p", []string{},
 		"port-forward between pod and local, such 8080:8080 or :8080(random localPort)",
 	)
-	//portForwardStartCmd.Flags().BoolVarP(&portForwardOptions.RunAsDaemon,
 	// "daemon", "m", true, "if port-forward run as daemon")
 	portForwardStartCmd.Flags().BoolVarP(
 		&portForwardOptions.Forward, "forward", "f", false,
@@ -69,8 +68,13 @@ var portForwardStartCmd = &cobra.Command{
 
 		log.Info("Starting port-forwarding")
 
+		devContainerName := ""
+		if pf, err := nocalhostSvc.GetProfile(); err == nil &&pf!=nil {
+			devContainerName = nocalhostSvc.GetDevContainerName(pf.OriginDevContainer)
+		}
+
 		// find deployment pods
-		podName, err := nocalhostSvc.GetDevModePodName()
+		podName, err := nocalhostSvc.GetDevModePodName(devContainerName)
 		if err != nil {
 			// use serviceType get pods name
 			// can not find devContainer, means need port-forward normal service, get pods from command flags

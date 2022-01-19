@@ -120,12 +120,17 @@ var devStartCmd = &cobra.Command{
 		if nocalhostSvc.IsInDevMode() {
 			coloredoutput.Hint(fmt.Sprintf("Already in %s DevMode...", nocalhostSvc.DevModeType.ToString()))
 
-			podName, err := nocalhostSvc.GetDevModePodName()
+			devContainerName := ""
+			if pf, err := nocalhostSvc.GetProfile(); err == nil && pf != nil {
+				devContainerName = nocalhostSvc.GetDevContainerName(pf.OriginDevContainer)
+			}
+
+			podName, err := nocalhostSvc.GetDevModePodName(devContainerName)
 			must(err)
 
 			if !devStartOps.NoSyncthing {
 				if nocalhostSvc.IsProcessor() {
-					startSyncthing(podName, true)
+					startSyncthing(podName, devContainerName, true)
 				}
 			} else {
 				coloredoutput.Success("File sync is not resumed caused by --without-sync flag.")
@@ -162,13 +167,15 @@ var devStartCmd = &cobra.Command{
 			log.FatalE(err, "")
 		}
 
-		devPodName, err := nocalhostSvc.GetDevModePodName()
+		devContainerName := nocalhostSvc.GetDevContainerName(devStartOps.Container)
+
+		devPodName, err := nocalhostSvc.GetDevModePodName(devContainerName)
 		must(err)
 
 		startPortForwardAfterDevStart(devPodName)
 
 		if !devStartOps.NoSyncthing {
-			startSyncthing(devPodName, false)
+			startSyncthing(devPodName, devContainerName, false)
 		} else {
 			coloredoutput.Success("File sync is not started caused by --without-sync flag..")
 		}
@@ -255,8 +262,8 @@ func stopPreviousSyncthing() {
 	utils2.KillSyncthingProcess(str)
 }
 
-func startSyncthing(podName string, resume bool) {
-	StartSyncthing(podName, resume, false, nil, false)
+func startSyncthing(podName, devContainerName string, resume bool) {
+	StartSyncthing(podName, devContainerName, resume, false, nil, false)
 	if resume {
 		coloredoutput.Success("File sync resumed")
 	} else {

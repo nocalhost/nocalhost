@@ -19,6 +19,7 @@ import (
 	"nocalhost/pkg/nhctl/k8sutils"
 	"nocalhost/pkg/nhctl/log"
 	"os"
+	"time"
 )
 
 var (
@@ -140,11 +141,13 @@ func CheckKubeconfig(kubeconfigParams string, contextParam string) CheckInfo {
 
 		kubeCOnfigContent := fp.NewFilePath(kubeConfig).ReadFile()
 
+		started := time.Now()
 		err := clientgoutils.CheckForResource(
 			kubeCOnfigContent,
 			"",
 			[]string{"list", "get", "watch"}, false, "namespaces",
 		)
+		log.Infof("cost %s", time.Now().Sub(started).Seconds())
 
 		if err != nil {
 			if errors.Is(err, clientgoutils.PermissionDenied) {

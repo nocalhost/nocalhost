@@ -72,7 +72,6 @@ func (r *DuplicateRawPodController) ReplaceImage(ctx context.Context, ops *model
 	originalPod.Labels = labelsMap
 	originalPod.Status = corev1.PodStatus{}
 	originalPod.ResourceVersion = ""
-	originalPod.Annotations = r.getDevContainerAnnotations(ops.Container, originalPod.Annotations)
 
 	devContainer, sideCarContainer, devModeVolumes, err :=
 		r.genContainersAndVolumes(&originalPod.Spec, ops.Container, ops.DevImage, ops.StorageClass, true)
@@ -89,8 +88,7 @@ func (r *DuplicateRawPodController) ReplaceImage(ctx context.Context, ops *model
 
 	r.patchAfterDevContainerReplaced(ops.Container, originalPod.Kind, originalPod.Name)
 
-	r.waitDevPodToBeReady()
-	return nil
+	return r.waitDevPodToBeReady(r.GetDevContainerName(ops.Container))
 }
 
 func (r *DuplicateRawPodController) RollBack(reset bool) error {

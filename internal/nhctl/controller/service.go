@@ -231,15 +231,6 @@ func (c *Controller) getDuplicateLabelsMap() map[string]string {
 	return labelsMap
 }
 
-func (c *Controller) getDevContainerAnnotations(devContainer string, originAnnos map[string]string) map[string]string {
-	if len(originAnnos) == 0 {
-		originAnnos = map[string]string{}
-	}
-
-	originAnnos[_const.NocalhostDevContainerAnnotations] = c.GetDevContainerName(devContainer)
-	return originAnnos
-}
-
 func (c *Controller) getDuplicateResourceName() string {
 	uuid, _ := utils.GetShortUuid()
 	return strings.Join([]string{c.Name, c.Identifier[0:5], uuid}, "-")
@@ -334,25 +325,7 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 			},
 		)
 		bys, _ := json.Marshal(jsonPatches)
-
 		if err = c.Client.Patch(c.Type.String(), c.Name, string(bys), "json"); err != nil {
-			return err
-		}
-
-		log.Info("Patching development annotations...")
-		specPath = c.DevModeAction.PodTemplatePath + "/metadata/annotations"
-		jsonPatches = make([]jsonPatch, 0)
-		jsonPatches = append(
-			jsonPatches, jsonPatch{
-				Op:    "replace",
-				Path:  specPath,
-				Value: c.getDevContainerAnnotations(ops.Container, map[string]string{}),
-			},
-		)
-		bys, _ = json.Marshal(jsonPatches)
-		patchContent := string(bys)
-
-		if err = c.Client.Patch(c.Type.String(), c.Name, patchContent, "json"); err != nil {
 			return err
 		}
 
@@ -363,7 +336,6 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 			podTemplate.Labels = c.getGeneratedDeploymentLabels()
 		}
 
-		podTemplate.Annotations = c.getDevContainerAnnotations(ops.Container, podTemplate.Annotations)
 		generatedDeployment := &appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:   c.getGeneratedDeploymentName(),
@@ -386,11 +358,10 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 	delete(podTemplate.Labels, "pod-template-hash")
 	c.devModePodLabels = podTemplate.Labels
 
-	c.waitDevPodToBeReady()
-	return nil
+	return c.waitDevPodToBeReady(c.GetDevContainerName(ops.Container))
 }
 
-func (c *Controller) waitDevPodToBeReady() {
+func (c *Controller) waitDevPodToBeReady(devContainerName string) error {
 	gvr := c.Client.ResourceFor("pod", false)
 	gvk, gvkErr := c.Client.KindFor(gvr)
 	if gvkErr != nil {
@@ -432,6 +403,7 @@ func (c *Controller) waitDevPodToBeReady() {
 					FromUnstructured(us.UnstructuredContent(), &pod); err == nil {
 
 					if containerStatusForDevPod(
+						devContainerName,
 						&pod, func(status string, err error) {
 							printer.ChangeContent(status)
 						},
@@ -439,7 +411,7 @@ func (c *Controller) waitDevPodToBeReady() {
 						currentPod.Store(pod.Name)
 					}
 
-					if _, err := findDevPodName(pod); err == nil {
+					if _, err := findDevPodName(devContainerName, pod); err == nil {
 						readyChan <- struct{}{}
 					}
 					return
@@ -491,26 +463,20 @@ func (c *Controller) waitDevPodToBeReady() {
 	case _, _ = <-quitChan:
 	case <-readyChan:
 	}
-}
 
-func (c *Controller) CheckDevModePodIsRunning() (string, error) {
-	pods, err := c.Client.Labels(c.devModePodLabels).ListPods()
-	if err != nil {
-		return "", err
-	}
-	return findDevPodName(pods...)
+	return nil
 }
 
 func (c *Controller) GetDuplicateModePodList() ([]v1.Pod, error) {
 	return c.Client.Labels(c.getDuplicateLabelsMap()).ListPods()
 }
 
-func (c *Controller) GetDevModePodName() (string, error) {
+func (c *Controller) GetDevModePodName(devContainerName string) (string, error) {
 	pods, err := c.GetPodList()
 	if err != nil {
 		return "", err
 	}
-	return findDevPodName(pods...)
+	return findDevPodName(devContainerName, pods...)
 }
 
 func (c *Controller) DuplicateModeRollBack() error {

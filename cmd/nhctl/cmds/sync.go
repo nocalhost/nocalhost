@@ -73,14 +73,19 @@ var fileSyncCmd = &cobra.Command{
 
 		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
 
+		devContainerName := ""
+		if pf, err := nocalhostSvc.GetProfile(); err == nil && pf != nil {
+			devContainerName = nocalhostSvc.GetDevContainerName(pf.OriginDevContainer)
+		}
+
 		StartSyncthing(
-			"", fileSyncOps.Resume, fileSyncOps.Stop,
+			"", devContainerName, fileSyncOps.Resume, fileSyncOps.Stop,
 			&fileSyncOps.SyncDouble, fileSyncOps.Override,
 		)
 	},
 }
 
-func StartSyncthing(podName string, resume bool, stop bool, syncDouble *bool, override bool) {
+func StartSyncthing(podName string, devContainerName string, resume bool, stop bool, syncDouble *bool, override bool) {
 	if !nocalhostSvc.IsInReplaceDevMode() && !nocalhostSvc.IsInDuplicateDevMode() {
 		log.Fatalf("Service \"%s\" is not in developing", deployment)
 	}
@@ -112,7 +117,7 @@ func StartSyncthing(podName string, resume bool, stop bool, syncDouble *bool, ov
 	svcProfile, _ := nocalhostSvc.GetProfile()
 	if podName == "" {
 		var err error
-		if podName, err = nocalhostSvc.GetDevModePodName(); err != nil {
+		if podName, err = nocalhostSvc.GetDevModePodName(devContainerName); err != nil {
 			must(err)
 		}
 	}
