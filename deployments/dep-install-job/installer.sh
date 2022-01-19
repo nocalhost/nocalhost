@@ -67,6 +67,9 @@ kubectl apply -f ./webhook/mutating-webhook-ca-bundle.yaml
 kubectl apply -f ./webhook/sidecar-configmap.yaml
 kubectl apply -f ./webhook/service.yaml
 
+# apply virtualcluster crd
+kubectl apply -f ./webhook/helm.nocalhost.dev_virtualclusters.yaml
+
 # sed dep docker image version
 echo "dep version is"${DEP_VERSION}
 sed -i "s|image:.*$|image: nocalhost-docker.pkg.coding.net/nocalhost/public/nocalhost-dep:${DEP_VERSION}|" ./webhook/deployment.yaml
