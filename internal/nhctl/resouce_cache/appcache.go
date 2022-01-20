@@ -93,16 +93,16 @@ func (r *ResourceEventHandlerFuncs) handleAddOrUpdate() {
 	list := r.informer.Informer().GetStore().List()
 	// sort by namespace
 	for _, i := range list {
-		object := i.(metav1.Object)
-		if len(object.GetNamespace()) != 0 {
+		object, ok := i.(metav1.Object)
+		if ok && len(object.GetNamespace()) != 0 {
 			v, _ := namespaceToApp.LoadOrStore(object.GetNamespace(), sets.NewString())
 			v.(sets.String).Insert(getAppName(i)) // Add app name
 		}
 	}
 
 	for _, i := range list {
-		object := i.(metav1.Object)
-		if len(object.GetNamespace()) != 0 {
+		object, ok := i.(metav1.Object)
+		if ok && len(object.GetNamespace()) != 0 {
 			kindToAppMap, _ := maps.LoadOrStore(r.toKey(object.GetNamespace()), &sync.Map{})
 			kindApp, _ := kindToAppMap.(*sync.Map).LoadOrStore(r.Gvr.Resource, newAppSet()) // R: AppSet
 			set := kindApp.(*appSet)
@@ -127,8 +127,8 @@ func (r *ResourceEventHandlerFuncs) OnDelete(obj interface{}) {
 	// delete vpn reverse proxy status
 	go func() {
 		// if vpn reverse type is pod, it will delete origin pod, and create a new pod with same name
-		objectTemp := obj.(metav1.Object)
-		if !("pods" == r.Gvr.Resource && objectTemp.GetOwnerReferences() != nil) {
+		objectTemp, ok := obj.(metav1.Object)
+		if ok && !("pods" == r.Gvr.Resource && objectTemp.GetOwnerReferences() != nil) {
 			name := fmt.Sprintf("%s/%s", r.Gvr.Resource, objectTemp.GetName())
 			if client, err := daemon_client.GetDaemonClient(false); err == nil {
 				path := k8sutils.GetOrGenKubeConfigPath(string(r.kubeconfigBytes))
@@ -143,8 +143,8 @@ func (r *ResourceEventHandlerFuncs) OnDelete(obj interface{}) {
 	// kubeconfig+namespace --> appName
 	var namespaceToApp = sync.Map{}
 	for _, i := range r.informer.Informer().GetStore().List() {
-		object := i.(metav1.Object)
-		if len(object.GetNamespace()) != 0 {
+		object, ok := i.(metav1.Object)
+		if ok && len(object.GetNamespace()) != 0 {
 			v, _ := namespaceToApp.LoadOrStore(r.toKey(object.GetNamespace()), sets.NewString())
 			v.(sets.String).Insert(getAppName(i))
 		}
