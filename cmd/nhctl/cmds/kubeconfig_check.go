@@ -141,43 +141,59 @@ func CheckKubeconfig(kubeconfigParams string, contextParam string) CheckInfo {
 
 		kubeCOnfigContent := fp.NewFilePath(kubeConfig).ReadFile()
 
-		started := time.Now()
-		err := clientgoutils.CheckForResource(
-			kubeCOnfigContent,
-			"",
-			[]string{"list", "get", "watch"}, false, "namespaces",
-		)
-		log.Infof("cost %s", time.Now().Sub(started).Seconds())
+		checkChanForClusterScope := make(chan error, 0)
+		checkChanForNsScope := make(chan error, 0)
 
-		if err != nil {
-			if errors.Is(err, clientgoutils.PermissionDenied) {
-				msg := fmt.Sprintf(
-					"Context '%s' can not asscess the cluster scope resources, so you should specify a namespace by using "+
-						"'kubectl config set-context %s --namespace=${your_namespace} --kubeconfig=${your_kubeconfig}', or you can add"+
-						" a namespace to this context manually. ",
-					contextParam, contextParam,
-				)
+		go func() {
+			checkChanForClusterScope <- clientgoutils.CheckForResource(
+				kubeCOnfigContent, "", []string{"list", "get", "watch"}, false, "namespaces",
+			)
+		}()
 
-				if specifiedNs {
-					if err := clientgoutils.CheckForResource(
-						kubeCOnfigContent,
-						ctx.Namespace,
-						[]string{"list"}, false, "pod",
-					); err != nil {
-						return CheckInfo{FAIL, fmt.Sprintf(invalidNamespaceFmt, err.Error())}
+		go func() {
+			checkChanForNsScope <- clientgoutils.CheckForResource(
+				kubeCOnfigContent, ctx.Namespace, []string{"list"}, false, "pod",
+			)
+		}()
+
+		select {
+		case errNs := <-checkChanForNsScope:
+			{
+				if errNs != nil {
+					return CheckInfo{FAIL, fmt.Sprintf(invalidNamespaceFmt, errNs.Error())}
+				}
+				return CheckInfo{SUCCESS, ""}
+			}
+
+		case errCl := <-checkChanForClusterScope:
+			{
+				if errCl != nil {
+					if errors.Is(errCl, clientgoutils.PermissionDenied) {
+						msg := fmt.Sprintf(
+							"Context '%s' can not asscess the cluster scope resources, so you should specify a namespace by using "+
+								"'kubectl config set-context %s --namespace=${your_namespace} --kubeconfig=${your_kubeconfig}', or you can add"+
+								" a namespace to this context manually. ",
+							contextParam, contextParam,
+						)
+
+						if specifiedNs {
+							if err := <-checkChanForNsScope; err != nil {
+								return CheckInfo{FAIL, fmt.Sprintf(invalidNamespaceFmt, err.Error())}
+							}
+							return CheckInfo{SUCCESS, ""}
+						}
+						return CheckInfo{FAIL, msg}
 					}
-					return CheckInfo{SUCCESS, ""}
+					return CheckInfo{FAIL, fmt.Sprintf(unexpectedErrFmt, errCl.Error())}
 				}
 
-				return CheckInfo{FAIL, msg}
+				// Success with cluster scope
+				return CheckInfo{SUCCESS, "Current context can list with cluster-scope resources"}
 			}
-			return CheckInfo{FAIL, fmt.Sprintf(unexpectedErrFmt, err.Error())}
 		}
-
-		// Success with cluster scope
-		return CheckInfo{SUCCESS, "Current context can list with cluster-scope resources"}
 	}
 }
+
 
 var (
 	SUCCESS CheckInfoStatus = "SUCCESS"
