@@ -38,13 +38,21 @@ func (r *DuplicateRawPodController) ReplaceImage(ctx context.Context, ops *model
 		if len(originalPod.Annotations) > 0 {
 			podSpec, ok := originalPod.Annotations[_const.OriginWorkloadDefinition]
 			if !ok {
-				return errors.New(fmt.Sprintf("Annotation %s not found, failed to rollback", _const.OriginWorkloadDefinition))
+				return errors.New(
+					fmt.Sprintf(
+						"Annotation %s not found, failed to rollback", _const.OriginWorkloadDefinition,
+					),
+				)
 			}
 			if err = json.Unmarshal([]byte(podSpec), originalPod); err != nil {
 				return errors.Wrap(err, "")
 			}
 		} else {
-			return errors.New(fmt.Sprintf("Annotation %s not found, failed to rollback", _const.OriginWorkloadDefinition))
+			return errors.New(
+				fmt.Sprintf(
+					"Annotation %s not found, failed to rollback", _const.OriginWorkloadDefinition,
+				),
+			)
 		}
 	} else {
 		if len(originalPod.Annotations) > 0 {
@@ -64,6 +72,7 @@ func (r *DuplicateRawPodController) ReplaceImage(ctx context.Context, ops *model
 	originalPod.Labels = labelsMap
 	originalPod.Status = corev1.PodStatus{}
 	originalPod.ResourceVersion = ""
+	originalPod.Annotations = r.getDevContainerAnnotations(ops.Container, originalPod.Annotations)
 
 	devContainer, sideCarContainer, devModeVolumes, err :=
 		r.genContainersAndVolumes(&originalPod.Spec, ops.Container, ops.DevImage, ops.StorageClass, true)
@@ -80,7 +89,8 @@ func (r *DuplicateRawPodController) ReplaceImage(ctx context.Context, ops *model
 
 	r.patchAfterDevContainerReplaced(ops.Container, originalPod.Kind, originalPod.Name)
 
-	return waitingPodToBeReady(r.GetDevModePodName)
+	r.waitDevPodToBeReady()
+	return nil
 }
 
 func (r *DuplicateRawPodController) RollBack(reset bool) error {

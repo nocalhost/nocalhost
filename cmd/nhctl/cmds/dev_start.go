@@ -125,7 +125,7 @@ var devStartCmd = &cobra.Command{
 
 			if !devStartOps.NoSyncthing {
 				if nocalhostSvc.IsProcessor() {
-					startSyncthing(podName, devStartOps.Container, true)
+					startSyncthing(podName, true)
 				}
 			} else {
 				coloredoutput.Success("File sync is not resumed caused by --without-sync flag.")
@@ -168,15 +168,14 @@ var devStartCmd = &cobra.Command{
 		startPortForwardAfterDevStart(devPodName)
 
 		if !devStartOps.NoSyncthing {
-			startSyncthing(devPodName, devStartOps.Container, false)
+			startSyncthing(devPodName, false)
 		} else {
 			coloredoutput.Success("File sync is not started caused by --without-sync flag..")
 		}
 
 		if !devStartOps.NoTerminal || shell != "" {
-			must(nocalhostSvc.EnterPodTerminal(devPodName, "nocalhost-dev", shell))
+			must(nocalhostSvc.EnterPodTerminal(devPodName, "", shell))
 		}
-
 	},
 }
 
@@ -256,8 +255,8 @@ func stopPreviousSyncthing() {
 	utils2.KillSyncthingProcess(str)
 }
 
-func startSyncthing(podName, container string, resume bool) {
-	StartSyncthing(podName, resume, false, container, nil, false)
+func startSyncthing(podName string, resume bool) {
+	StartSyncthing(podName, resume, false, nil, false)
 	if resume {
 		coloredoutput.Success("File sync resumed")
 	} else {
@@ -267,13 +266,19 @@ func startSyncthing(podName, container string, resume bool) {
 
 func enterDevMode(devModeType profile.DevModeType) error {
 	must(
-		nocalhostSvc.AppMeta.SvcDevStarting(nocalhostSvc.Name, nocalhostSvc.Type,
-			nocalhostApp.Identifier, devModeType),
+		nocalhostSvc.AppMeta.SvcDevStarting(
+			nocalhostSvc.Name, nocalhostSvc.Type,
+			nocalhostApp.Identifier, devModeType,
+		),
 	)
-	must(nocalhostSvc.UpdateSvcProfile(func(v2 *profile.SvcProfileV2) error {
-		v2.OriginDevContainer = devStartOps.Container
-		return nil
-	}))
+	must(
+		nocalhostSvc.UpdateSvcProfile(
+			func(v2 *profile.SvcProfileV2) error {
+				v2.OriginDevContainer = devStartOps.Container
+				return nil
+			},
+		),
+	)
 
 	// prevent dev status modified but not actually enter dev mode
 	var devStartSuccess = false
@@ -281,7 +286,9 @@ func enterDevMode(devModeType profile.DevModeType) error {
 	defer func() {
 		if !devStartSuccess {
 			log.Infof("Roll backing dev mode...")
-			_ = nocalhostSvc.AppMeta.SvcDevEnd(nocalhostSvc.Name, nocalhostSvc.Identifier, nocalhostSvc.Type, devModeType)
+			_ = nocalhostSvc.AppMeta.SvcDevEnd(
+				nocalhostSvc.Name, nocalhostSvc.Identifier, nocalhostSvc.Type, devModeType,
+			)
 		}
 	}()
 
