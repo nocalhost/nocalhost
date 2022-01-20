@@ -1,0 +1,19 @@
+FROM nocalhost-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:syncthing
+
+RUN apk add openrc openssh
+VOLUME [ "/sys/fs/cgroup" ]
+RUN mkdir /run/openrc && touch /run/openrc/softlevel
+# Change root passward to root
+RUN echo "root:root" | chpasswd
+# Permit root to login
+RUN sed -i 's@#PermitRootLogin prohibit-password@PermitRootLogin yes@g' /etc/ssh/sshd_config
+# Enable password to login
+RUN sed -i 's@#PasswordAuthentication yes@PasswordAuthentication yes@g' /etc/ssh/sshd_config
+# Disable knownhost
+RUN sed -i 's@#IgnoreUserKnownHosts no@IgnoreUserKnownHosts yes@g' /etc/ssh/sshd_config
+# Enabel tcp forward for reverse proxy
+RUN sed -i 's@AllowTcpForwarding no@AllowTcpForwarding yes@g' /etc/ssh/sshd_config
+# Change other port in case of port confict
+RUN sed -i 's@#Port 22@Port 50022@g' /etc/ssh/sshd_config
+
+RUN rc-update add sshd && rc-status

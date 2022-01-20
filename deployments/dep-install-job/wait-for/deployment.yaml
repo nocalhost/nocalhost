@@ -1,0 +1,18 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wait-for
+spec:
+  selector:
+    matchLabels:
+      app: wait-for
+  template:
+    metadata:
+      labels:
+        app: wait-for
+    spec:
+      containers:
+        - name: wait-for
+          image: nocalhost-docker.pkg.coding.net/nocalhost/public/nocalhost-wait:master
+          command: ["/bin/sleep","36000"]
+          imagePullPolicy: Always

@@ -1,0 +1,11 @@
+- name: details
+  serviceType: deployment
+  gitUrl: https://github.com/nocalhost/bookinfo-details.git
+  devContainerImage: ${DETAILS_DEV_IMAGE:-nocalhost-docker.pkg.coding.net/nocalhost/dev-images/ruby:2.7.1-slim}
+  ${_INCLUDE_:-../component/patternSetting.yaml| nindent 2}
+  workDir: /root/nocalhost-dev
+  devContainerShell: "bash"
+  devPorts:
+    - 29080:9080
+  runCommand: ["ruby", "details.rb", "9080"]
+  ${_INCLUDE_:-../component/notexist.yaml| nindent 2}

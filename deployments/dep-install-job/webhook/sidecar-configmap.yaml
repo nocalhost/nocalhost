@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sidecar-injector-webhook-configmap
+  namespace: nocalhost-reserved
+data:
+  sidecarconfig.yaml: |
+    initContainers:
+    - name: nocalhost-wait
+      image: nocalhost-docker.pkg.coding.net/nocalhost/public/nocalhost-wait:v1
+      imagePullPolicy: Always
+      args:

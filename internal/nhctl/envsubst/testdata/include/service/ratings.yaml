@@ -1,0 +1,15 @@
+- name: ratings
+  serviceType: deployment
+  gitUrl: https://github.com/nocalhost/bookinfo-ratings.git
+  devContainerImage: nocalhost-docker.pkg.coding.net/nocalhost/dev-images/node:12.18.1-slim
+  workDir: /root/nocalhost-dev
+  devContainerShell: "bash"
+  devPorts:
+    - 19080:9080
+  ${_INCLUDE_:-../component/patternSetting.yaml| nindent 2}
+  dependJobsLabelSelector:
+    - "job-name=dep-job"
+  dependPodsLabelSelector:
+    - "productpage"
+    - "productpage"
+  runCommand: ["npm","install", "&&", "node", "ratings.js", "9080"]

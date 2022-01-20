@@ -1,0 +1,79 @@
+name: bookinfo
+manifestType: rawManifest
+resourcePath: ["manifest/templates"]
+
+onPreInstall:
+  - path: manifest/templates/pre-install/print-num-job-01.yaml
+    weight: "1"
+  - path: manifest/templates/pre-install/print-num-job-02.yaml
+    weight: "-5"
+
+services:
+
+  - name: details
+    serviceType: deployment
+    gitUrl: https://github.com/nocalhost/bookinfo-details.git
+    devContainerImage: RUBBBBBBY!!
+    syncFilePattern:
+      - .
+    ignoreFilePattern:
+      - .git
+    workDir: /root/nocalhost-dev
+    devContainerShell: "bash"
+    devPorts:
+      - 29080:9080
+    runCommand: ["ruby", "details.rb", "9080"]
+
+  - name: productpage
+    serviceType: deployment
+    gitUrl: https://github.com/nocalhost/bookinfo-productpage
+    devContainerImage: nocalhost-docker.pkg.coding.net/nocalhost/dev-images/python:3.7.7-slim-productpage
+    workDir: /root/nocalhost-dev
+    devContainerShell: "bash"
+    devPorts:
+      - 39080:9080
+    dependJobsLabelSelector:
+      - "job-name=dep-job"
+    syncFilePattern:
+      - .
+    ignoreFilePattern:
+      - .git
+    runCommand: ["./run.sh"]
+    hotReloadRunCommand: ["./run.sh"]
+
+  - name: ratings
+    serviceType: deployment
+    gitUrl: https://github.com/nocalhost/bookinfo-ratings.git
+    devContainerImage: nocalhost-docker.pkg.coding.net/nocalhost/dev-images/node:12.18.1-slim
+    workDir: /root/nocalhost-dev
+    devContainerShell: "bash"
+    devPorts:
+      - 19080:9080
+    syncFilePattern:
+      - .
+    ignoreFilePattern:
+      - .git
+    dependJobsLabelSelector:
+      - "job-name=dep-job"
+    dependPodsLabelSelector:
+      - "productpage"
+      - "productpage"
+    runCommand: ["npm","install", "&&", "node", "ratings.js", "9080"]
+
+  - name: reviews
+    serviceType: deployment
+    gitUrl: https://github.com/nocalhost/bookinfo-reviews.git
+    devContainerImage: nocalhost-docker.pkg.coding.net/nocalhost/public/coding-java:latest
+    workDir: /root/reviews
+    devContainerShell: "bash"
+    devPorts:
+      - 5005:5005
+    syncFilePattern:
+      - .
+    ignoreFilePattern:
+      - .git
+    dependPodsLabelSelector:
+      - "productpage"
+    buildCommand: ["./gradlew", "build"]
+    runCommand: ["./gradlew", "bootRun"]
+    debugCommand: ["./gradlew", "bootRun", "--debug-jvm"]

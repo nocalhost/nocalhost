@@ -1,0 +1,13 @@
+- name: productpage
+  serviceType: deployment
+  gitUrl: https://github.com/nocalhost/bookinfo-productpage
+  devContainerImage: nocalhost-docker.pkg.coding.net/nocalhost/dev-images/python:3.7.7-slim-productpage
+  workDir: /root/nocalhost-dev
+  devContainerShell: "bash"
+  devPorts:
+    - 39080:9080
+  dependJobsLabelSelector:
+    - "job-name=dep-job"
+  ${_INCLUDE_:-../component/patternSetting.yaml| nindent 2}
+  runCommand: ["./run.sh"]
+  hotReloadRunCommand: ["./run.sh"]

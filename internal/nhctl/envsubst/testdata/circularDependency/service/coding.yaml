@@ -1,0 +1,17 @@
+- name: coding
+  serviceType: deployment
+  gitUrl: git@e.coding.net:nocalhost/coding-dev.git
+  devContainerImage: nocalhost-docker.pkg.coding.net/nocalhost/public/coding-java:latest
+  workDir: /root/coding
+  dependPodsLabelSelector: ${_INCLUDE_:- ../component/selector.yaml | nindent 4 }
+  dependJobsLabelSelector:
+    - "job-name=init-data-job"
+  persistentVolumeDirs:
+    - path: /root
+  buildCommand: [ "./gradlew", "build" ]
+  runCommand: [ "./gradlew", "bootRun" ]
+  debugCommand: [ "./gradlew", "bootRun", "--debug-jvm" ]
+  syncFilePattern:
+    - "."
+  ignoreFilePattern:
+    - ".git"

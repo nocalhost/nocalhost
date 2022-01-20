@@ -1,0 +1,8 @@
+name: bookinfo
+manifestType: rawManifest
+resourcePath: [ "manifest/templates" ]
+  ${_INCLUDE_:- ./component/onPreInstall.yaml}
+services:
+  ${_INCLUDE_:- ./service/details.yaml | nindent 2}
+  ${_INCLUDE_:- ./service/productpage.yaml | nindent 2} ${_INCLUDE_:-./service/ratings.yaml| nindent 2}
+  ${_INCLUDE_:- ./service/reviews.yaml | nindent 2}

@@ -1,0 +1,53 @@
+name: dep-installer-job-docker
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+  workflow_dispatch:
+
+jobs:
+  build-dep-install-job:
+    name: Build dep installer docker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Build dep-installer-job-docker
+        run: make dep-installer-job-docker
+
+      - name: Push to Github packages
+        env:
+          GITHUB_IMAGE_NAME: docker.pkg.github.com/${{ github.repository }}/dep-installer-job
+        run: |
+          echo ${{ secrets.GPR_PASS }} | docker login docker.pkg.github.com -u ${{ secrets.GPR_USER }} --password-stdin
+          docker tag dep-installer-job:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:${GITHUB_SHA}
+          docker push ${GITHUB_IMAGE_NAME}:${GITHUB_SHA}
+
+      - name: Push latest to Github packages
+        if: ${{ github.ref == 'refs/heads/main'}}
+        env:
+          GITHUB_IMAGE_NAME: docker.pkg.github.com/${{ github.repository }}/dep-installer-job
+        run: |
+          echo ${{ secrets.GPR_PASS }} | docker login docker.pkg.github.com -u ${{ secrets.GPR_USER }} --password-stdin
+          docker tag dep-installer-job:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:latest
+          docker push ${GITHUB_IMAGE_NAME}:latest
+
+      - name: Push to Coding Artifacts
+        if: ${{ github.repository == 'nocalhost/nocalhost' }}
+        env:
+          CODING_IMAGE_NAME: nocalhost-docker.pkg.coding.net/nocalhost/public/dep-installer-job
+        run: |
+          echo ${{ secrets.CODING_ARTIFACTS_PASS }} | docker login nocalhost-docker.pkg.coding.net -u ${{ secrets.CODING_ARTIFACTS_USER }} --password-stdin
+          docker tag dep-installer-job:${GITHUB_SHA} ${CODING_IMAGE_NAME}:${GITHUB_SHA}
+          docker push ${CODING_IMAGE_NAME}:${GITHUB_SHA}
+
+      - name: Push latest to Coding Artifacts
+        if: ${{ github.ref == 'refs/heads/main' && github.repository == 'nocalhost/nocalhost' }}
+        env:
+          CODING_IMAGE_NAME: nocalhost-docker.pkg.coding.net/nocalhost/public/dep-installer-job
+        run: |
+          echo ${{ secrets.CODING_ARTIFACTS_PASS }} | docker login nocalhost-docker.pkg.coding.net -u ${{ secrets.CODING_ARTIFACTS_USER }} --password-stdin
+          docker tag dep-installer-job:${GITHUB_SHA} ${CODING_IMAGE_NAME}:latest
+          docker push ${CODING_IMAGE_NAME}:latest

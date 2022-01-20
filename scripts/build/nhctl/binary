@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+#
+# Build a static binary for the host OS/ARCH
+#
+
+set -eu -o pipefail
+
+source ./scripts/build/nhctl/.variables
+
+echo "Building statically linked $TARGET"
+#go build -o "${TARGET}" --ldflags "${LDFLAGS}" "${SOURCE}"
+
+BUILD_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export SHELL=bash
+
+if [ "$GOOS" = "windows" ]; then
+  "$BUILD_DIR"/windows
+elif [ "$GOOS" = "darwin" ]; then
+  "$BUILD_DIR"/osx
+else
+  "$BUILD_DIR"/linux
+fi
+
+cp "build/$(basename "${TARGET}")" build/nhctl

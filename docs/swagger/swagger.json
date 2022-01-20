@@ -1,0 +1,2681 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Nocalhost server api",
+        "title": "Nocalhost docs api",
+        "contact": {
+            "name": "wangwei",
+            "url": "nocalhost.coding.net"
+        },
+        "license": {},
+        "version": "1.0"
+    },
+    "host": "{{.Host}}",
+    "basePath": "{{.BasePath}}",
+    "paths": {
+        "/v1/application": {
+            "get": {
+                "description": "Get Application",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Application"
+                ],
+                "summary": "Get Application",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Create Application",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Application"
+                ],
+                "summary": "Create Application",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "The application info",
+                        "name": "CreateAppRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/applications.CreateAppRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ApplicationModel"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/application/{id}": {
+            "get": {
+                "description": "Get Application Detail",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Application"
+                ],
+                "summary": "Get Application Detail",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Application ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ApplicationModel"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Edit application",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Application"
+                ],
+                "summary": "Edit application",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Application ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "The application info",
+                        "name": "CreateAppRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/applications.CreateAppRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ApplicationModel"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "The user deletes the application, and also deletes the configured development space in the application",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Application"
+                ],
+                "summary": "Delete Application",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Application ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":null}",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/application/{id}/bind_cluster": {
+            "post": {
+                "description": "Application associated cluster",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Application"
+                ],
+                "summary": "Associated cluster",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "The application info",
+                        "name": "CreateAppRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/application_cluster.ApplicationClusterRequest"
+                        }
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Application ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ApplicationClusterModel"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/application/{id}/bound_cluster": {
+            "get": {
+                "description": "Get the list of clusters associated with the application（Abandoned）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Application"
+                ],
+                "summary": "Get the list of clusters associated with the application（Abandoned）",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Application ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ApplicationClusterModel"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/application/{id}/cluster/{clusterId}": {
+            "get": {
+                "description": "Get authorized details of the application (obsolete)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Application"
+                ],
+                "summary": "Get authorized details of the application (obsolete)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cluster ID",
+                        "name": "clusterId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Application ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterUserModel"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/application/{id}/dev_space": {
+            "get": {
+                "description": "Get personal application development environment (kubeconfig) (obsolete)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Plug-in"
+                ],
+                "summary": "Plug-in Get personal application development environment (kubeconfig) (obsolete)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Application ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Application",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterUserModel"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/application/{id}/dev_space/{space_id}/detail": {
+            "get": {
+                "description": "Get dev space detail from application",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Application"
+                ],
+                "summary": "Get the details of a development environment of the application",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Application ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "DevSpace ID",
+                        "name": "space_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Application development environment parameters,",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterUserModel"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/application/{id}/dev_space_list": {
+            "get": {
+                "description": "Get application dev space list",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Application"
+                ],
+                "summary": "Get a list of application development environments",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Application ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Application development environment parameters,",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterUserModel"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/cluster": {
+            "get": {
+                "description": "Get the cluster list",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cluster"
+                ],
+                "summary": "Get the cluster list",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":model.ClusterListVo}",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterListVo"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Add cluster",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cluster"
+                ],
+                "summary": "Add cluster",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "The cluster info",
+                        "name": "createCluster",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/cluster.CreateClusterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterModel"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/cluster/kubeconfig/storage_class": {
+            "post": {
+                "description": "Get cluster storageClass from create cluster",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cluster"
+                ],
+                "summary": "Get cluster storageClass from create cluster",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "The cluster info",
+                        "name": "createCluster",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/cluster.StorageClassRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "include kubeconfig",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/cluster.StorageClassResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/cluster/{id}": {
+            "put": {
+                "description": "Update cluster",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cluster"
+                ],
+                "summary": "Update cluster",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cluster ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "The cluster info",
+                        "name": "createCluster",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/cluster.UpdateClusterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "include kubeconfig",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterModel"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Delete the cluster completely",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cluster"
+                ],
+                "summary": "Delete the cluster completely",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Cluster ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":null}",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/cluster/{id}/detail": {
+            "get": {
+                "description": "Get cluster details",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cluster"
+                ],
+                "summary": "Get cluster details",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cluster ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "include kubeconfig",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterModel"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/cluster/{id}/dev_space": {
+            "get": {
+                "description": "Cluster entrance to obtain cluster development environment",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cluster"
+                ],
+                "summary": "Cluster dev space list",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cluster ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "kubeconfig",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterUserModel"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/cluster/{id}/dev_space/{space_id}/detail": {
+            "get": {
+                "description": "Get cluster development environment details through cluster id and development environment id",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cluster"
+                ],
+                "summary": "Details of a development environment in the cluster",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cluster ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "DevSpace ID",
+                        "name": "space_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "include kubeconfig",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterUserModel"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/cluster/{id}/gen_namespace": {
+            "get": {
+                "description": "gen namespace for mesh dev space",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cluster"
+                ],
+                "summary": "Gen Namespace",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "cluster id",
+                        "name": "cluster",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":cluster.Namespace}",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/cluster.Namespace"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/cluster/{id}/storage_class": {
+            "get": {
+                "description": "Get cluster storageClass from cluster list",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cluster"
+                ],
+                "summary": "Get cluster storageClass from cluster list",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cluster ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "include kubeconfig",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/cluster.StorageClassResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/dev_space/{id}": {
+            "get": {
+                "description": "ListAll dev spaces",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "DevSpace"
+                ],
+                "summary": "ListAll dev spaces",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterUserModel"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Update dev space",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cluster"
+                ],
+                "summary": "Update dev space",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "devspace id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "kubeconfig",
+                        "name": "CreateAppRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/cluster_user.DevSpaceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterUserModel"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Create dev space",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "DevSpace"
+                ],
+                "summary": "Create dev space",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "cluster user info",
+                        "name": "CreateAppRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/cluster_user.ClusterUserCreateRequest"
+                        }
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Application ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterUserModel"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Completely delete the development environment, including deleting the K8S namespace",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "DevSpace"
+                ],
+                "summary": "Completely delete the development environment",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "DevSpace ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":null}",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/dev_space/{id}/detail": {
+            "get": {
+                "description": "Get dev space detail from application",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "DevSpace"
+                ],
+                "summary": "Get the details of a development environment of the application",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "DevSpace ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Application development environment parameters,",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterUserJoinClusterAndAppAndUser"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/dev_space/{id}/mesh_apps_info": {
+            "get": {
+                "description": "Get mesh apps info",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "DevSpace"
+                ],
+                "summary": "Get mesh apps info",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "devspace id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/setupcluster.MeshDevInfo"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/dev_space/{id}/recreate": {
+            "post": {
+                "description": "delete devSpace and create a new one",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "DevSpace"
+                ],
+                "summary": "ReCreate devSpace",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "DevSpace ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterModel"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/dev_space/{id}/update_mesh_dev_space_info": {
+            "put": {
+                "description": "Update mesh dev space info",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "DevSpace"
+                ],
+                "summary": "Update mesh dev space info",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "devspace id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "mesh dev space info",
+                        "name": "MeshDevInfo",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/setupcluster.MeshDevInfo"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterUserModel"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/dev_space/{id}/update_resource_limit": {
+            "put": {
+                "description": "update resource limit in dev space",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "DevSpace"
+                ],
+                "summary": "UpdateResourceLimit",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "devspace id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "kubeconfig",
+                        "name": "SpaceResourceLimit",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/cluster_user.SpaceResourceLimit"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterUserModel"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/login": {
+            "post": {
+                "description": "Web and plug-in login",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Web and plug-in login",
+                "parameters": [
+                    {
+                        "description": "Login user info",
+                        "name": "login",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/user.LoginCredentials"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":{\"token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\"}}",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/me": {
+            "get": {
+                "description": "Get user personal information",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Get user personal information",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Userinfo",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.UserInfo"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/nocalhost/templates": {
+            "get": {
+                "description": "get nocalhost config template",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Application"
+                ],
+                "summary": "get nocalhost config template",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":{\"template\":\"\"}}",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/nocalhost/version/upgrade_info": {
+            "get": {
+                "description": "UpgradeInfo api server version update info",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Version"
+                ],
+                "summary": "UpgradeInfo api server version update info",
+                "responses": {
+                    "200": {
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":model.VersionUpgradeInfo}",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.VersionUpgradeInfo"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/plugin/application/{id}/dev_space/{spaceId}/plugin_sync": {
+            "put": {
+                "description": "Plug-in Update app installation status",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Plug-in"
+                ],
+                "summary": "Plug-in Update app installation status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Application ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "DevSpace ID",
+                        "name": "spaceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "The application update info",
+                        "name": "CreateAppRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/applications.UpdateApplicationInstallRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":null}",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/plugin/dev_space": {
+            "get": {
+                "description": "Plug-in access to applications (including installation status)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Plug-in"
+                ],
+                "summary": "Plug-in access to applications (including installation status)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.PluginApplicationModel"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/plugin/{id}/recreate": {
+            "post": {
+                "description": "Plugin delete devSpace and create a new one",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Plug-in"
+                ],
+                "summary": "Plugin ReCreate devSpace",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "DevSpace ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterModel"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/register": {
+            "post": {
+                "description": "Registration(obsolete)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "The administrator adds users, users cannot register themselves",
+                "parameters": [
+                    {
+                        "description": "Reg user info",
+                        "name": "register",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/user.RegisterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":{\"token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\"}}",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/users": {
+            "get": {
+                "description": "Get userlist",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Get user list",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Get user list",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.UserList"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Admin add developer",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Add developer",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Reg user info",
+                        "name": "register",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/user.CreateUserRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.UserInfo"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/users/{id}": {
+            "get": {
+                "description": "Get user details",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Get user details",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Users ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Userinfo",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.UserInfo"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Update a user by ID，Only status is required",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Update user information (including disabled users)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "The user's database id index num",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Update user info",
+                        "name": "user",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/user.UpdateUserRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.UserBaseModel"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Delete users",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Delete users",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":null}",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/users/{id}/dev_space_list": {
+            "get": {
+                "description": "Get application dev space list",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Application"
+                ],
+                "summary": "Get a list of application development environments",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Application development environment parameters,",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterUserJoinClusterAndAppAndUser"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/version": {
+            "get": {
+                "description": "Get api server version",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Version"
+                ],
+                "summary": "Get api server version",
+                "responses": {
+                    "200": {
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":{\"version\":\"\",\"commit_id\":\"\",\"branch\":\"\"}}",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/v2/dev_space/cluster": {
+            "get": {
+                "description": "Get the cluster list which user can create devSpace",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cluster"
+                ],
+                "summary": "Get the cluster list which user can create devSpace",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{\"code\":0,\"message\":\"OK\",\"data\":model.ClusterList}",
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/model.ClusterList"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "api.Response": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "data": {
+                    "type": "object"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "application_cluster.ApplicationClusterRequest": {
+            "type": "object",
+            "required": [
+                "cluster_id"
+            ],
+            "properties": {
+                "cluster_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "applications.CreateAppRequest": {
+            "type": "object",
+            "required": [
+                "context",
+                "status"
+            ],
+            "properties": {
+                "context": {
+                    "type": "string",
+                    "example": "{\"application_url\":\"git@github.com:nocalhost/bookinfo.git\",\"application_name\":\"name\",\"source\":\"git/helm_repo\",\"install_type\":\"rawManifest/helm_chart\",\"resource_dir\":[\"manifest/templates\"],\"nocalhost_config_raw\":\"base64encode(config_templates)\",\"nocalhost_config_path\":\"./nocalhost/config.yaml\"}"
+                },
+                "public": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "integer"
+                }
+            }
+        },
+        "applications.UpdateApplicationInstallRequest": {
+            "type": "object",
+            "required": [
+                "status"
+            ],
+            "properties": {
+                "status": {
+                    "type": "integer"
+                }
+            }
+        },
+        "cluster.CreateClusterRequest": {
+            "type": "object",
+            "required": [
+                "kubeconfig",
+                "name"
+            ],
+            "properties": {
+                "kubeconfig": {
+                    "type": "string",
+                    "example": "base64encode(value)"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "storage_class": {
+                    "type": "string"
+                }
+            }
+        },
+        "cluster.Namespace": {
+            "type": "object",
+            "properties": {
+                "namespace": {
+                    "type": "string"
+                }
+            }
+        },
+        "cluster.StorageClassRequest": {
+            "type": "object",
+            "properties": {
+                "kubeconfig": {
+                    "type": "string",
+                    "example": "base64encode(value)"
+                }
+            }
+        },
+        "cluster.StorageClassResponse": {
+            "type": "object",
+            "properties": {
+                "type_name": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "cluster.UpdateClusterRequest": {
+            "type": "object",
+            "properties": {
+                "storage_class": {
+                    "type": "string"
+                }
+            }
+        },
+        "cluster_user.ClusterUserCreateRequest": {
+            "type": "object",
+            "required": [
+                "cluster_id",
+                "user_id"
+            ],
+            "properties": {
+                "application_id": {
+                    "type": "integer"
+                },
+                "base_dev_space_id": {
+                    "type": "integer"
+                },
+                "cluster_admin": {
+                    "type": "integer"
+                },
+                "cluster_id": {
+                    "type": "integer"
+                },
+                "cpu": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_base_space": {
+                    "type": "boolean"
+                },
+                "memory": {
+                    "type": "integer"
+                },
+                "mesh_dev_info": {
+                    "type": "object",
+                    "$ref": "#/definitions/setupcluster.MeshDevInfo"
+                },
+                "namespace": {
+                    "type": "string"
+                },
+                "space_name": {
+                    "type": "string"
+                },
+                "space_resource_limit": {
+                    "type": "object",
+                    "$ref": "#/definitions/cluster_user.SpaceResourceLimit"
+                },
+                "user_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "cluster_user.DevSpaceRequest": {
+            "type": "object",
+            "properties": {
+                "kubeconfig": {
+                    "type": "string"
+                },
+                "space_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "cluster_user.SpaceResourceLimit": {
+            "type": "object",
+            "properties": {
+                "container_ephemeral_storage": {
+                    "type": "string"
+                },
+                "container_limits_cpu": {
+                    "type": "string"
+                },
+                "container_limits_mem": {
+                    "type": "string"
+                },
+                "container_req_cpu": {
+                    "type": "string"
+                },
+                "container_req_mem": {
+                    "type": "string"
+                },
+                "space_ephemeral_storage": {
+                    "type": "string"
+                },
+                "space_lb_count": {
+                    "type": "string"
+                },
+                "space_limits_cpu": {
+                    "type": "string"
+                },
+                "space_limits_mem": {
+                    "type": "string"
+                },
+                "space_pvc_count": {
+                    "type": "string"
+                },
+                "space_req_cpu": {
+                    "type": "string"
+                },
+                "space_req_mem": {
+                    "type": "string"
+                },
+                "space_storage_capacity": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.ApplicationClusterModel": {
+            "type": "object",
+            "properties": {
+                "application_id": {
+                    "type": "integer"
+                },
+                "cluster_id": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.ApplicationModel": {
+            "type": "object",
+            "required": [
+                "context",
+                "public",
+                "status"
+            ],
+            "properties": {
+                "application_type": {
+                    "type": "string"
+                },
+                "context": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "editable": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "public": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "integer"
+                },
+                "user_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.ClusterList": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "has_dev_space": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "info": {
+                    "type": "string"
+                },
+                "is_ready": {
+                    "type": "boolean"
+                },
+                "modifiable": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "not_ready_message": {
+                    "type": "string"
+                },
+                "server": {
+                    "type": "string"
+                },
+                "storage_class": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "integer"
+                },
+                "users_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.ClusterListVo": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "has_dev_space": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "info": {
+                    "type": "string"
+                },
+                "is_ready": {
+                    "type": "boolean"
+                },
+                "modifiable": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "not_ready_message": {
+                    "type": "string"
+                },
+                "resources": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.Resource"
+                    }
+                },
+                "server": {
+                    "type": "string"
+                },
+                "storage_class": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "integer"
+                },
+                "users_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.ClusterModel": {
+            "type": "object",
+            "required": [
+                "kubeconfig",
+                "name"
+            ],
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "info": {
+                    "type": "string"
+                },
+                "kubeconfig": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "server": {
+                    "type": "string"
+                },
+                "storage_class": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.ClusterUserJoinClusterAndAppAndUser": {
+            "type": "object",
+            "properties": {
+                "cluster_admin": {
+                    "type": "integer"
+                },
+                "cluster_id": {
+                    "type": "integer"
+                },
+                "cluster_name": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "kubeconfig": {
+                    "type": "string"
+                },
+                "namespace": {
+                    "type": "string"
+                },
+                "space_name": {
+                    "type": "string"
+                },
+                "space_resource_limit": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "integer"
+                },
+                "user_id": {
+                    "type": "integer"
+                },
+                "user_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.ClusterUserModel": {
+            "type": "object",
+            "properties": {
+                "application_id": {
+                    "description": "Deprecated",
+                    "type": "integer"
+                },
+                "base_dev_space_id": {
+                    "type": "integer"
+                },
+                "cluster_admin": {
+                    "type": "integer"
+                },
+                "cluster_id": {
+                    "type": "integer"
+                },
+                "cpu": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_base_space": {
+                    "type": "boolean"
+                },
+                "kubeconfig": {
+                    "type": "string"
+                },
+                "memory": {
+                    "type": "integer"
+                },
+                "namespace": {
+                    "type": "string"
+                },
+                "space_name": {
+                    "type": "string"
+                },
+                "space_resource_limit": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "integer"
+                },
+                "trace_header": {
+                    "type": "object",
+                    "$ref": "#/definitions/model.Header"
+                },
+                "user_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.Header": {
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.PluginApplicationModel": {
+            "type": "object",
+            "properties": {
+                "cluster_id": {
+                    "type": "integer"
+                },
+                "context": {
+                    "type": "string"
+                },
+                "cpu": {
+                    "type": "integer"
+                },
+                "dev_start_append_command": {
+                    "type": "string"
+                },
+                "devspace_id": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "install_status": {
+                    "type": "integer"
+                },
+                "kubeconfig": {
+                    "type": "string"
+                },
+                "memory": {
+                    "type": "integer"
+                },
+                "namespace": {
+                    "type": "string"
+                },
+                "public": {
+                    "type": "integer"
+                },
+                "space_name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "integer"
+                },
+                "storage_class": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.Resource": {
+            "type": "object",
+            "properties": {
+                "capacity": {
+                    "type": "number"
+                },
+                "percentage": {
+                    "type": "number"
+                },
+                "resource_name": {
+                    "type": "string"
+                },
+                "used": {
+                    "type": "number"
+                }
+            }
+        },
+        "model.UserBaseModel": {
+            "type": "object",
+            "properties": {
+                "avatar": {
+                    "type": "string"
+                },
+                "cluster_admin": {
+                    "type": "integer"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_admin": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "integer"
+                },
+                "sa_name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "integer"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.UserInfo": {
+            "type": "object",
+            "properties": {
+                "avatar": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "integer"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.UserList": {
+            "type": "object",
+            "properties": {
+                "cluster_count": {
+                    "type": "integer"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_admin": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "sa_ame": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.VersionUpgradeInfo": {
+            "type": "object",
+            "properties": {
+                "current_version": {
+                    "type": "string"
+                },
+                "has_new_version": {
+                    "type": "boolean"
+                },
+                "upgrade_version": {
+                    "type": "string"
+                }
+            }
+        },
+        "setupcluster.MeshDevApp": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "workloads": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/setupcluster.MeshDevWorkload"
+                    }
+                }
+            }
+        },
+        "setupcluster.MeshDevInfo": {
+            "type": "object",
+            "properties": {
+                "apps": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/setupcluster.MeshDevApp"
+                    }
+                },
+                "header": {
+                    "type": "object",
+                    "$ref": "#/definitions/model.Header"
+                },
+                "namespace": {
+                    "type": "string"
+                },
+                "resources": {
+                    "type": "object",
+                    "$ref": "#/definitions/setupcluster.meshDevResources"
+                },
+                "rollback": {
+                    "type": "object",
+                    "$ref": "#/definitions/setupcluster.rollback"
+                }
+            }
+        },
+        "setupcluster.MeshDevWorkload": {
+            "type": "object",
+            "properties": {
+                "kind": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "integer"
+                }
+            }
+        },
+        "setupcluster.meshDevResources": {
+            "type": "object",
+            "properties": {
+                "delete": {
+                    "type": "string"
+                },
+                "install": {
+                    "type": "string"
+                }
+            }
+        },
+        "setupcluster.rollback": {
+            "type": "object",
+            "properties": {
+                "header": {
+                    "type": "object",
+                    "$ref": "#/definitions/setupcluster.rollbackHeader"
+                }
+            }
+        },
+        "setupcluster.rollbackHeader": {
+            "type": "object",
+            "properties": {
+                "add": {
+                    "type": "object"
+                },
+                "update": {
+                    "type": "object"
+                }
+            }
+        },
+        "user.CreateUserRequest": {
+            "type": "object",
+            "required": [
+                "confirm_password",
+                "email",
+                "is_admin",
+                "name",
+                "password",
+                "status"
+            ],
+            "properties": {
+                "confirm_password": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "is_admin": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "integer"
+                }
+            }
+        },
+        "user.LoginCredentials": {
+            "type": "object",
+            "required": [
+                "email",
+                "password"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "from": {
+                    "type": "string",
+                    "example": "only use for plugin, web interface do not send this key"
+                },
+                "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "user.RegisterRequest": {
+            "type": "object",
+            "properties": {
+                "confirm_password": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "user.UpdateUserRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "is_admin": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "integer"
+                }
+            }
+        }
+    }
+}

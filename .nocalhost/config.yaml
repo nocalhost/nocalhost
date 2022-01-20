@@ -1,0 +1,79 @@
+configProperties:
+  version: v2
+
+application:
+  name: nocalhost
+  manifestType: helmGit
+  resourcePath: [ "deployments/chart" ]
+
+  helmValues:
+    - key: service.type
+      value: ClusterIP
+
+  services:
+    - name: nocalhost-api
+      serviceType: deployment
+      dependLabelSelector:
+        pods:
+          - "app.kubernetes.io/name=mariadb"
+      portForward:
+        - 8080:8080
+      containers:
+        - name: nocalhost-api
+          dev:
+            gitUrl: https://github.com/nocalhost/nocalhost.git
+            image: nocalhost-docker.pkg.coding.net/nocalhost/dev-images/golang:zsh
+            workDir: /home/nocalhost-dev
+            shell: "/bin/zsh"
+            sync:
+              type: send
+              filePattern:
+                - .
+              ignoreFilePattern:
+                - "./build"
+            command:
+              build: [ "make", "api" ]
+              run: [ "make", "api", "&&", "./build/nocalhost-api", "-c", "/app/config/config.yaml" ]
+              debug: [ "make", "api", "&&", "dlv", "--listen=:2345", "--headless=true", "--api-version=2", "--accept-multiclient", "exec", "./build/nocalhost-api", "--", "-c", "/app/config/config.yaml" ]
+            debug:
+              remoteDebugPort: 2345
+            env:
+              - name: NOCALHOST_INJECT_DEV_ENV
+                value: WHATEVER
+            portForward:
+              - 8080:8080
+
+
+    - name: nocalhost-web
+      serviceType: deployment
+      dependLabelSelector:
+        pods:
+          - "app=nocalhost-api"
+      containers:
+        - name: nocalhost-web
+          install:
+            portForward:
+              - 8000:80
+          dev:
+            gitUrl: https://e.coding.net/nocalhost/nocalhost/nocalhost-web.git
+            image: nocalhost-docker.pkg.coding.net/nocalhost/dev-images/node:12.18.1-slim
+            workDir: /home/nocalhost-dev
+            shell: "bash"
+            sync:
+              type: send
+              filePattern:
+                - .
+              ignoreFilePattern:
+                - ".git"
+                - ".github"
+                - ".vscode"
+                - "node_modules"
+            portForward:
+              - 80:80
+            resources:
+              limits:
+                cpu: "0.3"
+                memory: 200Mi
+              requests:
+                cpu: "0.1"
+                memory: 100Mi

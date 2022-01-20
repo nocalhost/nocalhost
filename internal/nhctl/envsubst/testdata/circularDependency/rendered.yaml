@@ -1,0 +1,31 @@
+name: zzzzz
+manifestType: rawManifest
+resourcePath:
+  - "services/"
+
+onPreInstall: [ ]
+services:
+
+  - name: coding
+    serviceType: deployment
+    gitUrl: git@e.coding.net:nocalhost/coding-dev.git
+    devContainerImage: nocalhost-docker.pkg.coding.net/nocalhost/public/coding-java:latest
+    workDir: /root/coding
+    dependPodsLabelSelector:
+      - "app=mariadb"
+      - "app=etcd"
+      - "app=rabbitmq"
+      - "app=redis"
+      - "app=pinyin"
+      - "what=ever"
+    dependJobsLabelSelector:
+      - "job-name=init-data-job"
+    persistentVolumeDirs:
+      - path: /root
+    buildCommand: [ "./gradlew", "build" ]
+    runCommand: [ "./gradlew", "bootRun" ]
+    debugCommand: [ "./gradlew", "bootRun", "--debug-jvm" ]
+    syncFilePattern:
+      - "."
+    ignoreFilePattern:
+      - ".git"

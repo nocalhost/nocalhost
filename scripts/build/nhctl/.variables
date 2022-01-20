@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -eu
+
+VERSION=${VERSION:-$(git describe 2>/dev/null | sed 's/refs\/tags\///' | sed 's/\(.*\)-.*/\1/' | sed 's/-[0-9]*$//' || true)}
+GITCOMMIT=`git describe --match=NeVeRmAtCh --always --abbrev=40`
+DEVGITCOMMIT=`git rev-parse HEAD`
+BUILDTIME=`date +"%Y-%m-%dT%H:%M:%SZ"`
+BRANCH=${GITHUB_HEAD_REF:-$(git rev-parse --abbrev-ref HEAD)}
+
+GOOS="${GOOS:-$(go env GOHOSTOS)}"
+GOARCH="${GOARCH:-$(go env GOHOSTARCH)}"
+TARGET="build/nhctl-$GOOS-$GOARCH"
+OS_ARCH="${GOOS}/${GOARCH}"
+
+if [ "${GOOS}" = "windows" ]; then
+	TARGET="${TARGET}.exe"
+fi
+
+export LDFLAGS="\
+    -X \"nocalhost/cmd/nhctl/cmds.GitCommit=${GITCOMMIT}\" \
+    -X \"nocalhost/cmd/nhctl/cmds.BuildTime=${BUILDTIME}\" \
+    -X \"nocalhost/cmd/nhctl/cmds.Version=${VERSION}\" \
+    -X \"nocalhost/cmd/nhctl/cmds.Branch=${BRANCH}\" \
+    -X \"nocalhost/cmd/nhctl/cmds.DevGitCommit=${DEVGITCOMMIT}\" \
+	  -X \"nocalhost/cmd/nhctl/cmds.OsArch=${OS_ARCH}\" \
+"
+export TARGET
+
+export SOURCE="nocalhost/cmd/nhctl"
+
+export CGO_ENABLED=0

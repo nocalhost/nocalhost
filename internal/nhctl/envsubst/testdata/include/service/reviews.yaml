@@ -1,0 +1,14 @@
+- name: reviews
+  serviceType: deployment
+  gitUrl: https://github.com/nocalhost/bookinfo-reviews.git
+  devContainerImage: nocalhost-docker.pkg.coding.net/nocalhost/public/coding-java:latest
+  workDir: /root/reviews
+  devContainerShell: "bash"
+  devPorts:
+    - 5005:5005
+  ${_INCLUDE_:-../component/patternSetting.yaml| nindent 2}
+  dependPodsLabelSelector:
+    - "productpage"
+  buildCommand: ["./gradlew", "build"]
+  runCommand: ["./gradlew", "bootRun"]
+  debugCommand: ["./gradlew", "bootRun", "--debug-jvm"]

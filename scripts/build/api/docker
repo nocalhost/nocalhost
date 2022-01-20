@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -eu -o pipefail
+
+VERSION=${VERSION:-$(git describe 2>/dev/null | sed 's/refs\/tags\///' | sed 's/\(.*\)-.*/\1/' | sed 's/-[0-9]*$//' || true)}
+GIT_COMMIT_SHA=`git describe --match=NeVeRmAtCh --always --abbrev=40`
+DOCKERFILE="deployments/nocalhost-api/Dockerfile"
+TARGET="nocalhost-api"
+SERVICE_INITIAL=${SERVICE_INITIAL:-false}
+
+docker build --build-arg version=${VERSION} --build-arg service_initial=${SERVICE_INITIAL} -f ${DOCKERFILE} -t ${TARGET} .
+docker tag ${TARGET}:latest ${TARGET}:${GIT_COMMIT_SHA}

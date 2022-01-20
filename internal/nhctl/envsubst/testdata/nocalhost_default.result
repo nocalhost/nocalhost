@@ -1,0 +1,23 @@
+- name: e-micro-agile
+    serviceType: deployment
+    dependPodsLabelSelector:
+    - "app=mariadb"
+    - "app=rabbitmq"
+    dependJobsLabelSelector:
+      - "job-name=init-data-job"
+    gitUrl:git@e.coding.net:nocalhost/collaboration.git
+    devContainerImage:
+    workDir:
+    persistentVolumeDirs:
+     - path:
+    buildCommand: []
+    runCommand: ["./gradlew", "bootRun"]
+    debugCommand: ["./gradlew", "bootRun", "--debug-jvm"]
+    syncFilePattern:
+     - "."
+
+    ignoreFilePattern:
+     - ".git"
+     - ".nocalhost"
+
+    testPriority:0

@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nocalhost-depends-do-not-overwrite-gernatekey
+  namespace: nocalhost-reserved
+data:
+  nocalhost: |
+    dependency:
+      - name: sleep
+        type: deployment
+        pods:
+        - "redis"
+      - name: sleep2
+        type: deployment
+        pods:
+        - "redis"
+        - "mariadb"
+        - "ssdb"
+        - "influxdb"
+        - "etcd"
+        - "rabbitmq"
+        jobs:
+        - "migrate-coding-database"
+      - name: coding-api
+        type: StatefulSet
+        pods:
+        - "etcd"
+      - name: coding-testing
+        type: DaemonSet
+        pods:
+        - "etcd"
+        - "mariadb"
+        - "etcd"

@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+#
+# Build an linux binary
+#
+
+set -eu -o pipefail
+export GOOS=darwin
+export GOARCH=arm64
+
+TMP_VERSION=${VERSION:-$(git describe 2>/dev/null | sed 's/refs\/tags\///' | sed 's/\(.*\)-.*/\1/' | sed 's/-[0-9]*$//' || true)}
+TMP_GITCOMMIT=$(git describe --match=NeVeRmAtCh --always --abbrev=40)
+
+TMP_TAG=$(git tag -l --sort=v:refname | tail -1)
+if [ -z "${GITHUB_ACTION:-}" ]; then
+  for version in $TMP_GITCOMMIT $TMP_TAG; do
+    echo "version: ""$version"
+    curl -fL "https://nocalhost-generic.pkg.coding.net/nocalhost/syncthing/syncthing-macos-arm64.zip?version=""$version" -o syncthing-macos-arm64.zip --retry 5 || true
+    if [[ -e "syncthing-macos-arm64.zip" ]]; then
+      filesize=$(ls -l syncthing-macos-arm64.zip | awk '{ print $5 }')
+      minsize=$((1024 * 1024 * 5))
+      if [ "$filesize" -gt $minsize ]; then
+        break
+      fi
+    fi
+  done
+fi
+
+rm -fr syncthing-macos-arm64
+unzip syncthing-macos-arm64.zip
+mv syncthing-macos-arm64/syncthing ./internal/nhctl/syncthing/bin/syncthing_macos_arm64
+rm -fr syncthing-macos-arm64 syncthing-macos-arm64.zip
+
+filesize=$(ls -l ./internal/nhctl/syncthing/bin/syncthing_macos_arm64 | awk '{ print $5 }')
+minsize=$((1024 * 1024 * 10))
+if [ "$filesize" -lt $minsize ]; then
+  echo "$filesize < $minsize, syncthing binary is less than 10M, it's not available"
+  exit 1
+fi
+
+source ./scripts/build/nhctl/.variables
+
+# Override TARGET
+TARGET="build/nhctl-$GOOS-$GOARCH"
+
+echo "Building $TARGET"
+go build -o "${TARGET}" --ldflags "${LDFLAGS}" "${SOURCE}"

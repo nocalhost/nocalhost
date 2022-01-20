@@ -1,0 +1,61 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: nocalhost-mutating.coding.net
+  labels:
+    app: nocalhost-mutating-dependents
+webhooks:
+  - name: nocalhost-mutating.coding.net
+    failurePolicy: Ignore # 调用 webhook 的错误导致准入失败并且 API 请求被拒绝，默认 Ignore
+    namespaceSelector:
+      matchExpressions:
+        - key: nocalhost-dep-ignore
+          operator: NotIn
+          values: [ "true" ] # 忽略 label nocalhost-dep-ignore=true 的 namespace
+        #__NAMESPACE_MATCH_KEY__#
+    clientConfig:
+      service:
+        name: nocalhost-sidecar-injector-controller
+        namespace: nocalhost-reserved
+        path: "/mutate"
+      caBundle: ${CA_BUNDLE}
+    admissionReviewVersions: [ "v1beta1" ]
+    # sideEffects: None  # only admissionregistration.k8s.io/v1, 没有副作用
+    timeoutSeconds: 30  # 超时时间
+    rules:
+      - operations: [ "CREATE" ]
+        apiGroups: [ "*" ] # 如果是 pods 没有 apiGroups ，留空
+        apiVersions: [ "v1", "v1beta1" ]
+        resources:
+          # workloads
+          - "deployments"
+          - "daemonsets"
+          - "statefulsets"
+          - "cronjobs"
+          - "jobs"
+          - "cronjobs"
+          - "pods"
+
+          # networks
+          - "services"
+          - "endpoints"
+          - "ingresses"
+          - "networkpolicies"
+
+          # configurations
+          - "configmaps"
+          - "secrets"
+          - "horizontalpodautoscalers"
+          - "poddisruptionbudgets"
+
+          # storage
+          - "persistentvolumes"
+          - "persistentvolumeclaims"
+          - "storageclasses"
+
+      - operations: [ "CREATE","UPDATE","DELETE" ]
+        apiGroups: [ "" ] # means core
+        apiVersions: [ "v1" ]
+        resources: [ "resourcequotas" ]
+    sideEffects: None
+

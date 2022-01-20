@@ -1,0 +1,1806 @@
+basePath: '{{.BasePath}}'
+definitions:
+  api.Response:
+    properties:
+      code:
+        type: integer
+      data:
+        type: object
+      message:
+        type: string
+    type: object
+  application_cluster.ApplicationClusterRequest:
+    properties:
+      cluster_id:
+        type: integer
+    required:
+    - cluster_id
+    type: object
+  applications.CreateAppRequest:
+    properties:
+      context:
+        example: '{"application_url":"git@github.com:nocalhost/bookinfo.git","application_name":"name","source":"git/helm_repo","install_type":"rawManifest/helm_chart","resource_dir":["manifest/templates"],"nocalhost_config_raw":"base64encode(config_templates)","nocalhost_config_path":"./nocalhost/config.yaml"}'
+        type: string
+      public:
+        type: integer
+      status:
+        type: integer
+    required:
+    - context
+    - status
+    type: object
+  applications.UpdateApplicationInstallRequest:
+    properties:
+      status:
+        type: integer
+    required:
+    - status
+    type: object
+  cluster.CreateClusterRequest:
+    properties:
+      kubeconfig:
+        example: base64encode(value)
+        type: string
+      name:
+        type: string
+      storage_class:
+        type: string
+    required:
+    - kubeconfig
+    - name
+    type: object
+  cluster.Namespace:
+    properties:
+      namespace:
+        type: string
+    type: object
+  cluster.StorageClassRequest:
+    properties:
+      kubeconfig:
+        example: base64encode(value)
+        type: string
+    type: object
+  cluster.StorageClassResponse:
+    properties:
+      type_name:
+        items:
+          type: string
+        type: array
+    type: object
+  cluster.UpdateClusterRequest:
+    properties:
+      storage_class:
+        type: string
+    type: object
+  cluster_user.ClusterUserCreateRequest:
+    properties:
+      application_id:
+        type: integer
+      base_dev_space_id:
+        type: integer
+      cluster_admin:
+        type: integer
+      cluster_id:
+        type: integer
+      cpu:
+        type: integer
+      id:
+        type: integer
+      is_base_space:
+        type: boolean
+      memory:
+        type: integer
+      mesh_dev_info:
+        $ref: '#/definitions/setupcluster.MeshDevInfo'
+        type: object
+      namespace:
+        type: string
+      space_name:
+        type: string
+      space_resource_limit:
+        $ref: '#/definitions/cluster_user.SpaceResourceLimit'
+        type: object
+      user_id:
+        type: integer
+    required:
+    - cluster_id
+    - user_id
+    type: object
+  cluster_user.DevSpaceRequest:
+    properties:
+      kubeconfig:
+        type: string
+      space_name:
+        type: string
+    type: object
+  cluster_user.SpaceResourceLimit:
+    properties:
+      container_ephemeral_storage:
+        type: string
+      container_limits_cpu:
+        type: string
+      container_limits_mem:
+        type: string
+      container_req_cpu:
+        type: string
+      container_req_mem:
+        type: string
+      space_ephemeral_storage:
+        type: string
+      space_lb_count:
+        type: string
+      space_limits_cpu:
+        type: string
+      space_limits_mem:
+        type: string
+      space_pvc_count:
+        type: string
+      space_req_cpu:
+        type: string
+      space_req_mem:
+        type: string
+      space_storage_capacity:
+        type: string
+    type: object
+  model.ApplicationClusterModel:
+    properties:
+      application_id:
+        type: integer
+      cluster_id:
+        type: integer
+      id:
+        type: integer
+    type: object
+  model.ApplicationModel:
+    properties:
+      application_type:
+        type: string
+      context:
+        type: string
+      created_at:
+        type: string
+      editable:
+        type: integer
+      id:
+        type: integer
+      public:
+        type: integer
+      status:
+        type: integer
+      user_id:
+        type: integer
+    required:
+    - context
+    - public
+    - status
+    type: object
+  model.ClusterList:
+    properties:
+      created_at:
+        type: string
+      has_dev_space:
+        type: boolean
+      id:
+        type: integer
+      info:
+        type: string
+      is_ready:
+        type: boolean
+      modifiable:
+        type: boolean
+      name:
+        type: string
+      not_ready_message:
+        type: string
+      server:
+        type: string
+      storage_class:
+        type: string
+      user_id:
+        type: integer
+      users_count:
+        type: integer
+    type: object
+  model.ClusterListVo:
+    properties:
+      created_at:
+        type: string
+      has_dev_space:
+        type: boolean
+      id:
+        type: integer
+      info:
+        type: string
+      is_ready:
+        type: boolean
+      modifiable:
+        type: boolean
+      name:
+        type: string
+      not_ready_message:
+        type: string
+      resources:
+        items:
+          $ref: '#/definitions/model.Resource'
+        type: array
+      server:
+        type: string
+      storage_class:
+        type: string
+      user_id:
+        type: integer
+      users_count:
+        type: integer
+    type: object
+  model.ClusterModel:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      info:
+        type: string
+      kubeconfig:
+        type: string
+      name:
+        type: string
+      server:
+        type: string
+      storage_class:
+        type: string
+      user_id:
+        type: integer
+    required:
+    - kubeconfig
+    - name
+    type: object
+  model.ClusterUserJoinClusterAndAppAndUser:
+    properties:
+      cluster_admin:
+        type: integer
+      cluster_id:
+        type: integer
+      cluster_name:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      kubeconfig:
+        type: string
+      namespace:
+        type: string
+      space_name:
+        type: string
+      space_resource_limit:
+        type: string
+      status:
+        type: integer
+      user_id:
+        type: integer
+      user_name:
+        type: string
+    type: object
+  model.ClusterUserModel:
+    properties:
+      application_id:
+        description: Deprecated
+        type: integer
+      base_dev_space_id:
+        type: integer
+      cluster_admin:
+        type: integer
+      cluster_id:
+        type: integer
+      cpu:
+        type: integer
+      created_at:
+        type: string
+      id:
+        type: integer
+      is_base_space:
+        type: boolean
+      kubeconfig:
+        type: string
+      memory:
+        type: integer
+      namespace:
+        type: string
+      space_name:
+        type: string
+      space_resource_limit:
+        type: string
+      status:
+        type: integer
+      trace_header:
+        $ref: '#/definitions/model.Header'
+        type: object
+      user_id:
+        type: integer
+    type: object
+  model.Header:
+    properties:
+      key:
+        type: string
+      type:
+        type: string
+      value:
+        type: string
+    type: object
+  model.PluginApplicationModel:
+    properties:
+      cluster_id:
+        type: integer
+      context:
+        type: string
+      cpu:
+        type: integer
+      dev_start_append_command:
+        type: string
+      devspace_id:
+        type: integer
+      id:
+        type: integer
+      install_status:
+        type: integer
+      kubeconfig:
+        type: string
+      memory:
+        type: integer
+      namespace:
+        type: string
+      public:
+        type: integer
+      space_name:
+        type: string
+      status:
+        type: integer
+      storage_class:
+        type: string
+    type: object
+  model.Resource:
+    properties:
+      capacity:
+        type: number
+      percentage:
+        type: number
+      resource_name:
+        type: string
+      used:
+        type: number
+    type: object
+  model.UserBaseModel:
+    properties:
+      avatar:
+        type: string
+      cluster_admin:
+        type: integer
+      email:
+        type: string
+      id:
+        type: integer
+      is_admin:
+        type: integer
+      name:
+        type: string
+      phone:
+        type: integer
+      sa_name:
+        type: string
+      status:
+        type: integer
+      username:
+        type: string
+    type: object
+  model.UserInfo:
+    properties:
+      avatar:
+        type: string
+      email:
+        type: integer
+      id:
+        type: integer
+      status:
+        type: integer
+      username:
+        type: string
+    type: object
+  model.UserList:
+    properties:
+      cluster_count:
+        type: integer
+      email:
+        type: string
+      id:
+        type: integer
+      is_admin:
+        type: integer
+      name:
+        type: string
+      sa_ame:
+        type: string
+      status:
+        type: integer
+    type: object
+  model.VersionUpgradeInfo:
+    properties:
+      current_version:
+        type: string
+      has_new_version:
+        type: boolean
+      upgrade_version:
+        type: string
+    type: object
+  setupcluster.MeshDevApp:
+    properties:
+      name:
+        type: string
+      workloads:
+        items:
+          $ref: '#/definitions/setupcluster.MeshDevWorkload'
+        type: array
+    type: object
+  setupcluster.MeshDevInfo:
+    properties:
+      apps:
+        items:
+          $ref: '#/definitions/setupcluster.MeshDevApp'
+        type: array
+      header:
+        $ref: '#/definitions/model.Header'
+        type: object
+      namespace:
+        type: string
+      resources:
+        $ref: '#/definitions/setupcluster.meshDevResources'
+        type: object
+      rollback:
+        $ref: '#/definitions/setupcluster.rollback'
+        type: object
+    type: object
+  setupcluster.MeshDevWorkload:
+    properties:
+      kind:
+        type: string
+      name:
+        type: string
+      status:
+        type: integer
+    type: object
+  setupcluster.meshDevResources:
+    properties:
+      delete:
+        type: string
+      install:
+        type: string
+    type: object
+  setupcluster.rollback:
+    properties:
+      header:
+        $ref: '#/definitions/setupcluster.rollbackHeader'
+        type: object
+    type: object
+  setupcluster.rollbackHeader:
+    properties:
+      add:
+        type: object
+      update:
+        type: object
+    type: object
+  user.CreateUserRequest:
+    properties:
+      confirm_password:
+        type: string
+      email:
+        type: string
+      is_admin:
+        type: integer
+      name:
+        type: string
+      password:
+        type: string
+      status:
+        type: integer
+    required:
+    - confirm_password
+    - email
+    - is_admin
+    - name
+    - password
+    - status
+    type: object
+  user.LoginCredentials:
+    properties:
+      email:
+        type: string
+      from:
+        example: only use for plugin, web interface do not send this key
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  user.RegisterRequest:
+    properties:
+      confirm_password:
+        type: string
+      email:
+        type: string
+      password:
+        type: string
+    type: object
+  user.UpdateUserRequest:
+    properties:
+      email:
+        type: string
+      is_admin:
+        type: integer
+      name:
+        type: string
+      password:
+        type: string
+      status:
+        type: integer
+    type: object
+host: '{{.Host}}'
+info:
+  contact:
+    name: wangwei
+    url: nocalhost.coding.net
+  description: Nocalhost server api
+  license: {}
+  title: Nocalhost docs api
+  version: "1.0"
+paths:
+  /v1/application:
+    get:
+      consumes:
+      - application/json
+      description: Get Application
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":'
+          schema:
+            $ref: '#/definitions/api.Response'
+            type: object
+      summary: Get Application
+      tags:
+      - Application
+    post:
+      consumes:
+      - application/json
+      description: Create Application
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: The application info
+        in: body
+        name: CreateAppRequest
+        required: true
+        schema:
+          $ref: '#/definitions/applications.CreateAppRequest'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ApplicationModel'
+            type: object
+      summary: Create Application
+      tags:
+      - Application
+  /v1/application/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: The user deletes the application, and also deletes the configured
+        development space in the application
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Application ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":null}'
+          schema:
+            $ref: '#/definitions/api.Response'
+            type: object
+      summary: Delete Application
+      tags:
+      - Application
+    get:
+      consumes:
+      - application/json
+      description: Get Application Detail
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Application ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ApplicationModel'
+            type: object
+      summary: Get Application Detail
+      tags:
+      - Application
+    put:
+      consumes:
+      - application/json
+      description: Edit application
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Application ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: The application info
+        in: body
+        name: CreateAppRequest
+        required: true
+        schema:
+          $ref: '#/definitions/applications.CreateAppRequest'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ApplicationModel'
+            type: object
+      summary: Edit application
+      tags:
+      - Application
+  /v1/application/{id}/bind_cluster:
+    post:
+      consumes:
+      - application/json
+      description: Application associated cluster
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: The application info
+        in: body
+        name: CreateAppRequest
+        required: true
+        schema:
+          $ref: '#/definitions/application_cluster.ApplicationClusterRequest'
+          type: object
+      - description: Application ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ApplicationClusterModel'
+            type: object
+      summary: Associated cluster
+      tags:
+      - Application
+  /v1/application/{id}/bound_cluster:
+    get:
+      consumes:
+      - application/json
+      description: Get the list of clusters associated with the application（Abandoned）
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Application ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ApplicationClusterModel'
+            type: object
+      summary: Get the list of clusters associated with the application（Abandoned）
+      tags:
+      - Application
+  /v1/application/{id}/cluster/{clusterId}:
+    get:
+      consumes:
+      - application/json
+      description: Get authorized details of the application (obsolete)
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Cluster ID
+        in: path
+        name: clusterId
+        required: true
+        type: string
+      - description: Application ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ClusterUserModel'
+            type: object
+      summary: Get authorized details of the application (obsolete)
+      tags:
+      - Application
+  /v1/application/{id}/dev_space:
+    get:
+      consumes:
+      - application/json
+      description: Get personal application development environment (kubeconfig) (obsolete)
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Application ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Application
+          schema:
+            $ref: '#/definitions/model.ClusterUserModel'
+            type: object
+      summary: Plug-in Get personal application development environment (kubeconfig)
+        (obsolete)
+      tags:
+      - Plug-in
+  /v1/application/{id}/dev_space/{space_id}/detail:
+    get:
+      consumes:
+      - application/json
+      description: Get dev space detail from application
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Application ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: DevSpace ID
+        in: path
+        name: space_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Application development environment parameters,
+          schema:
+            $ref: '#/definitions/model.ClusterUserModel'
+            type: object
+      summary: Get the details of a development environment of the application
+      tags:
+      - Application
+  /v1/application/{id}/dev_space_list:
+    get:
+      consumes:
+      - application/json
+      description: Get application dev space list
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Application ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Application development environment parameters,
+          schema:
+            $ref: '#/definitions/model.ClusterUserModel'
+            type: object
+      summary: Get a list of application development environments
+      tags:
+      - Application
+  /v1/cluster:
+    get:
+      consumes:
+      - application/json
+      description: Get the cluster list
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":model.ClusterListVo}'
+          schema:
+            $ref: '#/definitions/model.ClusterListVo'
+            type: object
+      summary: Get the cluster list
+      tags:
+      - Cluster
+    post:
+      consumes:
+      - application/json
+      description: Add cluster
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: The cluster info
+        in: body
+        name: createCluster
+        required: true
+        schema:
+          $ref: '#/definitions/cluster.CreateClusterRequest'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ClusterModel'
+            type: object
+      summary: Add cluster
+      tags:
+      - Cluster
+  /v1/cluster/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete the cluster completely
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Cluster ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":null}'
+          schema:
+            $ref: '#/definitions/api.Response'
+            type: object
+      summary: Delete the cluster completely
+      tags:
+      - Cluster
+    put:
+      consumes:
+      - application/json
+      description: Update cluster
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Cluster ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: The cluster info
+        in: body
+        name: createCluster
+        required: true
+        schema:
+          $ref: '#/definitions/cluster.UpdateClusterRequest'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: include kubeconfig
+          schema:
+            $ref: '#/definitions/model.ClusterModel'
+            type: object
+      summary: Update cluster
+      tags:
+      - Cluster
+  /v1/cluster/{id}/detail:
+    get:
+      consumes:
+      - application/json
+      description: Get cluster details
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Cluster ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: include kubeconfig
+          schema:
+            $ref: '#/definitions/model.ClusterModel'
+            type: object
+      summary: Get cluster details
+      tags:
+      - Cluster
+  /v1/cluster/{id}/dev_space:
+    get:
+      consumes:
+      - application/json
+      description: Cluster entrance to obtain cluster development environment
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Cluster ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: kubeconfig
+          schema:
+            $ref: '#/definitions/model.ClusterUserModel'
+            type: object
+      summary: Cluster dev space list
+      tags:
+      - Cluster
+  /v1/cluster/{id}/dev_space/{space_id}/detail:
+    get:
+      consumes:
+      - application/json
+      description: Get cluster development environment details through cluster id
+        and development environment id
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Cluster ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: DevSpace ID
+        in: path
+        name: space_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: include kubeconfig
+          schema:
+            $ref: '#/definitions/model.ClusterUserModel'
+            type: object
+      summary: Details of a development environment in the cluster
+      tags:
+      - Cluster
+  /v1/cluster/{id}/gen_namespace:
+    get:
+      consumes:
+      - application/json
+      description: gen namespace for mesh dev space
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: cluster id
+        in: path
+        name: cluster
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":cluster.Namespace}'
+          schema:
+            $ref: '#/definitions/cluster.Namespace'
+            type: object
+      summary: Gen Namespace
+      tags:
+      - Cluster
+  /v1/cluster/{id}/storage_class:
+    get:
+      consumes:
+      - application/json
+      description: Get cluster storageClass from cluster list
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Cluster ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: include kubeconfig
+          schema:
+            $ref: '#/definitions/cluster.StorageClassResponse'
+            type: object
+      summary: Get cluster storageClass from cluster list
+      tags:
+      - Cluster
+  /v1/cluster/kubeconfig/storage_class:
+    post:
+      consumes:
+      - application/json
+      description: Get cluster storageClass from create cluster
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: The cluster info
+        in: body
+        name: createCluster
+        required: true
+        schema:
+          $ref: '#/definitions/cluster.StorageClassRequest'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: include kubeconfig
+          schema:
+            $ref: '#/definitions/cluster.StorageClassResponse'
+            type: object
+      summary: Get cluster storageClass from create cluster
+      tags:
+      - Cluster
+  /v1/dev_space/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Completely delete the development environment, including deleting
+        the K8S namespace
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: DevSpace ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":null}'
+          schema:
+            $ref: '#/definitions/api.Response'
+            type: object
+      summary: Completely delete the development environment
+      tags:
+      - DevSpace
+    get:
+      consumes:
+      - application/json
+      description: ListAll dev spaces
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ClusterUserModel'
+            type: object
+      summary: ListAll dev spaces
+      tags:
+      - DevSpace
+    post:
+      consumes:
+      - application/json
+      description: Create dev space
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: cluster user info
+        in: body
+        name: CreateAppRequest
+        required: true
+        schema:
+          $ref: '#/definitions/cluster_user.ClusterUserCreateRequest'
+          type: object
+      - description: Application ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ClusterUserModel'
+            type: object
+      summary: Create dev space
+      tags:
+      - DevSpace
+    put:
+      consumes:
+      - application/json
+      description: Update dev space
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: devspace id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: kubeconfig
+        in: body
+        name: CreateAppRequest
+        required: true
+        schema:
+          $ref: '#/definitions/cluster_user.DevSpaceRequest'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ClusterUserModel'
+            type: object
+      summary: Update dev space
+      tags:
+      - Cluster
+  /v1/dev_space/{id}/detail:
+    get:
+      consumes:
+      - application/json
+      description: Get dev space detail from application
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: DevSpace ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Application development environment parameters,
+          schema:
+            $ref: '#/definitions/model.ClusterUserJoinClusterAndAppAndUser'
+            type: object
+      summary: Get the details of a development environment of the application
+      tags:
+      - DevSpace
+  /v1/dev_space/{id}/mesh_apps_info:
+    get:
+      consumes:
+      - application/json
+      description: Get mesh apps info
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: devspace id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/setupcluster.MeshDevInfo'
+            type: object
+      summary: Get mesh apps info
+      tags:
+      - DevSpace
+  /v1/dev_space/{id}/recreate:
+    post:
+      consumes:
+      - application/json
+      description: delete devSpace and create a new one
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: DevSpace ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ClusterModel'
+            type: object
+      summary: ReCreate devSpace
+      tags:
+      - DevSpace
+  /v1/dev_space/{id}/update_mesh_dev_space_info:
+    put:
+      consumes:
+      - application/json
+      description: Update mesh dev space info
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: devspace id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: mesh dev space info
+        in: body
+        name: MeshDevInfo
+        required: true
+        schema:
+          $ref: '#/definitions/setupcluster.MeshDevInfo'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ClusterUserModel'
+            type: object
+      summary: Update mesh dev space info
+      tags:
+      - DevSpace
+  /v1/dev_space/{id}/update_resource_limit:
+    put:
+      consumes:
+      - application/json
+      description: update resource limit in dev space
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: devspace id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: kubeconfig
+        in: body
+        name: SpaceResourceLimit
+        required: true
+        schema:
+          $ref: '#/definitions/cluster_user.SpaceResourceLimit'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ClusterUserModel'
+            type: object
+      summary: UpdateResourceLimit
+      tags:
+      - DevSpace
+  /v1/login:
+    post:
+      description: Web and plug-in login
+      parameters:
+      - description: Login user info
+        in: body
+        name: login
+        required: true
+        schema:
+          $ref: '#/definitions/user.LoginCredentials'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":{"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"}}'
+          schema:
+            type: string
+      summary: Web and plug-in login
+      tags:
+      - Users
+  /v1/me:
+    get:
+      consumes:
+      - application/json
+      description: Get user personal information
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Userinfo
+          schema:
+            $ref: '#/definitions/model.UserInfo'
+            type: object
+      summary: Get user personal information
+      tags:
+      - Users
+  /v1/nocalhost/templates:
+    get:
+      consumes:
+      - application/json
+      description: get nocalhost config template
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":{"template":""}}'
+          schema:
+            $ref: '#/definitions/api.Response'
+            type: object
+      summary: get nocalhost config template
+      tags:
+      - Application
+  /v1/nocalhost/version/upgrade_info:
+    get:
+      consumes:
+      - application/json
+      description: UpgradeInfo api server version update info
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":model.VersionUpgradeInfo}'
+          schema:
+            $ref: '#/definitions/model.VersionUpgradeInfo'
+            type: object
+      summary: UpgradeInfo api server version update info
+      tags:
+      - Version
+  /v1/plugin/{id}/recreate:
+    post:
+      consumes:
+      - application/json
+      description: Plugin delete devSpace and create a new one
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: DevSpace ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ClusterModel'
+            type: object
+      summary: Plugin ReCreate devSpace
+      tags:
+      - Plug-in
+  /v1/plugin/application/{id}/dev_space/{spaceId}/plugin_sync:
+    put:
+      consumes:
+      - application/json
+      description: Plug-in Update app installation status
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Application ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: DevSpace ID
+        in: path
+        name: spaceId
+        required: true
+        type: integer
+      - description: The application update info
+        in: body
+        name: CreateAppRequest
+        required: true
+        schema:
+          $ref: '#/definitions/applications.UpdateApplicationInstallRequest'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":null}'
+          schema:
+            $ref: '#/definitions/api.Response'
+            type: object
+      summary: Plug-in Update app installation status
+      tags:
+      - Plug-in
+  /v1/plugin/dev_space:
+    get:
+      consumes:
+      - application/json
+      description: Plug-in access to applications (including installation status)
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.PluginApplicationModel'
+            type: object
+      summary: Plug-in access to applications (including installation status)
+      tags:
+      - Plug-in
+  /v1/register:
+    post:
+      description: Registration(obsolete)
+      parameters:
+      - description: Reg user info
+        in: body
+        name: register
+        required: true
+        schema:
+          $ref: '#/definitions/user.RegisterRequest'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":{"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"}}'
+          schema:
+            type: string
+      summary: The administrator adds users, users cannot register themselves
+      tags:
+      - Users
+  /v1/users:
+    get:
+      consumes:
+      - application/json
+      description: Get userlist
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Get user list
+          schema:
+            $ref: '#/definitions/model.UserList'
+            type: object
+      summary: Get user list
+      tags:
+      - Users
+    post:
+      description: Admin add developer
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Reg user info
+        in: body
+        name: register
+        required: true
+        schema:
+          $ref: '#/definitions/user.CreateUserRequest'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.UserInfo'
+            type: object
+      summary: Add developer
+      tags:
+      - Users
+  /v1/users/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete users
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":null}'
+          schema:
+            $ref: '#/definitions/api.Response'
+            type: object
+      summary: Delete users
+      tags:
+      - Users
+    get:
+      consumes:
+      - application/json
+      description: Get user details
+      parameters:
+      - description: Users ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Userinfo
+          schema:
+            $ref: '#/definitions/model.UserInfo'
+            type: object
+      summary: Get user details
+      tags:
+      - Users
+    put:
+      consumes:
+      - application/json
+      description: Update a user by ID，Only status is required
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: The user's database id index num
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Update user info
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/user.UpdateUserRequest'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.UserBaseModel'
+            type: object
+      summary: Update user information (including disabled users)
+      tags:
+      - Users
+  /v1/users/{id}/dev_space_list:
+    get:
+      consumes:
+      - application/json
+      description: Get application dev space list
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Application development environment parameters,
+          schema:
+            $ref: '#/definitions/model.ClusterUserJoinClusterAndAppAndUser'
+            type: object
+      summary: Get a list of application development environments
+      tags:
+      - Application
+  /v1/version:
+    get:
+      consumes:
+      - application/json
+      description: Get api server version
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":{"version":"","commit_id":"","branch":""}}'
+          schema:
+            type: string
+      summary: Get api server version
+      tags:
+      - Version
+  /v2/dev_space/cluster:
+    get:
+      consumes:
+      - application/json
+      description: Get the cluster list which user can create devSpace
+      parameters:
+      - description: Authorization
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code":0,"message":"OK","data":model.ClusterList}'
+          schema:
+            $ref: '#/definitions/model.ClusterList'
+            type: object
+      summary: Get the cluster list which user can create devSpace
+      tags:
+      - Cluster
+swagger: "2.0"

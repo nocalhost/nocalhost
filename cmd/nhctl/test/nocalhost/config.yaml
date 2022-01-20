@@ -1,0 +1,68 @@
+name: bookinfo
+manifestType: rawManifest
+resourcePath: ["manifest/ttt","manifest/templates","manifest/qqq"]
+
+onPreInstall:
+  - path: manifest/templates/pre-install/print-num-job-01.yaml
+    weight: "1"
+  - path: manifest/templates/pre-install/print-num-job-02.yaml
+    weight: "-5"
+
+services:
+  - name: productpage
+    serviceType: deployment
+    gitUrl: https://github.com/nocalhost/bookinfo-productpage
+    devContainerImage: nocalhost-docker.pkg.coding.net/nocalhost/dev-images/python:3.7.7-slim
+    workDir: /home/nocalhost-dev
+    syncDirs:
+      - ./
+    devPort:
+      - :9080
+    dependJobsLabelSelector:
+      - "dep-job"
+  - name: details
+    serviceType: deployment
+    gitUrl: https://github.com/nocalhost/bookinfo-details.git
+    devContainerImage: golang:latest
+    devContainerShell: "bash"
+    devContainerResources:
+      limits:
+        memory: 1Gi
+        cpu: 500m
+      requests:
+        memory: 100Mi
+        cpu: 100m
+    syncDirs:
+      - ./
+    workDir: /home/nocalhost-dev
+    persistentVolumeDirs:
+      - path: /home/pvc01
+        capacity: "15Gi"
+      - path: /home/pvc02
+      - path: /home
+ #     - path: /home/nocalhost-dev
+    syncFilePattern:
+      - ./
+    ignoreFilePattern:
+      - nosync.txt
+  - name: ratings
+    serviceType: deployment
+    gitUrl: https://github.com/nocalhost/bookinfo-ratings.git
+    devContainerImage: nocalhost-docker.pkg.coding.net/nocalhost/dev-images/node:12.18.1-slim
+    workDir: /home/nocalhost-dev
+    syncDirs:
+      - ./
+    dependJobsLabelSelector:
+      - "dep-job"
+    dependPodsLabelSelector:
+      - "productpage"
+      - "app.kubernetes.io/name=productpage"
+  - name: reviews
+    serviceType: deployment
+    gitUrl: https://github.com/nocalhost/bookinfo-reviews.git
+    devContainerImage: nocalhost-docker.pkg.coding.net/nocalhost/dev-images/java:latest
+    workDir: /home/nocalhost-dev
+    syncDirs:
+      - ./
+    dependPodsLabelSelector:
+      - "productpage"

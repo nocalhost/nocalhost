@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nocalhost-kubeconfig
+  namespace: nocalhost-reserved
+data:
+  config: |-

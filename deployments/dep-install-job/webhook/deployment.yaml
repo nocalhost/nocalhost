@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nocalhost-dep
+  namespace: nocalhost-reserved
+  labels:
+    app: nocalhost-dep
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nocalhost-dep
+  template:
+    metadata:
+      labels:
+        app: nocalhost-dep
+    spec:
+      serviceAccountName: nocalhost-admin-service-account
+      containers:
+        - name: nocalhost-dep
+          image: nocalhost-docker.pkg.coding.net/nocalhost/public/nocalhost-dep:latest
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+          imagePullPolicy: Always
+          # dev mode
+          #command: ["/dlv", "--listen=:40000", "--headless=true", "--api-version=2", "--accept-multiclient", "exec", "/server", "--"]
+          args:
+            - -sidecarCfgFile=/etc/webhook/config/sidecarconfig.yaml
+            - -tlsCertFile=/etc/webhook/certs/cert.pem
+            - -tlsKeyFile=/etc/webhook/certs/key.pem
+            - -alsologtostderr
+            - -v=4
+            - 2>&1
+          env:
+            #__MATCH_NAMESPACE__#
+          volumeMounts:
+            - name: webhook-certs
+              mountPath: /etc/webhook/certs
+              readOnly: true
+            - name: webhook-config
+              mountPath: /etc/webhook/config
+      volumes:
+        - name: webhook-certs
+          secret:
+            secretName: nocalhost-sidecar-injector-certs
+        - name: webhook-config
+          configMap:
+            name: sidecar-injector-webhook-configmap

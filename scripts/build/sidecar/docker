@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -eu -o pipefail
+
+GIT_COMMIT_SHA=`git describe --match=NeVeRmAtCh --always --abbrev=40`
+DOCKERFILE="deployments/nocalhost-sidecar/Dockerfile"
+TARGET="nocalhost-sidecar"
+
+docker build -t ${TARGET} -f ${DOCKERFILE} .
+docker tag ${TARGET}:latest ${TARGET}:${GIT_COMMIT_SHA}

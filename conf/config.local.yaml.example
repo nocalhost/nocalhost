@@ -1,0 +1,39 @@
+app:
+  run_mode: debug                 # gin debug, release, test
+  addr: :8080                     # HTTP
+  name: nocalhost                 # API Server Name
+  url: http://127.0.0.1:8080      # pingServer
+  max_ping_count: 10              # pingServer
+  jwt_secret: IjTccFjAFvqYeNe9vuTOxHH6hu6vd4eiDCXumkGxDufKjmu4VGVN4h0ibIZx9L6Lr3KimVFiH05TUE4HPeQhhm01RcCfutq5Vlx
+log:
+  writers: stdout                 # file,stdout, can use both
+  logger_level: DEBUG             # DEBUG, INFO, WARN, ERROR, FATAL
+  #logger_file: /data/log/nocalhost.log   # log file
+  #logger_warn_file: /data/log/nocalhost.wf.log
+  #logger_error_file: /data/log/nocalhost.err.log
+  #log_format_text: false          # false
+  #log_rolling_policy: daily,      # rotate: daily, hourly
+  #log_rotate_date: 1              # rollingPolicy: daily use
+  #log_rotate_size: 1              # rollingPolicy: size use
+  #log_backup_count: 7             # When the log file reaches the rollover standard, the log system will call the log file for compressed backup, where the maximum number of backup files is specified.
+mysql:
+  name: nocalhost
+  addr: 127.0.0.1:3306
+  username: root
+  password: root
+  show_log: true                  # Print SQL log
+  max_idle_conn: 10               # Maximum number of idle connections
+  max_open_conn: 60               # The maximum number of open connections, which needs to be less than the number of max_connections in the database configuration
+  conn_max_life_time: 60          # The maximum time for connection reuse, in minutes
+#cache:
+#  driver: "redis"                 # Cache driver, you can choose memory, redis, default redis
+#  prefix: "nocalhost:"            # cache key prefix
+#redis:
+#  addr: "localhost:6379"
+#  password: "" # no password set
+#  db: 0 # use default DB
+#  dial_timeout: 60s   # second
+#  read_timeout: 2s   # second
+#  write_timeout: 2s  # second
+#  pool_size: 60
+#  pool_timeout: 30s

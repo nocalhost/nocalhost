@@ -1,0 +1,24 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: admission-installer-  # need to using kubectl create -f
+  namespace: nocalhost-reserved
+spec:
+  ttlSecondsAfterFinished: 0
+  backoffLimit: 5
+  template:
+    spec:
+      containers:
+        - name: admission-installer
+          image: nocalhost-docker.pkg.coding.net/nocalhost/public/dep-installer-job:latest
+          volumeMounts:
+            - name: kubeconfig
+              mountPath: /.kube/config
+              subPath: config
+          command: ["/nocalhost/installer.sh"]
+          #command: ["sleep", "36000"]
+      restartPolicy: Never
+      volumes:
+        - name: kubeconfig
+          configMap:
+            name: nocalhost-kubeconfig

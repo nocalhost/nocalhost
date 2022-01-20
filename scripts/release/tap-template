@@ -1,0 +1,26 @@
+class Nocalhost < Formula
+  desc "Nocalhost Control CLI(nhctl)"
+  homepage "https://nocalhost.dev"
+  version "<version>"
+
+  darwin_url = "https://github.com/nocalhost/nocalhost/releases/download/<version>/nhctl-darwin-amd64"
+  linux_x64_url = "https://github.com/nocalhost/nocalhost/releases/download/<version>/nhctl-linux-amd64"
+
+  if OS.mac?
+    url darwin_url
+    sha256 "<darwin_sha256>"
+  elsif OS.linux?
+    url linux_x64_url
+    sha256 "<linux_sha256>"
+  end
+
+  depends_on :arch => :x86_64
+
+  def install
+    bin.install stable.url.split("/")[-1] => "nhctl"
+  end
+
+  test do
+    system "#{bin}/nhctl", "version"
+  end
+end

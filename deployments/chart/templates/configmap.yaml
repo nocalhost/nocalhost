@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nocalhost-api-config
+data:
+  config.yaml: |-
+    app:
+      run_mode: release                 # gin 开发模式, debug, release, test
+      addr: :8080                     # HTTP绑定端口
+      name: nocalhost                 # API Server Name
+      url: http://127.0.0.1:8080      # pingServer
+      max_ping_count: 10              # pingServer
+      jwt_secret: IjTccFjAFvqYeNe9vuTOxHH6hu6vd4eiDCXumkGxDufKjmu4VGVN4h0ibIZx9L6Lr3KimVFiH05TUE4HPeQhhm01RcCfutq5Vlx
+    log:
+      writers: stdout                 # 有2个可选项：file,stdout, 可以两者同时选择输出位置，有2个可选项：file,stdout。
+      logger_level: DEBUG             # 日志级别，DEBUG, INFO, WARN, ERROR, FATAL
+    mysql:
+      name: nocalhost
+      addr: {{ .Chart.Name }}-mariadb:3306
+      username: root
+      password: root
+      show_log: true                  # 打印 SQL 日志
+      max_idle_conn: 10               # 最大闲置的连接数
+      max_open_conn: 60               # 最大打开的连接数, 需要小于数据库配置中的 max_connections 数
+      conn_max_life_time: 60          # 连接重用的最大时间，单位分钟

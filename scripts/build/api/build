@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -eu -o pipefail
+
+VERSION=${VERSION:-$(git describe 2>/dev/null | sed 's/refs\/tags\///' | sed 's/\(.*\)-.*/\1/' | sed 's/-[0-9]*$//' || true)}
+GITCOMMIT=`git describe --match=NeVeRmAtCh --always --abbrev=40`
+BUILDTIME=`date +"%Y-%m-%dT%H:%M:%SZ"`
+BRANCH=`git rev-parse --abbrev-ref HEAD`
+DEVGITCOMMIT=`git rev-parse HEAD`
+
+SOURCE="nocalhost/cmd/nocalhost-api"
+TARGET="build/nocalhost-api"
+SERVICE_INITIAL=${SERVICE_INITIAL:-false}
+
+echo "Service initial enable: ${SERVICE_INITIAL}"
+
+export LDFLAGS="\
+    -X \"main.GIT_COMMIT_SHA=${GITCOMMIT}\" \
+    -X \"nocalhost/internal/nocalhost-api/global.CommitId=${DEVGITCOMMIT}\" \
+    -X \"nocalhost/internal/nocalhost-api/global.Branch=${BRANCH}\" \
+    -X \"nocalhost/internal/nocalhost-api/global.Version=${VERSION}\" \
+    -X \"nocalhost/internal/nocalhost-api/global.ServiceInitial=${SERVICE_INITIAL}\" \
+
+    ${LDFLAGS:-} \
+"
+# https://github.com/docker-library/golang/issues/209#issuecomment-530591780
+CGO_ENABLED=0 go build -a -installsuffix cgo -o "${TARGET}" -gcflags "all=-N -l" --ldflags "${LDFLAGS}" "${SOURCE}"

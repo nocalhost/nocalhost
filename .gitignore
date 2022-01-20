@@ -1,0 +1,41 @@
+
+# Binaries for programs and plugins
+.pid
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
+# Mac
+
+.DS_Store
+.idea
+Chart.lock
+
+/cmd/nhctl/utils/darwin/*
+/cmd/nhctl/build/
+/cmd/nhctl/sync/
+sync_for_test
+
+# nocalhost-api
+/cmd/nocalhost-api/build/
+
+/nocalhost-api
+/nocalhost-dep
+/nhctl
+/build
+
+/testlog
+
+/conf/config.local.yaml
+.vscode/settings.json

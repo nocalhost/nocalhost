@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: nocalhost-sidecar-injector-controller
+  namespace: nocalhost-reserved
+  labels:
+    app: nocalhost-dep
+spec:
+  ports:
+    - port: 443
+      targetPort: 8443
+  selector:
+    app: nocalhost-dep

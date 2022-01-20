@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+#
+# Build a binary for all supported platforms
+#
+
+set -eu -o pipefail
+
+BUILDDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+export SHELL=bash
+
+jobs=(
+    "$BUILDDIR/windows" \
+    "$BUILDDIR/osx" \
+    "$BUILDDIR/osx-arm64" \
+    "$BUILDDIR/linux"
+    "$BUILDDIR/linux-arm64"
+)
+
+for job in "${jobs[@]}"
+do
+    $job
+done
