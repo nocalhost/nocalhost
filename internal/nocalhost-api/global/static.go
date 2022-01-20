@@ -13,17 +13,10 @@ const (
 	NocalhostName                          = "nocalhost"
 	NocalhostDevNamespaceLabel             = "nocalhost"
 	NocalhostDevServiceAccountName         = "nocalhost-dev-account"
-	NocalhostDevDefaultServiceAccountName  = "default"
-	NocalhostDevDefaultRoleName            = "nocalhost-dev-default-role"
-	NocalhostDevRoleBindingName            = "nocalhost-role-binding"
-	NocalhostDevRoleDefaultBindingName     = "nocalhost-role-default-biding"
 	NocalhostDevServiceAccountSecretCaKey  = "ca.crt"
 	NocalhostDevServiceAccountTokenKey     = "token"
 	NocalhostDepJobNamePrefix              = "nocalhost-dep-installer-"
-	NocalhostDepKubeConfigMapName          = "nocalhost-kubeconfig"
-	NocalhostDepKubeConfigMapKey           = "config"
 	NocalhostPrePullDSName                 = "nocalhost-prepull"
-	NocalhostDefaultReleaseBranch          = "HEAD"
 	//priorityclass
 	NocalhostDefaultPriorityclassName         = "nocalhost-container-critical"
 	NocalhostDefaultPriorityclassDefaultValue = 1000000
