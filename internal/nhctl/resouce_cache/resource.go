@@ -21,14 +21,14 @@ var GroupToTypeMap = []struct {
 			"Job.v1.batch",
 			"CronJob.v1beta1.batch",
 			"CronJob.v1.batch",
-			"Pod.v1",
+			"Pod.v1.",
 		},
 	},
 	{
 		K: "Networks",
 		V: []string{
-			"Service.v1",
-			"Endpoints.v1",
+			"Service.v1.",
+			"Endpoints.v1.",
 			"Ingress.v1.networking.k8s.io",
 			"NetworkPolicy.v1.networking.k8s.io",
 		},
@@ -36,10 +36,10 @@ var GroupToTypeMap = []struct {
 	{
 		K: "Configurations",
 		V: []string{
-			"ConfigMap.v1",
-			"Secret.v1",
+			"ConfigMap.v1.",
+			"Secret.v1.",
 			"HorizontalPodAutoscaler.v1.autoscaling",
-			"ResourceQuota.v1",
+			"ResourceQuota.v1.",
 			"PodDisruptionBudget.v1.policy",
 		},
 	},

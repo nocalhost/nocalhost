@@ -7,6 +7,8 @@ package controller
 
 import (
 	"fmt"
+	_const "nocalhost/internal/nhctl/const"
+	"nocalhost/internal/nhctl/profile"
 )
 
 // EnterPodTerminal Try to use shell defined in devContainerShell to enter pod's terminal
@@ -15,13 +17,24 @@ import (
 func (c *Controller) EnterPodTerminal(podName, container string, shell string) error {
 	pod := podName
 
-	if shell == "" {
-		profile := c.Config()
-		if profile != nil {
-			devConfig := profile.GetContainerDevConfigOrDefault(container)
-			if devConfig != nil {
-				shell = devConfig.Shell
-			}
+	var devContainerName = container
+	var cfg *profile.ContainerDevConfig
+
+	pf := c.Config()
+	if pf != nil {
+		devConfig := pf.GetContainerDevConfigOrDefault(container)
+		cfg = devConfig
+	}
+
+	if cfg != nil {
+		if shell == "" {
+			shell = cfg.Shell
+		}
+
+		if cfg.DevContainerName != "" {
+			devContainerName = cfg.DevContainerName
+		} else {
+			devContainerName = _const.NocalhostDefaultDevContainerName
 		}
 	}
 
@@ -29,5 +42,5 @@ func (c *Controller) EnterPodTerminal(podName, container string, shell string) e
 	if shell != "" {
 		cmd = fmt.Sprintf("(%s || zsh || bash || sh)", shell)
 	}
-	return c.Client.ExecShell(pod, container, cmd)
+	return c.Client.ExecShell(pod, devContainerName, cmd)
 }
