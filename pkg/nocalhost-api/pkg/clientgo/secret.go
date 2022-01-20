@@ -42,7 +42,6 @@ func (c *GoClient) UpdateSecret(namespace string, secret *corev1.Secret) (*corev
 	return resource, errors.WithStack(err)
 }
 
-func (c *GoClient) DeleteSecret(namespace string, secret *corev1.Secret) (*corev1.Secret, error) {
-	resource, err := c.client.CoreV1().Secrets(namespace).Update(context.TODO(), secret, metav1.UpdateOptions{})
-	return resource, errors.WithStack(err)
+func (c *GoClient) DeleteSecret(namespace string, name string) error {
+	return c.client.CoreV1().Secrets(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 }
