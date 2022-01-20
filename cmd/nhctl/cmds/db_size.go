@@ -11,8 +11,6 @@ import (
 	"nocalhost/pkg/nhctl/log"
 )
 
-var nid string
-
 func init() {
 	dbSizeCmd.Flags().StringVar(&appName, "app", "", "List leveldb data of specified application")
 	dbSizeCmd.Flags().StringVar(&nid, "nid", "", "Nid of namespace")

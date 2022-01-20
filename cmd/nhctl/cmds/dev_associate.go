@@ -20,8 +20,13 @@ var workDirDeprecated string
 var deAssociate bool
 var info bool
 var migrate bool
+var nid string
 
 func init() {
+	devAssociateCmd.Flags().StringVar(
+		&nid, "nid", "",
+		"the nocalhost nid svc associate for",
+	)
 	devAssociateCmd.Flags().StringVarP(
 		&workDir, "local-sync", "s", "",
 		"the local directory synchronized to the remote container under dev mode",
@@ -74,6 +79,7 @@ var devAssociateCmd = &cobra.Command{
 
 		svcPack := dev_dir.NewSvcPack(
 			nameSpace,
+			nid,
 			commonFlags.AppName,
 			base.SvcType(serviceType),
 			commonFlags.SvcName,
@@ -87,6 +93,7 @@ var devAssociateCmd = &cobra.Command{
 			svcPack.UnAssociatePath()
 			return
 		}
+
 		if workDirDeprecated != "" {
 			workDir = workDirDeprecated
 		}
@@ -109,6 +116,7 @@ var devAssociateCmd = &cobra.Command{
 				} else {
 					svcPack = dev_dir.NewSvcPack(
 						nameSpace,
+						nid,
 						commonFlags.AppName,
 						base.SvcType(serviceType),
 						commonFlags.SvcName,

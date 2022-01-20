@@ -213,6 +213,7 @@ func loadLocalOrCmConfigIfValid() {
 
 	svcPack := dev_dir.NewSvcPack(
 		nocalhostSvc.NameSpace,
+		nocalhostSvc.AppMeta.NamespaceId,
 		nocalhostSvc.AppName,
 		nocalhostSvc.Type,
 		nocalhostSvc.Name,
