@@ -102,12 +102,15 @@ func (a *authCheckManager) doAuthCheck(namespace string, passWhenTimeout bool, a
 	lock := sync.Mutex{}
 	errChan := make(chan error)
 	okChan := make(chan int)
+	fastCheckChan := make(chan int)
 
 	// fast check, check for * * * * *
 	// if pass, no need to check the specified entry
-	if a.doFastCheck(namespace) {
-		return nil
-	}
+	go func() {
+		if a.doFastCheck(namespace) {
+			fastCheckChan <- 0
+		}
+	}()
 
 	if authCheckers != nil {
 		for _, checker := range authCheckers {
@@ -170,8 +173,8 @@ func (a *authCheckManager) doAuthCheck(namespace string, passWhenTimeout bool, a
 	}()
 
 	select {
+	case <-fastCheckChan:
 	case <-okChan:
-
 		// if check over 5 second, stopping to check the result
 	case <-time.NewTicker(time.Second * 5).C:
 		if !passWhenTimeout {
