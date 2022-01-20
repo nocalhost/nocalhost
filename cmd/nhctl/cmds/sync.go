@@ -74,13 +74,13 @@ var fileSyncCmd = &cobra.Command{
 		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
 
 		StartSyncthing(
-			"", fileSyncOps.Resume, fileSyncOps.Stop, fileSyncOps.Container,
+			"", fileSyncOps.Resume, fileSyncOps.Stop,
 			&fileSyncOps.SyncDouble, fileSyncOps.Override,
 		)
 	},
 }
 
-func StartSyncthing(podName string, resume bool, stop bool, container string, syncDouble *bool, override bool) {
+func StartSyncthing(podName string, resume bool, stop bool, syncDouble *bool, override bool) {
 	if !nocalhostSvc.IsInReplaceDevMode() && !nocalhostSvc.IsInDuplicateDevMode() {
 		log.Fatalf("Service \"%s\" is not in developing", deployment)
 	}

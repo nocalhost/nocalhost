@@ -19,8 +19,6 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"golang.org/x/crypto/bcrypt"
-
 	"nocalhost/internal/nhctl/syncthing"
 	"nocalhost/pkg/nhctl/log"
 )
@@ -77,11 +75,6 @@ func (c *Controller) NewSyncthing(container string, localSyncDir []string, syncD
 		svcProfile.LocalSyncthingPort = localListenPort
 	}
 
-	hash, err := bcrypt.GenerateFromPassword([]byte(syncthing.Nocalhost), 0)
-	if err != nil {
-		log.Debugf("couldn't hash the password %s", err)
-		hash = []byte("")
-	}
 	sendMode := _const.DefaultSyncType
 	if !syncDouble {
 		sendMode = _const.SendOnlySyncType
@@ -90,8 +83,6 @@ func (c *Controller) NewSyncthing(container string, localSyncDir []string, syncD
 
 	s := &syncthing.Syncthing{
 		APIKey:           syncthing.DefaultAPIKey,
-		GUIPassword:      "nocalhost",
-		GUIPasswordHash:  string(hash),
 		BinPath:          filepath.Join(nocalhost.GetSyncThingBinDir(), syncthing.GetBinaryName()),
 		Client:           syncthing.NewAPIClient(),
 		FileWatcherDelay: syncthing.DefaultFileWatcherDelay,
