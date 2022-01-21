@@ -413,7 +413,7 @@ func getCIDR(clientset *kubernetes.Clientset, namespace string) ([]*net.IPNet, e
 			if ip := net.ParseIP(service.Spec.ClusterIP); ip != nil {
 				// todo service ip is not like pod have a range of ip, service have multiple range of ip, so make mask bigger
 				// maybe it's just occurs on docker-desktop
-				mask := net.CIDRMask(24, 32)
+				mask := net.CIDRMask(16, 32)
 				cidrs = append(cidrs, &net.IPNet{IP: ip.Mask(mask), Mask: mask})
 			}
 		}
