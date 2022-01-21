@@ -23,10 +23,6 @@ var migrate bool
 var nid string
 
 func init() {
-	devAssociateCmd.Flags().StringVar(
-		&nid, "nid", "",
-		"the nocalhost nid svc associate for",
-	)
 	devAssociateCmd.Flags().StringVarP(
 		&workDir, "local-sync", "s", "",
 		"the local directory synchronized to the remote container under dev mode",
@@ -77,9 +73,12 @@ var devAssociateCmd = &cobra.Command{
 
 		must(Prepare())
 
+		initApp(commonFlags.AppName)
+		checkIfSvcExist(commonFlags.SvcName, serviceType)
+
 		svcPack := dev_dir.NewSvcPack(
 			nameSpace,
-			nid,
+			nocalhostSvc.AppMeta.NamespaceId,
 			commonFlags.AppName,
 			base.SvcType(serviceType),
 			commonFlags.SvcName,
@@ -102,9 +101,6 @@ var devAssociateCmd = &cobra.Command{
 			log.Fatal("--local-sync must specify")
 		}
 
-		initApp(commonFlags.AppName)
-		checkIfSvcExist(commonFlags.SvcName, serviceType)
-
 		if (nocalhostSvc.IsInReplaceDevMode() && nocalhostSvc.IsProcessor()) || nocalhostSvc.IsInDuplicateDevMode() {
 			if !dev_dir.DevPath(workDir).AlreadyAssociate(svcPack) {
 				log.PWarn("Current svc is already in DevMode, so can not switch associate dir, please exit the DevMode and try again.")
@@ -116,7 +112,7 @@ var devAssociateCmd = &cobra.Command{
 				} else {
 					svcPack = dev_dir.NewSvcPack(
 						nameSpace,
-						nid,
+						nocalhostSvc.AppMeta.NamespaceId,
 						commonFlags.AppName,
 						base.SvcType(serviceType),
 						commonFlags.SvcName,
