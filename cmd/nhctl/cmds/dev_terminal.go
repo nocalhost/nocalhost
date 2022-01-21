@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
 	"nocalhost/cmd/nhctl/cmds/common"
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/pkg/nhctl/log"
 )
 
@@ -52,12 +53,21 @@ var devTerminalCmd = &cobra.Command{
 			podList, err := common.NocalhostSvc.GetPodList()
 			must(err)
 			var runningPod = make([]v1.Pod, 0, 1)
+
+		Exit:
 			for _, item := range podList {
 				if item.Status.Phase == v1.PodRunning && item.DeletionTimestamp == nil {
 					runningPod = append(runningPod, item)
 				}
+
+				for _, c := range item.Spec.Containers {
+					if c.Name == _const.NocalhostDefaultDevSidecarName {
+						pod = item.Name
+						break Exit
+					}
+				}
 			}
-			if len(runningPod) != 1 {
+			if pod == "" && len(runningPod) != 1 {
 				log.Fatalf("Pod num is %d (not 1), please specify one", len(runningPod))
 			}
 			pod = runningPod[0].Name
