@@ -544,7 +544,8 @@ func Get(cli runner.Client) {
 		"deployments/productpage",
 		fmt.Sprintf("%s=%s", _const.NocalhostApplicationName, appName),
 		"--overwrite")
-
+	// wait for informer to parse app from annotation
+	<-time.Tick(time.Second * 10)
 	cases := []struct {
 		resource string
 		appName  string
