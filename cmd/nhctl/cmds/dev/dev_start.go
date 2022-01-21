@@ -22,7 +22,6 @@ import (
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing"
 	"nocalhost/internal/nhctl/utils"
-	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	utils2 "nocalhost/pkg/nhctl/utils"
 	"strconv"
@@ -103,6 +102,7 @@ var DevStartCmd = &cobra.Command{
 }
 
 func StartDevMode(applicationName string) {
+
 	dt := profile.DevModeType(DevStartOps.DevModeType)
 	if !dt.IsDuplicateDevMode() && !dt.IsReplaceDevMode() {
 		log.Fatalf("Unsupported DevModeType %s", dt)
@@ -128,7 +128,7 @@ func StartDevMode(applicationName string) {
 
 		if !DevStartOps.NoSyncthing {
 			if common.NocalhostSvc.IsProcessor() {
-				startSyncthing(podName, DevStartOps.Container, true)
+				startSyncthing(podName, true)
 			}
 		} else {
 			coloredoutput.Success("File sync is not resumed caused by --without-sync flag.")
@@ -171,13 +171,13 @@ func StartDevMode(applicationName string) {
 	startPortForwardAfterDevStart(devPodName)
 
 	if !DevStartOps.NoSyncthing {
-		startSyncthing(devPodName, DevStartOps.Container, false)
+		startSyncthing(devPodName, false)
 	} else {
 		coloredoutput.Success("File sync is not started caused by --without-sync flag..")
 	}
 
 	if !DevStartOps.NoTerminal || shell != "" {
-		must(common.NocalhostSvc.EnterPodTerminal(devPodName, "nocalhost-dev", shell, ""))
+		must(common.NocalhostSvc.EnterPodTerminal(devPodName, "", shell, ""))
 	}
 }
 
@@ -194,7 +194,7 @@ func stopPreviousPortForward() {
 
 func prepareSyncThing() {
 	dt := profile.DevModeType(DevStartOps.DevModeType)
-	clientgoutils.Must(common.NocalhostSvc.CreateSyncThingSecret(DevStartOps.Container, DevStartOps.LocalSyncDir, dt.IsDuplicateDevMode()))
+	must(common.NocalhostSvc.CreateSyncThingSecret(DevStartOps.Container, DevStartOps.LocalSyncDir, dt.IsDuplicateDevMode()))
 }
 
 func recordLocalSyncDirToProfile() {
@@ -257,8 +257,8 @@ func stopPreviousSyncthing() {
 	utils2.KillSyncthingProcess(str)
 }
 
-func startSyncthing(podName, container string, resume bool) {
-	StartSyncthing(podName, resume, false, container, nil, false)
+func startSyncthing(podName string, resume bool) {
+	StartSyncthing(podName, resume, false, nil, false)
 	if resume {
 		coloredoutput.Success("File sync resumed")
 	} else {
@@ -268,13 +268,19 @@ func startSyncthing(podName, container string, resume bool) {
 
 func enterDevMode(devModeType profile.DevModeType) error {
 	must(
-		common.NocalhostSvc.AppMeta.SvcDevStarting(common.NocalhostSvc.Name, common.NocalhostSvc.Type,
-			common.NocalhostApp.Identifier, devModeType),
+		common.NocalhostSvc.AppMeta.SvcDevStarting(
+			common.NocalhostSvc.Name, common.NocalhostSvc.Type,
+			common.NocalhostApp.Identifier, devModeType,
+		),
 	)
-	must(common.NocalhostSvc.UpdateSvcProfile(func(v2 *profile.SvcProfileV2) error {
-		v2.OriginDevContainer = DevStartOps.Container
-		return nil
-	}))
+	must(
+		common.NocalhostSvc.UpdateSvcProfile(
+			func(v2 *profile.SvcProfileV2) error {
+				v2.OriginDevContainer = DevStartOps.Container
+				return nil
+			},
+		),
+	)
 
 	// prevent dev status modified but not actually enter dev mode
 	var devStartSuccess = false
@@ -282,7 +288,9 @@ func enterDevMode(devModeType profile.DevModeType) error {
 	defer func() {
 		if !devStartSuccess {
 			log.Infof("Roll backing dev mode...")
-			_ = common.NocalhostSvc.AppMeta.SvcDevEnd(common.NocalhostSvc.Name, common.NocalhostSvc.Identifier, common.NocalhostSvc.Type, devModeType)
+			_ = common.NocalhostSvc.AppMeta.SvcDevEnd(
+				common.NocalhostSvc.Name, common.NocalhostSvc.Identifier, common.NocalhostSvc.Type, devModeType,
+			)
 		}
 	}()
 

@@ -81,9 +81,15 @@ func GetList(c *gin.Context) {
 			continue
 		}
 		Add(result[i].GetKubeConfig())
+
+		var userName = ""
+		if cache, err := service.Svc.UserSvc().GetCache(cluster.UserId); err == nil {
+			userName = cache.Name
+		}
 		vos[i] = model.ClusterListVo{
 			ClusterList: *result[i],
 			Resources:   GetFromCache(result[i].GetKubeConfig()),
+			UserName:    userName,
 		}
 	}
 	api.SendResponse(c, errno.OK, vos)

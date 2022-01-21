@@ -23,7 +23,7 @@ import (
 )
 
 func (c *ClientGoUtils) NewFactory() cmdutil.Factory {
-	kubeConfigFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag()
+	kubeConfigFlags := genericclioptions.NewConfigFlags(true)
 	kubeConfigFlags.KubeConfig = &c.kubeConfigFilePath
 	kubeConfigFlags.Namespace = &c.namespace
 	matchVersionKubeConfigFlags := cmdutil.NewMatchVersionFlags(kubeConfigFlags)

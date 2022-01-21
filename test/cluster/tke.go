@@ -3,13 +3,13 @@
 * This source code is licensed under the Apache License Version 2.0.
  */
 
-package tke
+package cluster
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 	"io/ioutil"
 	"nocalhost/pkg/nhctl/log"
 	"nocalhost/test/util"
@@ -25,25 +25,17 @@ import (
 	tke "github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/tke/v20180525"
 )
 
-// CreateK8s TKE Cluster
+// Create TKE Cluster
 // TKE package is use for manage TKE Cluster when test has been start
 // Each Github PR will create TKE Cluster for running test case
-func CreateK8s() (*task, error) {
-	id := os.Getenv(util.SecretId)
-	key := os.Getenv(util.SecretKey)
-	if id == "" || key == "" {
-		return nil, errors.New("SECRET_ID or SECRET_KEY is null, please make sure you have set it correctly")
-	}
-	t := NewTask(id, key)
-	t.DeleteIdlingCluster()
-	t.CreateTKE()
-	t.WaitClusterToBeReady()
-	t.WaitInstanceToBeReady()
-	t.EnableInternetAccess()
-	for !t.WaitNetworkToBeReady() {
-	}
-	t.GetKubeconfig()
-	return t, nil
+func (t *task) Create() (string, error) {
+	t.deleteIdlingCluster()
+	t.createTKE()
+	t.waitClusterToBeReady()
+	t.waitInstanceToBeReady()
+	t.enableInternetAccess()
+	t.waitNetworkToBeReady()
+	return t.getKubeconfig(), nil
 }
 
 // DeleteTke Delete TKE Cluster
@@ -51,12 +43,21 @@ func DeleteTke(t *task) {
 	t.Delete()
 }
 
-// NewTask create a task with secret id and secret key
-func NewTask(secretId, secretKey string) *task {
+// newTask create a task with secret id and secret key
+func newTask(secretId, secretKey string) *task {
 	return &task{
 		secretId:  secretId,
 		secretKey: secretKey,
 	}
+}
+
+func NewTKE() Cluster {
+	id := os.Getenv(util.SecretId)
+	key := os.Getenv(util.SecretKey)
+	if id == "" || key == "" {
+		panic(errors.New("SECRET_ID or SECRET_KEY is null, please make sure you have set it correctly"))
+	}
+	return newTask(id, key)
 }
 
 type task struct {
@@ -140,8 +141,8 @@ type defaultConfig struct {
 	cidrPattern               string
 }
 
-// GetClient of openapi
-func (t *task) GetClient() *tke.Client {
+// getClient of openapi
+func (t *task) getClient() *tke.Client {
 	if t.client == nil {
 		credential := common.NewCredential(t.secretId, t.secretKey)
 		cpf := profile.NewClientProfile()
@@ -152,8 +153,8 @@ func (t *task) GetClient() *tke.Client {
 	return t.client
 }
 
-// CreateTKE Create TKE Cluster
-func (t *task) CreateTKE() {
+// createTKE Create TKE Cluster
+func (t *task) createTKE() {
 
 	retryTimes := 250
 	clusterName := "test-" + uuid.New().String() + "(" + runtime.GOOS + ")"
@@ -214,7 +215,7 @@ func (t *task) CreateTKE() {
 		cidr := fmt.Sprintf(DefaultConfig.cidrPattern, i)
 		request.ClusterCIDRSettings.ClusterCIDR = &cidr
 
-		response, err := t.GetClient().CreateCluster(request)
+		response, err := t.getClient().CreateCluster(request)
 		if err != nil {
 			var s string
 			if strings.Contains(err.Error(), "CIDR_CONFLICT_WITH") {
@@ -247,7 +248,7 @@ instanceTypeRetry:
 				NodeRole:         &DefaultConfig.nodeRole,
 				RunInstancesPara: []*string{&configStr},
 			}}
-			response, err := t.GetClient().CreateCluster(request)
+			response, err := t.getClient().CreateCluster(request)
 			if err != nil {
 				if strings.Contains(err.Error(), "ResourceInsufficient.SpecifiedInstanceType") {
 					log.Infof("The specified type: %s of instance is understocked", instanceType)
@@ -264,13 +265,13 @@ instanceTypeRetry:
 	}
 }
 
-// WaitClusterToBeReady include TKE create success
-func (t *task) WaitClusterToBeReady() {
+// waitClusterToBeReady include TKE create success
+func (t *task) waitClusterToBeReady() {
 	request := tke.NewDescribeClustersRequest()
 	request.ClusterIds = []*string{&t.clusterId}
 	for {
 		time.Sleep(time.Second * 5)
-		response, err := t.GetClient().DescribeClusters(request)
+		response, err := t.getClient().DescribeClusters(request)
 		if err != nil {
 			log.Infof("wait Cluster: %s to be ready occurs a error, info: %v", t.clusterId, err)
 			continue
@@ -289,11 +290,11 @@ func (t *task) WaitClusterToBeReady() {
 	}
 }
 
-// DeleteIdlingCluster Delete idling tke cluster
-func (t *task) DeleteIdlingCluster() {
+// deleteIdlingCluster Delete idling tke cluster
+func (t *task) deleteIdlingCluster() {
 	request := tke.NewDescribeClustersRequest()
 	request.ClusterIds = []*string{}
-	response, err := t.GetClient().DescribeClusters(request)
+	response, err := t.getClient().DescribeClusters(request)
 	if err != nil {
 		log.Infof("error while delete useless cluster, response: %v, err: %v", response, err)
 		return
@@ -310,7 +311,7 @@ func (t *task) DeleteIdlingCluster() {
 				wg.Add(1)
 				go func(clusterId string) {
 					defer wg.Done()
-					t.DeleteOne(clusterId)
+					t.deleteOne(clusterId)
 				}(*cluster.ClusterId)
 			}
 		}
@@ -318,13 +319,13 @@ func (t *task) DeleteIdlingCluster() {
 	}
 }
 
-// WaitInstanceToBeReady wait instance to be ready
-func (t task) WaitInstanceToBeReady() {
+// waitInstanceToBeReady wait instance to be ready
+func (t task) waitInstanceToBeReady() {
 	request := tke.NewDescribeClusterInstancesRequest()
 	request.ClusterId = &t.clusterId
 	for {
 		time.Sleep(time.Second * 5)
-		response, err := t.GetClient().DescribeClusterInstances(request)
+		response, err := t.getClient().DescribeClusterInstances(request)
 		if err != nil {
 			log.Infof("wait cluster: %s instance to be ready occurs error, info: %v", t.clusterId, err.Error())
 			continue
@@ -343,8 +344,8 @@ func (t task) WaitInstanceToBeReady() {
 	}
 }
 
-// EnableInternetAccess open ip white list
-func (t *task) EnableInternetAccess() {
+// enableInternetAccess open ip white list
+func (t *task) enableInternetAccess() {
 	request := tke.NewCreateClusterEndpointVipRequest()
 	request.ClusterId = &t.clusterId
 	policy := "0.0.0.0/0"
@@ -352,7 +353,7 @@ func (t *task) EnableInternetAccess() {
 
 	for {
 		time.Sleep(time.Second * 5)
-		if _, err := t.GetClient().CreateClusterEndpointVip(request); err != nil {
+		if _, err := t.getClient().CreateClusterEndpointVip(request); err != nil {
 			log.Infof("error has returned: %v", err)
 			continue
 		}
@@ -361,13 +362,13 @@ func (t *task) EnableInternetAccess() {
 	}
 }
 
-// WaitNetworkToBeReady wait connection ready
-func (t *task) WaitNetworkToBeReady() bool {
+// waitNetworkToBeReady wait connection ready
+func (t *task) waitNetworkToBeReady() bool {
 	request := tke.NewDescribeClusterEndpointVipStatusRequest()
 	request.ClusterId = &t.clusterId
 	for {
 		time.Sleep(time.Second * 5)
-		response, err := t.GetClient().DescribeClusterEndpointVipStatus(request)
+		response, err := t.getClient().DescribeClusterEndpointVipStatus(request)
 		if err != nil {
 			log.Infof("Wait cluster: %s network to be ready error: %v", t.clusterId, err.Error())
 			continue
@@ -390,18 +391,18 @@ func (t *task) WaitNetworkToBeReady() bool {
 		default:
 			log.Infof("cluster: %s, network endpoint status: %s, waiting to be ready",
 				t.clusterId, *response.Response.Status)
-			return false
+			continue
 		}
 	}
 }
 
-// GetKubeconfig
-func (t *task) GetKubeconfig() {
+// getKubeconfig
+func (t *task) getKubeconfig() string {
 	request := tke.NewDescribeClusterKubeconfigRequest()
 	request.ClusterId = &t.clusterId
 	for {
 		time.Sleep(time.Second * 5)
-		response, err := t.GetClient().DescribeClusterKubeconfig(request)
+		response, err := t.getClient().DescribeClusterKubeconfig(request)
 		if err != nil || response == nil || response.Response == nil || response.Response.Kubeconfig == nil {
 			log.Info("Retry to get kubeconfig")
 			continue
@@ -420,16 +421,15 @@ func (t *task) GetKubeconfig() {
 			continue
 		}
 		_ = os.Setenv(util.KubeconfigPath, fi.Name())
-		log.Info(fi.Name())
-		return
+		return fi.Name()
 	}
 }
 
 // Delete Cluster
 func (t *task) Delete() {
-	t.DeleteOne(t.clusterId)
+	t.deleteOne(t.clusterId)
 }
-func (t *task) DeleteOne(clusterId string) {
+func (t *task) deleteOne(clusterId string) {
 	if len(clusterId) == 0 {
 		clusterId = t.clusterId
 	}
@@ -445,7 +445,7 @@ func (t *task) DeleteOne(clusterId string) {
 	request.ResourceDeleteOptions = []*tke.ResourceDeleteOption{&option}
 	for {
 		time.Sleep(time.Second * 1)
-		_, err := t.GetClient().DeleteCluster(request)
+		_, err := t.getClient().DeleteCluster(request)
 		if err != nil {
 			log.Infof("delete tke cluster: %s error, retrying, error info: %v", clusterId, err)
 			continue

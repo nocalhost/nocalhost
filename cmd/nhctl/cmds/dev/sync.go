@@ -22,7 +22,7 @@ import (
 	"time"
 )
 
-func StartSyncthing(podName string, resume bool, stop bool, container string, syncDouble *bool, override bool) {
+func StartSyncthing(podName string, resume bool, stop bool, syncDouble *bool, override bool) {
 	if !common.NocalhostSvc.IsInReplaceDevMode() && !common.NocalhostSvc.IsInDuplicateDevMode() {
 		log.Fatalf("Service \"%s\" is not in developing", common.WorkloadName)
 	}
@@ -71,7 +71,7 @@ func StartSyncthing(podName string, resume bool, stop bool, container string, sy
 		flag := false
 
 		config := common.NocalhostSvc.Config()
-		if cfg := config.GetContainerDevConfig(container); cfg != nil && cfg.Sync != nil {
+		if cfg := config.GetContainerDevConfig(DevStartOps.Container); cfg != nil && cfg.Sync != nil {
 			switch cfg.Sync.Type {
 
 			case _const.DefaultSyncType:
@@ -95,7 +95,7 @@ func StartSyncthing(podName string, resume bool, stop bool, container string, sy
 	// If the file is deleted remotely, but the syncthing database is not reset (the development is not finished),
 	// the files that have been synchronized will not be synchronized.
 	newSyncthing, err := common.NocalhostSvc.NewSyncthing(
-		container, svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin, *syncDouble,
+		DevStartOps.Container, svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin, *syncDouble,
 	)
 	utils.ShouldI(err, "Failed to new syncthing")
 
