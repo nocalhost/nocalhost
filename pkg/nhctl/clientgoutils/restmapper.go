@@ -46,17 +46,6 @@ func (c *ClientGoUtils) IsClusterAdmin() bool {
 	return response.Status.Allowed
 }
 
-func (c *ClientGoUtils) Gvk2Gvr(gvk schema.GroupVersionKind) (*schema.GroupVersionResource, error) {
-	groupResources, _ := restmapper.GetAPIGroupResources(c.ClientSet)
-	mapper := restmapper.NewDiscoveryRESTMapper(groupResources)
-	restMapping, err := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
-	if err != nil {
-		return nil, err
-	}
-
-	return &restMapping.Resource, nil
-}
-
 func (c *ClientGoUtils) ResourceFor(resourceArg string, tryLoadFromCache bool) schema.GroupVersionResource {
 	c.gvrCacheLock.Lock()
 	if c.gvrCache == nil {

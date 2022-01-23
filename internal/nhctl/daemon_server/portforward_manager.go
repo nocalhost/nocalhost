@@ -207,8 +207,8 @@ func GetTopController(refs []v1.OwnerReference, client *clientgoutils.ClientGoUt
 	if gv, err := schema.ParseGroupVersion(controller.APIVersion); err != nil {
 		return controller
 	} else {
-		gvr, e := client.Gvk2Gvr(gv.WithKind(controller.Kind))
-		if e != nil {
+		gvr, nsScope, e := client.ResourceForGVK(gv.WithKind(controller.Kind))
+		if e != nil || !nsScope {
 			return controller
 		}
 
