@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 	"io"
 	"k8s.io/client-go/tools/clientcmd"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/vpn/driver"
@@ -21,8 +22,8 @@ import (
 )
 
 func init() {
-	reconnectCmd.Flags().StringVar(&kubeConfig, "kubeconfig", clientcmd.RecommendedHomeFile, "kubeconfig")
-	reconnectCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "namespace")
+	reconnectCmd.Flags().StringVar(&common.KubeConfig, "kubeconfig", clientcmd.RecommendedHomeFile, "kubeconfig")
+	reconnectCmd.Flags().StringVarP(&common.NameSpace, "namespace", "n", "", "namespace")
 	reconnectCmd.Flags().StringVar(&workloads, "workloads", "", "workloads, like: services/tomcat, deployment/nginx, replicaset/tomcat...")
 	reconnectCmd.Flags().BoolVar(&util.Debug, "debug", false, "true/false")
 	vpnCmd.AddCommand(reconnectCmd)
@@ -53,8 +54,8 @@ var reconnectCmd = &cobra.Command{
 			log.Warn(err)
 			return
 		}
-		must(Prepare())
-		readClose, err := client.SendVPNOperateCommand(kubeConfig, nameSpace, command.Reconnect, workloads)
+		must(common.Prepare())
+		readClose, err := client.SendVPNOperateCommand(common.KubeConfig, common.NameSpace, command.Reconnect, workloads)
 		if err != nil {
 			log.Warn(err)
 			return

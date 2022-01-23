@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/vpn/pkg"
 	"nocalhost/internal/nhctl/vpn/util"
@@ -16,8 +17,8 @@ import (
 )
 
 func init() {
-	vpnStatusCmd.Flags().StringVar(&kubeConfig, "kubeconfig", clientcmd.RecommendedHomeFile, "kubeconfig")
-	vpnStatusCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "namespace")
+	vpnStatusCmd.Flags().StringVar(&common.NameSpace, "kubeconfig", clientcmd.RecommendedHomeFile, "kubeconfig")
+	vpnStatusCmd.Flags().StringVarP(&common.NameSpace, "namespace", "n", "", "namespace")
 	vpnStatusCmd.Flags().StringVar(&workloads, "workloads", "", "workloads, like: services/tomcat, deployment/nginx, replicaset/tomcat...")
 	vpnStatusCmd.Flags().BoolVar(&util.Debug, "debug", false, "true/false")
 	vpnCmd.AddCommand(vpnStatusCmd)

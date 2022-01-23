@@ -1,13 +1,14 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cmds
 
 import (
 	"fmt"
 	"github.com/spf13/cobra"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/internal/nhctl/utils"
@@ -38,8 +39,8 @@ var sshRCmd = &cobra.Command{
 
 		port, _ := ports.GetAvailablePort()
 		app := &app.Application{
-			NameSpace:  nameSpace,
-			KubeConfig: kubeConfig,
+			NameSpace:  common.NameSpace,
+			KubeConfig: common.KubeConfig,
 		}
 		okchan := make(chan struct{})
 		go func() {

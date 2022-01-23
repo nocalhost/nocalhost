@@ -6,6 +6,7 @@
 package cmds
 
 import (
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/nocalhost"
@@ -19,7 +20,7 @@ import (
 var force bool
 
 func init() {
-	uninstallCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
+	uninstallCmd.Flags().StringVarP(&common.NameSpace, "namespace", "n", "", "kubernetes namespace")
 	uninstallCmd.Flags().BoolVar(&force, "force", false, "force to uninstall anyway")
 	rootCmd.AddCommand(uninstallCmd)
 }
@@ -42,9 +43,9 @@ var uninstallCmd = &cobra.Command{
 			return
 		}
 
-		must(Prepare())
+		must(common.Prepare())
 
-		appMeta, err := nocalhost.GetApplicationMeta(applicationName, nameSpace, kubeConfig)
+		appMeta, err := nocalhost.GetApplicationMeta(applicationName, common.NameSpace, common.KubeConfig)
 		must(err)
 
 		nid = appMeta.NamespaceId
@@ -58,17 +59,17 @@ var uninstallCmd = &cobra.Command{
 		//goland:noinspection ALL
 		mustI(appMeta.Uninstall(true), "error while uninstall application")
 
-		p, _ := nocalhost.GetProfileV2(nameSpace, applicationName, nid)
+		p, _ := nocalhost.GetProfileV2(common.NameSpace, applicationName, nid)
 		if p != nil {
 			for _, sv := range p.SvcProfile {
 				for _, pf := range sv.DevPortForwardList {
-					log.Infof("Stopping %s-%s's port-forward %d:%d", nameSpace, applicationName, pf.LocalPort, pf.RemotePort)
-					utils.Should(controller.StopPortForward(nameSpace, nid, applicationName, sv.Name, pf))
+					log.Infof("Stopping %s-%s's port-forward %d:%d", common.NameSpace, applicationName, pf.LocalPort, pf.RemotePort)
+					utils.Should(controller.StopPortForward(common.NameSpace, nid, applicationName, sv.Name, pf))
 				}
 			}
 		}
 
-		if err = nocalhost.CleanupAppFilesUnderNs(nameSpace, nid); err != nil {
+		if err = nocalhost.CleanupAppFilesUnderNs(common.NameSpace, nid); err != nil {
 			log.WarnE(err, "")
 		}
 

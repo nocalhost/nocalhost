@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 	"io"
 	"k8s.io/client-go/tools/clientcmd"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/vpn/driver"
@@ -23,8 +24,8 @@ import (
 var workloads string
 
 func init() {
-	connectCmd.Flags().StringVar(&kubeConfig, "kubeconfig", clientcmd.RecommendedHomeFile, "kubeconfig")
-	connectCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "namespace")
+	connectCmd.Flags().StringVar(&common.KubeConfig, "kubeconfig", clientcmd.RecommendedHomeFile, "kubeconfig")
+	connectCmd.Flags().StringVarP(&common.NameSpace, "namespace", "n", "", "namespace")
 	connectCmd.Flags().StringVar(&workloads, "workloads", "", "workloads, like: services/tomcat, deployment/nginx, replicaset/tomcat...")
 	vpnCmd.AddCommand(connectCmd)
 }
@@ -54,8 +55,8 @@ var connectCmd = &cobra.Command{
 			log.Warn(err)
 			return
 		}
-		must(Prepare())
-		readClose, err := client.SendVPNOperateCommand(kubeConfig, nameSpace, command.Connect, workloads)
+		must(common.Prepare())
+		readClose, err := client.SendVPNOperateCommand(common.KubeConfig, common.NameSpace, command.Connect, workloads)
 		if err != nil {
 			log.Warn(err)
 			return

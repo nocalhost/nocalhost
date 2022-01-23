@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"gopkg.in/yaml.v3"
+	common2 "nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/app_flags"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/common"
@@ -40,12 +41,12 @@ var listCmd = &cobra.Command{
 	Short:   "List applications",
 	Long:    `List applications`,
 	Run: func(cmd *cobra.Command, args []string) {
-		must(Prepare())
+		must(common2.Prepare())
 
 		if len(args) > 0 { // list application detail
 			applicationName := args[0]
-			initApp(applicationName)
-			ListApplicationSvc(nocalhostApp)
+			common2.InitApp(applicationName)
+			ListApplicationSvc(common2.NocalhostApp)
 			os.Exit(0)
 		}
 
@@ -85,7 +86,7 @@ func ListApplicationSvc(napp *app.Application) {
 func ListApplicationsResult() []*model.Namespace {
 	metas, err := DoGetApplicationMetas()
 	must(err)
-	return daemon_handler.ParseApplicationsResult(nameSpace, metas)
+	return daemon_handler.ParseApplicationsResult(common2.NameSpace, metas)
 }
 
 func ListApplicationsFull() {
@@ -119,7 +120,7 @@ func ListApplications() {
 // do get application metas
 // and create default application if needed
 func DoGetApplicationMetas() (appmeta.ApplicationMetas, error) {
-	metas, err := nocalhost.GetApplicationMetas(nameSpace, kubeConfig)
+	metas, err := nocalhost.GetApplicationMetas(common2.NameSpace, common2.KubeConfig)
 
 	if metas == nil {
 		metas = make(appmeta.ApplicationMetas, 0)
@@ -135,18 +136,18 @@ func DoGetApplicationMetas() (appmeta.ApplicationMetas, error) {
 
 	if !foundDefaultApp {
 		// try init default application
-		nocalhostApp, err = common.InitDefaultApplicationInCurrentNs(
-			_const.DefaultNocalhostApplication, nameSpace, kubeConfig,
+		common2.NocalhostApp, err = common.InitDefaultApplicationInCurrentNs(
+			_const.DefaultNocalhostApplication, common2.NameSpace, common2.KubeConfig,
 		)
 
 		// if current user has not permission to create secret,
 		// we also create a fake 'default.application'
 		// app meta for him
 		if err != nil {
-			log.Logf("failed to init default application in namespace: %s", nameSpace)
-			metas = append(metas, appmeta.FakeAppMeta(nameSpace, _const.DefaultNocalhostApplication))
+			log.Logf("failed to init default application in namespace: %s", common2.NameSpace)
+			metas = append(metas, appmeta.FakeAppMeta(common2.NameSpace, _const.DefaultNocalhostApplication))
 		} else {
-			metas = append(metas, nocalhostApp.GetAppMeta())
+			metas = append(metas, common2.NocalhostApp.GetAppMeta())
 		}
 	}
 

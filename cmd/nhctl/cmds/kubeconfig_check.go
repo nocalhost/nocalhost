@@ -14,6 +14,7 @@ import (
 	"golang.org/x/text/transform"
 	"io/ioutil"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/k8sutils"
@@ -52,7 +53,7 @@ var kubeconfigCheckCmd = &cobra.Command{
 			contextSpecified = append(contextSpecified, "")
 		}
 
-		if kubeConfig == "-" { // from sdtin
+		if common.KubeConfig == "-" { // from sdtin
 
 			// TODO: Consider adding a flag to force to UTF16, apparently some
 			// Windows tools don't write the BOM
@@ -62,7 +63,7 @@ var kubeconfigCheckCmd = &cobra.Command{
 			content, err := ioutil.ReadAll(reader)
 			must(err)
 
-			kubeConfig = k8sutils.GetOrGenKubeConfigPath(string(content))
+			common.KubeConfig = k8sutils.GetOrGenKubeConfigPath(string(content))
 
 			defer fp.NewFilePath(kubeConfig).Remove()
 		}
@@ -72,7 +73,7 @@ var kubeconfigCheckCmd = &cobra.Command{
 		notEmpty := false
 		warnMsg := "Your KubeConfig may illegal, please try to fix it by following the tips below: <br>"
 		for _, context := range contextSpecified {
-			checkInfo := CheckKubeconfig(kubeConfig, context)
+			checkInfo := CheckKubeconfig(common.KubeConfig, context)
 			checkInfos = append(checkInfos, checkInfo)
 
 			if checkInfo.Status == FAIL {
@@ -138,9 +139,9 @@ func CheckKubeconfig(kubeconfigParams string, contextParam string) CheckInfo {
 		}
 	} else {
 		specifiedNs := ctx.Namespace != ""
-		_ = Prepare()
+		_ = common.Prepare()
 
-		kubeCOnfigContent := fp.NewFilePath(kubeConfig).ReadFile()
+		kubeCOnfigContent := fp.NewFilePath(common.KubeConfig).ReadFile()
 
 		checkChanForClusterScope := make(chan error, 0)
 		checkChanForNsScope := make(chan error, 0)

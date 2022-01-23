@@ -8,6 +8,7 @@ package cmds
 import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
 )
@@ -21,8 +22,8 @@ const (
 )
 
 func init() {
-	profileSetCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s workload name")
-	profileSetCmd.Flags().StringVarP(&serviceType, "type", "t", "deployment", "specify service type")
+	profileSetCmd.Flags().StringVarP(&common.WorkloadName, "deployment", "d", "", "k8s workload name")
+	profileSetCmd.Flags().StringVarP(&common.ServiceType, "type", "t", "deployment", "specify service type")
 	profileSetCmd.Flags().StringVarP(&container, "container", "c", "", "container name of pod")
 	profileSetCmd.Flags().StringVarP(&configKey, "key", "k", "", "key of dev config")
 	profileSetCmd.Flags().StringVarP(&configVal, "value", "v", "", "value of dev config")
@@ -40,7 +41,7 @@ var profileSetCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		initAppAndCheckIfSvcExist(args[0], deployment, serviceType)
+		common.InitAppAndCheckIfSvcExist(args[0], common.WorkloadName, common.ServiceType)
 		if configKey == "" {
 			log.Fatal("--key must be specified")
 		}
@@ -56,7 +57,7 @@ var profileSetCmd = &cobra.Command{
 			log.Fatalf("Config key %s is unsupported", configKey)
 		}
 
-		svcConfig := nocalhostSvc.Config()
+		svcConfig := common.NocalhostSvc.Config()
 		var defaultContainerConfig, targetContainerConfig *profile.ContainerConfig
 		for _, c := range svcConfig.ContainerConfigs {
 			if c.Name == "" {
@@ -79,7 +80,7 @@ var profileSetCmd = &cobra.Command{
 			} else if configKey == gitUrlKey {
 				targetContainerConfig.Dev.GitUrl = configVal
 			}
-			must(nocalhostSvc.UpdateConfig(*svcConfig))
+			must(common.NocalhostSvc.UpdateConfig(*svcConfig))
 			return
 		}
 		targetContainerConfig = &profile.ContainerConfig{Dev: &profile.ContainerDevConfig{}, Name: container}
@@ -90,9 +91,9 @@ var profileSetCmd = &cobra.Command{
 			targetContainerConfig.Dev.GitUrl = configVal
 		}
 		svcConfig.ContainerConfigs = append(svcConfig.ContainerConfigs, targetContainerConfig)
-		must(nocalhostSvc.UpdateConfig(*svcConfig))
+		must(common.NocalhostSvc.UpdateConfig(*svcConfig))
 
-		//nocalhostSvc.UpdateSvcProfile(func(v2 *profile.SvcProfileV2) error {
+		//common.NocalhostSvc.UpdateSvcProfile(func(v2 *profile.SvcProfileV2) error {
 		//	var defaultContainerConfig, targetContainerConfig *profile.ContainerConfig
 		//	for _, c := range v2.ContainerConfigs {
 		//		if c.Name == "" {

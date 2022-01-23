@@ -5,10 +5,14 @@
 
 package cmds
 
-import "github.com/spf13/cobra"
+import (
+	"github.com/spf13/cobra"
+	"nocalhost/cmd/nhctl/cmds/kube"
+)
 
 func init() {
 	rootCmd.AddCommand(kubectlCmd)
+	kubectlCmd.AddCommand(kube.CmdLogs)
 }
 
 var kubectlCmd = &cobra.Command{

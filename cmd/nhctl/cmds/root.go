@@ -12,10 +12,9 @@ import (
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
-	"nocalhost/internal/nhctl/app"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/common/base"
 	_const "nocalhost/internal/nhctl/const"
-	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/vpn/util"
@@ -28,19 +27,15 @@ import (
 )
 
 var (
-	nameSpace string
-	debug     bool
+	debug bool
 
 	// pre check the nocalhost commands permissions
-	authCheck    bool
-	kubeConfig   string // the path to the kubeconfig file
-	nocalhostApp *app.Application
-	nocalhostSvc *controller.Controller
+	authCheck bool
 )
 
 func init() {
 	rootCmd.PersistentFlags().StringVarP(
-		&nameSpace, "namespace", "n", "",
+		&common.NameSpace, "namespace", "n", "",
 		"kubernetes namespace",
 	)
 	rootCmd.PersistentFlags().BoolVar(
@@ -53,7 +48,7 @@ func init() {
 			" represent having enough permissions to call the command",
 	)
 	rootCmd.PersistentFlags().StringVar(
-		&kubeConfig, "kubeconfig", "",
+		&common.KubeConfig, "kubeconfig", "",
 		"the path of the kubeconfig file",
 	)
 
@@ -101,11 +96,11 @@ var rootCmd = &cobra.Command{
 				log.FatalE(err, "Fail to init nhctl")
 			}
 		}
-		serviceType = strings.ToLower(serviceType)
+		common.ServiceType = strings.ToLower(common.ServiceType)
 
 		if authCheck {
-			must(Prepare())
-			if clientgoutils.AuthCheck(nameSpace, kubeConfig, cmd) {
+			must(common.Prepare())
+			if clientgoutils.AuthCheck(common.NameSpace, common.KubeConfig, cmd) {
 				fmt.Printf("yes")
 			}
 			os.Exit(0)

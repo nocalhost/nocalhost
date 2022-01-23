@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/common/base"
 )
 
@@ -19,7 +20,7 @@ func init() {
 	describeCmd.Flags().StringVarP(&deploy, "deployment", "d", "",
 		"k8s deployment which your developing service exists",
 	)
-	describeCmd.Flags().StringVarP(&serviceType, "type", "t", "deployment", "specify service type")
+	describeCmd.Flags().StringVarP(&common.ServiceType, "type", "t", "deployment", "specify service type")
 	rootCmd.AddCommand(describeCmd)
 }
 
@@ -35,19 +36,19 @@ var describeCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		applicationName := args[0]
-		initApp(applicationName)
+		common.InitApp(applicationName)
 		if deploy == "" {
-			appProfile := nocalhostApp.GetDescription()
+			appProfile := common.NocalhostApp.GetDescription()
 			for _, svcProfileV2 := range appProfile.SvcProfile {
-				svcProfileV2.DevModeType = nocalhostApp.GetAppMeta().GetCurrentDevModeTypeOfWorkload(svcProfileV2.Name, base.SvcType(svcProfileV2.Type), appProfile.Identifier)
+				svcProfileV2.DevModeType = common.NocalhostApp.GetAppMeta().GetCurrentDevModeTypeOfWorkload(svcProfileV2.Name, base.SvcType(svcProfileV2.Type), appProfile.Identifier)
 			}
 			bytes, err := yaml.Marshal(appProfile)
 			if err == nil {
 				fmt.Print(string(bytes))
 			}
 		} else {
-			checkIfSvcExist(deploy, serviceType)
-			svcProfile := nocalhostSvc.GetDescription()
+			common.CheckIfSvcExist(deploy, common.ServiceType)
+			svcProfile := common.NocalhostSvc.GetDescription()
 			bytes, err := yaml.Marshal(svcProfile)
 			if err == nil {
 				fmt.Print(string(bytes))

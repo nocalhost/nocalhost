@@ -45,6 +45,9 @@ github.com/cheggaaa/pb/v3/termutil
 github.com/containerd/containerd/errdefs
 # github.com/davecgh/go-spew v1.1.1
 github.com/davecgh/go-spew/spew
+# github.com/derailed/tview v0.6.6
+## explicit
+github.com/derailed/tview
 # github.com/docker/distribution v2.7.1+incompatible
 github.com/docker/distribution
 github.com/docker/distribution/digestset
@@ -78,6 +81,49 @@ github.com/fatih/color
 # github.com/fsnotify/fsnotify v1.4.9
 ## explicit
 github.com/fsnotify/fsnotify
+# github.com/gdamore/encoding v1.0.0
+github.com/gdamore/encoding
+# github.com/gdamore/tcell/v2 v2.4.1-0.20210905002822-f057f0a857a1
+## explicit
+github.com/gdamore/tcell/v2
+github.com/gdamore/tcell/v2/terminfo
+github.com/gdamore/tcell/v2/terminfo/a/aixterm
+github.com/gdamore/tcell/v2/terminfo/a/alacritty
+github.com/gdamore/tcell/v2/terminfo/a/ansi
+github.com/gdamore/tcell/v2/terminfo/b/beterm
+github.com/gdamore/tcell/v2/terminfo/base
+github.com/gdamore/tcell/v2/terminfo/c/cygwin
+github.com/gdamore/tcell/v2/terminfo/d/dtterm
+github.com/gdamore/tcell/v2/terminfo/dynamic
+github.com/gdamore/tcell/v2/terminfo/e/emacs
+github.com/gdamore/tcell/v2/terminfo/extended
+github.com/gdamore/tcell/v2/terminfo/f/foot
+github.com/gdamore/tcell/v2/terminfo/g/gnome
+github.com/gdamore/tcell/v2/terminfo/h/hpterm
+github.com/gdamore/tcell/v2/terminfo/k/konsole
+github.com/gdamore/tcell/v2/terminfo/k/kterm
+github.com/gdamore/tcell/v2/terminfo/l/linux
+github.com/gdamore/tcell/v2/terminfo/p/pcansi
+github.com/gdamore/tcell/v2/terminfo/r/rxvt
+github.com/gdamore/tcell/v2/terminfo/s/screen
+github.com/gdamore/tcell/v2/terminfo/s/simpleterm
+github.com/gdamore/tcell/v2/terminfo/s/sun
+github.com/gdamore/tcell/v2/terminfo/t/termite
+github.com/gdamore/tcell/v2/terminfo/t/tmux
+github.com/gdamore/tcell/v2/terminfo/v/vt100
+github.com/gdamore/tcell/v2/terminfo/v/vt102
+github.com/gdamore/tcell/v2/terminfo/v/vt220
+github.com/gdamore/tcell/v2/terminfo/v/vt320
+github.com/gdamore/tcell/v2/terminfo/v/vt400
+github.com/gdamore/tcell/v2/terminfo/v/vt420
+github.com/gdamore/tcell/v2/terminfo/v/vt52
+github.com/gdamore/tcell/v2/terminfo/w/wy50
+github.com/gdamore/tcell/v2/terminfo/w/wy60
+github.com/gdamore/tcell/v2/terminfo/w/wy99_ansi
+github.com/gdamore/tcell/v2/terminfo/x/xfce
+github.com/gdamore/tcell/v2/terminfo/x/xterm
+github.com/gdamore/tcell/v2/terminfo/x/xterm_kitty
+github.com/gdamore/tcell/v2/terminfo/x/xterm_termite
 # github.com/ghodss/yaml v1.0.0
 ## explicit
 github.com/ghodss/yaml
@@ -224,6 +270,8 @@ github.com/lestrrat-go/file-rotatelogs/internal/option
 github.com/lestrrat-go/strftime
 # github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de
 github.com/liggitt/tabwriter
+# github.com/lucasb-eyer/go-colorful v1.2.0
+github.com/lucasb-eyer/go-colorful
 # github.com/magiconair/properties v1.8.5
 github.com/magiconair/properties
 # github.com/mailru/easyjson v0.7.7
@@ -235,7 +283,7 @@ github.com/mailru/easyjson/jwriter
 github.com/mattn/go-colorable
 # github.com/mattn/go-isatty v0.0.12
 github.com/mattn/go-isatty
-# github.com/mattn/go-runewidth v0.0.7
+# github.com/mattn/go-runewidth v0.0.13
 github.com/mattn/go-runewidth
 # github.com/mattn/go-sqlite3 v2.0.1+incompatible
 ## explicit
@@ -316,6 +364,11 @@ github.com/qiniu/api.v7/conf
 github.com/qiniu/api.v7/internal/log
 github.com/qiniu/api.v7/reqid
 github.com/qiniu/api.v7/storage
+# github.com/rivo/tview v0.0.0-20211202162923-2a6de950f73b
+## explicit
+github.com/rivo/tview
+# github.com/rivo/uniseg v0.2.0
+github.com/rivo/uniseg
 # github.com/russross/blackfriday v1.5.2
 github.com/russross/blackfriday
 # github.com/satori/go.uuid v1.2.0
@@ -477,7 +530,7 @@ golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
 golang.org/x/sys/windows/registry
-# golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1
+# golang.org/x/term v0.0.0-20210406210042-72f3dc4e9b72
 golang.org/x/term
 # golang.org/x/text v0.3.8-0.20211105212822-18b340fc7af2
 ## explicit
