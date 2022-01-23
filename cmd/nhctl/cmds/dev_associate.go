@@ -73,13 +73,12 @@ var devAssociateCmd = &cobra.Command{
 		commonFlags.AppName = args[0]
 
 		must(common.Prepare())
-
-		initApp(commonFlags.AppName)
-		checkIfSvcExist(commonFlags.SvcName, serviceType)
+		must(common.InitApp(commonFlags.AppName))
+		must(common.CheckIfSvcExist(commonFlags.SvcName, common.ServiceType))
 
 		svcPack := dev_dir.NewSvcPack(
 			common.NameSpace,
-			nocalhostSvc.AppMeta.NamespaceId,
+			common.NocalhostSvc.AppMeta.NamespaceId,
 			commonFlags.AppName,
 			base.SvcType(common.ServiceType),
 			commonFlags.SvcName,
@@ -101,9 +100,6 @@ var devAssociateCmd = &cobra.Command{
 		if workDir == "" {
 			log.Fatal("--local-sync must specify")
 		}
-
-		common.InitApp(commonFlags.AppName)
-		common.CheckIfSvcExist(commonFlags.SvcName, common.ServiceType)
 
 		if (common.NocalhostSvc.IsInReplaceDevMode() && common.NocalhostSvc.IsProcessor()) || common.NocalhostSvc.IsInDuplicateDevMode() {
 			if !dev_dir.DevPath(workDir).AlreadyAssociate(svcPack) {
