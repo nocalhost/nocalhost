@@ -400,7 +400,7 @@ func (c *Controller) waitDevPodToBeReady() {
 		)
 	}
 
-	log.Infof("\nNow waiting dev mode to start...\n")
+	log.Infof("Now waiting dev mode to start...\n")
 
 	// start a watcher for dev pod until it running
 	//

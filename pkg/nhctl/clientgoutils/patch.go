@@ -12,12 +12,13 @@ import (
 	"os"
 )
 
+var IoStreams = &genericclioptions.IOStreams{
+	In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr,
+}
+
 func (c *ClientGoUtils) Patch(resourceType string, name string, patchContent string, pathType string) error {
-	ioStreams := genericclioptions.IOStreams{
-		In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr,
-	} // don't print log to stderr
-	o := patch.NewPatchOptions(ioStreams)
-	cmd := patch.NewCmdPatch(c.NewFactory(), ioStreams)
+	o := patch.NewPatchOptions(*IoStreams)
+	cmd := patch.NewCmdPatch(c.NewFactory(), *IoStreams)
 	if err := o.Complete(c.NewFactory(), cmd, []string{resourceType, name}); err != nil {
 		return errors.WithStack(err)
 	}

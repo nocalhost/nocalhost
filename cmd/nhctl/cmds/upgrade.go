@@ -9,6 +9,7 @@ import (
 	"context"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/utils"
@@ -50,20 +51,20 @@ var upgradeCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 
-		initApp(args[0])
+		common.InitApp(args[0])
 
 		// Check if there are services in developing
-		if nocalhostApp.IsAnyServiceInDevMode() {
+		if common.NocalhostApp.IsAnyServiceInDevMode() {
 			log.Fatal("Please make sure all services have exited DevMode")
 		}
 
 		// Stop Port-forward
-		appProfile, err := nocalhostApp.GetProfile()
+		appProfile, err := common.NocalhostApp.GetProfile()
 		must(err)
 
 		pfListMap := make(map[string][]*profile.DevPortForward, 0)
 		for _, svcProfile := range appProfile.SvcProfile {
-			nhSvc := initService(svcProfile.GetName(), svcProfile.GetType())
+			nhSvc := common.InitService(svcProfile.GetName(), svcProfile.GetType())
 			pfList := make([]*profile.DevPortForward, 0)
 			for _, pf := range svcProfile.DevPortForwardList {
 				if pf.ServiceType == "" {
@@ -80,16 +81,16 @@ var upgradeCmd = &cobra.Command{
 
 		// todo: Validate flags
 		// Prepare for upgrading
-		must(nocalhostApp.PrepareForUpgrade(installFlags))
+		must(common.NocalhostApp.PrepareForUpgrade(installFlags))
 
-		must(nocalhostApp.Upgrade(installFlags))
+		must(common.NocalhostApp.Upgrade(installFlags))
 
 		// Restart port forward
 		for svcName, pfList := range pfListMap {
 			for _, pf := range pfList {
 				// find first pod
 				ctx, _ := context.WithTimeout(context.Background(), 5*time.Minute)
-				nhSvc := initService(svcName, pf.ServiceType)
+				nhSvc := common.InitService(svcName, pf.ServiceType)
 				podName, err := controller.GetDefaultPodName(ctx, nhSvc)
 				if err != nil {
 					log.WarnE(err, "")

@@ -7,6 +7,7 @@ package cmds
 
 import (
 	"github.com/spf13/cobra"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/log"
 )
@@ -25,7 +26,7 @@ var dbSizeCmd = &cobra.Command{
 	Short: "Get all leveldb data",
 	Long:  `Get all leveldb data`,
 	Run: func(cmd *cobra.Command, args []string) {
-		size, err := nocalhost.GetApplicationDbSize(nameSpace, appName, nid)
+		size, err := nocalhost.GetApplicationDbSize(common.NameSpace, appName, nid)
 		must(err)
 		log.Info(size)
 	},

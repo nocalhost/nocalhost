@@ -8,6 +8,7 @@ package cmds
 import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
@@ -31,12 +32,12 @@ var applyCmd = &cobra.Command{
 		applicationName := args[0]
 		path := args[1]
 
-		initApp(applicationName)
+		common.InitApp(applicationName)
 		manifests := clientgoutils.LoadValidManifest([]string{path})
 
-		err := nocalhostApp.GetClient().Apply(
+		err := common.NocalhostApp.GetClient().Apply(
 			manifests, false,
-			app.StandardNocalhostMetas(nocalhostApp.Name, nocalhostApp.NameSpace), "",
+			app.StandardNocalhostMetas(common.NocalhostApp.Name, common.NocalhostApp.NameSpace), "",
 		)
 		if err != nil {
 			log.Fatal(err)

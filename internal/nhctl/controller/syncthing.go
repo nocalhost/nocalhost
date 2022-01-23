@@ -79,7 +79,7 @@ func (c *Controller) NewSyncthing(container string, localSyncDir []string, syncD
 	if !syncDouble {
 		sendMode = _const.SendOnlySyncType
 	}
-	localHomeDir := c.GetApplicationSyncDir()
+	localHomeDir := c.GetSyncDir()
 
 	s := &syncthing.Syncthing{
 		APIKey:           syncthing.DefaultAPIKey,
@@ -155,7 +155,7 @@ func (c *Controller) NewSyncthingHttpClient(reqTimeoutSecond int) *req.Syncthing
 func (c *Controller) CreateSyncThingSecret(container string, localSyncDir []string, duplicateDevMode bool) error {
 
 	// Delete service folder
-	dir := c.GetApplicationSyncDir()
+	dir := c.GetSyncDir()
 	if err2 := os.RemoveAll(dir); err2 != nil {
 		log.Logf("Failed to delete dir: %s before starting syncthing, err: %v", dir, err2)
 	}

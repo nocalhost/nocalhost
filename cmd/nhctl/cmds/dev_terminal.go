@@ -9,19 +9,21 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
+	"nocalhost/cmd/nhctl/cmds/common"
 	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/pkg/nhctl/log"
 )
 
-//var container string
+var pod string
+var shell string
 
 func init() {
 	devTerminalCmd.Flags().StringVarP(
-		&deployment, "deployment", "d", "",
+		&common.WorkloadName, "deployment", "d", "",
 		"k8s deployment which your developing service exists",
 	)
 	devTerminalCmd.Flags().StringVarP(
-		&serviceType, "controller-type", "t", "deployment",
+		&common.ServiceType, "controller-type", "t", "deployment",
 		"kind of k8s controller,such as deployment,statefulSet",
 	)
 	devTerminalCmd.Flags().StringVarP(&container, "container", "c", "", "container to enter")
@@ -45,10 +47,10 @@ var devTerminalCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		applicationName := args[0]
-		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
+		common.InitAppAndCheckIfSvcExist(applicationName, common.WorkloadName, common.ServiceType)
 
 		if pod == "" {
-			podList, err := nocalhostSvc.GetPodList()
+			podList, err := common.NocalhostSvc.GetPodList()
 			must(err)
 			var runningPod = make([]v1.Pod, 0, 1)
 
@@ -70,6 +72,6 @@ var devTerminalCmd = &cobra.Command{
 			}
 			pod = runningPod[0].Name
 		}
-		must(nocalhostSvc.EnterPodTerminal(pod, container, shell))
+		must(common.NocalhostSvc.EnterPodTerminal(pod, container, shell, ""))
 	},
 }

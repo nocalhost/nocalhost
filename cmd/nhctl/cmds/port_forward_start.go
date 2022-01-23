@@ -8,6 +8,7 @@ package cmds
 import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
@@ -17,7 +18,7 @@ var portForwardOptions = &app.PortForwardOptions{}
 
 func init() {
 	portForwardStartCmd.Flags().StringVarP(
-		&deployment, "deployment", "d", "", "k8s deployment which you want to forward to",
+		&common.WorkloadName, "deployment", "d", "", "k8s deployment which you want to forward to",
 	)
 	portForwardStartCmd.Flags().StringSliceVarP(
 		&portForwardOptions.DevPort, "dev-port", "p", []string{},
@@ -38,7 +39,7 @@ func init() {
 		"which container of pod to run command",
 	)
 	portForwardStartCmd.Flags().StringVarP(
-		&serviceType, "type", "t", "deployment",
+		&common.ServiceType, "type", "t", "deployment",
 		"specify service type",
 	)
 	portForwardStartCmd.Flags().StringVarP(
@@ -65,12 +66,12 @@ var portForwardStartCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 
 		applicationName := args[0]
-		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
+		common.InitAppAndCheckIfSvcExist(applicationName, common.WorkloadName, common.ServiceType)
 
 		log.Info("Starting port-forwarding")
 
 		// find deployment pods
-		podName, err := nocalhostSvc.GetDevModePodName()
+		podName, err := common.NocalhostSvc.GetDevModePodName()
 		if err != nil {
 			// use serviceType get pods name
 			// can not find devContainer, means need port-forward normal service, get pods from command flags
@@ -90,9 +91,9 @@ var portForwardStartCmd = &cobra.Command{
 
 		for index, localPort := range localPorts {
 			if portForwardOptions.Follow {
-				must(nocalhostApp.PortForwardFollow(podName, localPort, remotePorts[index], nil))
+				must(common.NocalhostApp.PortForwardFollow(podName, localPort, remotePorts[index], nil))
 			} else {
-				must(nocalhostSvc.PortForward(podName, localPort, remotePorts[index], ""))
+				must(common.NocalhostSvc.PortForward(podName, localPort, remotePorts[index], ""))
 			}
 		}
 	},

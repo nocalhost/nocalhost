@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_handler/item"
 	"nocalhost/internal/nhctl/model"
@@ -75,18 +76,18 @@ nhctl get service serviceName [-n namespace] --kubeconfig=kubeconfigfile
 		}
 		if appName != "" {
 			go func() {
-				if err := initAppMutate(appName); err != nil {
-					log.Logf("error while init app: %s on namespace: %s, error: %v", appName, nameSpace, err)
+				if err := common.InitAppMutate(appName); err != nil {
+					log.Logf("error while init app: %s on namespace: %s, error: %v", appName, common.NameSpace, err)
 				}
 			}()
 		}
-		if kubeConfig == "" {
-			kubeConfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
+		if common.KubeConfig == "" {
+			common.KubeConfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
 		}
-		if abs, err := filepath.Abs(kubeConfig); err == nil {
-			kubeConfig = abs
+		if abs, err := filepath.Abs(common.KubeConfig); err == nil {
+			common.KubeConfig = abs
 		}
-		if _, err := ioutil.ReadFile(kubeConfig); err != nil {
+		if _, err := ioutil.ReadFile(common.KubeConfig); err != nil {
 			log.FatalE(err, "")
 		}
 		cli, err := daemon_client.GetDaemonClient(utils.IsSudoUser())
@@ -94,7 +95,7 @@ nhctl get service serviceName [-n namespace] --kubeconfig=kubeconfigfile
 			log.FatalE(err, "")
 		}
 		data, err := cli.SendGetResourceInfoCommand(
-			kubeConfig, nameSpace, appName, resourceType, resourceName, label, false,
+			common.KubeConfig, common.NameSpace, appName, resourceType, resourceName, label, false,
 		)
 		if err != nil {
 			log.Error(err)

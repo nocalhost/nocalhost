@@ -9,15 +9,16 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/pkg/nhctl/log"
 )
 
 var configAction string
 
 func init() {
-	ideConfigCmd.Flags().StringVarP(&deployment, "deployment", "d", "",
+	ideConfigCmd.Flags().StringVarP(&common.WorkloadName, "deployment", "d", "",
 		"k8s deployment your developing service exists")
-	ideConfigCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "deployment",
+	ideConfigCmd.Flags().StringVarP(&common.ServiceType, "controller-type", "t", "deployment",
 		"kind of k8s controller,such as deployment,statefulSet")
 	ideConfigCmd.Flags().StringVarP(&configAction, "action", "a", "",
 		"action applied in nocalhost config, such as check")
@@ -37,8 +38,8 @@ var ideConfigCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		if configAction == "check" {
 			applicationName := args[0]
-			initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
-			c := nocalhostSvc.Config()
+			common.InitAppAndCheckIfSvcExist(applicationName, common.WorkloadName, common.ServiceType)
+			c := common.NocalhostSvc.Config()
 			for _, containerConfig := range c.ContainerConfigs {
 				if containerConfig.Dev != nil && containerConfig.Dev.Image != "" {
 					fmt.Print("true")

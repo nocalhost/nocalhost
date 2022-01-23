@@ -8,6 +8,7 @@ package clientgoutils
 import (
 	"context"
 	"fmt"
+	"github.com/fatih/color"
 	dockerterm "github.com/moby/term"
 	"github.com/nocalhost/remotecommand"
 	"github.com/pkg/errors"
@@ -22,40 +23,61 @@ import (
 	"k8s.io/client-go/util/exec"
 	"k8s.io/kubectl/pkg/util/term"
 	"net/url"
-	"nocalhost/pkg/nhctl/log"
 	"os"
+	"reflect"
+	"runtime"
+	"strings"
 	"time"
 )
 
-func (c *ClientGoUtils) ExecShell(podName string, containerName string, shell string) error {
-	t := term.TTY{Raw: true}
+func (c *ClientGoUtils) ExecShell(podName string, containerName string, shell, banner string) error {
+	t := term.TTY{Raw: true, Out: os.Stdout}
 	t.MonitorSize(t.GetSize())
-	// remove log eof
-	k8sruntime.ErrorHandlers = k8sruntime.ErrorHandlers[1:]
+
+	if banner != "" {
+		cc := color.New(color.BgGreen).Add(color.FgBlack).Add(color.Bold)
+		t.Out.Write([]byte(cc.Sprintln(banner)))
+	}
+
+	for i := 0; i < len(k8sruntime.ErrorHandlers); i++ {
+		fn := runtime.FuncForPC(reflect.ValueOf(k8sruntime.ErrorHandlers[i]).Pointer()).Name()
+		if strings.Contains(fn, "logError") {
+			k8sruntime.ErrorHandlers = append(k8sruntime.ErrorHandlers[:i], k8sruntime.ErrorHandlers[i+1:]...)
+		}
+	}
+
 	first := true
+	errChan := make(chan error, 0)
 	go func() {
+		var err error
+		defer func() {
+			errChan <- err
+		}()
 		for {
 			cmd := shell
 			if first {
-				cmd = fmt.Sprintf("clear; %s", shell)
+				cmd = fmt.Sprintf(`%s`, shell)
 				first = false
 			}
-			err := c.Exec(podName, containerName, []string{"sh", "-c", cmd})
+			err = c.Exec(podName, containerName, []string{"sh", "-c", cmd})
 			if err == nil {
-				os.Exit(0)
+				return
 			}
 			if e, ok := err.(exec.CodeExitError); ok && e.Code == 0 {
-				os.Exit(0)
+				//os.Exit(0)
+				return
 			}
 			time.Sleep(time.Second * 1)
 			_, err = c.ClientSet.CoreV1().Pods(c.namespace).Get(context.Background(), podName, metav1.GetOptions{})
 			if k8serrors.IsNotFound(err) {
-				log.Fatal(err)
+				return
 			}
 		}
 	}()
 
-	return t.Safe(func() error { select {} })
+	return t.Safe(func() error {
+		return <-errChan
+	})
 }
 
 func (c *ClientGoUtils) Exec(podName string, containerName string, command []string) error {
@@ -136,13 +158,12 @@ func Execute(
 	if err != nil {
 		return err
 	}
-	return spdyExecutor.Stream(
-		remotecommand.StreamOptions{
-			Stdin:             stdin,
-			Stdout:            stdout,
-			Stderr:            stderr,
-			Tty:               tty,
-			TerminalSizeQueue: terminalSizeQueue,
-		},
-	)
+	ops := remotecommand.StreamOptions{
+		Stdin:             stdin,
+		Stdout:            stdout,
+		Stderr:            stderr,
+		Tty:               tty,
+		TerminalSizeQueue: terminalSizeQueue,
+	}
+	return spdyExecutor.Stream(ops)
 }

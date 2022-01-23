@@ -442,14 +442,14 @@ func waitForJob(obj runtime.Object, name string) (bool, error) {
 
 	for _, c := range o.Status.Conditions {
 		if c.Type == batchv1.JobComplete && c.Status == "True" {
-			fmt.Printf("Job %s completed\n", name)
+			log.Infof("Job %s completed", name)
 			return true, nil
 		} else if c.Type == batchv1.JobFailed && c.Status == "True" {
-			fmt.Printf("Job %s failed\n", name)
+			log.Infof("Job %s failed", name)
 			return true, errors.Errorf("job failed: %s", c.Reason)
 		}
 	}
-	fmt.Printf("Job %s running\n", name)
+	log.Infof("Job %s running", name)
 
 	return false, nil
 }
