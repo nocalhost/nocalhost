@@ -46,8 +46,8 @@ var GroupToTypeMap = []struct {
 	{
 		K: "Storages",
 		V: []string{
-			"PersistentVolume.v1",
-			"PersistentVolumeClaim.v1",
+			"PersistentVolume.v1.",
+			"PersistentVolumeClaim.v1.",
 			"StorageClass.v1.storage.k8s.io",
 		},
 	},
