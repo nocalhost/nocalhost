@@ -113,7 +113,11 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 			logger.Infof("disconnecting from old namespace...\n")
 			if r, err := client.SendSudoVPNOperateCommand(
 				path, connectInfo.namespace, command.DisConnect, cmd.Resource); err == nil {
-				transStreamToWriterWithoutExit(writer, r)
+				if ok := transStreamToWriter(writer, r); !ok {
+					return fmt.Errorf("failed to disconnect from old namespace: %s", connectInfo.namespace)
+				}
+			} else {
+				return fmt.Errorf("failed to send disconnect request to sudo daemon")
 			}
 
 			// let informer notify daemon to take effect
@@ -131,7 +135,11 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 		logger.Infof("connecting to new namespace...\n")
 		if r, err := client.SendSudoVPNOperateCommand(
 			cmd.KubeConfig, cmd.Namespace, command.Connect, cmd.Resource); err == nil {
-			transStreamToWriterWithoutExit(writer, r)
+			if ok := transStreamToWriter(writer, r); !ok {
+				return fmt.Errorf("failed to connect to namespace: %s", cmd.Namespace)
+			}
+		} else {
+			return err
 		}
 		logger.Infof("connected to new namespace\n")
 		// reverse resource if needed
@@ -141,28 +149,35 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 				r.AddRecord(record)
 			})
 			if err = connect.DoReverse(logCtx); err != nil {
-				return
+				logger.Infof("reverse resource: %s occours error, err: %v\n", cmd.Resource, err)
 			} else {
 				logger.Infof("reverse resource: %s successfully\n", cmd.Resource)
 			}
 		}
 		return
 	case command.Reconnect:
-		client, err := daemon_client.GetDaemonClient(true)
+		var client *daemon_client.DaemonClient
+		client, err = daemon_client.GetDaemonClient(true)
 		if err != nil {
-			return err
+			return
+		}
+		if err = UpdateConnect(connect.GetClientSet(), cmd.Namespace, func(list sets.String, address string) {
+			list.Insert(address)
+		}); err != nil {
+			return
+		}
+		var r io.ReadCloser
+		//err = client.SendSudoVPNOperateCommand(cmd.KubeConfig, cmd.Namespace, command.DisConnect, cmd.Resource)
+		r, err = client.SendSudoVPNOperateCommand(cmd.KubeConfig, cmd.Namespace, command.Connect, cmd.Resource)
+		if err == nil {
+			if ok := transStreamToWriter(writer, r); !ok {
+				err = fmt.Errorf("failed to reconnect to namespace: %s", cmd.Namespace)
+			}
 		}
 		if len(cmd.Resource) != 0 {
 			return connect.DoReverse(context.TODO())
 		}
-		//err = client.SendSudoVPNOperateCommand(cmd.KubeConfig, cmd.Namespace, command.DisConnect, cmd.Resource)
-		r, err := client.SendSudoVPNOperateCommand(cmd.KubeConfig, cmd.Namespace, command.Connect, cmd.Resource)
-		if err != nil {
-			return err
-		} else {
-			transStreamToWriter(writer, r)
-			return nil
-		}
+		return
 	case command.DisConnect:
 		defer writer.Close()
 		if len(cmd.Resource) != 0 {
@@ -194,20 +209,22 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 					_ = UpdateConnect(connect.GetClientSet(), cmd.Namespace, func(list sets.String, address string) {
 						list.Delete(address)
 					})
-					logger.Infof("have no reverse resource, disconnectting from namespace: %s ...\n", cmd.Namespace)
+					logger.Infof("have no reverse resource, disconnecting from namespace: %s...\n", cmd.Namespace)
 					client, err := daemon_client.GetDaemonClient(true)
 					if err != nil {
 						return err
 					}
 					if r, err := client.SendSudoVPNOperateCommand(
 						cmd.KubeConfig, cmd.Namespace, command.DisConnect, cmd.Resource); err == nil {
-						transStreamToWriter(writer, r)
+						if ok = transStreamToWriter(writer, r); !ok {
+							return fmt.Errorf("failed to disconnect from namespace: %s", cmd.Namespace)
+						}
 					}
 				}
 			}
 			return
 		} else {
-			logger.Infof("disconnectting from namespace: %s\n", cmd.Namespace)
+			logger.Infof("disconnecting from namespace: %s\n", cmd.Namespace)
 			_ = UpdateConnect(connect.GetClientSet(), cmd.Namespace, func(list sets.String, address string) {
 				list.Delete(address)
 			})
@@ -245,7 +262,9 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 			}
 			if r, err := client.SendSudoVPNOperateCommand(
 				cmd.KubeConfig, cmd.Namespace, command.DisConnect, cmd.Resource); err == nil {
-				transStreamToWriter(writer, r)
+				if ok := transStreamToWriter(writer, r); !ok {
+					return fmt.Errorf("failed to disconnect from namespace: %s", cmd.Namespace)
+				}
 			}
 			return
 		}
@@ -298,44 +317,27 @@ func init() {
 	util.InitLogger(util.Debug)
 }
 
-func transStreamToWriter(writer io.Writer, r io.ReadCloser) {
+// true: command execute no error, false: command occur error
+func transStreamToWriter(writer io.Writer, r io.ReadCloser) bool {
 	if r == nil {
-		return
+		return false
 	}
-	defer r.Close()
+	defer func() { _ = r.Close() }()
 	reader := bufio.NewReader(r)
 	for {
 		line, _, err := reader.ReadLine()
 		if err != nil {
-			return
-		}
-		if len(line) != 0 {
-			writer.Write(line)
-			writer.Write([]byte("\n"))
-			if strings.Contains(string(line), util.EndSignOK) || strings.Contains(string(line), util.EndSignFailed) {
-				return
+			if errors.Is(io.EOF, err) {
+				return true
 			}
-		}
-	}
-}
-
-func transStreamToWriterWithoutExit(writer io.Writer, r io.ReadCloser) {
-	if r == nil {
-		return
-	}
-	defer r.Close()
-	reader := bufio.NewReader(r)
-	for {
-		line, _, err := reader.ReadLine()
-		if err != nil {
-			return
+			return false
 		}
 		if len(line) != 0 {
 			if strings.Contains(string(line), util.EndSignOK) || strings.Contains(string(line), util.EndSignFailed) {
-				return
+				return strings.Contains(string(line), util.EndSignOK)
 			}
-			writer.Write(line)
-			writer.Write([]byte("\n"))
+			_, _ = writer.Write(line)
+			_, _ = writer.Write([]byte("\n"))
 		}
 	}
 }

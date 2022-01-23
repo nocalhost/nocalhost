@@ -98,7 +98,7 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser)
 		defer lock.Unlock()
 		if connected == nil {
 			logger.Infoln("already closed vpn")
-			logger.Infoln(util.EndSignFailed)
+			logger.Infoln(util.EndSignOK)
 			return nil
 		}
 		// todo how to check it

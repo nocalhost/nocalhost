@@ -12,14 +12,11 @@ import (
 	errors2 "github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
-	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	watchtools "k8s.io/client-go/tools/watch"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"net"
 	"nocalhost/internal/nhctl/vpn/dns"
@@ -212,22 +209,13 @@ func (c *ConnectOptions) DoConnect(ctx context.Context) (chan error, error) {
 }
 
 func (c *ConnectOptions) DoReverse(ctx context.Context) error {
-	timeout, cancelFunc := context.WithTimeout(ctx, 5*time.Minute)
-	defer cancelFunc()
-	w, err := c.clientset.CoreV1().Pods(c.Namespace).Watch(timeout, metav1.SingleObject(metav1.ObjectMeta{Name: util.TrafficManager}))
+	pod, err := c.clientset.CoreV1().Pods(c.Namespace).Get(ctx, util.TrafficManager, metav1.GetOptions{})
 	if err != nil {
+		return errors.New("can not found router pod")
+	}
+	if len(pod.Status.PodIP) == 0 {
 		return errors.New("can not found router ip while reverse resource")
 	}
-	event, err := watchtools.UntilWithoutRetry(timeout, w, func(event watch.Event) (bool, error) {
-		if p, ok := event.Object.(*v1.Pod); ok && len(p.Status.PodIP) != 0 {
-			return true, nil
-		}
-		return false, nil
-	})
-	if err != nil {
-		return err
-	}
-	pod, _ := event.Object.(*v1.Pod)
 	c.trafficManagerIP = pod.Status.PodIP
 	return c.createRemoteInboundPod()
 }
