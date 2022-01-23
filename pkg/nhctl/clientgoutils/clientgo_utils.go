@@ -568,3 +568,13 @@ out:
 	log.Infof("delete pod: %s successfully", podName)
 	return nil
 }
+
+// GetControllerOf returns a pointer to the controllerRef if controllee has a controller
+func GetControllerOfNoCopy(refs []metav1.OwnerReference) *metav1.OwnerReference {
+	for i := range refs {
+		if refs[i].Controller != nil && *refs[i].Controller {
+			return &refs[i]
+		}
+	}
+	return nil
+}

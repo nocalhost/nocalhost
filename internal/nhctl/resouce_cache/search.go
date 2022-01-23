@@ -59,6 +59,7 @@ type Searcher struct {
 	stopChan               chan struct{}
 	// last used this searcher, for release informer resource
 	lastUsedTime time.Time
+	client       *clientgoutils.ClientGoUtils
 }
 
 func (s *Searcher) GetSupportSchema() *sync.Map {
@@ -454,6 +455,7 @@ func initSearcher(kubeconfigBytes []byte, namespace string, clientUtils *clientg
 		supportSchemaWithAlias: supportedSchema,
 		SupportSchemaList:      restMappingList,
 		stopChan:               stopCRDChannel,
+		client:                 clientUtils,
 	}
 	return newSearcher, nil
 }
@@ -488,10 +490,46 @@ func (s *Searcher) GetResourceInfo(resourceType string) (GvkGvrWithAlias, error)
 // e's annotation appName must in appNameRange, otherwise app name is not available
 // Get app name from annotation
 func getAppName(e interface{}) string {
+	appName := getAppNameOrigin(e)
+	if appName == "" {
+		return _const.DefaultNocalhostApplication
+	}
+	return appName
+}
+
+func getOwnRefInfo(e interface{}) (string, *schema.GroupVersionKind) {
 	object := e.(metav1.Object)
+	ownerRefs := object.GetOwnerReferences()
+	if len(ownerRefs) == 0 {
+		return "", nil
+	}
+
+	ownerRef := clientgoutils.GetControllerOfNoCopy(ownerRefs)
+	if ownerRef == nil {
+		return "", nil
+	}
+
+	gv, err := schema.ParseGroupVersion(ownerRef.APIVersion)
+	if err != nil {
+		return "", nil
+	}
+
+	groupVersionKind := gv.WithKind(ownerRef.Kind)
+
+	// if owner ref and ref is not from same namespace
+	// ignore it
+	return nsResource(object.GetNamespace(), ownerRef.Name), &groupVersionKind
+}
+
+func getAppNameOrigin(e interface{}) string {
+	object, ok := e.(metav1.Object)
+	if !ok {
+		return ""
+	}
+
 	annotations := object.GetAnnotations()
 	if object.GetDeletionTimestamp() != nil || annotations == nil {
-		return _const.DefaultNocalhostApplication
+		return ""
 	}
 	if len(annotations[_const.NocalhostApplicationName]) != 0 {
 		return annotations[_const.NocalhostApplicationName]
@@ -499,7 +537,7 @@ func getAppName(e interface{}) string {
 	if len(annotations[_const.HelmReleaseName]) != 0 {
 		return annotations[_const.HelmReleaseName]
 	}
-	return _const.DefaultNocalhostApplication
+	return ""
 }
 
 // vendor/k8s.io/client-go/tools/cache/store.go:99, the reason why using ns/resource to get resource
@@ -616,12 +654,34 @@ func (c *criteria) Query() (data []interface{}, e error) {
 	if err != nil {
 		return nil, err
 	}
-	informer, err := c.search.informerFactory.ForResource(mapping.Gvr)
-	if err != nil {
-		informer = c.search.dynamicInformerFactory.ForResource(mapping.Gvr)
+
+	informerGetter := func(gvr schema.GroupVersionResource) (informers.GenericInformer, error) {
+		informer, err := c.search.informerFactory.ForResource(gvr)
+		if err != nil {
+			informer = c.search.dynamicInformerFactory.ForResource(gvr)
+		}
+		if informer == nil {
+			return nil, errors.New("create informer failed, please check your code")
+		} else {
+			return informer, nil
+		}
 	}
-	if informer == nil {
-		return nil, errors.New("create informer failed, please check your code")
+
+	informerGetterGvKVer := func(gvk schema.GroupVersionKind) (informers.GenericInformer, error) {
+		gvr, nsScope, err := c.search.client.ResourceForGVK(gvk)
+		if !nsScope {
+			return nil, errors.New(fmt.Sprintf("gvk %v is not ns scope resources", gvk))
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		return informerGetter(gvr)
+	}
+
+	informer, err := informerGetter(mapping.Gvr)
+	if err != nil {
+		return nil, err
 	}
 
 	if !mapping.Namespaced {
@@ -641,7 +701,7 @@ func (c *criteria) Query() (data []interface{}, e error) {
 		//SortByNameAsc(iters)
 		result := newFilter(list).
 			//namespace(c.ns).
-			appName(c.appName).
+			appName(c.appName, informerGetterGvKVer).
 			label(c.label)
 		if !c.showHidden {
 			result.notLabel(map[string]string{_const.DevWorkloadIgnored: "true"})
@@ -678,7 +738,7 @@ func (c *criteria) Query() (data []interface{}, e error) {
 	}
 	result := newFilter(iters).
 		namespace(c.ns).
-		appName(c.appName).
+		appName(c.appName, informerGetterGvKVer).
 		label(c.label)
 	if !c.showHidden {
 		result.notLabel(map[string]string{_const.DevWorkloadIgnored: "true"})
@@ -708,18 +768,45 @@ func (n *filter) namespace(namespace string) *filter {
 	return n
 }
 
-func (n *filter) appName(appName string) *filter {
+func (n *filter) appName(appName string, getter func(gvk schema.GroupVersionKind) (informers.GenericInformer, error)) *filter {
 	if len(appName) == 0 {
 		return n
 	}
 	var result []interface{}
 	for _, e := range n.element {
-		if getAppName(e) == appName {
+		if appNameByAnnotationsAndOwnerRef(e, getter) == appName {
 			result = append(result, e)
 		}
 	}
 	n.element = result[0:]
 	return n
+}
+
+func appNameByAnnotationsAndOwnerRef(e interface{},
+	getter func(gvk schema.GroupVersionKind) (informers.GenericInformer, error)) string {
+	app := getAppNameOrigin(e)
+
+	// first try find from current item's annotations
+	// if found, return that app
+	//
+	// else try found from owner refs if exist
+	//
+	// or else return _const.DefaultNocalhostApplication
+
+	if app != "" {
+		return app
+	}
+
+	if key, gvk := getOwnRefInfo(e); gvk != nil {
+		if informer, err := getter(*gvk); err == nil {
+			ownRef, exists, _ := informer.Informer().GetStore().GetByKey(key)
+			if exists {
+				return appNameByAnnotationsAndOwnerRef(ownRef, getter)
+			}
+		}
+	}
+
+	return _const.DefaultNocalhostApplication
 }
 
 // support equals, like: a == b
