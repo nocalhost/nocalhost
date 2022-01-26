@@ -199,7 +199,7 @@ func (p *PortForwardManager) recordPortForward(ns, nid, app string, isPortForwar
 }
 
 func GetTopController(refs []v1.OwnerReference, client *clientgoutils.ClientGoUtils) *v1.OwnerReference {
-	controller := GetControllerOfNoCopy(refs)
+	controller := clientgoutils.GetControllerOfNoCopy(refs)
 	if controller == nil {
 		return nil
 	}
@@ -207,8 +207,8 @@ func GetTopController(refs []v1.OwnerReference, client *clientgoutils.ClientGoUt
 	if gv, err := schema.ParseGroupVersion(controller.APIVersion); err != nil {
 		return controller
 	} else {
-		gvr, e := client.Gvk2Gvr(gv.WithKind(controller.Kind))
-		if e != nil {
+		gvr, nsScope, e := client.ResourceForGVK(gv.WithKind(controller.Kind))
+		if e != nil || !nsScope {
 			return controller
 		}
 
@@ -223,16 +223,6 @@ func GetTopController(refs []v1.OwnerReference, client *clientgoutils.ClientGoUt
 		}
 		return ownerRef
 	}
-}
-
-// GetControllerOf returns a pointer to the controllerRef if controllee has a controller
-func GetControllerOfNoCopy(refs []v1.OwnerReference) *v1.OwnerReference {
-	for i := range refs {
-		if refs[i].Controller != nil && *refs[i].Controller {
-			return &refs[i]
-		}
-	}
-	return nil
 }
 
 // StartPortForwardGoRoutine Start a port-forward
