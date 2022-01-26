@@ -21,6 +21,7 @@ var workDirDeprecated string
 var deAssociate bool
 var info bool
 var migrate bool
+var nid string
 
 func init() {
 	devAssociateCmd.Flags().StringVarP(
@@ -72,9 +73,12 @@ var devAssociateCmd = &cobra.Command{
 		commonFlags.AppName = args[0]
 
 		must(common.Prepare())
+		must(common.InitApp(commonFlags.AppName))
+		must(common.CheckIfSvcExist(commonFlags.SvcName, common.ServiceType))
 
 		svcPack := dev_dir.NewSvcPack(
 			common.NameSpace,
+			common.NocalhostSvc.AppMeta.NamespaceId,
 			commonFlags.AppName,
 			base.SvcType(common.ServiceType),
 			commonFlags.SvcName,
@@ -88,6 +92,7 @@ var devAssociateCmd = &cobra.Command{
 			svcPack.UnAssociatePath()
 			return
 		}
+
 		if workDirDeprecated != "" {
 			workDir = workDirDeprecated
 		}
@@ -95,9 +100,6 @@ var devAssociateCmd = &cobra.Command{
 		if workDir == "" {
 			log.Fatal("--local-sync must specify")
 		}
-
-		common.InitApp(commonFlags.AppName)
-		common.CheckIfSvcExist(commonFlags.SvcName, common.ServiceType)
 
 		if (common.NocalhostSvc.IsInReplaceDevMode() && common.NocalhostSvc.IsProcessor()) || common.NocalhostSvc.IsInDuplicateDevMode() {
 			if !dev_dir.DevPath(workDir).AlreadyAssociate(svcPack) {
@@ -110,6 +112,7 @@ var devAssociateCmd = &cobra.Command{
 				} else {
 					svcPack = dev_dir.NewSvcPack(
 						common.NameSpace,
+						common.NocalhostSvc.AppMeta.NamespaceId,
 						commonFlags.AppName,
 						base.SvcType(common.ServiceType),
 						commonFlags.SvcName,

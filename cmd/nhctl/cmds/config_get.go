@@ -151,6 +151,7 @@ var configGetCmd = &cobra.Command{
 
 				pack := dev_dir.NewSvcPack(
 					common.NocalhostSvc.NameSpace,
+					common.NocalhostSvc.AppMeta.NamespaceId,
 					common.NocalhostSvc.AppName,
 					common.NocalhostSvc.Type,
 					common.NocalhostSvc.Name,

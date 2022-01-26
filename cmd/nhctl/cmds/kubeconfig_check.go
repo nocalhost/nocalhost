@@ -64,6 +64,8 @@ var kubeconfigCheckCmd = &cobra.Command{
 			must(err)
 
 			common.KubeConfig = k8sutils.GetOrGenKubeConfigPath(string(content))
+
+			defer fp.NewFilePath(common.KubeConfig).Remove()
 		}
 
 		checkInfos := make([]CheckInfo, 0)

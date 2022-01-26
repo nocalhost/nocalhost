@@ -353,6 +353,7 @@ func FillingExtField(s *profile2.SvcProfileV2, meta *ApplicationMeta, appName, n
 
 	pack := dev_dir.NewSvcPack(
 		ns,
+		meta.NamespaceId,
 		appName,
 		svcType,
 		s.GetName(),
