@@ -41,6 +41,7 @@ func buildHeader() *tview.Flex {
 		clWidth = size
 	}
 
+	header.SetBackgroundColor(backgroundColor)
 	header.AddItem(clusterInfo(), clWidth, 1, false)
 	header.AddItem(keyInfo(), clWidth, 1, false)
 	return header
@@ -53,17 +54,19 @@ func clusterInfo() tview.Primitive {
 		table.SetCell(row, 0, sectionCell(section))
 		table.SetCell(row, 1, infoCell("nil"))
 	}
+	table.SetBackgroundColor(backgroundColor)
 	return table
 }
 
 func keyInfo() tview.Primitive {
 	table := tview.NewTable()
 	table.SetBorderPadding(0, 0, 1, 0)
-	keyList := []string{"Esc", "Left", "Ctrl+C"}
-	descList := []string{"Back to main", "Back to previous", "Exit"}
+	keyList := []string{"Esc", "Tab", "Ctrl+C"}
+	descList := []string{"Back or Cancel", "Change focus", "Exit"}
 	for row, section := range keyList {
 		table.SetCell(row, 0, keyCell(section))
 		table.SetCell(row, 1, infoCell(descList[row]))
 	}
+	table.SetBackgroundColor(backgroundColor)
 	return table
 }

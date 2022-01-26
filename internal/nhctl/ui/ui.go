@@ -65,7 +65,7 @@ func RunTviewApplication() {
 	for _, str := range strs {
 		var found bool
 		for _, node := range r.GetChildren() {
-			if node.GetText() == str {
+			if GetText(node) == str {
 				app.treeInBody.SetCurrentNode(node)
 				r = node
 				go func() {
@@ -74,6 +74,7 @@ func RunTviewApplication() {
 				for i := 0; i < 200; i++ {
 					time.Sleep(100 * time.Millisecond)
 					if len(r.GetChildren()) > 0 {
+						ExpandText(node)
 						node.SetExpanded(true)
 						break
 					}

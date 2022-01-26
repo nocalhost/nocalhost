@@ -21,6 +21,9 @@ var (
 	rightBodyProportion = 3
 	leftBodyProportion  = 1
 	lastPosition        = ""
+
+	expandedPrefix = "v "
+	collapsePrefix = "> "
 )
 
 func updateLastPosition(l string) {
@@ -56,64 +59,84 @@ func getLastPosition() string {
 func (t *TviewApplication) buildTreeBody() {
 	flex := tview.NewFlex()
 	flex.SetDirection(tview.FlexColumn)
+	flex.SetBackgroundColor(backgroundColor)
 
 	tree := tview.NewTreeView()
 	tree.SetBorder(true)
-	root := tview.NewTreeNode(t.clusterInfo.Cluster).SetSelectable(true)
+	root := NewTreeNode(t.clusterInfo.Cluster)
 	tree.SetRoot(root)
 	tree.SetCurrentNode(root)
 
 	nsList, err := t.clusterInfo.k8sClient.ClientSet.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
 	if err != nil {
-		t.showErr(err.Error())
+		t.showErr(err, nil)
 		return
 	}
 
 	for _, item := range nsList.Items {
-		nsNode := tview.NewTreeNode(item.Name).SetSelectable(true)
+		nsNode := NewTreeNode(collapsePrefix + item.Name)
 		nsNode.SetSelectedFunc(func() {
-			lastPosition = nsNode.GetText()
+			lastPosition = GetText(nsNode)
 			if nsNode.IsExpanded() && len(nsNode.GetChildren()) > 0 {
+				CollapseText(nsNode)
 				nsNode.Collapse()
 				return
 			}
-			metas, err := nocalhost.GetApplicationMetas(nsNode.GetText(), t.clusterInfo.KubeConfig)
+			ExpandText(nsNode)
+			metas, err := nocalhost.GetApplicationMetas(GetText(nsNode), t.clusterInfo.KubeConfig)
 			if err != nil {
-				t.showErr(err.Error())
+				t.showErr(err, nil)
 				return
 			}
 
 			nsNode.ClearChildren()
 			for _, meta := range metas {
-				appNode := tview.NewTreeNode(meta.Application)
+				appNode := NewTreeNode(meta.Application)
+				CollapseText(appNode)
 				gs := []string{"Workloads", "CustomResources", "Network", "Configuration", "Storage"}
 				for _, g := range gs {
-					groupNode := tview.NewTreeNode(g)
+					groupNode := NewTreeNode(g)
+					CollapseText(groupNode)
 					if g == "Workloads" {
 						wls := []string{"Deployments", "DaemonSets", "StatefulSets", "Jobs", "CronJobs", "Pods"}
 						for _, wl := range wls {
-							wlNode := tview.NewTreeNode(wl)
+							wlNode := NewTreeNode(wl)
 							m := meta
 							wlNode.SetSelectedFunc(func() {
-								lastPosition = strings.Join([]string{nsNode.GetText(), appNode.GetText(), groupNode.GetText(), wlNode.GetText()}, "/")
-								table := t.buildSelectWorkloadList(m, nsNode.GetText(), wlNode.GetText())
-								flex.RemoveItemAtIndex(1)
-								flex.AddItem(table, 0, 3, true)
-								t.app.SetFocus(table)
+								lastPosition = strings.Join([]string{GetText(nsNode), GetText(appNode), GetText(groupNode), GetText(wlNode)}, "/")
+
+								go func() {
+									table := t.buildSelectWorkloadList(m, GetText(nsNode), GetText(wlNode))
+									flex.RemoveItemAtIndex(1)
+									flex.AddItem(table, 0, 3, true)
+									t.app.QueueUpdateDraw(func() {
+										t.app.SetFocus(table)
+									})
+								}()
 							})
 							groupNode.AddChild(wlNode)
 						}
 					}
 					groupNode.SetExpanded(false)
 					groupNode.SetSelectedFunc(func() {
-						lastPosition = strings.Join([]string{nsNode.GetText(), appNode.GetText(), groupNode.GetText()}, "/")
+						lastPosition = strings.Join([]string{GetText(nsNode), GetText(appNode), GetText(groupNode)}, "/")
+						if groupNode.IsExpanded() {
+							CollapseText(groupNode)
+						} else {
+							ExpandText(groupNode)
+						}
 						groupNode.SetExpanded(!groupNode.IsExpanded())
 					})
 					appNode.AddChild(groupNode)
 				}
 				appNode.SetExpanded(false)
 				appNode.SetSelectedFunc(func() {
-					lastPosition = strings.Join([]string{nsNode.GetText(), appNode.GetText()}, "/")
+					lastPosition = strings.Join([]string{GetText(nsNode), GetText(appNode)}, "/")
+					if appNode.IsExpanded() {
+						CollapseText(appNode)
+					} else {
+						ExpandText(appNode)
+					}
 					appNode.SetExpanded(!appNode.IsExpanded())
 				})
 				nsNode.AddChild(appNode)
@@ -122,12 +145,12 @@ func (t *TviewApplication) buildTreeBody() {
 		})
 		root.AddChild(nsNode)
 	}
-	tree.SetBorderFocusColor(tcell.ColorPaleGreen)
+	tree.SetBorderFocusColor(focusBorderColor)
 
-	table := NewBorderedTable("")
+	table := NewRowSelectableTable("")
 	flex.AddItem(tree, 0, leftBodyProportion, true)
 	flex.AddItem(table, 0, rightBodyProportion, false)
-	flex.SetBorder(true)
+	//flex.SetBorder(true)
 
 	t.app.SetFocus(tree)
 	t.treeInBody = tree
@@ -135,16 +158,44 @@ func (t *TviewApplication) buildTreeBody() {
 	t.body = flex
 	t.body.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
-		case tcell.KeyLeft:
-			t.app.SetFocus(t.treeInBody)
-			return nil
-		case tcell.KeyRight:
-			item := t.body.ItemAt(1)
-			if item != nil {
-				t.app.SetFocus(item)
+		case tcell.KeyTab:
+			l := LenOfFlex(t.body)
+			for i := 0; i < l; i++ {
+				it := t.body.ItemAt(i)
+				if it.HasFocus() {
+					t.ShowInfo("Changing focus...")
+					t.app.SetFocus(t.body.ItemAt((i + 1) % l))
+					break
+				}
 			}
-			return nil
 		}
 		return event
+	})
+	tree.SetBackgroundColor(backgroundColor)
+}
+
+func ExpandText(node *tview.TreeNode) {
+	node.SetText(expandedPrefix + GetText(node))
+}
+
+func CollapseText(node *tview.TreeNode) {
+	node.SetText(collapsePrefix + GetText(node))
+}
+
+func GetText(node *tview.TreeNode) string {
+	return strings.TrimPrefix(strings.TrimPrefix(node.GetText(), collapsePrefix), expandedPrefix)
+}
+
+func (t *TviewApplication) UpdateTreeColor(color tcell.Color) {
+	if t.treeInBody == nil {
+		return
+	}
+	root := t.treeInBody.GetRoot()
+	root.Walk(func(node, parent *tview.TreeNode) bool {
+		node.SetColor(color)
+		if parent != nil {
+			parent.SetColor(color)
+		}
+		return true
 	})
 }

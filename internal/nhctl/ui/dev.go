@@ -7,6 +7,7 @@ package ui
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/derailed/tview"
 	"github.com/gdamore/tcell/v2"
@@ -25,17 +26,20 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func (t *TviewApplication) buildSelectWorkloadList(appMeta *appmeta.ApplicationMeta, ns, wl string) *EnhancedTable {
-	workloadListTable := t.NewBorderedTable(" Select a workload")
+	workloadListTable := t.NewBorderedTable("")
 
 	workloadListTable.SetFocusFunc(func() {
 		cli, err := daemon_client.GetDaemonClient(utils.IsSudoUser())
 		if err != nil {
-			t.showErr(err.Error())
+			t.showErr(err, nil)
+			return
 		}
 
 		data, err := cli.SendGetResourceInfoCommand(
@@ -44,12 +48,14 @@ func (t *TviewApplication) buildSelectWorkloadList(appMeta *appmeta.ApplicationM
 
 		bytes, err := json.Marshal(data)
 		if err != nil {
-			t.showErr(err.Error())
+			t.showErr(err, nil)
+			return
 		}
 
 		var items []item.Item
 		if err = json.Unmarshal(bytes, &items); err != nil {
-			t.showErr(err.Error())
+			t.showErr(err, nil)
+			return
 		}
 
 		for col, section := range []string{" Name", "Kind", "DevMode", "DevStatus", "Syncing", "SyncGUIPort", "PortForward"} {
@@ -106,11 +112,11 @@ func (t *TviewApplication) buildSelectWorkloadList(appMeta *appmeta.ApplicationM
 			common2.NameSpace = ns
 			err = common2.InitAppAndCheckIfSvcExist(appMeta.Application, common2.WorkloadName, common2.ServiceType)
 			if err != nil {
-				t.showErr(err.Error())
+				t.showErr(err, nil)
 				return
 			}
 
-			opsTable := NewBorderedTable("Menu")
+			opsTable := NewRowSelectableTable("")
 			options := make([]string, 0)
 
 			if common2.NocalhostSvc.IsInDevMode() {
@@ -124,7 +130,7 @@ func (t *TviewApplication) buildSelectWorkloadList(appMeta *appmeta.ApplicationM
 
 			options = append(options, portForwardOpt, viewDevConfigOpt, " Reset Pod", viewLogsOpt, openTerminalOpt, syncLogsOpt, openGuiOpt)
 			for i, option := range options {
-				opsTable.SetCellSimple(i, 0, option)
+				opsTable.SetCell(i, 0, tview.NewTableCell(option).SetTextColor(tcell.Color(4294967449)))
 			}
 
 			x, y, _ := workloadNameCell.GetLastPosition()
@@ -153,7 +159,7 @@ func (t *TviewApplication) buildSelectWorkloadList(appMeta *appmeta.ApplicationM
 						dev.DevStartOps.Container = trimSpaceStr(containerTable.GetCell(row, column).Text)
 						svcConfig := common2.NocalhostSvc.Config()
 						if svcConfig == nil {
-							t.showErr("Svc config is nil")
+							t.showErr(errors.New("svc config is nil"), nil)
 							return
 						}
 						config := svcConfig.GetContainerDevConfigOrDefault(dev.DevStartOps.Container)
@@ -166,7 +172,7 @@ func (t *TviewApplication) buildSelectWorkloadList(appMeta *appmeta.ApplicationM
 								config.Image = image
 								err = common2.NocalhostSvc.UpdateConfig(*svcConfig)
 								if err != nil {
-									t.showErr(err.Error())
+									t.showErr(err, nil)
 									return
 								}
 								configured <- true
@@ -194,7 +200,7 @@ func (t *TviewApplication) buildSelectWorkloadList(appMeta *appmeta.ApplicationM
 
 								podList, err := common2.NocalhostSvc.GetPodList()
 								if err != nil {
-									t.showErr(err.Error())
+									t.showErr(err, func() {})
 									return
 								}
 								var runningPod = make([]v1.Pod, 0, 1)
@@ -204,15 +210,20 @@ func (t *TviewApplication) buildSelectWorkloadList(appMeta *appmeta.ApplicationM
 									}
 								}
 								if len(runningPod) != 1 {
-									t.showErr(fmt.Sprintf("Pod num is %d (not 1), please specify one", len(runningPod)))
+									t.showErr(
+										errors.New(fmt.Sprintf("Pod num is %d (not 1), please specify one", len(runningPod))),
+										func() {
+										})
+									return
 								}
 								t.app.Suspend(func() {
 									fmt.Print("\033[H\033[2J") // clear screen
 									common2.NocalhostSvc.EnterPodTerminal(runningPod[0].Name, "nocalhost-dev", "bash", _const.DevModeTerminalBanner)
+									t.QueueUpdateDraw(func() {
+										t.app.SetFocus(t.body.ItemAt(1))
+									})
 								})
-								t.app.QueueUpdateDraw(func() {
-									t.app.SetFocus(workloadListTable)
-								})
+
 							}()
 						}()
 
@@ -225,32 +236,133 @@ func (t *TviewApplication) buildSelectWorkloadList(appMeta *appmeta.ApplicationM
 						RecoverOut()
 					}()
 				case portForwardOpt:
-					i := tview.NewInputField()
-					i.SetBorderPadding(0, 0, 1, 1)
+					inputField := tview.NewInputField()
+					inputField.SetBorderPadding(0, 0, 0, 0)
+					inputField.SetBorder(true)
+					inputField.SetBorderFocusColor(focusBorderColor)
+					inputField.SetBackgroundColor(backgroundColor)
+					inputField.SetFieldBackgroundColor(backgroundColor)
+					inputField.SetPlaceholderTextColor(tcell.ColorLime)
+					inputField.SetPlaceholder("Input a PortForward(eg: 1234:1234)")
+
+					//inputField
 					f := tview.NewFlex()
+					f.SetBackgroundColor(backgroundColor)
+					f.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+						switch event.Key() {
+						case tcell.KeyEscape:
+							t.pages.HidePage("pfPage")
+							t.app.SetFocus(workloadListTable)
+						case tcell.KeyTab:
+							if f.ItemAt(1).HasFocus() {
+								t.app.SetFocus(f.ItemAt(0))
+							} else {
+								t.app.SetFocus(f.ItemAt(1))
+							}
+						}
+						return event
+					})
 					f.SetDirection(tview.FlexRow)
-					f.AddItem(i, 1, 1, true)
-					f.SetRect(20, 5, 40, 20)
-					//pfListTable := tview.NewTable()
-					pfListTable := NewBorderedTable("")
-					pfListTable.SetCellSimple(0, 0, "39080:9080")
+					f.AddItem(inputField, 3, 1, true)
+					_, _, w, h := t.mainLayout.GetRect()
+					f.SetRect(w/2-25, h/2-10, 50, 20)
+					pfListTable := NewRowSelectableTable("")
+
+					pfListTableHeaders := []string{"Port", "Status", "Pod"}
+					for i, header := range pfListTableHeaders {
+						pfListTable.SetCellSimple(0, i, header)
+						pfListTable.GetCell(0, i).SetSelectable(false).SetMaxWidth(12).SetAlign(tview.AlignCenter)
+					}
+
+					updatePfListFunc := func() {
+						// find port forward
+						pro, err := common2.NocalhostSvc.GetProfile()
+						if err != nil {
+							t.showErr(err, nil)
+							return
+						}
+						pfListTable.Clear()
+						for i, header := range pfListTableHeaders {
+							pfListTable.SetCellSimple(0, i, header)
+							pfListTable.GetCell(0, i).SetSelectable(false).SetMaxWidth(12).SetAlign(tview.AlignCenter)
+						}
+						for i2, forward := range pro.DevPortForwardList {
+							pfListTable.SetCell(i2+1, 0, coloredCell(fmt.Sprintf("%d:%d", forward.LocalPort, forward.RemotePort)))
+							pfListTable.SetCell(i2+1, 1, coloredCell(forward.Status))
+							pfListTable.SetCell(i2+1, 2, coloredCell(forward.PodName))
+						}
+					}
+
+					updatePfListFunc()
+					pfListTable.SetSelectedFunc(func(row, column int) {
+						pf := pfListTable.GetCell(row, 0).Text
+						t.ConfirmationBox(fmt.Sprintf("Do you want to stop PortForward %s?", pf), func() {
+							err := common2.NocalhostSvc.StopPortForwardByPort(pf)
+							if err != nil {
+								t.showErr(err, nil)
+							} else {
+								t.InfoBox(fmt.Sprintf("%s port-forward has been stop", pf), func() {
+									time.Sleep(1 * time.Second)
+									go func() {
+										t.app.QueueUpdateDraw(updatePfListFunc)
+									}()
+								})
+							}
+						}, func() {
+							t.app.SetFocus(pfListTable)
+						})
+					})
+
+					inputField.SetChangedFunc(func(text string) {
+						reg1 := regexp.MustCompile("[^0-9:]")
+						if reg1.MatchString(text) {
+							inputField.SetText(reg1.ReplaceAllLiteralString(text, ""))
+						}
+					})
+					inputField.SetDoneFunc(func(key tcell.Key) {
+						if key == tcell.KeyEnter {
+							pfStr := inputField.GetText()
+							l, r, err := utils.GetPortForwardForString(pfStr)
+							if err != nil {
+								t.showErr(err, nil)
+								return
+							}
+
+							// Select a pods
+							pl, err := common2.NocalhostSvc.GetPodList()
+							if err != nil {
+								t.showErr(err, nil)
+								return
+							}
+							t.buildPodListTable(pl, func(podName string) {
+								err = common2.NocalhostSvc.PortForward(podName, l, r, "")
+								if err != nil {
+									t.showErr(err, nil)
+									return
+								}
+								t.InfoBox(fmt.Sprintf("%s port-forward has been started", pfStr), func() {
+									inputField.SetText("")
+									go func() {
+										time.Sleep(1 * time.Second)
+										t.app.QueueUpdateDraw(updatePfListFunc)
+									}()
+								})
+							})
+						}
+					})
+
 					f.AddItem(pfListTable, 0, 1, true)
 					f.SetBorder(true)
 					t.pages.AddPage("pfPage", f, false, true)
 					t.pages.ShowPage("pfPage")
-					i.Autocomplete()
-					i.SetDoneFunc(func(key tcell.Key) {
-						if key == tcell.KeyEsc {
-							t.pages.HidePage("pfPage")
-						}
-					})
+					t.app.SetFocus(f)
 				case viewDevConfigOpt:
 					writer := t.switchBodyToScrollingView("Dev Config", workloadListTable)
 					go func() {
 						config := common2.NocalhostSvc.Config()
 						bys, err := yaml.Marshal(config)
 						if err != nil {
-							t.showErr(err.Error())
+							t.showErr(err, nil)
 							return
 						}
 						writer.Write(bys)
@@ -259,7 +371,7 @@ func (t *TviewApplication) buildSelectWorkloadList(appMeta *appmeta.ApplicationM
 					go func() {
 						podList, err := common2.NocalhostSvc.GetPodList()
 						if err != nil {
-							t.showErr(err.Error())
+							t.showErr(err, nil)
 							return
 						}
 						var runningPod = make([]v1.Pod, 0, 1)
@@ -269,7 +381,8 @@ func (t *TviewApplication) buildSelectWorkloadList(appMeta *appmeta.ApplicationM
 							}
 						}
 						if len(runningPod) != 1 {
-							t.showErr(fmt.Sprintf("Pod num is %d (not 1), please specify one", len(runningPod)))
+							t.showErr(errors.New(fmt.Sprintf("Pod num is %d (not 1), please specify one", len(runningPod))), nil)
+							return
 						}
 						t.app.Suspend(func() {
 							fmt.Print("\033[H\033[2J") // clear screen
@@ -292,12 +405,12 @@ func (t *TviewApplication) buildSelectWorkloadList(appMeta *appmeta.ApplicationM
 						// pod name?
 						ps, err := common2.NocalhostSvc.GetPodList()
 						if err != nil {
-							t.showErr(err.Error())
+							t.showErr(err, nil)
 							return
 						}
 						// todo: support multi pod
 						if len(ps) != 1 {
-							t.showErr("Pod len is not 1")
+							t.showErr(errors.New("pod len is not 1"), nil)
 							return
 						}
 						go func(podName string) {
@@ -308,25 +421,25 @@ func (t *TviewApplication) buildSelectWorkloadList(appMeta *appmeta.ApplicationM
 				case syncLogsOpt:
 					logPath := filepath.Join(common2.NocalhostSvc.GetSyncDir(), "syncthing.log")
 					if _, err = os.Stat(logPath); err != nil {
-						t.showErr(err.Error())
+						t.showErr(err, nil)
 						return
 					}
 					writer := t.switchBodyToScrollingView(" File Sync logs", workloadListTable)
 					go func() {
 						bys, err := ioutil.ReadFile(logPath)
 						if err != nil {
-							t.showErr(err.Error())
+							t.showErr(err, nil)
 							return
 						}
 						if _, err := writer.Write(bys); err != nil {
-							t.showErr(err.Error())
+							t.showErr(err, nil)
 							return
 						}
 					}()
 				case openGuiOpt:
 					guiPortCell := workloadListTable.GetCell(row, 5)
 					if guiPortCell == nil || guiPortCell.Text == "" || guiPortCell.Text == "0" {
-						t.showErr("File Sync is not running")
+						t.showErr(errors.New("file sync is not running"), nil)
 						return
 					}
 					go func() {
@@ -344,7 +457,7 @@ func (t *TviewApplication) buildSelectWorkloadList(appMeta *appmeta.ApplicationM
 func (t *TviewApplication) ShowContainersTable(x, y, width, height int) *EnhancedTable {
 	containerList, err := common2.NocalhostSvc.GetOriginalContainers()
 	if err != nil {
-		t.showErr(err.Error())
+		t.showErr(err, nil)
 		return nil
 	}
 	containerTable := t.NewBorderedTable("Containers")
@@ -361,11 +474,38 @@ func (t *TviewApplication) ShowContainersTable(x, y, width, height int) *Enhance
 	containerTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEsc {
 			t.pages.HidePage("containers")
-			//t.app.SetFocus(workloadListTable)
 		}
 		return event
 	})
 	return containerTable
+}
+func (t *TviewApplication) getRect() (int, int, int, int) {
+	return t.mainLayout.GetRect()
+}
+
+func (t *TviewApplication) buildPodListTable(podList []v1.Pod, f func(podName string)) {
+	pageName := "PodListPage"
+	tab := NewRowSelectableTable("<Pod>")
+	tab.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyEscape:
+			t.pages.RemovePage(pageName)
+		}
+		return event
+	})
+	for i, pod := range podList {
+		tab.SetCell(i, 0, coloredCell(pod.Name))
+	}
+	_, _, w, h := t.getRect()
+	tab.SetRect(w/2-25, h/2-5, 50, 10)
+	tab.SetSelectedFunc(func(row, column int) {
+		t.pages.RemovePage(pageName)
+		if f != nil {
+			podName := tab.GetCell(row, column).Text
+			f(podName)
+		}
+	})
+	t.pages.AddPage(pageName, tab, false, true)
 }
 
 func (t *TviewApplication) ShowDevImageTable(x, y, width, height int) *EnhancedTable {
