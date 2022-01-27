@@ -2,14 +2,18 @@ package daemon_handler
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"k8s.io/client-go/tools/clientcmd"
+	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/vpn/pkg"
 	"nocalhost/internal/nhctl/vpn/util"
+	"nocalhost/pkg/nhctl/clientgoutils"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -96,4 +100,24 @@ func TestStruct(t *testing.T) {
 	marshal, err := json.Marshal(vpnStatus)
 	fmt.Println(err)
 	fmt.Println(string(marshal))
+}
+
+func TestConnect(t *testing.T) {
+	client, err := daemon_client.GetDaemonClient(true)
+	if err != nil {
+		panic(err)
+	}
+	logger := util.GetLoggerFromContext(context.TODO())
+	utils, _ := clientgoutils.NewClientGoUtils("/Users/naison/.kube/mesh", "naison-test")
+	if err = updateConnectConfigMap(utils, insertFunc); err != nil {
+		panic(err)
+	}
+	logger.Infof("connecting to new namespace...")
+	r, err := client.SendSudoVPNOperateCommand("/Users/naison/.kube/mesh", "naison-test", command.Connect)
+	if err != nil {
+		panic(err)
+	}
+	if ok := transStreamToWriter(r, os.Stdout); !ok {
+		panic(fmt.Errorf("failed to connect to namespace: %s", "naison-test"))
+	}
 }

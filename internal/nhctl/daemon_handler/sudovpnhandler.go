@@ -48,6 +48,7 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser)
 		writer.Close()
 		return err
 	}
+	once := &sync.Once{}
 	switch cmd.Action {
 	case command.Connect:
 		lock.Lock()
@@ -93,6 +94,7 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser)
 					//	close(c)
 					//}
 					options.GetLogger().Infoln(util.EndSignOK)
+					once.Do(func() { _ = writer.Close() })
 					options.SetLogger(util.NewLogger(os.Stdout))
 					// wait for exit
 					if err = <-errChan; err != nil {
@@ -109,6 +111,7 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser)
 		// stop traffic manager
 		lock.Lock()
 		defer lock.Unlock()
+		defer writer.Close()
 		if connected == nil {
 			logger.Infoln("already closed vpn")
 			logger.Infoln(util.EndSignOK)
@@ -124,6 +127,7 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser)
 		logger.Info(util.EndSignOK)
 		return nil
 	default:
+		defer writer.Close()
 		return fmt.Errorf("unsupported operation: %s", string(cmd.Action))
 	}
 }

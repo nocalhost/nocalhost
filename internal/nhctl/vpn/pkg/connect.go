@@ -69,7 +69,7 @@ func (c *ConnectOptions) IsSameKubeconfigAndNamespace(another *ConnectOptions) b
 }
 
 func (c *ConnectOptions) IsEmpty() bool {
-	return c != nil && (len(c.KubeconfigBytes)+len(c.Namespace)) != 0
+	return c == nil || (len(c.KubeconfigBytes)+len(c.Namespace)) == 0
 }
 
 func (c *ConnectOptions) GetClientSet() *kubernetes.Clientset {

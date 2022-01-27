@@ -523,7 +523,9 @@ func communicateEachOther() {
 }
 
 func init() {
-	for f := range funcChan {
-		f()
-	}
+	go func() {
+		for f := range funcChan {
+			f()
+		}
+	}()
 }
