@@ -6,18 +6,15 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/client-go/kubernetes"
+	"io/ioutil"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/vpn/pkg"
 	"nocalhost/internal/nhctl/vpn/remote"
 	"nocalhost/internal/nhctl/vpn/util"
+	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/k8sutils"
-	"nocalhost/pkg/nhctl/log"
 	"strings"
-	"time"
 )
 
 // HandleVPNOperate not sudo daemon, vpn controller
@@ -32,7 +29,7 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 		} else {
 			logger.Infoln(util.EndSignOK)
 		}
-		writer.Close()
+		_ = writer.Close()
 	}()
 	connect := &pkg.ConnectOptions{
 		Ctx:            logCtx,
@@ -41,7 +38,7 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 		Workloads:      []string{cmd.Resource},
 	}
 	if err = connect.InitClient(logCtx); err != nil {
-		logger.Errorln("init client err, please make sure your kubeconfig is available !")
+		logger.Errorln("init client err, please make sure your kubeconfig is available!")
 		return
 	}
 	if err = connect.Prepare(logCtx); err != nil {
@@ -51,11 +48,6 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 	GetOrGenerateConfigMapWatcher(connect.KubeconfigBytes, cmd.Namespace, connect.GetClientSet().CoreV1().RESTClient())
 	switch cmd.Action {
 	case command.Connect:
-		var client *daemon_client.DaemonClient
-		client, err = daemon_client.GetDaemonClient(true)
-		if err != nil {
-			return err
-		}
 		// pre-check if resource already in reversing mode
 		if load, ok := GetReverseInfo().Load(util.GenerateKey(connect.KubeconfigBytes, connect.Namespace)); ok {
 			if mac := load.(*status).getMacByResource(cmd.Resource); len(mac) != 0 {
@@ -70,244 +62,118 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 
 		// change to another cluster or namespace, clean all reverse
 		if !connectInfo.IsEmpty() && !connectInfo.IsSame(connect.KubeconfigBytes, cmd.Namespace) {
-			logger.Infof("you already connect to namespace: %s, switching to namespace: %s...\n",
-				connectInfo.namespace, cmd.Namespace)
-			clientset, err := util.GetClientSetByKubeconfigBytes(connectInfo.kubeconfigBytes)
-			if err != nil {
+			logger.Infof("switching from namespace: %s to namespace: %s...", connectInfo.namespace, cmd.Namespace)
+			path := k8sutils.GetOrGenKubeConfigPath(string(connectInfo.kubeconfigBytes))
+			if err = disconnectedFromNamespace(logCtx, writer, path, connectInfo.namespace); err != nil {
 				return err
 			}
-			path := k8sutils.GetOrGenKubeConfigPath(string(connectInfo.kubeconfigBytes))
-
-			// cleanup all reverse
-			logger.Infof("cleanup all old reverse resources...\n")
-			if value, found := GetReverseInfo().Load(connectInfo.toKey()); found {
-				connectOptions := &pkg.ConnectOptions{
-					Ctx:            logCtx,
-					KubeconfigPath: path,
-					Namespace:      connectInfo.namespace,
-				}
-				if err = connectOptions.InitClient(context.TODO()); err != nil {
-					break
-				}
-				for _, d := range value.(*status).reverse.LoadAndDeleteBelongToMeResources().KeySet() {
-					_ = UpdateReverseConfigMap(clientset, connectInfo.namespace, d,
-						func(r *ReverseTotal, record ReverseRecord) {
-							r.RemoveRecord(record)
-						})
-					connectOptions.Workloads = []string{d}
-					if err = connectOptions.RemoveInboundPod(); err != nil {
-						logger.Errorf("delete reverse resource: %s in namespace: %s, error: %v\n", connectInfo.namespace, d, err)
-					} else {
-						logger.Infof("delete reverse resource: %s in namespace: %s successfully\n", connectInfo.namespace, d)
-					}
-				}
-			}
-
-			// disconnect from old cluster or namespace
-			if err = UpdateConnect(clientset, connectInfo.namespace, func(list sets.String, item string) {
-				list.Delete(item)
-			}); err != nil {
-				logger.Infof("error while remove connection info of namespace: %s\n", connectInfo.namespace)
-			}
-
-			logger.Infof("disconnecting from old namespace...\n")
-			if r, err := client.SendSudoVPNOperateCommand(
-				path, connectInfo.namespace, command.DisConnect, cmd.Resource); err == nil {
-				if ok := transStreamToWriter(writer, r); !ok {
-					return fmt.Errorf("failed to disconnect from old namespace: %s", connectInfo.namespace)
-				}
-			} else {
-				return fmt.Errorf("failed to send disconnect request to sudo daemon")
-			}
-
-			// let informer notify daemon to take effect
-			time.Sleep(time.Second * 2)
-			connectInfo.cleanup()
 		}
+
 		// connect to new cluster or namespace
-		//if connectInfo.IsEmpty() {
-		if err = UpdateConnect(connect.GetClientSet(), cmd.Namespace, func(list sets.String, address string) {
-			list.Insert(address)
-		}); err != nil {
-			return
-		}
-		//}
-		logger.Infof("connecting to new namespace...\n")
-		if r, err := client.SendSudoVPNOperateCommand(
-			cmd.KubeConfig, cmd.Namespace, command.Connect, cmd.Resource); err == nil {
-			if ok := transStreamToWriter(writer, r); !ok {
-				return fmt.Errorf("failed to connect to namespace: %s", cmd.Namespace)
-			}
-		} else {
+		if err = connectToNamespace(logCtx, writer, cmd.KubeConfig, cmd.Namespace); err != nil {
 			return err
 		}
-		logger.Infof("connected to new namespace\n")
+		logger.Infof("connected to new namespace")
 		// reverse resource if needed
 		if len(cmd.Resource) != 0 {
-			logger.Infof("prepare to reverse resource: %s...\n", cmd.Resource)
-			_ = UpdateReverseConfigMap(connect.GetClientSet(), cmd.Namespace, cmd.Resource, func(r *ReverseTotal, record ReverseRecord) {
-				r.AddRecord(record)
-			})
+			logger.Infof("prepare to reverse resource: %s...", cmd.Resource)
+			_ = updateReverseConfigMap(cmd.KubeConfig, cmd.Namespace, []string{cmd.Resource}, add)
 			if err = connect.DoReverse(logCtx); err != nil {
-				logger.Infof("reverse resource: %s occours error, err: %v\n", cmd.Resource, err)
+				logger.Infof("reverse resource: %s occours error, err: %v", cmd.Resource, err)
 			} else {
-				logger.Infof("reverse resource: %s successfully\n", cmd.Resource)
+				logger.Infof("reverse resource: %s successfully", cmd.Resource)
 			}
 		}
 		return
 	case command.Reconnect:
-		var client *daemon_client.DaemonClient
-		client, err = daemon_client.GetDaemonClient(true)
-		if err != nil {
-			return
+		if err = connectToNamespace(logCtx, writer, cmd.KubeConfig, cmd.Namespace); err != nil {
+			return err
 		}
-		if err = UpdateConnect(connect.GetClientSet(), cmd.Namespace, func(list sets.String, address string) {
-			list.Insert(address)
-		}); err != nil {
-			return
-		}
-		var r io.ReadCloser
-		//err = client.SendSudoVPNOperateCommand(cmd.KubeConfig, cmd.Namespace, command.DisConnect, cmd.Resource)
-		r, err = client.SendSudoVPNOperateCommand(cmd.KubeConfig, cmd.Namespace, command.Connect, cmd.Resource)
-		if err == nil {
-			if ok := transStreamToWriter(writer, r); !ok {
-				err = fmt.Errorf("failed to reconnect to namespace: %s", cmd.Namespace)
-			}
-		}
+		logger.Infof("connected to namespace: %s", cmd.Namespace)
 		if len(cmd.Resource) != 0 {
 			return connect.DoReverse(context.TODO())
 		}
 		return
 	case command.DisConnect:
-		defer writer.Close()
+		defer func() { _ = writer.Close() }()
 		if len(cmd.Resource) != 0 {
 			load, ok := GetReverseInfo().Load(util.GenerateKey(connect.KubeconfigBytes, connect.Namespace))
 			if !ok {
-				logger.Infof("can not found reverse info in namespace: %s, no need to cancel it\n", connect.Namespace)
+				logger.Infof("can not found reverse info in namespace: %s, no need to cancel it", connect.Namespace)
 				return nil
 			}
 			address := load.(*status).getMacByResource(cmd.Resource)
 			// update reverse data immediately
 			load.(*status).deleteByResource(cmd.Resource)
-			_ = UpdateReverseConfigMap(connect.GetClientSet(), cmd.Namespace, cmd.Resource,
-				func(r *ReverseTotal, record ReverseRecord) {
-					record.MacAddress = address
-					r.RemoveRecord(record)
+			_ = updateReverseConfigMap(cmd.KubeConfig, cmd.Namespace, []string{cmd.Resource},
+				func(r *ReverseTotal, records ...*ReverseRecord) {
+					for _, record := range records {
+						record.MacAddress = address
+						r.RemoveRecord(record)
+					}
 				},
 			)
 			if err = connect.RemoveInboundPod(); err != nil {
-				logger.Errorf("error while delete reverse pods, resource: %s in namespace: %s, error: %v",
-					connect.Namespace, cmd.Resource, err)
-			} else {
-				logger.Infof("delete reverse pod, info: %s-%s secusefully",
-					connect.Namespace, cmd.Resource)
+				logger.Error(err)
 			}
 
 			// if cancel last reverse resources, needs to close connect
 			if value, found := GetReverseInfo().Load(util.GenerateKey(connect.KubeconfigBytes, connect.Namespace)); found {
-				if value.(*status).reverse.GetBelongToMeResources().Len() == 0 {
-					_ = UpdateConnect(connect.GetClientSet(), cmd.Namespace, func(list sets.String, address string) {
-						list.Delete(address)
-					})
-					logger.Infof("have no reverse resource, disconnecting from namespace: %s...\n", cmd.Namespace)
-					client, err := daemon_client.GetDaemonClient(true)
-					if err != nil {
-						return err
-					}
-					if r, err := client.SendSudoVPNOperateCommand(
-						cmd.KubeConfig, cmd.Namespace, command.DisConnect, cmd.Resource); err == nil {
-						if ok = transStreamToWriter(writer, r); !ok {
-							return fmt.Errorf("failed to disconnect from namespace: %s", cmd.Namespace)
-						}
-					}
+				if value.(*status).reverse.GetBelongToMeResources().Len() != 0 {
+					return
 				}
 			}
-			return
-		} else {
-			logger.Infof("disconnecting from namespace: %s\n", cmd.Namespace)
-			_ = UpdateConnect(connect.GetClientSet(), cmd.Namespace, func(list sets.String, address string) {
-				list.Delete(address)
-			})
-			value, loaded := GetReverseInfo().Load(util.GenerateKey(connect.KubeconfigBytes, connect.Namespace))
-			if loaded {
-				clientset, err := util.GetClientSetByKubeconfigBytes(value.(*status).kubeconfigBytes)
-				if err != nil {
-					break
-				}
-				path := k8sutils.GetOrGenKubeConfigPath(string(value.(*status).kubeconfigBytes))
-				temp := &pkg.ConnectOptions{
-					Ctx:            logCtx,
-					KubeconfigPath: path,
-					Namespace:      value.(*status).namespace,
-					Workloads:      []string{},
-				}
-				if err = temp.InitClient(context.TODO()); err != nil {
-					break
-				}
-				for _, resource := range value.(*status).reverse.LoadAndDeleteBelongToMeResources().KeySet() {
-					_ = UpdateReverseConfigMap(clientset,
-						value.(*status).namespace,
-						resource,
-						func(r *ReverseTotal, record ReverseRecord) {
-							r.RemoveRecord(record)
-						})
-					temp.Workloads = []string{resource}
-					_ = temp.RemoveInboundPod()
-				}
-			}
-			var client *daemon_client.DaemonClient
-			client, err = daemon_client.GetDaemonClient(true)
-			if err != nil {
-				return err
-			}
-			if r, err := client.SendSudoVPNOperateCommand(
-				cmd.KubeConfig, cmd.Namespace, command.DisConnect, cmd.Resource); err == nil {
-				if ok := transStreamToWriter(writer, r); !ok {
-					return fmt.Errorf("failed to disconnect from namespace: %s", cmd.Namespace)
-				}
-			}
-			return
 		}
+		logger.Infof("disconnecting from namespace: %s", cmd.Namespace)
+		return disconnectedFromNamespace(logCtx, writer, cmd.KubeConfig, cmd.Namespace)
 	default:
-		return errors.New("Unsupported operation: %s" + string(cmd.Action))
+		return fmt.Errorf("unsupported operation: %s", string(cmd.Action))
 	}
-	// todo
-	return
 }
 
-func UpdateReverseConfigMap(
-	clientSet *kubernetes.Clientset,
-	namespace,
-	resource string,
-	f func(r *ReverseTotal, record ReverseRecord),
-) error {
-	get, err := clientSet.CoreV1().ConfigMaps(namespace).Get(context.TODO(), util.TrafficManager, v1.GetOptions{})
+var add = func(total *ReverseTotal, record ...*ReverseRecord) { total.AddRecord(record...) }
+
+var remove = func(total *ReverseTotal, record ...*ReverseRecord) { total.RemoveRecord(record...) }
+
+func updateReverseConfigMap(kubeconfigPath, namespace string, resource []string,
+	f func(*ReverseTotal, ...*ReverseRecord)) error {
+	utils, err := clientgoutils.NewClientGoUtils(kubeconfigPath, namespace)
 	if err != nil {
-		log.Warn(err)
 		return err
 	}
-	t := FromStringToReverseTotal(get.Data[util.REVERSE])
-	f(t, NewReverseRecordWithWorkloads(resource))
-	get.Data[util.REVERSE] = t.ToString()
-	_, err = clientSet.CoreV1().ConfigMaps(namespace).Update(context.TODO(), get, v1.UpdateOptions{})
-	return err
+	cm, err := utils.GetConfigMaps(util.TrafficManager)
+	if err != nil {
+		return err
+	}
+	t := FromStringToReverseTotal(cm.Data[util.REVERSE])
+	for _, s := range resource {
+		f(t, NewReverseRecordWithWorkloads(s))
+	}
+	return utils.Patch(
+		"configmaps",
+		util.TrafficManager,
+		fmt.Sprintf("{\"data\":{\"%s\":\"%s\"}}", util.REVERSE, t.ToString()),
+		"merge",
+	)
 }
 
-func UpdateConnect(clientSet *kubernetes.Clientset, namespace string, f func(connectedList sets.String, macAddress string)) error {
-	//if !connectInfo.IsEmpty() {
-	//	// todo
-	//	return nil
-	//}
-	configMap, err := clientSet.CoreV1().ConfigMaps(namespace).Get(context.TODO(), util.TrafficManager, v1.GetOptions{})
+var deleteFunc = func(connectedList *ConnectTotal, macAddress string) { connectedList.list.Delete(macAddress) }
+
+var insertFunc = func(connectedList *ConnectTotal, macAddress string) { connectedList.list.Insert(macAddress) }
+
+func updateConnectConfigMap(clientSet *clientgoutils.ClientGoUtils, f func(*ConnectTotal, string)) error {
+	cm, err := clientSet.GetConfigMaps(util.TrafficManager)
 	if err != nil {
-		log.Warn(err)
 		return err
 	}
-	t := FromStringToConnectInfo(configMap.Data[util.Connect])
-	f(t.list, util.GetMacAddress().String())
-	configMap.Data[util.Connect] = t.ToString()
-	_, err = clientSet.CoreV1().ConfigMaps(namespace).Update(context.TODO(), configMap, v1.UpdateOptions{})
-	return err
+	t := FromStringToConnectInfo(cm.Data[util.Connect])
+	f(t, util.GetMacAddress().String())
+	return clientSet.Patch(
+		"configmaps",
+		util.TrafficManager,
+		fmt.Sprintf("{\"data\":{\"%s\":\"%s\"}}", util.Connect, t.ToString()),
+		"merge",
+	)
 }
 
 // MacAddress1:deployment/test,service/test
@@ -318,10 +184,11 @@ func init() {
 }
 
 // true: command execute no error, false: command occur error
-func transStreamToWriter(writer io.Writer, r io.ReadCloser) bool {
+func transStreamToWriter(r io.ReadCloser, writer ...io.Writer) bool {
 	if r == nil {
 		return false
 	}
+	w := io.MultiWriter(writer...)
 	defer func() { _ = r.Close() }()
 	reader := bufio.NewReader(r)
 	for {
@@ -336,8 +203,8 @@ func transStreamToWriter(writer io.Writer, r io.ReadCloser) bool {
 			if strings.Contains(string(line), util.EndSignOK) || strings.Contains(string(line), util.EndSignFailed) {
 				return strings.Contains(string(line), util.EndSignOK)
 			}
-			_, _ = writer.Write(line)
-			_, _ = writer.Write([]byte("\n"))
+			_, _ = w.Write(line)
+			_, _ = w.Write([]byte("\n"))
 		}
 	}
 }
@@ -363,4 +230,68 @@ func preCheck(cmd *command.VPNOperateCommand) {
 			cmd.Resource = tuple.String()
 		}
 	}
+}
+
+func connectToNamespace(ctx context.Context, writer io.WriteCloser, kubeconfigPath, namespace string) error {
+	client, err := daemon_client.GetDaemonClient(true)
+	if err != nil {
+		return err
+	}
+	logger := util.GetLoggerFromContext(ctx)
+	utils, _ := clientgoutils.NewClientGoUtils(kubeconfigPath, namespace)
+	if err = updateConnectConfigMap(utils, insertFunc); err != nil {
+		return err
+	}
+	logger.Infof("connecting to new namespace...")
+	r, err := client.SendSudoVPNOperateCommand(kubeconfigPath, namespace, command.Connect)
+	if err != nil {
+		return err
+	}
+	if ok := transStreamToWriter(r, writer); !ok {
+		return fmt.Errorf("failed to connect to namespace: %s", namespace)
+	}
+	return nil
+}
+
+func disconnectedFromNamespace(ctx context.Context, writer io.WriteCloser, kubeconfigPath, namespace string) error {
+	logger := util.GetLoggerFromContext(ctx)
+	kubeconfigBytes, _ := ioutil.ReadFile(kubeconfigPath)
+	// cleanup all reverse
+	logger.Infof("cleanup all old reverse resources...")
+	if value, found := GetReverseInfo().Load(util.GenerateKey(kubeconfigBytes, namespace)); found {
+		set := value.(*status).reverse.LoadAndDeleteBelongToMeResources().KeySet()
+		connectOptions := &pkg.ConnectOptions{
+			Ctx:            ctx,
+			KubeconfigPath: kubeconfigPath,
+			Namespace:      namespace,
+			Workloads:      set,
+		}
+		if err := connectOptions.InitClient(ctx); err != nil {
+			return err
+		}
+		_ = updateReverseConfigMap(kubeconfigPath, namespace, set, remove)
+		if err := connectOptions.RemoveInboundPod(); err != nil {
+			logger.Error(err)
+		}
+	}
+
+	// disconnect from old cluster or namespace
+	utils, err := clientgoutils.NewClientGoUtils(kubeconfigPath, namespace)
+	if err = updateConnectConfigMap(utils, deleteFunc); err != nil {
+		logger.Infof("error while remove connection info of namespace: %s", namespace)
+	}
+	var client *daemon_client.DaemonClient
+	client, err = daemon_client.GetDaemonClient(true)
+	if err != nil {
+		return err
+	}
+	logger.Infof("disconnecting from old namespace...")
+	r, err := client.SendSudoVPNOperateCommand(kubeconfigPath, namespace, command.DisConnect)
+	if err != nil {
+		return fmt.Errorf("failed to send disconnect request to sudo daemon")
+	}
+	if ok := transStreamToWriter(r, writer); !ok {
+		return fmt.Errorf("failed to disconnect from old namespace: %s", namespace)
+	}
+	return nil
 }

@@ -193,6 +193,7 @@ func getCrdSchema(client *clientgoutils.ClientGoUtils, apiGroupResources []*rest
 		return nil, err
 	}
 	nameToMapping := make([]GvkGvrWithAlias, 0)
+	var lock = &sync.Mutex{}
 	wg := &sync.WaitGroup{}
 	wg.Add(len(crds))
 	for _, crd := range crds {
@@ -202,7 +203,9 @@ func getCrdSchema(client *clientgoutils.ClientGoUtils, apiGroupResources []*rest
 				if crdObj, err := ConvertRuntimeObjectToCRD(info.Object); err == nil {
 					gs := ConvertCRDToGgwa(crdObj, apiGroupResources)
 					if len(gs) > 0 {
+						lock.Lock()
 						nameToMapping = append(nameToMapping, gs...)
+						lock.Unlock()
 					}
 				}
 			}

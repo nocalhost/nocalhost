@@ -25,6 +25,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -67,6 +68,10 @@ func (c *ConnectOptions) IsSameKubeconfigAndNamespace(another *ConnectOptions) b
 		util.GenerateKey(another.KubeconfigBytes, another.Namespace)
 }
 
+func (c *ConnectOptions) IsEmpty() bool {
+	return c != nil && (len(c.KubeconfigBytes)+len(c.Namespace)) != 0
+}
+
 func (c *ConnectOptions) GetClientSet() *kubernetes.Clientset {
 	return c.clientset
 }
@@ -99,8 +104,9 @@ func (c *ConnectOptions) ReleaseIP() error {
 }
 
 func (c *ConnectOptions) createRemoteInboundPod() error {
-	wg := sync.WaitGroup{}
-	lock := sync.Mutex{}
+	var wg = &sync.WaitGroup{}
+	var lock = &sync.Mutex{}
+	var errChan = make(chan error, len(c.Workloads))
 	for _, workload := range c.Workloads {
 		if len(workload) > 0 {
 			wg.Add(1)
@@ -125,25 +131,42 @@ func (c *ConnectOptions) createRemoteInboundPod() error {
 					util.RouterIP.String(),
 				)
 				if err != nil {
-					c.GetLogger().Errorf("error while reversing resource: %s, error: %s\n", finalWorkload, err)
+					c.GetLogger().Errorf("error while reversing resource: %s, error: %s", finalWorkload, err)
+					errChan <- err
 				}
 			}(workload)
 		}
 	}
 	wg.Wait()
+	select {
+	case err := <-errChan:
+		if err != nil {
+			return err
+		}
+	default:
+	}
 	return nil
 }
 
 func (c *ConnectOptions) RemoveInboundPod() error {
-	sc, err := getHandler(c.factory, c.clientset, c.Namespace, c.Workloads[0])
-	if err != nil {
-		return err
+	for _, workload := range c.Workloads {
+		sc, err := getHandler(c.factory, c.clientset, c.Namespace, workload)
+		if err != nil {
+			return fmt.Errorf(
+				"error while get handler of resource: %s in namespace: %s, error: %v",
+				workload, c.Namespace, err)
+		}
+		if err = sc.Reset(); err != nil {
+			return fmt.Errorf(
+				"error while reset reverse resource: %s in namespace: %s, error: %v",
+				workload, c.Namespace, err)
+		}
+		if err = util.DeletePod(c.clientset, c.Namespace, sc.ToInboundPodName()); err != nil {
+			return fmt.Errorf(
+				"error while delete reverse pods: %s in namespace: %s, error: %v",
+				sc.ToInboundPodName(), c.Namespace, err)
+		}
 	}
-	if err = sc.Reset(); err != nil {
-		log.Warnln(err)
-		return err
-	}
-	util.DeletePod(c.clientset, c.Namespace, sc.ToInboundPodName())
 	return nil
 }
 
@@ -196,15 +219,17 @@ func (c *ConnectOptions) Prepare(ctx context.Context) error {
 
 func (c *ConnectOptions) DoConnect(ctx context.Context) (chan error, error) {
 	var err error
+	if err = util.WaitPortToBeFree(10800, time.Second*5); err != nil {
+		return nil, err
+	}
 	c.trafficManagerIP, err = createOutboundRouterPodIfNecessary(c.clientset, c.Namespace, &util.RouterIP, c.cidrs, c.GetLogger())
 	if err != nil {
 		return nil, errors2.WithStack(err)
 	}
 	c.GetLogger().Info("your ip is " + c.localTunIP.IP.String())
-	if err = util.WaitPortToBeFree(10800, time.Minute*2); err != nil {
+	if err = c.portForward(ctx); err != nil {
 		return nil, err
 	}
-	c.portForward(ctx)
 	return c.startLocalTunServe(ctx)
 }
 
@@ -238,8 +263,9 @@ func (c *ConnectOptions) heartbeats(ctx context.Context) {
 	}()
 }
 
-func (c *ConnectOptions) portForward(ctx context.Context) {
+func (c *ConnectOptions) portForward(ctx context.Context) error {
 	var readyChan = make(chan struct{}, 1)
+	var errChan = make(chan error, 1)
 	var first = true
 	go func(ctx context.Context) {
 		for ctx.Err() == nil {
@@ -275,6 +301,11 @@ func (c *ConnectOptions) portForward(ctx context.Context) {
 					return
 				}
 				if err != nil {
+					if strings.Contains(err.Error(), "unable to listen on any of the requested ports") ||
+						strings.Contains(err.Error(), "address already in use") {
+						errChan <- err
+						runtime.Goexit()
+					}
 					c.GetLogger().Errorf("port-forward occurs error, err: %v, retrying\n", err)
 					time.Sleep(time.Second * 1)
 				}
@@ -285,8 +316,13 @@ func (c *ConnectOptions) portForward(ctx context.Context) {
 	select {
 	case <-readyChan:
 		c.GetLogger().Infoln("port forward 10800:10800 ready")
+		return nil
+	case err := <-errChan:
+		c.GetLogger().Errorf("port-forward error, err: %v", err)
+		return err
 	case <-time.Tick(time.Minute * 5):
 		c.GetLogger().Errorln("wait port forward 10800:10800 to be ready timeout")
+		return errors.New("wait port forward 10800:10800 to be ready timeout")
 	}
 }
 

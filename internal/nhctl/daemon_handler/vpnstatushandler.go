@@ -77,8 +77,11 @@ func FromStringToConnectInfo(str string) *ConnectTotal {
 func (c *ConnectTotal) ToString() string {
 	var sb strings.Builder
 	for _, s := range c.list.List() {
-		sb.WriteString(s + "\n")
+		if len(s) != 0 {
+			sb.WriteString(s + "\\n")
+		}
 	}
+	sb.WriteString("\\n")
 	return sb.String()
 }
 
@@ -91,20 +94,24 @@ func ToStatus(m map[string]string) *status {
 	}
 }
 
-func (t *ReverseTotal) AddRecord(r ReverseRecord) *ReverseTotal {
-	if m, _ := t.resources[r.MacAddress]; m != nil {
-		m.InsertByKeys(r.Resources.List()...)
-	} else {
-		t.resources[r.MacAddress] = NewSetByKeys(r.Resources.List()...)
+func (t *ReverseTotal) AddRecord(records ...*ReverseRecord) *ReverseTotal {
+	for _, record := range records {
+		if m, _ := t.resources[record.MacAddress]; m != nil {
+			m.InsertByKeys(record.Resources.List()...)
+		} else {
+			t.resources[record.MacAddress] = NewSetByKeys(record.Resources.List()...)
+		}
 	}
 	return t
 }
 
-func (t *ReverseTotal) RemoveRecord(r ReverseRecord) *ReverseTotal {
-	if m, _ := t.resources[r.MacAddress]; m != nil {
-		m.DeleteByKeys(r.Resources.List()...)
-		if m.Len() == 0 {
-			delete(t.resources, r.MacAddress)
+func (t *ReverseTotal) RemoveRecord(records ...*ReverseRecord) *ReverseTotal {
+	for _, record := range records {
+		if m, _ := t.resources[record.MacAddress]; m != nil {
+			m.DeleteByKeys(record.Resources.List()...)
+			if m.Len() == 0 {
+				delete(t.resources, record.MacAddress)
+			}
 		}
 	}
 	return t
@@ -122,8 +129,8 @@ func NewReverseRecord(resourceType, resourceName string) ReverseRecord {
 	}
 }
 
-func NewReverseRecordWithWorkloads(workloads string) ReverseRecord {
-	return ReverseRecord{
+func NewReverseRecordWithWorkloads(workloads string) *ReverseRecord {
+	return &ReverseRecord{
 		MacAddress: util.GetMacAddress().String(),
 		Resources:  sets.NewString(workloads),
 	}
@@ -138,7 +145,7 @@ func FromStringToReverseTotal(s string) (t *ReverseTotal) {
 	for _, item := range itemList {
 		if strings.Count(item, util.Splitter) == 1 {
 			i := strings.Split(item, util.Splitter)
-			t.AddRecord(ReverseRecord{MacAddress: i[0], Resources: sets.NewString(strings.Split(i[1], ",")...)})
+			t.AddRecord(&ReverseRecord{MacAddress: i[0], Resources: sets.NewString(strings.Split(i[1], ",")...)})
 		}
 	}
 	return
@@ -147,8 +154,9 @@ func FromStringToReverseTotal(s string) (t *ReverseTotal) {
 func (t *ReverseTotal) ToString() string {
 	var sb strings.Builder
 	for k, v := range t.resources {
-		sb.WriteString(fmt.Sprintf("%s%s%s\n", k, util.Splitter, strings.Join(v.KeySet(), ",")))
+		sb.WriteString(fmt.Sprintf("%s%s%s\\n", k, util.Splitter, strings.Join(v.KeySet(), ",")))
 	}
+	sb.WriteString("\\n")
 	return sb.String()
 }
 

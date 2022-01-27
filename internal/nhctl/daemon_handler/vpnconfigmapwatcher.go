@@ -4,17 +4,20 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	log "github.com/sirupsen/logrus"
+	"io"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
 	"nocalhost/internal/nhctl/daemon_client"
+	"nocalhost/internal/nhctl/daemon_common"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/vpn/pkg"
 	"nocalhost/internal/nhctl/vpn/remote"
 	"nocalhost/internal/nhctl/vpn/util"
 	"nocalhost/pkg/nhctl/k8sutils"
+	"nocalhost/pkg/nhctl/log"
+	"os"
 	"os/exec"
 	"sync"
 	"time"
@@ -22,6 +25,7 @@ import (
 
 var watchers = map[string]*ConfigMapWatcher{}
 var watchersLock = &sync.Mutex{}
+var funcChan = make(chan func(), 1000)
 
 func ReleaseWatcher(kubeconfigBytes []byte, namespace string) {
 	watchersLock.Lock()
@@ -39,24 +43,24 @@ func GetOrGenerateConfigMapWatcher(kubeconfigBytes []byte, namespace string, get
 	defer watchersLock.Unlock()
 	if v, ok := watchers[k]; ok && v != nil {
 		return v
-	} else {
-		if getter == nil {
-			if clientset, err := util.GetClientSetByKubeconfigBytes(kubeconfigBytes); err != nil {
-				return nil
-			} else {
-				getter = clientset.CoreV1().RESTClient()
-			}
-		}
-		if watcher := NewConfigMapWatcher(kubeconfigBytes, namespace, getter); watcher != nil {
-			watchers[k] = watcher
-			watcher.Start()
-			return watcher
-		}
-		return nil
 	}
+	if getter == nil {
+		if clientset, err := util.GetClientSetByKubeconfigBytes(kubeconfigBytes); err != nil {
+			return nil
+		} else {
+			getter = clientset.CoreV1().RESTClient()
+		}
+	}
+	if watcher := NewConfigMapWatcher(kubeconfigBytes, namespace, getter); watcher != nil {
+		watchers[k] = watcher
+		watcher.Start()
+		return watcher
+	}
+	return nil
 }
 
 var connectInfo = &ConnectInfo{}
+
 var statusInfoLock = &sync.Mutex{}
 
 // kubeconfig+ns --> name
@@ -205,8 +209,9 @@ func NewConfigMapWatcher(kubeconfigBytes []byte, namespace string, getter cache.
 
 func (w *ConfigMapWatcher) Start() {
 	go w.informer.Run(w.stopChan)
-	//for !w.informer.HasSynced() {
-	//}
+	ctx, cancelFunc := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancelFunc()
+	cache.WaitForCacheSync(ctx.Done(), w.informer.HasSynced)
 }
 
 func (w *ConfigMapWatcher) Stop() {
@@ -234,22 +239,23 @@ func (h *resourceHandler) OnAdd(obj interface{}) {
 
 	configMap := obj.(*corev1.ConfigMap)
 	toStatus := ToStatus(configMap.Data)
+	modifyReverseInfo(h, toStatus)
+	backup := *connectInfo
+	// if connect to a cluster, needs to keep it connect
 	if toStatus.connect.IsConnected() {
-		if !connectInfo.IsEmpty() && !connectInfo.IsSame(h.kubeconfigBytes, h.namespace) {
-			// todo someone already connected, release others or myself
-			// release others
-			release(connectInfo.kubeconfigBytes, connectInfo.namespace)
-			notifySudoDaemonToDisConnect(connectInfo.kubeconfigBytes, connectInfo.namespace)
-		}
-		if connectInfo.IsSame(h.kubeconfigBytes, h.namespace) || connectInfo.IsEmpty() {
-			go notifySudoDaemonToConnect(h.kubeconfigBytes, h.namespace)
-
-			connectInfo.namespace = h.namespace
-			connectInfo.kubeconfigBytes = h.kubeconfigBytes
-			connectInfo.ip = toStatus.mac2ip.GetIPByMac(util.GetMacAddress().String())
+		connectInfo.namespace = h.namespace
+		connectInfo.kubeconfigBytes = h.kubeconfigBytes
+		connectInfo.ip = toStatus.mac2ip.GetIPByMac(util.GetMacAddress().String())
+		// if is connected to other cluster, needs to disconnect it
+		funcChan <- func() {
+			if !backup.IsEmpty() && !backup.IsSame(h.kubeconfigBytes, h.namespace) {
+				// release others
+				release(backup.kubeconfigBytes, backup.namespace)
+			}
+			// connect to this cluster
+			notifySudoDaemonToConnect(h.kubeconfigBytes, h.namespace)
 		}
 	}
-	modifyReverseInfo(h, toStatus)
 }
 
 func (h *resourceHandler) OnUpdate(oldObj, newObj interface{}) {
@@ -258,72 +264,65 @@ func (h *resourceHandler) OnUpdate(oldObj, newObj interface{}) {
 
 	oldStatus := ToStatus(oldObj.(*corev1.ConfigMap).Data)
 	newStatus := ToStatus(newObj.(*corev1.ConfigMap).Data)
-	if newStatus.connect.IsConnected() {
-		if !connectInfo.IsEmpty() && !connectInfo.IsSame(h.kubeconfigBytes, h.namespace) {
-			// todo someone already connected, release others or myself
-			// release others
-			release(connectInfo.kubeconfigBytes, connectInfo.namespace)
-			notifySudoDaemonToDisConnect(connectInfo.kubeconfigBytes, connectInfo.namespace)
-		}
-
-		if connectInfo.IsSame(h.kubeconfigBytes, h.namespace) || connectInfo.IsEmpty() {
-			go notifySudoDaemonToConnect(h.kubeconfigBytes, h.namespace)
-			connectInfo.namespace = h.namespace
-			connectInfo.kubeconfigBytes = h.kubeconfigBytes
-			connectInfo.ip = newStatus.mac2ip.GetIPByMac(util.GetMacAddress().String())
-		}
-	}
-	// if connected --> disconnected, needs to notify sudo daemon to connect
-	if oldStatus.connect.IsConnected() && !newStatus.connect.IsConnected() {
-		if connectInfo.IsSame(h.kubeconfigBytes, h.namespace) {
-			connectInfo.cleanup()
-			go notifySudoDaemonToDisConnect(h.kubeconfigBytes, h.namespace)
-		}
-	}
 	modifyReverseInfo(h, newStatus)
+	backup := *connectInfo
+	// if connect to a cluster, needs to keep it connect
+	if newStatus.connect.IsConnected() {
+		connectInfo.namespace = h.namespace
+		connectInfo.kubeconfigBytes = h.kubeconfigBytes
+		connectInfo.ip = newStatus.mac2ip.GetIPByMac(util.GetMacAddress().String())
+		funcChan <- func() {
+			// if is connected to other cluster, needs to disconnect it
+			if !backup.IsEmpty() && !backup.IsSame(h.kubeconfigBytes, h.namespace) {
+				// release others
+				release(backup.kubeconfigBytes, backup.namespace)
+			}
+			// connect to this cluster
+			notifySudoDaemonToConnect(h.kubeconfigBytes, h.namespace)
+		}
+	} else
+	// if connected --> disconnected, needs to notify sudo daemon to disconnect
+	// other user can close vpn you create
+	if oldStatus.connect.IsConnected() && !newStatus.connect.IsConnected() {
+		if backup.IsSame(h.kubeconfigBytes, h.namespace) {
+			connectInfo.cleanup()
+			funcChan <- func() {
+				notifySudoDaemonToDisConnect(h.kubeconfigBytes, h.namespace)
+			}
+		}
+	}
+
 }
 
+// OnDelete will not release watcher, keep watching
 func (h *resourceHandler) OnDelete(obj interface{}) {
 	h.statusInfoLock.Lock()
 	defer h.statusInfoLock.Unlock()
 
 	configMap := obj.(*corev1.ConfigMap)
-	status := ToStatus(configMap.Data)
+	toStatus := ToStatus(configMap.Data)
 	h.statusInfo.Delete(h.toKey())
-	if status.connect.IsConnected() && connectInfo.IsSame(h.kubeconfigBytes, h.namespace) {
+	// if this machine is connected, needs to disconnect vpn, but still keep watching configmap
+	if toStatus.connect.IsConnected() && connectInfo.IsSame(h.kubeconfigBytes, h.namespace) {
 		connectInfo.cleanup()
-		notifySudoDaemonToDisConnect(h.kubeconfigBytes, h.namespace)
+		funcChan <- func() {
+			notifySudoDaemonToDisConnect(h.kubeconfigBytes, h.namespace)
+		}
 	}
 }
 
 // release resource handler will stop watcher
 func release(kubeconfigBytes []byte, namespace string) {
-	// needs to notify sudo daemon to update connect namespace
-	log.Warn("needs to notify sudo daemon to update connect namespace, this should not to be happen")
-	log.Warnf("current ns: %s, to be repleaded: %s\n", connectInfo.namespace, namespace)
-
-	//ReleaseWatcher(kubeconfigBytes, namespace)
-	if clientset, err := util.GetClientSetByKubeconfigBytes(kubeconfigBytes); err == nil {
-		_ = UpdateConnect(clientset, namespace, func(list sets.String, item string) {
-			list.Delete(item)
-		})
-		if value, found := GetReverseInfo().Load(util.GenerateKey(kubeconfigBytes, namespace)); found {
-			for _, s := range value.(*status).reverse.LoadAndDeleteBelongToMeResources().KeySet() {
-				_ = UpdateReverseConfigMap(clientset, namespace, s,
-					func(r *ReverseTotal, record ReverseRecord) {
-						r.RemoveRecord(record)
-					})
-			}
-		}
+	path := k8sutils.GetOrGenKubeConfigPath(string(kubeconfigBytes))
+	if err := disconnectedFromNamespace(context.TODO(), os.Stdout, path, namespace); err != nil {
+		log.Warn(err)
 	}
-	//GetOrGenerateConfigMapWatcher(kubeconfigBytes, namespace, nil)
 }
 
 // modifyReverseInfo modify reverse info using latest vpn status
 // iterator latest vpn status and delete resource which not exist
 func modifyReverseInfo(h *resourceHandler, latest *status) {
 	// using same reference, because health check will modify status
-
 	local, ok := h.statusInfo.Load(h.toKey())
 	if !ok {
 		h.statusInfo.Store(h.toKey(), &status{
@@ -363,50 +362,72 @@ func modifyReverseInfo(h *resourceHandler, latest *status) {
 }
 
 func notifySudoDaemonToConnect(kubeconfigBytes []byte, namespace string) {
+	if !util.IsPortListening(daemon_common.SudoDaemonPort) {
+		return
+	}
 	client, err := daemon_client.GetDaemonClient(true)
 	if err != nil {
 		return
 	}
-	if info, err := getSudoConnectInfo(); err == nil {
+	if info, err := getSudoConnectInfo(); err == nil && !info.IsEmpty() {
 		if info.IsSame(kubeconfigBytes, namespace) {
 			return
-		} else {
-			notifySudoDaemonToDisConnect(info.kubeconfigBytes, info.namespace)
-			time.Sleep(time.Second * 3)
 		}
+		// disconnect from current cluster
+		path := k8sutils.GetOrGenKubeConfigPath(string(info.kubeconfigBytes))
+		if reader, err := client.SendSudoVPNOperateCommand(path, info.namespace, command.DisConnect); err == nil {
+			if ok := transStreamToWriter(reader, os.Stdout); !ok {
+				log.Warnf("can not disconnect from kubeconfig: %s", path)
+				return
+			}
+		}
+		time.Sleep(time.Second * 1)
 	}
 	path := k8sutils.GetOrGenKubeConfigPath(string(kubeconfigBytes))
-	readCloser, err := client.SendSudoVPNOperateCommand(path, namespace, command.Connect, "")
-	if err == nil && readCloser != nil {
-		_ = readCloser.Close()
+	if reader, err := client.SendSudoVPNOperateCommand(path, namespace, command.Connect); err == nil {
+		if ok := transStreamToWriter(reader, os.Stdout); !ok {
+			log.Warnf("can not connect to kubeconfig: %s", path)
+			return
+		}
 	}
 }
 
+// disconnect from special cluster
 func notifySudoDaemonToDisConnect(kubeconfigBytes []byte, namespace string) {
+	if !util.IsPortListening(daemon_common.SudoDaemonPort) {
+		return
+	}
 	client, err := daemon_client.GetDaemonClient(true)
 	if err != nil {
 		return
 	}
+
 	if info, err := getSudoConnectInfo(); err == nil {
+		// if sudo daemon is connecting to cluster which want's to connect, do nothing
+		if info.IsEmpty() {
+			return
+		}
+		// if sudo daemon is not connect to this cluster, no needs to disconnect from it
 		if !info.IsSame(kubeconfigBytes, namespace) {
-			notifySudoDaemonToDisConnect(info.kubeconfigBytes, info.namespace)
 			return
 		}
 	}
 	path := k8sutils.GetOrGenKubeConfigPath(string(kubeconfigBytes))
-	readCloser, err := client.SendSudoVPNOperateCommand(path, namespace, command.DisConnect, "")
-	if err == nil && readCloser != nil {
-		_ = readCloser.Close()
+	if reader, err := client.SendSudoVPNOperateCommand(path, namespace, command.DisConnect); err == nil {
+		_, _ = io.Copy(os.Stdout, reader)
 	}
 }
 
 func getSudoConnectInfo() (info *ConnectInfo, err error) {
 	if client, err := daemon_client.GetDaemonClient(true); err == nil {
-		if cmd, err := client.SendSudoVPNStatusCommand(); err == nil {
-			if marshal, err := json.Marshal(cmd); err == nil {
+		if obj, err := client.SendSudoVPNStatusCommand(); err == nil {
+			if bytes, err := json.Marshal(obj); err == nil {
 				var result pkg.ConnectOptions
-				if err = json.Unmarshal(marshal, &result); err == nil {
-					return &ConnectInfo{kubeconfigBytes: result.KubeconfigBytes, namespace: result.Namespace}, nil
+				if err = json.Unmarshal(bytes, &result); err == nil {
+					return &ConnectInfo{
+						kubeconfigBytes: result.KubeconfigBytes,
+						namespace:       result.Namespace,
+					}, nil
 				}
 			}
 		}
@@ -441,7 +462,7 @@ func checkConnect() {
 		defer cancelFunc()
 		cmd := exec.CommandContext(ctx, "ping", "-c", "4", util.IpRange.String())
 		_ = cmd.Run()
-		if cmd.ProcessState!=nil && cmd.ProcessState.Success() {
+		if cmd.ProcessState != nil && cmd.ProcessState.Success() {
 			connectInfo.health = Healthy
 		} else {
 			connectInfo.health = UnHealthy
@@ -486,17 +507,23 @@ func communicateEachOther() {
 	if connectInfo.IsEmpty() {
 		return
 	}
-	watcher := GetOrGenerateConfigMapWatcher(connectInfo.kubeconfigBytes, connectInfo.namespace, nil)
-	if watcher != nil {
-		for _, i := range watcher.informer.GetStore().List() {
+
+	if w := GetOrGenerateConfigMapWatcher(connectInfo.kubeconfigBytes, connectInfo.namespace, nil); w != nil {
+		for _, i := range w.informer.GetStore().List() {
 			if cm, ok := i.(*corev1.ConfigMap); ok {
-				fromString := remote.FromStringToDHCP(cm.Data[util.DHCP])
-				if v, found := fromString[util.GetMacAddress().String()]; found {
+				dhcp := remote.FromStringToDHCP(cm.Data[util.DHCP])
+				if v, found := dhcp[util.GetMacAddress().String()]; found {
 					for _, ip := range v.List() {
 						_, _ = util.Ping(fmt.Sprintf("223.254.254.%v", ip))
 					}
 				}
 			}
 		}
+	}
+}
+
+func init() {
+	for f := range funcChan {
+		f()
 	}
 }

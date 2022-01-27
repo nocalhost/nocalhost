@@ -3,6 +3,7 @@ package daemon_handler
 import (
 	"context"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"io"
 	"k8s.io/client-go/util/retry"
 	"nocalhost/internal/nhctl/daemon_server/command"
@@ -12,12 +13,15 @@ import (
 	"nocalhost/internal/nhctl/vpn/util"
 	"nocalhost/pkg/nhctl/log"
 	"os"
+	"runtime"
 	"sync"
 	"time"
 )
 
 // keep it in memory
 var connected *pkg.ConnectOptions
+
+//var done = make(chan struct{})
 var lock = &sync.Mutex{}
 
 func HandleSudoVPNStatus() (interface{}, error) {
@@ -33,7 +37,6 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser)
 		Ctx:            logCtx,
 		KubeconfigPath: cmd.KubeConfig,
 		Namespace:      cmd.Namespace,
-		Workloads:      []string{cmd.Resource},
 	}
 	if err := connect.InitClient(logCtx); err != nil {
 		log.Error(util.EndSignFailed)
@@ -49,12 +52,13 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser)
 	case command.Connect:
 		lock.Lock()
 		defer lock.Unlock()
-		if connected != nil {
+		if connected != nil && !connected.IsEmpty() {
 			if !connected.IsSameKubeconfigAndNamespace(connect) {
-				logger.Errorf("already connected to namespace: %s, but want's to connect to namespace: %s\n",
+				logger.Errorf("connected to namespace: %s, but want's to connect to namespace: %s",
 					connected.Namespace, cmd.Namespace)
 				logger.Infoln(util.EndSignFailed)
 			} else {
+				//<-done
 				logger.Debugf("connected to spec cluster sucessufully")
 				logger.Infoln(util.EndSignOK)
 			}
@@ -64,32 +68,41 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser)
 		connected = connect
 		ctx, cancelFunc := context.WithCancel(context.TODO())
 		remote.CancelFunctions = append(remote.CancelFunctions, cancelFunc)
-		go func(namespace string, c *pkg.ConnectOptions, ctx context.Context) {
+		go func(namespace string, options *pkg.ConnectOptions, ctx context.Context /*, c chan struct{}*/) {
+			defer func() {
+				if err := recover(); err != nil {
+					disconnect(options.GetLogger())
+					log.Error(err)
+					runtime.Goexit()
+				}
+			}()
 			// do until canceled
-			for ctx.Err() == nil && c != nil {
+			for ctx.Err() == nil && options != nil {
 				func() {
-					defer func() {
-						if err := recover(); err != nil {
-							log.Error(err)
-						}
-					}()
-					errChan, err := c.DoConnect(ctx)
+					errChan, err := options.DoConnect(ctx)
 					if err != nil {
-						c.GetLogger().Errorln(err)
-						c.GetLogger().Infoln(util.EndSignFailed)
-						time.Sleep(time.Second * 2)
-						return
+						options.GetLogger().Errorln(err)
+						options.GetLogger().Infoln(util.EndSignFailed)
+						disconnect(options.GetLogger())
+						runtime.Goexit()
 					}
-					c.GetLogger().Infoln(util.EndSignOK)
-					c.SetLogger(util.NewLogger(os.Stdout))
+					// judge if channel is already close
+					//select {
+					//case _, _ = <-c:
+					//default:
+					//	close(c)
+					//}
+					options.GetLogger().Infoln(util.EndSignOK)
+					options.SetLogger(util.NewLogger(os.Stdout))
 					// wait for exit
 					if err = <-errChan; err != nil {
 						fmt.Println(err)
 						time.Sleep(time.Second * 2)
 					}
+					//c = make(chan struct{})
 				}()
 			}
-		}(cmd.Namespace, connect, ctx)
+		}(cmd.Namespace, connect, ctx /*, done*/)
 		return nil
 	case command.DisConnect:
 		// stop reverse resource
@@ -107,34 +120,38 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser)
 			logger.Infoln(util.EndSignFailed)
 			return nil
 		}
-
-		for _, function := range remote.CancelFunctions {
-			if function != nil {
-				function()
-			}
-		}
-		remote.CancelFunctions = remote.CancelFunctions[:0]
-		//lock.Lock()
-		//defer lock.Unlock()
-		//for connected != nil {
-		//	time.Sleep(time.Second * 2)
-		//	logger.Info("wait for disconnect")
-		//}
-		logger.Info("prepare to exit, cleaning up")
-		dns.CancelDNS()
-		if err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-			return connected.ReleaseIP()
-		}); err != nil {
-			logger.Errorf("failed to release ip to dhcp, err: %v", err)
-		}
-		remote.CleanUpTrafficManagerIfRefCountIsZero(connected.GetClientSet(), connected.Namespace)
-		logger.Info("clean up successful")
-		connected = nil
+		disconnect(logger)
 		logger.Info(util.EndSignOK)
 		return nil
 	default:
-		return nil
+		return fmt.Errorf("unsupported operation: %s", string(cmd.Action))
 	}
+}
+
+func disconnect(logger *logrus.Logger) {
+	for _, function := range remote.CancelFunctions {
+		if function != nil {
+			function()
+		}
+	}
+	remote.CancelFunctions = remote.CancelFunctions[:0]
+	//lock.Lock()
+	//defer lock.Unlock()
+	//for connected != nil {
+	//	time.Sleep(time.Second * 2)
+	//	logger.Info("wait for disconnect")
+	//}
+	logger.Info("prepare to exit, cleaning up")
+	dns.CancelDNS()
+	if err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		return connected.ReleaseIP()
+	}); err != nil {
+		logger.Errorf("failed to release ip to dhcp, err: %v", err)
+	}
+	remote.CleanUpTrafficManagerIfRefCountIsZero(connected.GetClientSet(), connected.Namespace)
+	logger.Info("clean up successful")
+	connected = nil
+	//done = make(chan struct{})
 }
 
 func init() {
