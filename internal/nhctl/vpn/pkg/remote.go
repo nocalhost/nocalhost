@@ -33,8 +33,10 @@ func createOutboundRouterPodIfNecessary(
 	routerPod, err := clientset.CoreV1().Pods(namespace).Get(context.TODO(), util.TrafficManager, metav1.GetOptions{})
 	if err == nil && routerPod.DeletionTimestamp == nil {
 		remote.UpdateRefCount(clientset, namespace, routerPod.Name, 1)
+		logger.Infoln("traffic manager already exist, not need to create it")
 		return routerPod.Status.PodIP, nil
 	}
+	logger.Infoln("try to create traffic manager...")
 	args := []string{
 		"sysctl net.ipv4.ip_forward=1",
 		"iptables -F",
@@ -91,27 +93,33 @@ func createOutboundRouterPodIfNecessary(
 			PriorityClassName: "system-cluster-critical",
 		},
 	}
-	_, err = clientset.CoreV1().Pods(namespace).Create(context.TODO(), &pod, metav1.CreateOptions{})
+	pods, err := clientset.CoreV1().Pods(namespace).Create(context.TODO(), &pod, metav1.CreateOptions{})
 	if err != nil {
-		logger.Errorln(err)
 		return "", err
+	}
+	if pods.Status.Phase == v1.PodRunning {
+		return pods.Status.PodIP, nil
 	}
 	watch, err := clientset.CoreV1().Pods(namespace).Watch(context.TODO(), metav1.SingleObject(metav1.ObjectMeta{Name: name}))
 	if err != nil {
-		logger.Errorln(err)
 		return "", err
 	}
 	defer watch.Stop()
+	var phase v1.PodPhase
 	for {
 		select {
 		case e := <-watch.ResultChan():
-			if podT, ok := e.Object.(*v1.Pod); ok && podT.Status.Phase == v1.PodRunning {
-				return podT.Status.PodIP, nil
+			if podT, ok := e.Object.(*v1.Pod); ok {
+				if phase != podT.Status.Phase {
+					logger.Infof("traffic manager is %s...", podT.Status.Phase)
+				}
+				if podT.Status.Phase == v1.PodRunning {
+					return podT.Status.PodIP, nil
+				}
+				phase = podT.Status.Phase
 			}
-		case <-time.Tick(time.Minute * 10):
-			err = errors.New("wait for outbound pod to be ready timeout")
-			logger.Error(err)
-			return "", err
+		case <-time.Tick(time.Minute * 5):
+			return "", errors.New("wait for pod traffic manager to be ready timeout")
 		}
 	}
 }

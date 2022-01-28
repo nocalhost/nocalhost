@@ -272,7 +272,7 @@ func (c *ConnectOptions) portForward(ctx context.Context) error {
 			func() {
 				defer func() {
 					if err := recover(); err != nil {
-						c.GetLogger().Warnf("recover error: %v, ignore", err)
+						c.GetLogger().Warnf("port-forward recover error: %v, ignore", err)
 					}
 				}()
 				if !first {
@@ -297,7 +297,7 @@ func (c *ConnectOptions) portForward(ctx context.Context) error {
 					ctx.Done(),
 				)
 				if apierrors.IsNotFound(err) {
-					c.GetLogger().Errorf("can not found port-forward resource, err: %v, exiting\n", err)
+					c.GetLogger().Errorf("can not found traffic manager, err: %v, exiting", err)
 					return
 				}
 				if err != nil {
@@ -306,8 +306,8 @@ func (c *ConnectOptions) portForward(ctx context.Context) error {
 						errChan <- err
 						runtime.Goexit()
 					}
-					c.GetLogger().Errorf("port-forward occurs error, err: %v, retrying\n", err)
-					time.Sleep(time.Second * 1)
+					c.GetLogger().Errorf("port-forward occurs error, err: %v, retrying", err)
+					time.Sleep(time.Second * 2)
 				}
 			}()
 		}
@@ -320,8 +320,7 @@ func (c *ConnectOptions) portForward(ctx context.Context) error {
 	case err := <-errChan:
 		c.GetLogger().Errorf("port-forward error, err: %v", err)
 		return err
-	case <-time.Tick(time.Minute * 5):
-		c.GetLogger().Errorln("wait port forward 10800:10800 to be ready timeout")
+	case <-time.Tick(time.Second * 30):
 		return errors.New("wait port forward 10800:10800 to be ready timeout")
 	}
 }

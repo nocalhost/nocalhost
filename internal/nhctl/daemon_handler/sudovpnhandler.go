@@ -139,20 +139,16 @@ func disconnect(logger *logrus.Logger) {
 		}
 	}
 	remote.CancelFunctions = remote.CancelFunctions[:0]
-	//lock.Lock()
-	//defer lock.Unlock()
-	//for connected != nil {
-	//	time.Sleep(time.Second * 2)
-	//	logger.Info("wait for disconnect")
-	//}
 	logger.Info("prepare to exit, cleaning up")
 	dns.CancelDNS()
-	if err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		return connected.ReleaseIP()
-	}); err != nil {
-		logger.Errorf("failed to release ip to dhcp, err: %v", err)
+	if connected != nil {
+		if err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+			return connected.ReleaseIP()
+		}); err != nil {
+			logger.Errorf("failed to release ip to dhcp, err: %v", err)
+		}
+		remote.CleanUpTrafficManagerIfRefCountIsZero(connected.GetClientSet(), connected.Namespace)
 	}
-	remote.CleanUpTrafficManagerIfRefCountIsZero(connected.GetClientSet(), connected.Namespace)
 	logger.Info("clean up successful")
 	connected = nil
 	//done = make(chan struct{})

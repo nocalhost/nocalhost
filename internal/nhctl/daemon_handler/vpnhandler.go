@@ -285,13 +285,14 @@ func disconnectedFromNamespace(ctx context.Context, writer io.WriteCloser, kubec
 	if err != nil {
 		return err
 	}
-	logger.Infof("disconnecting from old namespace...")
+	logger.Infof("disconnecting from namespace...")
 	r, err := client.SendSudoVPNOperateCommand(kubeconfigPath, namespace, command.DisConnect)
 	if err != nil {
 		return fmt.Errorf("failed to send disconnect request to sudo daemon")
 	}
 	if ok := transStreamToWriter(r, writer); !ok {
-		return fmt.Errorf("failed to disconnect from old namespace: %s", namespace)
+		return fmt.Errorf("failed to disconnect from namespace: %s", namespace)
 	}
+	logger.Infof("disconnected from namespace")
 	return nil
 }

@@ -6,9 +6,11 @@
 package pkg
 
 import (
+	"context"
 	"fmt"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/util/homedir"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"path/filepath"
 	"testing"
@@ -26,4 +28,21 @@ func TestPod(t *testing.T) {
 	fmt.Println(zero, annotation, ports, s, err)
 	err = restore(factory, set, namespace, s)
 	fmt.Println(err)
+}
+
+func TestPortForward(t *testing.T) {
+	path := filepath.Join(homedir.HomeDir(), ".kube", "minikube")
+	ns := "anur"
+	c := ConnectOptions{
+		Ctx:            context.TODO(),
+		KubeconfigPath: path,
+		Namespace:      ns,
+	}
+	err := c.InitClient(context.Background())
+	if err != nil {
+		panic(err)
+	}
+	if err = c.portForward(context.TODO()); err != nil {
+		panic(err)
+	}
 }
