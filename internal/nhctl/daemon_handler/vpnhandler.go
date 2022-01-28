@@ -7,12 +7,14 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	coreV1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/vpn/pkg"
 	"nocalhost/internal/nhctl/vpn/remote"
 	"nocalhost/internal/nhctl/vpn/util"
-	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/k8sutils"
 	"strings"
 )
@@ -137,11 +139,12 @@ var remove = func(total *ReverseTotal, record ...*ReverseRecord) { total.RemoveR
 
 func updateReverseConfigMap(kubeconfigPath, namespace string, resource []string,
 	f func(*ReverseTotal, ...*ReverseRecord)) error {
-	utils, err := clientgoutils.NewClientGoUtils(kubeconfigPath, namespace)
-	if err != nil {
+	options := pkg.ConnectOptions{KubeconfigPath: kubeconfigPath, Namespace: namespace}
+	if err := options.InitClient(context.Background()); err != nil {
 		return err
 	}
-	cm, err := utils.GetConfigMaps(util.TrafficManager)
+	mapInterface := options.GetClientSet().CoreV1().ConfigMaps(namespace)
+	cm, err := mapInterface.Get(context.Background(), util.TrafficManager, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -149,31 +152,35 @@ func updateReverseConfigMap(kubeconfigPath, namespace string, resource []string,
 	for _, s := range resource {
 		f(t, NewReverseRecordWithWorkloads(s))
 	}
-	return utils.Patch(
-		"configmaps",
+	_, err = mapInterface.Patch(
+		context.Background(),
 		util.TrafficManager,
-		fmt.Sprintf("{\"data\":{\"%s\":\"%s\"}}", util.REVERSE, t.ToString()),
-		"merge",
+		types.MergePatchType,
+		[]byte(fmt.Sprintf("{\"data\":{\"%s\":\"%s\"}}", util.REVERSE, t.ToString())),
+		metav1.PatchOptions{},
 	)
+	return err
 }
 
 var deleteFunc = func(connectedList *ConnectTotal, macAddress string) { connectedList.list.Delete(macAddress) }
 
 var insertFunc = func(connectedList *ConnectTotal, macAddress string) { connectedList.list.Insert(macAddress) }
 
-func updateConnectConfigMap(clientSet *clientgoutils.ClientGoUtils, f func(*ConnectTotal, string)) error {
-	cm, err := clientSet.GetConfigMaps(util.TrafficManager)
+func updateConnectConfigMap(mapInterface coreV1.ConfigMapInterface, f func(*ConnectTotal, string)) error {
+	cm, err := mapInterface.Get(context.TODO(), util.TrafficManager, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 	t := FromStringToConnectInfo(cm.Data[util.Connect])
 	f(t, util.GetMacAddress().String())
-	return clientSet.Patch(
-		"configmaps",
+	_, err = mapInterface.Patch(
+		context.Background(),
 		util.TrafficManager,
-		fmt.Sprintf("{\"data\":{\"%s\":\"%s\"}}", util.Connect, t.ToString()),
-		"merge",
+		types.MergePatchType,
+		[]byte(fmt.Sprintf("{\"data\":{\"%s\":\"%s\"}}", util.Connect, t.ToString())),
+		metav1.PatchOptions{},
 	)
+	return err
 }
 
 // MacAddress1:deployment/test,service/test
@@ -238,8 +245,11 @@ func connectToNamespace(ctx context.Context, writer io.WriteCloser, kubeconfigPa
 		return err
 	}
 	logger := util.GetLoggerFromContext(ctx)
-	utils, _ := clientgoutils.NewClientGoUtils(kubeconfigPath, namespace)
-	if err = updateConnectConfigMap(utils, insertFunc); err != nil {
+	options := pkg.ConnectOptions{KubeconfigPath: kubeconfigPath, Namespace: namespace}
+	if err = options.InitClient(ctx); err != nil {
+		return err
+	}
+	if err = updateConnectConfigMap(options.GetClientSet().CoreV1().ConfigMaps(namespace), insertFunc); err != nil {
 		return err
 	}
 	logger.Infof("connecting to new namespace...")
@@ -256,28 +266,29 @@ func connectToNamespace(ctx context.Context, writer io.WriteCloser, kubeconfigPa
 func disconnectedFromNamespace(ctx context.Context, writer io.WriteCloser, kubeconfigPath, namespace string) error {
 	logger := util.GetLoggerFromContext(ctx)
 	kubeconfigBytes, _ := ioutil.ReadFile(kubeconfigPath)
+	var err error
 	// cleanup all reverse
 	logger.Infof("cleanup all old reverse resources...")
+	options := &pkg.ConnectOptions{
+		Ctx:            ctx,
+		KubeconfigPath: kubeconfigPath,
+		Namespace:      namespace,
+	}
+	if err = options.InitClient(ctx); err != nil {
+		return err
+	}
 	if value, found := GetReverseInfo().Load(util.GenerateKey(kubeconfigBytes, namespace)); found {
 		set := value.(*status).reverse.LoadAndDeleteBelongToMeResources().KeySet()
-		connectOptions := &pkg.ConnectOptions{
-			Ctx:            ctx,
-			KubeconfigPath: kubeconfigPath,
-			Namespace:      namespace,
-			Workloads:      set,
-		}
-		if err := connectOptions.InitClient(ctx); err != nil {
-			return err
-		}
 		_ = updateReverseConfigMap(kubeconfigPath, namespace, set, remove)
-		if err := connectOptions.RemoveInboundPod(); err != nil {
+		// remove inbound pod
+		options.Workloads = set
+		if err := options.RemoveInboundPod(); err != nil {
 			logger.Error(err)
 		}
 	}
 
 	// disconnect from old cluster or namespace
-	utils, err := clientgoutils.NewClientGoUtils(kubeconfigPath, namespace)
-	if err = updateConnectConfigMap(utils, deleteFunc); err != nil {
+	if err = updateConnectConfigMap(options.GetClientSet().CoreV1().ConfigMaps(namespace), deleteFunc); err != nil {
 		logger.Infof("error while remove connection info of namespace: %s", namespace)
 	}
 	var client *daemon_client.DaemonClient

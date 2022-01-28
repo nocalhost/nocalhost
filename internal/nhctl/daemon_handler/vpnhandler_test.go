@@ -12,7 +12,6 @@ import (
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/vpn/pkg"
 	"nocalhost/internal/nhctl/vpn/util"
-	"nocalhost/pkg/nhctl/clientgoutils"
 	"os"
 	"sync"
 	"testing"
@@ -108,8 +107,14 @@ func TestConnect(t *testing.T) {
 		panic(err)
 	}
 	logger := util.GetLoggerFromContext(context.TODO())
-	utils, _ := clientgoutils.NewClientGoUtils("/Users/naison/.kube/mesh", "naison-test")
-	if err = updateConnectConfigMap(utils, insertFunc); err != nil {
+	options := pkg.ConnectOptions{
+		KubeconfigPath: "/Users/naison/.kube/mesh",
+		Namespace:      "naison-test",
+	}
+	if err = options.InitClient(context.TODO()); err != nil {
+		panic(err)
+	}
+	if err = updateConnectConfigMap(options.GetClientSet().CoreV1().ConfigMaps(options.Namespace), insertFunc); err != nil {
 		panic(err)
 	}
 	logger.Infof("connecting to new namespace...")

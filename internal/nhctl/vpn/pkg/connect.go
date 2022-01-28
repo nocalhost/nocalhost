@@ -14,6 +14,7 @@ import (
 	"io/ioutil"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -518,11 +519,15 @@ func (c *ConnectOptions) GenerateTunIP(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	get.Data[util.MacToIP] = mac2IP.AddMacToIPRecord(util.GetMacAddress().String(), c.localTunIP.IP).ToString()
-	if _, err = c.clientset.CoreV1().ConfigMaps(c.Namespace).Update(context.TODO(), get, metav1.UpdateOptions{}); err != nil {
-		return err
-	}
-	return nil
+	data := mac2IP.AddMacToIPRecord(util.GetMacAddress().String(), c.localTunIP.IP).ToString()
+	_, err = c.clientset.CoreV1().ConfigMaps(c.Namespace).Patch(
+		context.TODO(),
+		get.Name,
+		types.MergePatchType,
+		[]byte(fmt.Sprintf("{\"data\":{\"%s\":\"%s\"}}", util.MacToIP, data)),
+		metav1.PatchOptions{},
+	)
+	return err
 }
 
 func (c *ConnectOptions) ConnectPingRemote() bool {

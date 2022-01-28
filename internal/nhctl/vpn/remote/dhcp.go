@@ -13,6 +13,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	"net"
@@ -71,7 +72,7 @@ func ToString(m map[string]sets.Int) string {
 		for _, i := range ips.List() {
 			strSet.Insert(strconv.Itoa(i))
 		}
-		sb.WriteString(fmt.Sprintf("%s%s%s\n", mac, util.Splitter, strings.Join(strSet.List(), ",")))
+		sb.WriteString(fmt.Sprintf("%s%s%s\\n", mac, util.Splitter, strings.Join(strSet.List(), ",")))
 	}
 	return sb.String()
 }
@@ -132,8 +133,12 @@ func (d *DHCPManager) RentIP(random bool) (*net.IPNet, error) {
 		used[util.GetMacAddress().String()] = sets.NewInt(ip)
 	}
 
-	configMap.Data[util.DHCP] = ToString(used)
-	_, err = d.client.CoreV1().ConfigMaps(d.namespace).Update(context.Background(), configMap, metav1.UpdateOptions{})
+	_, err = d.client.CoreV1().ConfigMaps(d.namespace).Patch(
+		context.Background(),
+		configMap.Name,
+		types.MergePatchType,
+		[]byte(fmt.Sprintf("{\"data\":{\"%s\":\"%s\"}}", util.DHCP, ToString(used))),
+		metav1.PatchOptions{})
 	if err != nil {
 		log.Errorf("update dhcp error after get ip, need to put ip back, err: %v", err)
 		return nil, err
@@ -145,18 +150,19 @@ func (d *DHCPManager) RentIP(random bool) (*net.IPNet, error) {
 	}, nil
 }
 
+// get ip base on Mac address
 func getIP(availableIp sets.Int) int {
 	hash := md5.New()
 	hash.Write([]byte(util.GetMacAddress().String()))
 	sum := hash.Sum(nil)
 	v := util.BytesToInt(sum)
-	for {
+	for retry := 1; retry < 255; retry++ {
 		if i := int(v % 255); availableIp.Has(i) {
 			return i
-		} else {
-			v++
 		}
+		v++
 	}
+	return int(util.BytesToInt(sum) % 255)
 }
 
 func getValueFromMap(m map[int]int) []string {
@@ -250,7 +256,7 @@ func FromStringToMac2IP(str string) (result DHCPRecordMap) {
 func (maps *DHCPRecordMap) ToString() string {
 	var sb strings.Builder
 	for _, v := range maps.innerMap {
-		sb.WriteString(strings.Join([]string{v.Mac, v.IP, v.Deadline.Format(time.RFC3339)}, util.Splitter) + "\n")
+		sb.WriteString(strings.Join([]string{v.Mac, v.IP, v.Deadline.Format(time.RFC3339)}, util.Splitter) + "\\n")
 	}
 	return sb.String()
 }
