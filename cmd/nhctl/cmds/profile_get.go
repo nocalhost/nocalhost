@@ -9,13 +9,14 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
 )
 
 func init() {
-	profileGetCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s workload name")
-	profileGetCmd.Flags().StringVarP(&serviceType, "type", "t", "deployment", "specify service type")
+	profileGetCmd.Flags().StringVarP(&common.WorkloadName, "deployment", "d", "", "k8s workload name")
+	profileGetCmd.Flags().StringVarP(&common.ServiceType, "type", "t", "deployment", "specify service type")
 	profileGetCmd.Flags().StringVarP(&container, "container", "c", "", "container name of pod")
 	profileGetCmd.Flags().StringVarP(&configKey, "key", "k", "", "key of dev config")
 	profileCmd.AddCommand(profileGetCmd)
@@ -32,7 +33,7 @@ var profileGetCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		initAppAndCheckIfSvcExist(args[0], deployment, serviceType)
+		common.InitAppAndCheckIfSvcExist(args[0], common.WorkloadName, common.ServiceType)
 		if configKey == "" {
 			log.Fatal("--key must be specified")
 		}
@@ -40,13 +41,13 @@ var profileGetCmd = &cobra.Command{
 			log.Fatal("--container must be specified")
 		}
 
-		_ = nocalhostSvc.LoadConfigFromHubC(container)
+		_ = common.NocalhostSvc.LoadConfigFromHubC(container)
 
-		_ = nocalhostApp.ReloadSvcCfg(deployment, nocalhostSvc.Type, false, true)
+		_ = common.NocalhostApp.ReloadSvcCfg(common.WorkloadName, common.NocalhostSvc.Type, false, true)
 
 		switch configKey {
 		case "image":
-			p := nocalhostSvc.Config()
+			p := common.NocalhostSvc.Config()
 
 			var defaultContainerConfig *profile.ContainerConfig
 			for _, c := range p.ContainerConfigs {
@@ -71,7 +72,7 @@ var profileGetCmd = &cobra.Command{
 					p.ContainerConfigs[defaultIndex] = defaultContainerConfig
 					defaultContainerConfig.Name = container // setting container name
 				}
-				must(nocalhostSvc.UpdateConfig(*p))
+				must(common.NocalhostSvc.UpdateConfig(*p))
 				fmt.Printf(`{"image": "%s"}`, defaultContainerConfig.Dev.Image)
 			}
 		default:

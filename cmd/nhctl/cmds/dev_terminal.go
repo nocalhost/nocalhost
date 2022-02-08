@@ -9,18 +9,21 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
+	"nocalhost/cmd/nhctl/cmds/common"
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/pkg/nhctl/log"
 )
 
-//var container string
+var pod string
+var shell string
 
 func init() {
 	devTerminalCmd.Flags().StringVarP(
-		&deployment, "deployment", "d", "",
+		&common.WorkloadName, "deployment", "d", "",
 		"k8s deployment which your developing service exists",
 	)
 	devTerminalCmd.Flags().StringVarP(
-		&serviceType, "controller-type", "t", "deployment",
+		&common.ServiceType, "controller-type", "t", "deployment",
 		"kind of k8s controller,such as deployment,statefulSet",
 	)
 	devTerminalCmd.Flags().StringVarP(&container, "container", "c", "", "container to enter")
@@ -44,22 +47,31 @@ var devTerminalCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		applicationName := args[0]
-		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
+		common.InitAppAndCheckIfSvcExist(applicationName, common.WorkloadName, common.ServiceType)
 
 		if pod == "" {
-			podList, err := nocalhostSvc.GetPodList()
+			podList, err := common.NocalhostSvc.GetPodList()
 			must(err)
 			var runningPod = make([]v1.Pod, 0, 1)
+
+		Exit:
 			for _, item := range podList {
 				if item.Status.Phase == v1.PodRunning && item.DeletionTimestamp == nil {
 					runningPod = append(runningPod, item)
 				}
+
+				for _, c := range item.Spec.Containers {
+					if c.Name == _const.NocalhostDefaultDevSidecarName {
+						pod = item.Name
+						break Exit
+					}
+				}
 			}
-			if len(runningPod) != 1 {
+			if pod == "" && len(runningPod) != 1 {
 				log.Fatalf("Pod num is %d (not 1), please specify one", len(runningPod))
 			}
 			pod = runningPod[0].Name
 		}
-		must(nocalhostSvc.EnterPodTerminal(pod, container, shell))
+		must(common.NocalhostSvc.EnterPodTerminal(pod, container, shell, ""))
 	},
 }

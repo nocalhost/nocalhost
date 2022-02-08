@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/dev_dir"
 	"nocalhost/internal/nhctl/fp"
@@ -72,7 +73,7 @@ func init() {
 		"k8s deployment which your developing service exists",
 	)
 	configGetCmd.Flags().StringVarP(
-		&serviceType, "controller-type", "t", "deployment",
+		&common.ServiceType, "controller-type", "t", "deployment",
 		"kind of k8s controller,such as deployment,statefulSet",
 	)
 	configGetCmd.Flags().BoolVar(
@@ -98,14 +99,14 @@ var configGetCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		commonFlags.AppName = args[0]
-		if err := initAppMutate(commonFlags.AppName); err != nil {
-			log.Logf("init app:%s on namespace: %s, error: %v", commonFlags.AppName, nameSpace, err)
+		if err := common.InitAppMutate(commonFlags.AppName); err != nil {
+			log.Logf("init app:%s on namespace: %s, error: %v", commonFlags.AppName, common.NameSpace, err)
 			return
 		}
 		// get application config
 		if commonFlags.AppConfig {
 
-			applicationConfig := nocalhostApp.GetApplicationConfigV2()
+			applicationConfig := common.NocalhostApp.GetApplicationConfigV2()
 			bys, err := yaml.Marshal(applicationConfig)
 			must(errors.Wrap(err, "fail to get application config"))
 			fmt.Println(string(bys))
@@ -113,7 +114,7 @@ var configGetCmd = &cobra.Command{
 		}
 
 		if commonFlags.SvcName == "" {
-			appConfig := nocalhostApp.GetApplicationConfigV2()
+			appConfig := common.NocalhostApp.GetApplicationConfigV2()
 			config := &ConfigForPlugin{}
 			config.Services = make([]*profile.ServiceConfigV2, 0)
 			for _, svcPro := range appConfig.ServiceConfigs {
@@ -124,22 +125,22 @@ var configGetCmd = &cobra.Command{
 			fmt.Println(string(bys))
 
 		} else {
-			checkIfSvcExist(commonFlags.SvcName, serviceType)
+			common.CheckIfSvcExist(commonFlags.SvcName, common.ServiceType)
 
-			_ = nocalhostSvc.LoadConfigFromHub()
+			_ = common.NocalhostSvc.LoadConfigFromHub()
 			// need to load latest config
-			_ = nocalhostApp.ReloadSvcCfg(commonFlags.SvcName, nocalhostSvc.Type, false, true)
-			nocalhostSvc.ReloadConfig()
+			_ = common.NocalhostApp.ReloadSvcCfg(commonFlags.SvcName, common.NocalhostSvc.Type, false, true)
+			common.NocalhostSvc.ReloadConfig()
 
-			svcProfile, err := nocalhostSvc.GetProfile()
+			svcProfile, err := common.NocalhostSvc.GetProfile()
 			must(err)
-			svcConfig := nocalhostSvc.Config()
+			svcConfig := common.NocalhostSvc.Config()
 
 			// to avoid empty config
 			if svcConfig == nil {
 				svcConfig = &profile.ServiceConfigV2{
 					Name:             commonFlags.SvcName,
-					Type:             nocalhostSvc.Type.String(),
+					Type:             common.NocalhostSvc.Type.String(),
 					ContainerConfigs: []*profile.ContainerConfig{},
 				}
 			}
@@ -149,10 +150,11 @@ var configGetCmd = &cobra.Command{
 				must(errors.Wrap(err, "fail to marshal svc config"))
 
 				pack := dev_dir.NewSvcPack(
-					nocalhostSvc.NameSpace,
-					nocalhostSvc.AppName,
-					nocalhostSvc.Type,
-					nocalhostSvc.Name,
+					common.NocalhostSvc.NameSpace,
+					common.NocalhostSvc.AppMeta.NamespaceId,
+					common.NocalhostSvc.AppName,
+					common.NocalhostSvc.Type,
+					common.NocalhostSvc.Name,
 					"",
 				)
 

@@ -364,6 +364,7 @@ func (a *Application) loadSvcCfgFromLocalIfValid(svcName string, svcType base.Sv
 	meta := a.GetAppMeta()
 	pack := dev_dir.NewSvcPack(
 		meta.Ns,
+		meta.NamespaceId,
 		meta.Application,
 		svcType,
 		svcName,

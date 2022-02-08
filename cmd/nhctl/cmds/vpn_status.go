@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/vpn/pkg"
 	"nocalhost/internal/nhctl/vpn/util"
@@ -16,8 +17,8 @@ import (
 )
 
 func init() {
-	vpnStatusCmd.Flags().StringVar(&kubeConfig, "kubeconfig", clientcmd.RecommendedHomeFile, "kubeconfig")
-	vpnStatusCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "namespace")
+	vpnStatusCmd.Flags().StringVar(&common.NameSpace, "kubeconfig", clientcmd.RecommendedHomeFile, "kubeconfig")
+	vpnStatusCmd.Flags().StringVarP(&common.NameSpace, "namespace", "n", "", "namespace")
 	vpnStatusCmd.Flags().StringVar(&workloads, "workloads", "", "workloads, like: services/tomcat, deployment/nginx, replicaset/tomcat...")
 	vpnStatusCmd.Flags().BoolVar(&util.Debug, "debug", false, "true/false")
 	vpnCmd.AddCommand(vpnStatusCmd)
@@ -34,7 +35,7 @@ var vpnStatusCmd = &cobra.Command{
 				if marshal, err := json.Marshal(command); err == nil {
 					var result cluster
 					if err = json.Unmarshal(marshal, &result); err == nil {
-						n.Actual = result
+						n.Daemon = result
 					}
 				}
 			}
@@ -44,7 +45,7 @@ var vpnStatusCmd = &cobra.Command{
 				if marshal, err := json.Marshal(command); err == nil {
 					var result pkg.ConnectOptions
 					if err = json.Unmarshal(marshal, &result); err == nil {
-						n.Expected = cluster{
+						n.SudoDaemon = cluster{
 							Namespace:  result.Namespace,
 							Kubeconfig: string(result.KubeconfigBytes),
 						}
@@ -59,14 +60,14 @@ var vpnStatusCmd = &cobra.Command{
 }
 
 type name struct {
-	Expected cluster
-	Actual   cluster
-	Equal    bool
+	SudoDaemon cluster
+	Daemon     cluster
+	Equal      bool
 }
 
 func (n *name) isEquals() {
-	n.Equal = util.GenerateKey([]byte(n.Actual.Kubeconfig), n.Actual.Namespace) ==
-		util.GenerateKey([]byte(n.Expected.Kubeconfig), n.Expected.Namespace)
+	n.Equal = util.GenerateKey([]byte(n.Daemon.Kubeconfig), n.Daemon.Namespace) ==
+		util.GenerateKey([]byte(n.SudoDaemon.Kubeconfig), n.SudoDaemon.Namespace)
 }
 
 type cluster struct {
