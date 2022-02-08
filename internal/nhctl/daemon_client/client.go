@@ -478,8 +478,7 @@ func (d *DaemonClient) SendVPNOperateCommand(
 }
 
 func (d *DaemonClient) SendSudoVPNOperateCommand(
-	kubeconfig, ns string, operation command.VPNOperation, workloads string,
-) (io.ReadCloser, error) {
+	kubeconfig, ns string, operation command.VPNOperation) (io.ReadCloser, error) {
 	cmd := &command.VPNOperateCommand{
 		CommandType: command.SudoVPNOperate,
 		ClientStack: string(debug.Stack()),
@@ -487,7 +486,6 @@ func (d *DaemonClient) SendSudoVPNOperateCommand(
 		KubeConfig: kubeconfig,
 		Namespace:  ns,
 		Action:     operation,
-		Resource:   workloads,
 	}
 	bys, err := json.Marshal(cmd)
 	if err != nil {

@@ -390,14 +390,16 @@ func GetScale(object k8sruntime.Object) int {
 	return 0
 }
 
-func DeletePod(clientset *kubernetes.Clientset, namespace, podName string) {
+func DeletePod(clientset *kubernetes.Clientset, namespace, podName string) error {
 	zero := int64(0)
 	err := clientset.CoreV1().Pods(namespace).Delete(context.TODO(), podName, metav1.DeleteOptions{
 		GracePeriodSeconds: &zero,
 	})
-	if err != nil && k8serrors.IsNotFound(err) {
+	if k8serrors.IsNotFound(err) {
 		log.Infof("not found shadow pod: %s, no need to delete it", podName)
+		return nil
 	}
+	return err
 }
 
 type ResourceTuple struct {

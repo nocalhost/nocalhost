@@ -35,7 +35,7 @@ var vpnStatusCmd = &cobra.Command{
 				if marshal, err := json.Marshal(command); err == nil {
 					var result cluster
 					if err = json.Unmarshal(marshal, &result); err == nil {
-						n.Actual = result
+						n.Daemon = result
 					}
 				}
 			}
@@ -45,7 +45,7 @@ var vpnStatusCmd = &cobra.Command{
 				if marshal, err := json.Marshal(command); err == nil {
 					var result pkg.ConnectOptions
 					if err = json.Unmarshal(marshal, &result); err == nil {
-						n.Expected = cluster{
+						n.SudoDaemon = cluster{
 							Namespace:  result.Namespace,
 							Kubeconfig: string(result.KubeconfigBytes),
 						}
@@ -60,14 +60,14 @@ var vpnStatusCmd = &cobra.Command{
 }
 
 type name struct {
-	Expected cluster
-	Actual   cluster
-	Equal    bool
+	SudoDaemon cluster
+	Daemon     cluster
+	Equal      bool
 }
 
 func (n *name) isEquals() {
-	n.Equal = util.GenerateKey([]byte(n.Actual.Kubeconfig), n.Actual.Namespace) ==
-		util.GenerateKey([]byte(n.Expected.Kubeconfig), n.Expected.Namespace)
+	n.Equal = util.GenerateKey([]byte(n.Daemon.Kubeconfig), n.Daemon.Namespace) ==
+		util.GenerateKey([]byte(n.SudoDaemon.Kubeconfig), n.SudoDaemon.Namespace)
 }
 
 type cluster struct {
