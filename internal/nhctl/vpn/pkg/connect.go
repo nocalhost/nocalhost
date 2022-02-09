@@ -15,6 +15,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -422,46 +423,74 @@ func Start(ctx context.Context, r Route) (chan error, error) {
 }
 
 func getCIDR(clientset *kubernetes.Clientset, namespace string) ([]*net.IPNet, error) {
-	var cidrs []*net.IPNet
+	var CIDRList []*net.IPNet
+	// get pod CIDR from node spec
 	if nodeList, err := clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{}); err == nil {
+		var podCIDRs = sets.NewString()
 		for _, node := range nodeList.Items {
-			if _, ip, _ := net.ParseCIDR(node.Spec.PodCIDR); ip != nil {
-				ip.Mask = net.CIDRMask(16, 32)
-				ip.IP = ip.IP.Mask(ip.Mask)
-				cidrs = append(cidrs, ip)
+			if node.Spec.PodCIDRs != nil {
+				podCIDRs.Insert(node.Spec.PodCIDRs...)
+			}
+			if len(node.Spec.PodCIDR) != 0 {
+				podCIDRs.Insert(node.Spec.PodCIDR)
+			}
+		}
+		for _, podCIDR := range podCIDRs.List() {
+			if _, CIDR, err := net.ParseCIDR(podCIDR); err == nil {
+				CIDRList = append(CIDRList, CIDR)
 			}
 		}
 	}
-	if serviceList, err := clientset.CoreV1().Services(namespace).List(context.TODO(), metav1.ListOptions{}); err == nil {
-		for _, service := range serviceList.Items {
-			if ip := net.ParseIP(service.Spec.ClusterIP); ip != nil {
-				// todo service ip is not like pod have a range of ip, service have multiple range of ip, so make mask bigger
-				// maybe it's just occurs on docker-desktop
-				mask := net.CIDRMask(24, 32)
-				cidrs = append(cidrs, &net.IPNet{IP: ip.Mask(mask), Mask: mask})
-			}
-		}
-	}
+	// if node spec can not contain pod IP
 	if podList, err := clientset.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{}); err == nil {
 		for _, pod := range podList.Items {
 			if ip := net.ParseIP(pod.Status.PodIP); ip != nil {
-				mask := net.CIDRMask(16, 32)
-				cidrs = append(cidrs, &net.IPNet{IP: ip.Mask(mask), Mask: mask})
+				var contains bool
+				for _, CIDR := range CIDRList {
+					if CIDR.Contains(ip) {
+						contains = true
+						break
+					}
+				}
+				if !contains {
+					mask := net.CIDRMask(24, 32)
+					CIDRList = append(CIDRList, &net.IPNet{IP: ip.Mask(mask), Mask: mask})
+				}
 			}
 		}
 	}
+	// pod CIDR maybe is not same with service CIDR
+	if serviceList, err := clientset.CoreV1().Services(namespace).List(context.TODO(), metav1.ListOptions{}); err == nil {
+		for _, service := range serviceList.Items {
+			if ip := net.ParseIP(service.Spec.ClusterIP); ip != nil {
+				var contains bool
+				for _, CIDR := range CIDRList {
+					if CIDR.Contains(ip) {
+						contains = true
+						break
+					}
+				}
+				if !contains {
+					mask := net.CIDRMask(16, 32)
+					CIDRList = append(CIDRList, &net.IPNet{IP: ip.Mask(mask), Mask: mask})
+				}
+			}
+		}
+	}
+
+	// remove duplicate CIDR
 	result := make([]*net.IPNet, 0)
-	tempMap := make(map[string]*net.IPNet)
-	for _, cidr := range cidrs {
-		if _, found := tempMap[cidr.String()]; !found {
-			tempMap[cidr.String()] = cidr
+	set := sets.NewString()
+	for _, cidr := range CIDRList {
+		if !set.Has(cidr.String()) {
+			set.Insert(cidr.String())
 			result = append(result, cidr)
 		}
 	}
-	if len(result) != 0 {
-		return result, nil
+	if len(result) == 0 {
+		return nil, fmt.Errorf("can not found any CIDR")
 	}
-	return nil, fmt.Errorf("can not found CIDR")
+	return result, nil
 }
 
 func (c *ConnectOptions) InitClient(ctx context.Context) (err error) {
