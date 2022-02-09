@@ -10,6 +10,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"go.uber.org/zap/zapcore"
 	"nocalhost/internal/nhctl/coloredoutput"
+	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
@@ -23,9 +24,9 @@ var (
 	focusBorderColor      = tcell.ColorNavy
 	backgroundColor       = tcell.Color(4294967528)
 	textViewColor         = tcell.Color(4294967480)
+	cliProfileDir         = filepath.Join(nocalhost_path.GetNhctlHomeDir(), "cli")
+	cliProfileName        = filepath.Join(cliProfileDir, ".nocalhost_cli")
 )
-
-const cliProfileName = ".nocalhost_cli"
 
 type CliProfile struct {
 	LastPosition string `json:"lastPosition" json:"lastPosition"`

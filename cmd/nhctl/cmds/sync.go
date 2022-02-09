@@ -11,6 +11,7 @@ import (
 	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/cmd/nhctl/cmds/dev"
 	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/model"
 )
 
 var fileSyncOps = &app.FileSyncOptions{}
@@ -66,7 +67,7 @@ var fileSyncCmd = &cobra.Command{
 
 		dev.StartSyncthing(
 			"", fileSyncOps.Resume, fileSyncOps.Stop,
-			&fileSyncOps.SyncDouble, fileSyncOps.Override,
+			&fileSyncOps.SyncDouble, fileSyncOps.Override, &model.DevStartOptions{},
 		)
 	},
 }

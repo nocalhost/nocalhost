@@ -58,11 +58,10 @@ func NewTviewApplication() *TviewApplication {
 	t.header = buildHeader()
 	t.clusterInfo = loadLocalClusterInfo()
 	t.RefreshHeader()
+	t.mainLayout.AddItem(t.header, 6, 1, false)
 	t.buildTreeBody()
 
 	t.mainLayout.SetBackgroundColor(backgroundColor)
-	t.mainLayout.AddItem(t.header, 6, 1, false)
-	t.mainLayout.AddItem(t.body, 0, 2, true)
 
 	str, _ := os.Getwd()
 	foot := tview.NewTextView().SetText("Current path: " + str)
@@ -156,15 +155,18 @@ func getClusterInfoByPath(path string) []*ClusterInfo {
 
 	for s, context := range config.Contexts {
 		k8sVer, _ := client.ClientSet.ServerVersion()
-		allClusterInfos = append(allClusterInfos, &ClusterInfo{
+		ci := &ClusterInfo{
 			Cluster:    context.Cluster,
 			Context:    s,
 			NameSpace:  client.GetNameSpace(),
 			KubeConfig: path,
 			User:       context.AuthInfo,
-			K8sVer:     k8sVer.GitVersion,
 			k8sClient:  client,
-		})
+		}
+		if k8sVer != nil {
+			ci.K8sVer = k8sVer.GitVersion
+		}
+		allClusterInfos = append(allClusterInfos, ci)
 	}
 	return allClusterInfos
 }
@@ -179,6 +181,9 @@ func (t *TviewApplication) initEventHandler() {
 			os.Exit(0)
 		case tcell.KeyCtrlL:
 			t.showColorPage()
+		case tcell.KeyCtrlS:
+			t.buildSelectContextMenu()
+
 			//	t.app.QueueUpdateDraw(func() {})
 			//case tcell.KeyEscape:
 			//	t.switchMainMenu()

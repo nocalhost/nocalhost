@@ -26,11 +26,20 @@ var (
 	collapsePrefix = "> "
 )
 
-func updateLastPosition(l string) {
-	_, err := os.Stat(cliProfileName)
+func createCliProfileIfNotExist() {
+	_, err := os.Stat(cliProfileDir)
+	if err != nil && os.IsNotExist(err) {
+		os.MkdirAll(cliProfileDir, 0755)
+	}
+
+	_, err = os.Stat(cliProfileName)
 	if err != nil && os.IsNotExist(err) {
 		ioutil.WriteFile(cliProfileName, []byte(""), 0644)
 	}
+}
+
+func updateLastPosition(l string) {
+	createCliProfileIfNotExist()
 	bys, err := ioutil.ReadFile(cliProfileName)
 	if err != nil {
 		return
@@ -45,6 +54,7 @@ func updateLastPosition(l string) {
 }
 
 func getLastPosition() string {
+	createCliProfileIfNotExist()
 	bys, err := ioutil.ReadFile(cliProfileName)
 	if err != nil {
 		return ""
@@ -69,7 +79,7 @@ func (t *TviewApplication) buildTreeBody() {
 
 	nsList, err := t.clusterInfo.k8sClient.ClientSet.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
 	if err != nil {
-		t.showErr(err, nil)
+		t.ShowInfo(err.Error())
 		return
 	}
 
@@ -106,7 +116,7 @@ func (t *TviewApplication) buildTreeBody() {
 								lastPosition = strings.Join([]string{GetText(nsNode), GetText(appNode), GetText(groupNode), GetText(wlNode)}, "/")
 
 								go func() {
-									table := t.buildSelectWorkloadList(m, GetText(nsNode), GetText(wlNode))
+									table := t.buildWorkloadList(m, GetText(nsNode), GetText(wlNode))
 									flex.RemoveItemAtIndex(1)
 									flex.AddItem(table, 0, 3, true)
 									t.app.QueueUpdateDraw(func() {
@@ -150,7 +160,6 @@ func (t *TviewApplication) buildTreeBody() {
 	table := NewRowSelectableTable("")
 	flex.AddItem(tree, 0, leftBodyProportion, true)
 	flex.AddItem(table, 0, rightBodyProportion, false)
-	//flex.SetBorder(true)
 
 	t.app.SetFocus(tree)
 	t.treeInBody = tree
@@ -171,6 +180,13 @@ func (t *TviewApplication) buildTreeBody() {
 		}
 		return event
 	})
+	it := t.mainLayout.ItemAt(1)
+	if it == nil {
+		t.mainLayout.AddItem(t.body, 0, 2, true)
+	} else {
+		t.mainLayout.RemoveItemAtIndex(1)
+		t.mainLayout.AddItemAtIndex(1, t.body, 0, 2, true)
+	}
 	tree.SetBackgroundColor(backgroundColor)
 }
 

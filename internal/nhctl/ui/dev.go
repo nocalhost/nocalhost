@@ -21,6 +21,7 @@ import (
 	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_handler/item"
+	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/utils"
 	yaml "nocalhost/pkg/nhctl/utils/custom_yaml_v3"
 	"os"
@@ -32,7 +33,7 @@ import (
 	"time"
 )
 
-func (t *TviewApplication) buildSelectWorkloadList(appMeta *appmeta.ApplicationMeta, ns, wl string) *EnhancedTable {
+func (t *TviewApplication) buildWorkloadList(appMeta *appmeta.ApplicationMeta, ns, wl string) *EnhancedTable {
 	workloadListTable := t.NewBorderedTable("")
 
 	workloadListTable.SetFocusFunc(func() {
@@ -116,6 +117,18 @@ func (t *TviewApplication) buildSelectWorkloadList(appMeta *appmeta.ApplicationM
 				return
 			}
 
+			getPodNameList := func() ([]string, error) {
+				pl, err := common2.NocalhostSvc.GetPodList()
+				if err != nil {
+					return nil, err
+				}
+				result := make([]string, 0)
+				for _, pod := range pl {
+					result = append(result, pod.Name)
+				}
+				return result, nil
+			}
+
 			opsTable := NewRowSelectableTable("")
 			options := make([]string, 0)
 
@@ -125,16 +138,16 @@ func (t *TviewApplication) buildSelectWorkloadList(appMeta *appmeta.ApplicationM
 				options = append(options, startDevModeOpt)
 			}
 			if !common2.NocalhostSvc.IsProcessor() {
-				options = append(options, " Start DevMode(Duplicate)")
+				options = append(options, startDupDevModeOpt)
 			}
 
-			options = append(options, portForwardOpt, viewDevConfigOpt, " Reset Pod", viewLogsOpt, openTerminalOpt, syncLogsOpt, openGuiOpt)
+			options = append(options, portForwardOpt, viewDevConfigOpt, "Reset Pod", viewLogsOpt, openTerminalOpt, syncLogsOpt, openGuiOpt)
 			for i, option := range options {
 				opsTable.SetCell(i, 0, tview.NewTableCell(option).SetTextColor(tcell.Color(4294967449)))
 			}
 
 			x, y, _ := workloadNameCell.GetLastPosition()
-			opsTable.SetRect(x+10, y, 30, 10)
+			opsTable.SetRect(x+10, y, 30, len(options)+2)
 			t.pages.AddPage("menu", opsTable, false, true)
 			t.pages.ShowPage("menu")
 			t.app.SetFocus(opsTable)
@@ -147,22 +160,24 @@ func (t *TviewApplication) buildSelectWorkloadList(appMeta *appmeta.ApplicationM
 			})
 			opsTable.SetSelectedFunc(func(row1, column1 int) {
 				t.pages.HidePage("menu")
-				switch opsTable.GetCell(row1, column1).Text {
-				case startDevModeOpt:
-					containerTable := t.ShowContainersTable(x+10, y, 50, 10)
+				ops := opsTable.GetCell(row1, column1).Text
+				switch ops {
+				case startDevModeOpt, startDupDevModeOpt:
+					devStartOps := &model.DevStartOptions{}
+					containerTable := t.ShowOriginalContainersTable(x+10, y, 50, 10)
 					if containerTable == nil {
 						return
 					}
 
 					containerTable.SetSelectedFunc(func(row, column int) {
 						t.pages.HidePage("containers")
-						dev.DevStartOps.Container = trimSpaceStr(containerTable.GetCell(row, column).Text)
+						devStartOps.Container = containerTable.GetCell(row, column).Text
 						svcConfig := common2.NocalhostSvc.Config()
 						if svcConfig == nil {
 							t.showErr(errors.New("svc config is nil"), nil)
 							return
 						}
-						config := svcConfig.GetContainerDevConfigOrDefault(dev.DevStartOps.Container)
+						config := svcConfig.GetContainerDevConfigOrDefault(devStartOps.Container)
 						configured := make(chan bool, 1)
 						if config.Image == "" {
 							imageTables := t.ShowDevImageTable(10, 10, 80, 20)
@@ -189,13 +204,16 @@ func (t *TviewApplication) buildSelectWorkloadList(appMeta *appmeta.ApplicationM
 								}
 							}
 							str, _ := os.Getwd()
-							dev.DevStartOps.LocalSyncDir = []string{str}
-							dev.DevStartOps.NoTerminal = true
+							devStartOps.LocalSyncDir = []string{str}
+							devStartOps.NoTerminal = true
 
 							writer := t.switchBodyToScrollingView(" Start DevMode", workloadListTable)
 							RedirectionOut(writer)
 							go func() {
-								dev.StartDevMode(appMeta.Application)
+								if ops == startDupDevModeOpt {
+									devStartOps.DevModeType = "duplicate"
+								}
+								dev.StartDevMode(appMeta.Application, devStartOps)
 								RecoverOut()
 
 								podList, err := common2.NocalhostSvc.GetPodList()
@@ -211,9 +229,7 @@ func (t *TviewApplication) buildSelectWorkloadList(appMeta *appmeta.ApplicationM
 								}
 								if len(runningPod) != 1 {
 									t.showErr(
-										errors.New(fmt.Sprintf("Pod num is %d (not 1), please specify one", len(runningPod))),
-										func() {
-										})
+										errors.New(fmt.Sprintf("Pod num is %d (not 1), please specify one", len(runningPod))), nil)
 									return
 								}
 								t.app.Suspend(func() {
@@ -329,12 +345,12 @@ func (t *TviewApplication) buildSelectWorkloadList(appMeta *appmeta.ApplicationM
 							}
 
 							// Select a pods
-							pl, err := common2.NocalhostSvc.GetPodList()
+							pl, err := getPodNameList()
 							if err != nil {
 								t.showErr(err, nil)
 								return
 							}
-							t.buildPodListTable(pl, func(podName string) {
+							t.buildReusableTable(pl, func(podName string) {
 								err = common2.NocalhostSvc.PortForward(podName, l, r, "")
 								if err != nil {
 									t.showErr(err, nil)
@@ -380,44 +396,108 @@ func (t *TviewApplication) buildSelectWorkloadList(appMeta *appmeta.ApplicationM
 								runningPod = append(runningPod, item)
 							}
 						}
-						if len(runningPod) != 1 {
-							t.showErr(errors.New(fmt.Sprintf("Pod num is %d (not 1), please specify one", len(runningPod))), nil)
+						if len(runningPod) == 0 {
+							t.showErr(errors.New(fmt.Sprintf("Pod num is 0 ?")), nil)
 							return
 						}
-						t.app.Suspend(func() {
-							fmt.Print("\033[H\033[2J") // clear screen
-							common2.NocalhostSvc.EnterPodTerminal(runningPod[0].Name, "nocalhost-dev", "bash", _const.DevModeTerminalBanner)
-						})
-						t.app.QueueUpdateDraw(func() {
+
+						if common2.NocalhostSvc.IsInDevMode() {
+							t.app.Suspend(func() {
+								fmt.Print("\033[H\033[2J") // clear screen
+								common2.NocalhostSvc.EnterPodTerminal(runningPod[0].Name, "nocalhost-dev", "bash", _const.DevModeTerminalBanner)
+							})
+							t.app.QueueUpdateDraw(func() {
+								t.app.SetFocus(workloadListTable)
+							})
+						} else {
+							names := make([]string, 0)
+							for _, pod := range runningPod {
+								names = append(names, pod.Name)
+							}
 							t.app.SetFocus(workloadListTable)
-						})
+							t.buildReusableTable(names, func(selectedPod string) {
+								var sp *v1.Pod
+								for _, pod := range runningPod {
+									if pod.Name == selectedPod {
+										sp = &pod
+									}
+								}
+								if sp == nil {
+									t.ShowInfo(fmt.Sprintf("Pod %s is not exist?", selectedPod))
+									return
+								}
+								cs := make([]string, 0)
+								for _, container := range sp.Spec.Containers {
+									cs = append(cs, container.Name)
+								}
+								t.buildReusableTable(cs, func(selectedItem string) {
+									t.app.Suspend(func() {
+										fmt.Print("\033[H\033[2J") // clear screen
+										common2.NocalhostSvc.EnterPodTerminal(selectedPod, selectedItem, "bash", _const.DevModeTerminalBanner)
+									})
+									t.app.QueueUpdateDraw(func() {
+										t.app.SetFocus(workloadListTable)
+									})
+								})
+							})
+						}
 					}()
 				case viewLogsOpt:
-					containerTable := t.ShowContainersTable(x+10, y, 50, 10)
-					containerTable.SetSelectedFunc(func(row, column int) {
-						t.pages.HidePage("containers")
-						writer := t.switchBodyToScrollingView(" View logs", workloadListTable)
-						kube.InitLogOptions()
-						kube.LogOptions.IOStreams.Out = writer
-						// nhctl k logs --tail=3000 reviews-6446f84d54-8hdrt --namespace nocalhost-aaaa -c reviews --kubeconfig xxx
-						kube.LogOptions.Container = trimSpaceStr(containerTable.GetCell(row, column).Text)
-						kube.LogOptions.Tail = 3000
-						// pod name?
-						ps, err := common2.NocalhostSvc.GetPodList()
-						if err != nil {
-							t.showErr(err, nil)
+					// get pod list
+					podList, err := common2.NocalhostSvc.GetPodList()
+					if err != nil {
+						t.showErr(err, nil)
+						return
+					}
+
+					showContainerListFunc := func(podName string) {
+						var selectedPod *v1.Pod
+						for _, pod := range podList {
+							if pod.Name == podName {
+								selectedPod = &pod
+							}
+						}
+						containers := make([]string, 0)
+						if selectedPod == nil {
+							t.ShowInfo("No selected Pod??")
 							return
 						}
-						// todo: support multi pod
-						if len(ps) != 1 {
-							t.showErr(errors.New("pod len is not 1"), nil)
-							return
+
+						for _, container := range selectedPod.Spec.Containers {
+							containers = append(containers, container.Name)
 						}
-						go func(podName string) {
-							// todo: we may need to recreate LogOptions
-							kube.RunLogs(kube.CmdLogs, []string{podName})
-						}(ps[0].Name)
-					})
+
+						containerTable := t.pageWithTable("ContainersPage", "Containers", containers, 50, 10)
+						containerTable.SetSelectedFunc(func(row, column int) {
+							t.pages.HidePage("ContainersPage")
+							t.app.SetFocus(workloadListTable)
+							writer := t.switchBodyToScrollingView(" View logs", workloadListTable)
+							kube.InitLogOptions()
+							kube.LogOptions.IOStreams.Out = writer
+							// nhctl k logs --tail=3000 reviews-6446f84d54-8hdrt --namespace nocalhost-aaaa -c reviews --kubeconfig xxx
+							kube.LogOptions.Container = containerTable.GetCell(row, column).Text
+							kube.LogOptions.Tail = 3000
+							go func() {
+								// todo: we may need to recreate LogOptions
+								kube.RunLogs(kube.CmdLogs, []string{podName})
+							}()
+						})
+					}
+					if len(podList) > 1 {
+						podNames := make([]string, 0)
+						for _, pod := range podList {
+							podNames = append(podNames, pod.Name)
+						}
+						podListTable := t.pageWithTable("PodNameListPage", "Pod", podNames, 50, 10)
+						podListTable.SetSelectedFunc(func(row, column int) {
+							t.pages.HidePage("PodNameListPage")
+							t.app.SetFocus(workloadListTable)
+							showContainerListFunc(podListTable.GetCell(row, column).Text)
+						})
+					} else {
+						showContainerListFunc(podList[0].Name)
+					}
+
 				case syncLogsOpt:
 					logPath := filepath.Join(common2.NocalhostSvc.GetSyncDir(), "syncthing.log")
 					if _, err = os.Stat(logPath); err != nil {
@@ -454,15 +534,19 @@ func (t *TviewApplication) buildSelectWorkloadList(appMeta *appmeta.ApplicationM
 	return workloadListTable
 }
 
-func (t *TviewApplication) ShowContainersTable(x, y, width, height int) *EnhancedTable {
+func (t *TviewApplication) ShowOriginalContainersTable(x, y, width, height int) *EnhancedTable {
 	containerList, err := common2.NocalhostSvc.GetOriginalContainers()
 	if err != nil {
 		t.showErr(err, nil)
 		return nil
 	}
+	return t.containersTable(containerList, x, y, width, height)
+}
+
+func (t *TviewApplication) containersTable(containerList []v1.Container, x, y, width, height int) *EnhancedTable {
 	containerTable := t.NewBorderedTable("Containers")
 	for i, container := range containerList {
-		containerTable.SetCellSimple(i, 0, " "+container.Name)
+		containerTable.SetCellSimple(i, 0, container.Name)
 	}
 	containerTable.SetRect(x, y, width, height)
 	t.app.SetFocus(containerTable)
@@ -479,12 +563,40 @@ func (t *TviewApplication) ShowContainersTable(x, y, width, height int) *Enhance
 	})
 	return containerTable
 }
+
+func (t *TviewApplication) getCenterRect(width, height int) (int, int, int, int) {
+	_, _, w, h := t.mainLayout.GetRect()
+	return w/2 - width/2, h/2 - height/2, width, height
+}
+
+func (t *TviewApplication) pageWithTable(pageName, tableName string, rows []string, width, height int) *EnhancedTable {
+	table := t.NewBorderedTable(tableName)
+	for i, row := range rows {
+		table.SetCellSimple(i, 0, row)
+	}
+	table.SetRect(t.getCenterRect(width, height))
+	t.app.SetFocus(table)
+	t.pages.AddPage(pageName, table, false, true)
+	t.pages.ShowPage(pageName)
+	table.SetBlurFunc(func() {
+		t.pages.RemovePage(pageName)
+	})
+	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEsc {
+			t.pages.RemovePage(pageName)
+			return nil
+		}
+		return event
+	})
+	return table
+}
+
 func (t *TviewApplication) getRect() (int, int, int, int) {
 	return t.mainLayout.GetRect()
 }
 
-func (t *TviewApplication) buildPodListTable(podList []v1.Pod, f func(podName string)) {
-	pageName := "PodListPage"
+func (t *TviewApplication) buildReusableTable(items []string, f func(selectedItem string)) {
+	pageName := "ReusablePage"
 	tab := NewRowSelectableTable("<Pod>")
 	tab.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
@@ -493,19 +605,26 @@ func (t *TviewApplication) buildPodListTable(podList []v1.Pod, f func(podName st
 		}
 		return event
 	})
-	for i, pod := range podList {
-		tab.SetCell(i, 0, coloredCell(pod.Name))
+	for i, it := range items {
+		tab.SetCell(i, 0, coloredCell(it))
 	}
 	_, _, w, h := t.getRect()
 	tab.SetRect(w/2-25, h/2-5, 50, 10)
 	tab.SetSelectedFunc(func(row, column int) {
 		t.pages.RemovePage(pageName)
 		if f != nil {
-			podName := tab.GetCell(row, column).Text
-			f(podName)
+			tx := tab.GetCell(row, column).Text
+			f(tx)
 		}
 	})
-	t.pages.AddPage(pageName, tab, false, true)
+	t.app.SetFocus(tab)
+	if t.pages.HasPage(pageName) {
+		t.pages.RemovePage(pageName)
+	}
+	t.QueueUpdateDraw(func() {
+		t.pages.AddPage(pageName, tab, false, true)
+		t.pages.ShowPage(pageName)
+	})
 }
 
 func (t *TviewApplication) ShowDevImageTable(x, y, width, height int) *EnhancedTable {
