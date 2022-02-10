@@ -7,16 +7,13 @@ package testcase
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v3"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	profile2 "nocalhost/internal/nhctl/profile"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/pkg/nhctl/k8sutils"
-	"nocalhost/pkg/nhctl/log"
 	"nocalhost/test/runner"
 	"time"
 )
@@ -101,17 +98,24 @@ func PortForwardServiceStart(cli runner.Client, module string, port int) error {
 }
 
 func StatusCheckPortForward(nhctl runner.Client, moduleName, moduleType string, port int) error {
-	cmd := nhctl.GetNhctl().Command(context.Background(), "describe", "bookinfo", "-d", moduleName, "-t", moduleType)
-	stdout, stderr, err := runner.Runner.Run(nhctl.SuiteName(), cmd)
-	if err != nil {
-		return errors.Errorf(
-			"exec command: %v, error: %v, stdout: %s, stderr: %s", cmd.Args, err, stdout, stderr,
-		)
-	}
-	service := profile2.SvcProfileV2{}
-	_ = yaml.Unmarshal([]byte(stdout), &service)
-	bytes, _ := json.Marshal(service)
-	log.TestLogger(nhctl.SuiteName()).Info(string(bytes))
+	//cmd := nhctl.GetNhctl().Command(context.Background(), "describe", "bookinfo", "-d", moduleName, "-t", moduleType)
+	//stdout, stderr, err := runner.Runner.Run(nhctl.SuiteName(), cmd)
+	//if err != nil {
+	//	return errors.Errorf(
+	//		"exec command: %v, error: %v, stdout: %s, stderr: %s", cmd.Args, err, stdout, stderr,
+	//	)
+	//}
+	common.InitApp("bookinfo")
+	common.CheckIfSvcExist(moduleName, moduleType)
+	service := common.NocalhostSvc.GetDescription()
+	//bytes, err := yaml.Marshal(svcProfile)
+	//if err == nil {
+	//	fmt.Print(string(bytes))
+	//}
+	//service := profile2.SvcProfileV2{}
+	//_ = yaml.Unmarshal([]byte(stdout), &service)
+	//bytes, _ := json.Marshal(service)
+	//log.TestLogger(nhctl.SuiteName()).Info(string(bytes))
 	if !service.PortForwarded {
 		return errors.New("test case failed, should be port forwarding")
 	}
