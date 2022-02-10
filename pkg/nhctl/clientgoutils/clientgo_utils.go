@@ -578,3 +578,30 @@ func GetControllerOfNoCopy(refs []metav1.OwnerReference) *metav1.OwnerReference 
 	}
 	return nil
 }
+
+func (c *ClientGoUtils) GetTopController(refs []metav1.OwnerReference) *metav1.OwnerReference {
+	controller := GetControllerOfNoCopy(refs)
+	if controller == nil {
+		return nil
+	}
+
+	if gv, err := schema.ParseGroupVersion(controller.APIVersion); err != nil {
+		return controller
+	} else {
+		gvr, nsScope, e := c.ResourceForGVK(gv.WithKind(controller.Kind))
+		if e != nil || !nsScope {
+			return controller
+		}
+
+		unstructured, e := c.GetUnstructured(gvr.Resource, controller.Name)
+		if e != nil {
+			return controller
+		}
+
+		ownerRef := c.GetTopController(unstructured.GetOwnerReferences())
+		if ownerRef == nil {
+			return controller
+		}
+		return ownerRef
+	}
+}

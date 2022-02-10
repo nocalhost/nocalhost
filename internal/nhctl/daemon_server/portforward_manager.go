@@ -12,8 +12,6 @@ import (
 	"io/ioutil"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"net"
 	"nocalhost/internal/nhctl/app"
@@ -198,32 +196,32 @@ func (p *PortForwardManager) recordPortForward(ns, nid, app string, isPortForwar
 	}
 }
 
-func GetTopController(refs []v1.OwnerReference, client *clientgoutils.ClientGoUtils) *v1.OwnerReference {
-	controller := clientgoutils.GetControllerOfNoCopy(refs)
-	if controller == nil {
-		return nil
-	}
-
-	if gv, err := schema.ParseGroupVersion(controller.APIVersion); err != nil {
-		return controller
-	} else {
-		gvr, nsScope, e := client.ResourceForGVK(gv.WithKind(controller.Kind))
-		if e != nil || !nsScope {
-			return controller
-		}
-
-		unstructured, e := client.GetUnstructured(gvr.Resource, controller.Name)
-		if e != nil {
-			return controller
-		}
-
-		ownerRef := GetTopController(unstructured.GetOwnerReferences(), client)
-		if ownerRef == nil {
-			return controller
-		}
-		return ownerRef
-	}
-}
+//func GetTopController(refs []v1.OwnerReference, client *clientgoutils.ClientGoUtils) *v1.OwnerReference {
+//	controller := clientgoutils.GetControllerOfNoCopy(refs)
+//	if controller == nil {
+//		return nil
+//	}
+//
+//	if gv, err := schema.ParseGroupVersion(controller.APIVersion); err != nil {
+//		return controller
+//	} else {
+//		gvr, nsScope, e := client.ResourceForGVK(gv.WithKind(controller.Kind))
+//		if e != nil || !nsScope {
+//			return controller
+//		}
+//
+//		unstructured, e := client.GetUnstructured(gvr.Resource, controller.Name)
+//		if e != nil {
+//			return controller
+//		}
+//
+//		ownerRef := GetTopController(unstructured.GetOwnerReferences(), client)
+//		if ownerRef == nil {
+//			return controller
+//		}
+//		return ownerRef
+//	}
+//}
 
 // StartPortForwardGoRoutine Start a port-forward
 // If saveToDB is true, record it to leveldb
@@ -270,7 +268,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 				for _, pod := range pods {
 
 					if startCmd.OwnerName != "" {
-						controller := GetTopController(pod.GetOwnerReferences(), nhController.Client)
+						controller := nhController.Client.GetTopController(pod.GetOwnerReferences())
 						if controller == nil {
 							continue
 						}
@@ -318,7 +316,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 			return err
 		} else {
 			pf.Labels = currentPod.Labels
-			controller := GetTopController(currentPod.GetOwnerReferences(), nhController.Client)
+			controller := nhController.Client.GetTopController(currentPod.GetOwnerReferences())
 
 			if controller != nil {
 				pf.OwnerName = controller.Name

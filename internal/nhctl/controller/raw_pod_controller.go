@@ -34,7 +34,11 @@ func (r *RawPodController) ReplaceImage(ctx context.Context, ops *model.DevStart
 
 	// Check if pod managed by controller
 	if len(originalPod.OwnerReferences) > 0 {
-		return errors.New(fmt.Sprintf("Pod %s is manged by a controller, can not enter DevMode", r.Name))
+		owner := r.Client.GetTopController(originalPod.OwnerReferences)
+		if owner != nil {
+			return errors.New(fmt.Sprintf("Pod %s is managed by a %s/%s, please choose %s/%s to enter DevMode", r.Name, owner.Kind, owner.Name, owner.Kind, owner.Name))
+		}
+		return errors.New(fmt.Sprintf("Pod %s is managed by a controller, can not enter DevMode", r.Name))
 	}
 
 	originalPod.Status = corev1.PodStatus{}
