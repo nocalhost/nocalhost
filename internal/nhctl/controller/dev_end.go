@@ -20,9 +20,9 @@ func (c *Controller) DevEnd(reset bool) error {
 	}
 
 	if err := c.BuildPodController().RollBack(reset); err != nil {
-		if !reset {
-			return err
-		}
+		//if !reset {
+		//	return err
+		//}
 		log.WarnE(err, "something incorrect occurs when rolling back")
 	}
 
