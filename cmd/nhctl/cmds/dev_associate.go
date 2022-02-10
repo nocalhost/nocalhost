@@ -72,13 +72,19 @@ var devAssociateCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		commonFlags.AppName = args[0]
 
-		must(common.Prepare())
-		must(common.InitApp(commonFlags.AppName))
-		must(common.CheckIfSvcExist(commonFlags.SvcName, common.ServiceType))
+		var err error = nil
+		var nid = ""
+		if err = common.Prepare(); err == nil {
+			if err = common.InitApp(commonFlags.AppName); err == nil {
+				if err := common.CheckIfSvcExist(commonFlags.SvcName, common.ServiceType); err == nil {
+					nid = common.NocalhostSvc.AppMeta.NamespaceId
+				}
+			}
+		}
 
 		svcPack := dev_dir.NewSvcPack(
 			common.NameSpace,
-			common.NocalhostSvc.AppMeta.NamespaceId,
+			nid,
 			commonFlags.AppName,
 			base.SvcType(common.ServiceType),
 			commonFlags.SvcName,
@@ -101,6 +107,8 @@ var devAssociateCmd = &cobra.Command{
 			log.Fatal("--local-sync must specify")
 		}
 
+		must(err)
+
 		if (common.NocalhostSvc.IsInReplaceDevMode() && common.NocalhostSvc.IsProcessor()) || common.NocalhostSvc.IsInDuplicateDevMode() {
 			if !dev_dir.DevPath(workDir).AlreadyAssociate(svcPack) {
 				log.PWarn("Current svc is already in DevMode, so can not switch associate dir, please exit the DevMode and try again.")
@@ -112,7 +120,7 @@ var devAssociateCmd = &cobra.Command{
 				} else {
 					svcPack = dev_dir.NewSvcPack(
 						common.NameSpace,
-						common.NocalhostSvc.AppMeta.NamespaceId,
+						nid,
 						commonFlags.AppName,
 						base.SvcType(common.ServiceType),
 						commonFlags.SvcName,
