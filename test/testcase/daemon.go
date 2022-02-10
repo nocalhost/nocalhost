@@ -105,8 +105,14 @@ func StatusCheckPortForward(nhctl runner.Client, moduleName, moduleType string, 
 	//		"exec command: %v, error: %v, stdout: %s, stderr: %s", cmd.Args, err, stdout, stderr,
 	//	)
 	//}
-	common.InitApp("bookinfo")
-	common.CheckIfSvcExist(moduleName, moduleType)
+	err := common.InitApp("bookinfo")
+	if err != nil {
+		return err
+	}
+	err = common.CheckIfSvcExist(moduleName, moduleType)
+	if err != nil {
+		return err
+	}
 	service := common.NocalhostSvc.GetDescription()
 	//bytes, err := yaml.Marshal(svcProfile)
 	//if err == nil {
