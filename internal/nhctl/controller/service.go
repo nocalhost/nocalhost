@@ -321,10 +321,29 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 	patchDevContainerToPodSpec(podSpec, ops.Container, devContainer, sideCarContainer, devModeVolumes)
 
 	if !c.DevModeAction.Create {
-		log.Info("Patching development container...")
 
-		specPath := c.DevModeAction.PodTemplatePath + "/spec"
+		log.Info("Update strategy to RECREATE")
+		specPath := "/spec/strategy"
+		strategy := &appsv1.DeploymentStrategy{
+			Type:          appsv1.RecreateDeploymentStrategyType,
+			RollingUpdate: nil,
+		}
 		jsonPatches := make([]jsonPatch, 0)
+		jsonPatches = append(
+			jsonPatches, jsonPatch{
+				Op:    "replace",
+				Path:  specPath,
+				Value: strategy,
+			},
+		)
+		bys, _ := json.Marshal(jsonPatches)
+		if err = c.Client.Patch(c.Type.String(), c.Name, string(bys), "json"); err != nil {
+			log.WarnE(err, "")
+		}
+
+		log.Info("Patching development container...")
+		specPath = c.DevModeAction.PodTemplatePath + "/spec"
+		jsonPatches = make([]jsonPatch, 0)
 		jsonPatches = append(
 			jsonPatches, jsonPatch{
 				Op:    "replace",
@@ -332,7 +351,7 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 				Value: podSpec,
 			},
 		)
-		bys, _ := json.Marshal(jsonPatches)
+		bys, _ = json.Marshal(jsonPatches)
 
 		if err = c.Client.Patch(c.Type.String(), c.Name, string(bys), "json"); err != nil {
 			return err
@@ -376,6 +395,8 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 			},
 		}
 		generatedDeployment.Spec.Template.Spec.RestartPolicy = v1.RestartPolicyAlways
+		generatedDeployment.Spec.Strategy.RollingUpdate = nil
+		generatedDeployment.Spec.Strategy.Type = appsv1.RecreateDeploymentStrategyType
 		if _, err = c.Client.CreateDeployment(generatedDeployment); err != nil {
 			return err
 		}
