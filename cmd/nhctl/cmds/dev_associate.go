@@ -12,6 +12,7 @@ import (
 	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/dev_dir"
+	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
 	"os"
 )
@@ -131,6 +132,13 @@ var devAssociateCmd = &cobra.Command{
 		}
 
 		must(dev_dir.DevPath(workDir).Associate(svcPack, common.KubeConfig, !migrate))
+		must(
+			common.NocalhostSvc.UpdateSvcProfile(
+				func(v2 *profile.SvcProfileV2) error {
+					return nil
+				},
+			),
+		)
 
 		must(common.NocalhostApp.ReloadSvcCfg(common.NocalhostSvc.Name, common.NocalhostSvc.Type, false, false))
 	},
