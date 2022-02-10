@@ -7,7 +7,6 @@ package tools
 
 import (
 	"context"
-	"fmt"
 	"github.com/pkg/errors"
 	"io"
 	"math/rand"
@@ -34,7 +33,7 @@ func ExecCommand(
 	if ctx == nil {
 		cmd = exec.Command(commandName, params...)
 	} else {
-		fmt.Println("command with ctx")
+		//fmt.Println("command with ctx")
 		cmd = exec.CommandContext(ctx, commandName, params...)
 	}
 	//log.Infof("Executing %s %v\n", commandName, params)

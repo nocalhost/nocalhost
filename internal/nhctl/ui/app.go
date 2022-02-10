@@ -6,6 +6,7 @@
 package ui
 
 import (
+	"fmt"
 	"github.com/derailed/tview"
 	"github.com/gdamore/tcell/v2"
 	"go.uber.org/zap/zapcore"
@@ -57,6 +58,10 @@ func NewTviewApplication() *TviewApplication {
 	t.mainLayout = tview.NewFlex().SetDirection(tview.FlexRow)
 	t.header = buildHeader()
 	t.clusterInfo = loadLocalClusterInfo()
+	if t.clusterInfo == nil {
+		fmt.Println(`Failed to get cluster info, please make sure your ~/.kube/config or $KUBECONFIG is configured correctly`)
+		return nil
+	}
 	t.RefreshHeader()
 	t.mainLayout.AddItem(t.header, 6, 1, false)
 	t.buildTreeBody()
@@ -248,9 +253,11 @@ func (t *TviewApplication) switchRightBodyTo(m tview.Primitive) {
 }
 
 func (t *TviewApplication) switchRightBodyToC(from, to tview.Primitive) {
-	t.cacheView = append(t.cacheView, from)
-	if len(t.cacheView) > t.maxCacheView && t.maxCacheView > 1 {
-		t.cacheView = t.cacheView[1:]
+	if from != nil {
+		t.cacheView = append(t.cacheView, from)
+		if len(t.cacheView) > t.maxCacheView && t.maxCacheView > 1 {
+			t.cacheView = t.cacheView[1:]
+		}
 	}
 	t.body.RemoveItemAtIndex(1)
 	t.body.AddItemAtIndex(1, to, 0, rightBodyProportion, true)
@@ -259,7 +266,7 @@ func (t *TviewApplication) switchRightBodyToC(from, to tview.Primitive) {
 
 // Using WriteSyncer write text to TextView
 func (t *TviewApplication) switchBodyToScrollingView(title string, from tview.Primitive) zapcore.WriteSyncer {
-	to := t.NewScrollingTextView(title)
+	to := t.NewScrollingTextViewForBody(title)
 	to.SetBorderPadding(0, 0, 1, 0)
 	sbd := SyncBuilder{func(p []byte) (int, error) {
 		t.app.QueueUpdateDraw(func() {
@@ -270,10 +277,6 @@ func (t *TviewApplication) switchBodyToScrollingView(title string, from tview.Pr
 
 	t.switchRightBodyToC(from, to)
 	return &sbd
-}
-
-func (t *TviewApplication) switchMainMenu() {
-	t.switchRightBodyTo(t.buildMainMenu())
 }
 
 func (t *TviewApplication) switchBodyToPre() {
@@ -364,7 +367,7 @@ func (t *TviewApplication) NewBorderedTable(s string) *EnhancedTable {
 	return tab
 }
 
-func (t *TviewApplication) NewScrollingTextView(title string) *tview.TextView {
+func (t *TviewApplication) NewScrollingTextViewForBody(title string) *tview.TextView {
 	tex := NewScrollingTextView(title)
 	tex.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {

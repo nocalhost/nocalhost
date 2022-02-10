@@ -108,7 +108,7 @@ func (t *TviewApplication) buildWorkloadList(appMeta *appmeta.ApplicationMeta, n
 		if row > 0 {
 			workloadNameCell := workloadListTable.GetCell(row, 0)
 			common2.WorkloadName = trimSpaceStr(workloadNameCell.Text)
-			common2.ServiceType = "deployment"
+			common2.ServiceType = strings.ToLower(strings.TrimSuffix(wl, "s"))
 			common2.KubeConfig = t.clusterInfo.KubeConfig
 			common2.NameSpace = ns
 			err = common2.InitAppAndCheckIfSvcExist(appMeta.Application, common2.WorkloadName, common2.ServiceType)
@@ -589,6 +589,29 @@ func (t *TviewApplication) pageWithTable(pageName, tableName string, rows []stri
 		return event
 	})
 	return table
+}
+
+func (t *TviewApplication) NewCentralPage(pageName string, p tview.Primitive, width, height int) func() {
+	flex := tview.NewFlex()
+	flex.AddItem(p, 0, 1, true)
+	ep := &EnhancedPrimitive{Primitive: flex}
+	t.pages.AddPage(pageName, ep, false, true)
+	t.pages.ShowPage(pageName)
+	flex.SetRect(t.getCenterRect(width, height))
+	ep.SetBlurFunc(func() {
+		t.pages.RemovePage(pageName)
+	})
+	flex.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEsc {
+			t.pages.RemovePage(pageName)
+			return nil
+		}
+		return event
+	})
+	t.app.SetFocus(p)
+	return func() {
+		t.pages.RemovePage(pageName)
+	}
 }
 
 func (t *TviewApplication) getRect() (int, int, int, int) {

@@ -22,10 +22,10 @@ const (
 	deployApplicationOption = " Deploy Application"
 	switchContextOption     = " Switch Context"
 
-	deployDemoAppOption      = " Quickstart: Deploy BookInfo demo application"
-	deployHelmAppOption      = " Helm: Use my own Helm chart (e.g. local via ./chart/ or any remote chart)"
-	deployKubectlAppOption   = " Kubectl: Use existing Kubernetes manifests (e.g. ./kube/deployment.yaml)"
-	deployKustomizeAppOption = " Kustomize: Use an existing Kustomization (e.g. ./kube/kustomization/)"
+	deployDemoAppOption      = "Quickstart: Deploy BookInfo demo application"
+	deployHelmAppOption      = "Helm: Use my own Helm chart (e.g. local via ./chart/ or any remote chart)"
+	deployKubectlAppOption   = "Kubectl: Use existing Kubernetes manifests (e.g. ./kube/deployment.yaml)"
+	deployKustomizeAppOption = "Kustomize: Use an existing Kustomization (e.g. ./kube/kustomization/)"
 
 	startDevModeOpt    = "Start DevMode"
 	startDupDevModeOpt = "Start DevMode(Duplicate)"
@@ -41,6 +41,9 @@ const (
 
 func RunTviewApplication() {
 	app := NewTviewApplication()
+	if app == nil {
+		return
+	}
 	stopChan := make(chan struct{})
 	go func() {
 		if err := app.Run(); err != nil {
@@ -94,29 +97,6 @@ func RunTviewApplication() {
 	}()
 
 	<-stopChan
-}
-
-func (t *TviewApplication) buildMainMenu() tview.Primitive {
-	mainMenu := t.NewBorderedTable(" Menu")
-	mainMenu.SetCell(1, 0, coloredCell(deployApplicationOption))
-	mainMenu.SetCell(2, 0, coloredCell(showTreeOpt))
-	mainMenu.SetCell(3, 0, coloredCell(switchContextOption))
-
-	// Make selected eventHandler the same as clicked
-	mainMenu.SetSelectedFunc(func(row, column int) {
-		selectedCell := mainMenu.GetCell(row, column)
-		var m tview.Primitive
-		switch selectedCell.Text {
-		case deployApplicationOption:
-			m = t.buildDeployApplicationMenu()
-		case switchContextOption:
-			m = t.buildSelectContextMenu()
-		default:
-			return
-		}
-		t.switchRightBodyToC(mainMenu, m)
-	})
-	return mainMenu
 }
 
 func (t *TviewApplication) buildSelectContextMenu() *EnhancedTable {

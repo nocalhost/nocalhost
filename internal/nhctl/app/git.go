@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package app
 
@@ -34,7 +34,7 @@ func cloneFromGit(gitUrl string, gitRef string, destPath string) error {
 			)
 		} else {
 			_, err = tools.ExecCommand(
-				nil, true, false, false, "git", "clone", "--depth", "1", gitUrl, destPath,
+				nil, false, false, false, "git", "clone", "--depth", "1", gitUrl, destPath,
 				"--config", "core.sshCommand=ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no",
 			)
 		}

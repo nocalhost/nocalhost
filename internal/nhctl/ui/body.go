@@ -11,7 +11,11 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"io/ioutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"nocalhost/internal/nhctl/app_flags"
+	"nocalhost/internal/nhctl/appmeta"
+	"nocalhost/internal/nhctl/common"
 	"nocalhost/internal/nhctl/nocalhost"
+	"nocalhost/pkg/nhctl/log"
 	yaml "nocalhost/pkg/nhctl/utils/custom_yaml_v3"
 	"os"
 	"strings"
@@ -76,6 +80,54 @@ func (t *TviewApplication) buildTreeBody() {
 	root := NewTreeNode(t.clusterInfo.Cluster)
 	tree.SetRoot(root)
 	tree.SetCurrentNode(root)
+	tree.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+
+		if event.Key() == tcell.KeyCtrlD {
+			cn := tree.GetCurrentNode()
+			if cn == nil {
+				return nil
+			}
+			if cn.GetReference() == nil {
+				return nil
+			}
+			s, ok := cn.GetReference().(string)
+			if !ok || s != "namespace" {
+				return nil
+			}
+
+			menu := t.NewBorderedTable("Deploy Application")
+			menu.SetCell(0, 0, coloredCell(deployDemoAppOption))
+			menu.SetCell(1, 0, coloredCell(deployHelmAppOption))
+			menu.SetCell(2, 0, coloredCell(deployKubectlAppOption))
+			menu.SetCell(3, 0, coloredCell(deployKustomizeAppOption))
+			removeFunc := t.NewCentralPage("DeployPage", menu, 100, 10)
+			menu.SetSelectedFunc(func(row, column int) {
+				selectedCell := menu.GetCell(row, column)
+				switch selectedCell.Text {
+				case deployDemoAppOption:
+					removeFunc()
+					sbd := t.switchBodyToScrollingView("", nil)
+					//nhctl install bookinfo --git-url https://github.com/nocalhost/bookinfo.git --type rawManifest --kubeconfig %s --namespace %s
+					f := app_flags.InstallFlags{
+						GitUrl:  "https://github.com/nocalhost/bookinfo.git",
+						AppType: string(appmeta.ManifestGit),
+					}
+					log.RedirectionDefaultLogger(sbd)
+					go func() {
+						_, err := common.InstallApplication(&f, "bookinfo", t.clusterInfo.KubeConfig, GetText(cn))
+						if err != nil {
+							t.ShowInfo(err.Error())
+						}
+						log.RedirectionDefaultLogger(os.Stdout)
+					}()
+				default:
+					return
+				}
+			})
+			return nil
+		}
+		return event
+	})
 
 	nsList, err := t.clusterInfo.k8sClient.ClientSet.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
 	if err != nil {
@@ -85,6 +137,7 @@ func (t *TviewApplication) buildTreeBody() {
 
 	for _, item := range nsList.Items {
 		nsNode := NewTreeNode(collapsePrefix + item.Name)
+		nsNode.SetReference("namespace")
 		nsNode.SetSelectedFunc(func() {
 			lastPosition = GetText(nsNode)
 			if nsNode.IsExpanded() && len(nsNode.GetChildren()) > 0 {
@@ -177,6 +230,7 @@ func (t *TviewApplication) buildTreeBody() {
 					break
 				}
 			}
+			return nil
 		}
 		return event
 	})
