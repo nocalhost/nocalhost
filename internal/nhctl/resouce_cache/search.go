@@ -94,6 +94,9 @@ func getSupportedSchema(apiResources []*restmapper.APIGroupResources,
 			resourceNeeded = append(resourceNeeded, s)
 		}
 	}
+
+	resourceNeeded = append(resourceNeeded, "ReplicaSet.v1.apps")
+
 	// kind
 	m := sets.NewString()
 	for _, s := range resourceNeeded {
