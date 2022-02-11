@@ -60,25 +60,24 @@ var devCmdCmd = &cobra.Command{
 			log.Fatalf("%s is not in DevMode", common.WorkloadName)
 		}
 
-		profile, err := common.NocalhostSvc.GetProfile()
-		must(err)
+		svcConfig := common.NocalhostSvc.Config()
 
-		if profile.GetContainerDevConfigOrDefault(container) == nil ||
-			profile.GetContainerDevConfigOrDefault(container).Command == nil {
+		if svcConfig.GetContainerDevConfigOrDefault(container) == nil ||
+			svcConfig.GetContainerDevConfigOrDefault(container).Command == nil {
 			log.Fatalf("%s command not defined", commandType)
 		}
 		var targetCommand []string
 		switch commandType {
 		case string(buildCommand):
-			targetCommand = profile.GetContainerDevConfigOrDefault(container).Command.Build
+			targetCommand = svcConfig.GetContainerDevConfigOrDefault(container).Command.Build
 		case string(runCommand):
-			targetCommand = profile.GetContainerDevConfigOrDefault(container).Command.Run
+			targetCommand = svcConfig.GetContainerDevConfigOrDefault(container).Command.Run
 		case string(debugCommand):
-			targetCommand = profile.GetContainerDevConfigOrDefault(container).Command.Debug
+			targetCommand = svcConfig.GetContainerDevConfigOrDefault(container).Command.Debug
 		case string(hotReloadDebugCommand):
-			targetCommand = profile.GetContainerDevConfigOrDefault(container).Command.HotReloadDebug
+			targetCommand = svcConfig.GetContainerDevConfigOrDefault(container).Command.HotReloadDebug
 		case string(hotReloadRunCommand):
-			targetCommand = profile.GetContainerDevConfigOrDefault(container).Command.HotReloadRun
+			targetCommand = svcConfig.GetContainerDevConfigOrDefault(container).Command.HotReloadRun
 		default:
 			log.Fatalf("%s is not supported", commandType)
 

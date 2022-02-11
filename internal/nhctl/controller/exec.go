@@ -31,10 +31,12 @@ func (c *Controller) EnterPodTerminal(podName, container, shell, banner string) 
 			shell = cfg.Shell
 		}
 
-		if cfg.DevContainerName != "" {
-			devContainerName = cfg.DevContainerName
-		} else {
-			devContainerName = _const.NocalhostDefaultDevContainerName
+		if c.IsInDevMode() {
+			if cfg.DevContainerName != "" {
+				devContainerName = cfg.DevContainerName
+			} else {
+				devContainerName = _const.NocalhostDefaultDevContainerName
+			}
 		}
 	}
 

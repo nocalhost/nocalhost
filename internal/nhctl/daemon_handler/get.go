@@ -111,20 +111,20 @@ func GetDescriptionDaemon(ns, appName string, kubeconfigBytes []byte) *profile.A
 				svcProfile.Name, base.SvcType(svcProfile.Type), appProfile.Identifier,
 			)
 
-			if svcProfile.ServiceConfigV2 == nil {
-				svcProfile.ServiceConfigV2 = &profile.ServiceConfigV2{
-					Name: svcProfile.GetName(),
-					Type: base.Deployment.String(),
-					ContainerConfigs: []*profile.ContainerConfig{
-						{
-							Dev: &profile.ContainerDevConfig{
-								Image:   profile.DefaultDevImage,
-								WorkDir: profile.DefaultWorkDir,
-							},
-						},
-					},
-				}
-			}
+			//if svcProfile.ServiceConfigV2 == nil {
+			//	svcProfile.ServiceConfigV2 = &profile.ServiceConfigV2{
+			//		Name: svcProfile.GetName(),
+			//		Type: base.Deployment.String(),
+			//		ContainerConfigs: []*profile.ContainerConfig{
+			//			{
+			//				Dev: &profile.ContainerDevConfig{
+			//					Image:   profile.DefaultDevImage,
+			//					WorkDir: profile.DefaultWorkDir,
+			//				},
+			//			},
+			//		},
+			//	}
+			//}
 
 			appmeta.FillingExtField(svcProfile, &meta, appName, ns, appProfile.Identifier)
 

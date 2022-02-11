@@ -13,6 +13,12 @@ type EnhancedTable struct {
 	focusFunc func()
 }
 
+type EnhancedPrimitive struct {
+	tview.Primitive
+	blurFunc  func()
+	focusFunc func()
+}
+
 func (e *EnhancedTable) SetBlurFunc(f func()) {
 	e.blurFunc = f
 }
@@ -35,4 +41,28 @@ func (e *EnhancedTable) Focus(delegate func(p tview.Primitive)) {
 		e.focusFunc()
 	}
 	e.Table.Focus(delegate)
+}
+
+func (e *EnhancedPrimitive) SetBlurFunc(f func()) {
+	e.blurFunc = f
+}
+
+func (e *EnhancedPrimitive) SetFocusFunc(f func()) {
+	e.focusFunc = f
+}
+
+func (e *EnhancedPrimitive) Blur() {
+	if e.blurFunc != nil {
+		go func() {
+			e.blurFunc()
+		}()
+	}
+	e.Primitive.Blur()
+}
+
+func (e *EnhancedPrimitive) Focus(delegate func(p tview.Primitive)) {
+	if e.focusFunc != nil {
+		e.focusFunc()
+	}
+	e.Primitive.Focus(delegate)
 }

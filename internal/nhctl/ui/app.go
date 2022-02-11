@@ -6,6 +6,7 @@
 package ui
 
 import (
+	"fmt"
 	"github.com/derailed/tview"
 	"github.com/gdamore/tcell/v2"
 	"go.uber.org/zap/zapcore"
@@ -14,6 +15,8 @@ import (
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"os"
 	"path/filepath"
+	"strconv"
+	"time"
 )
 
 type ClusterInfo struct {
@@ -35,13 +38,14 @@ type TviewApplication struct {
 	body         *tview.Flex
 	treeInBody   *tview.TreeView
 	rightInBody  tview.Primitive
+	bottom       *tview.TextView
 	cacheView    []tview.Primitive
 	maxCacheView int
 	clusterInfo  *ClusterInfo
 }
 
 const (
-	mainPage      = "Main"
+	mainPage      = "MainPage"
 	devImagesPage = "DevImagesPage"
 )
 
@@ -54,17 +58,25 @@ func NewTviewApplication() *TviewApplication {
 	t.mainLayout = tview.NewFlex().SetDirection(tview.FlexRow)
 	t.header = buildHeader()
 	t.clusterInfo = loadLocalClusterInfo()
+	if t.clusterInfo == nil {
+		fmt.Println(`Failed to get cluster info, please make sure your ~/.kube/config or $KUBECONFIG is configured correctly`)
+		return nil
+	}
 	t.RefreshHeader()
+	t.mainLayout.AddItem(t.header, 6, 1, false)
 	t.buildTreeBody()
 
-	t.mainLayout.AddItem(t.header, 6, 1, false)
-	t.mainLayout.AddItem(t.body, 0, 2, true)
+	t.mainLayout.SetBackgroundColor(backgroundColor)
 
 	str, _ := os.Getwd()
-	t.mainLayout.AddItem(
-		tview.NewTextView().SetText("Current path: "+str),
-		1, 1, false,
-	)
+	foot := tview.NewTextView().SetText("Current path: " + str)
+	foot.SetBackgroundColor(backgroundColor)
+	t.mainLayout.AddItem(foot, 1, 1, false)
+
+	bottom := tview.NewTextView().SetTextAlign(tview.AlignCenter).SetTextColor(tcell.ColorPurple)
+	bottom.SetBackgroundColor(backgroundColor)
+	t.mainLayout.AddItem(bottom, 1, 1, false)
+	t.bottom = bottom
 
 	t.pages.AddPage(mainPage, t.mainLayout, true, true)
 	t.app.SetRoot(t.pages, true).EnableMouse(true)
@@ -94,13 +106,17 @@ func loadLocalClusterInfo() *ClusterInfo {
 		return nil
 	}
 
-	k8sVer, _ := client.ClientSet.ServerVersion()
+	k8sV := "NA"
+	k8sVer, err := client.ClientSet.ServerVersion()
+	if err == nil {
+		k8sV = k8sVer.GitVersion
+	}
 	return &ClusterInfo{
 		Cluster:    currentCxt.Cluster,
 		Context:    config.CurrentContext,
 		NameSpace:  currentCxt.Namespace,
 		User:       currentCxt.AuthInfo,
-		K8sVer:     k8sVer.GitVersion,
+		K8sVer:     k8sV,
 		KubeConfig: path,
 		k8sClient:  client,
 	}
@@ -144,15 +160,18 @@ func getClusterInfoByPath(path string) []*ClusterInfo {
 
 	for s, context := range config.Contexts {
 		k8sVer, _ := client.ClientSet.ServerVersion()
-		allClusterInfos = append(allClusterInfos, &ClusterInfo{
+		ci := &ClusterInfo{
 			Cluster:    context.Cluster,
 			Context:    s,
 			NameSpace:  client.GetNameSpace(),
 			KubeConfig: path,
 			User:       context.AuthInfo,
-			K8sVer:     k8sVer.GitVersion,
 			k8sClient:  client,
-		})
+		}
+		if k8sVer != nil {
+			ci.K8sVer = k8sVer.GitVersion
+		}
+		allClusterInfos = append(allClusterInfos, ci)
 	}
 	return allClusterInfos
 }
@@ -165,6 +184,11 @@ func (t *TviewApplication) initEventHandler() {
 			t.app.Stop()
 			updateLastPosition(lastPosition)
 			os.Exit(0)
+		case tcell.KeyCtrlL:
+			t.showColorPage()
+		case tcell.KeyCtrlS:
+			t.buildSelectContextMenu()
+
 			//	t.app.QueueUpdateDraw(func() {})
 			//case tcell.KeyEscape:
 			//	t.switchMainMenu()
@@ -173,6 +197,46 @@ func (t *TviewApplication) initEventHandler() {
 		}
 		return event
 	})
+}
+
+var colorPageShow = false
+
+func (t *TviewApplication) showColorPage() {
+	colorPageName := "Color"
+	if !t.pages.HasPage(colorPageName) {
+		colorList := make([]tcell.Color, 0)
+
+		var ii uint64 = 0
+		for ; ii < 400; ii++ {
+			colorList = append(colorList, tcell.Color(uint64(tcell.ColorValid)+ii))
+		}
+
+		table := NewSelectableTable("Color")
+		table.SetRect(10, 10, 120, 45)
+		i := 0
+		for _, color := range colorList {
+			table.SetCell(i/10, i%10, tview.NewTableCell(strconv.Itoa(int(color))).SetTextColor(color))
+			i++
+		}
+		table.SetSelectedFunc(func(row, column int) {
+			colorInt, _ := strconv.Atoi(table.GetCell(row, column).Text)
+			t.pages.HidePage(colorPageName)
+			colorPageShow = false
+			go func() {
+				t.app.QueueUpdateDraw(func() {
+					t.app.SetFocus(t.treeInBody)
+					t.UpdateTreeColor(tcell.Color(colorInt))
+				})
+			}()
+		})
+		t.pages.AddPage(colorPageName, table, false, true)
+	}
+	if !colorPageShow {
+		t.pages.ShowPage(colorPageName)
+	} else {
+		t.pages.HidePage(colorPageName)
+	}
+	colorPageShow = !colorPageShow
 }
 
 func (t *TviewApplication) Run() error {
@@ -189,9 +253,11 @@ func (t *TviewApplication) switchRightBodyTo(m tview.Primitive) {
 }
 
 func (t *TviewApplication) switchRightBodyToC(from, to tview.Primitive) {
-	t.cacheView = append(t.cacheView, from)
-	if len(t.cacheView) > t.maxCacheView && t.maxCacheView > 1 {
-		t.cacheView = t.cacheView[1:]
+	if from != nil {
+		t.cacheView = append(t.cacheView, from)
+		if len(t.cacheView) > t.maxCacheView && t.maxCacheView > 1 {
+			t.cacheView = t.cacheView[1:]
+		}
 	}
 	t.body.RemoveItemAtIndex(1)
 	t.body.AddItemAtIndex(1, to, 0, rightBodyProportion, true)
@@ -200,7 +266,7 @@ func (t *TviewApplication) switchRightBodyToC(from, to tview.Primitive) {
 
 // Using WriteSyncer write text to TextView
 func (t *TviewApplication) switchBodyToScrollingView(title string, from tview.Primitive) zapcore.WriteSyncer {
-	to := t.NewScrollingTextView(title)
+	to := t.NewScrollingTextViewForBody(title)
 	to.SetBorderPadding(0, 0, 1, 0)
 	sbd := SyncBuilder{func(p []byte) (int, error) {
 		t.app.QueueUpdateDraw(func() {
@@ -213,10 +279,6 @@ func (t *TviewApplication) switchBodyToScrollingView(title string, from tview.Pr
 	return &sbd
 }
 
-func (t *TviewApplication) switchMainMenu() {
-	t.switchRightBodyTo(t.buildMainMenu())
-}
-
 func (t *TviewApplication) switchBodyToPre() {
 	if len(t.cacheView) > 0 {
 		item := t.cacheView[len(t.cacheView)-1]
@@ -225,13 +287,19 @@ func (t *TviewApplication) switchBodyToPre() {
 	}
 }
 
-func (t *TviewApplication) showErr(err string) {
+func (t *TviewApplication) showErr(err error, okFunc func()) {
+	if err != nil {
+		return
+	}
 	modal := tview.NewModal().
-		SetText(err).
+		SetText(err.Error()).
 		AddButtons([]string{"Ok"}).
 		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
 			if buttonLabel == "Ok" {
 				t.pages.HidePage("ErrPage")
+				if okFunc != nil {
+					okFunc()
+				}
 			}
 		})
 	modal.SetRect(30, 30, 30, 30)
@@ -240,8 +308,55 @@ func (t *TviewApplication) showErr(err string) {
 	t.app.SetFocus(modal)
 }
 
+func (t *TviewApplication) ConfirmationBox(str string, ok, cancel func()) {
+	pageName := "ConfirmationBoxPage"
+	modal := tview.NewModal().
+		SetText(str).
+		AddButtons([]string{"Yes", "No"}).
+		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+			if buttonLabel == "Yes" {
+				t.pages.HidePage(pageName)
+				if ok != nil {
+					ok()
+				}
+			} else if buttonLabel == "No" {
+				t.pages.HidePage(pageName)
+				if cancel != nil {
+					cancel()
+				}
+			}
+		})
+	_, _, w, h := t.mainLayout.GetRect()
+	modal.SetRect(w/2-15, h/2-30, 30, 30)
+	modal.SetBackgroundColor(tcell.ColorNavy)
+	t.pages.AddPage(pageName, modal, false, true)
+	t.pages.ShowPage(pageName)
+	t.app.SetFocus(modal)
+}
+
+func (t *TviewApplication) InfoBox(str string, ok func()) {
+	pageName := "InfoBoxPage"
+	modal := tview.NewModal().
+		SetText(str).
+		AddButtons([]string{"Ok"}).
+		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+			if buttonLabel == "Ok" {
+				t.pages.HidePage(pageName)
+				if ok != nil {
+					ok()
+				}
+			}
+		})
+	_, _, w, h := t.mainLayout.GetRect()
+	modal.SetRect(w/2-15, h/2-30, 30, 30)
+	modal.SetBackgroundColor(tcell.ColorNavy)
+	t.pages.AddPage(pageName, modal, false, true)
+	t.pages.ShowPage(pageName)
+	t.app.SetFocus(modal)
+}
+
 func (t *TviewApplication) NewBorderedTable(s string) *EnhancedTable {
-	tab := NewBorderedTable(s)
+	tab := NewRowSelectableTable(s)
 	tab.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyEscape:
@@ -252,7 +367,7 @@ func (t *TviewApplication) NewBorderedTable(s string) *EnhancedTable {
 	return tab
 }
 
-func (t *TviewApplication) NewScrollingTextView(title string) *tview.TextView {
+func (t *TviewApplication) NewScrollingTextViewForBody(title string) *tview.TextView {
 	tex := NewScrollingTextView(title)
 	tex.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
@@ -262,4 +377,28 @@ func (t *TviewApplication) NewScrollingTextView(title string) *tview.TextView {
 		return event
 	})
 	return tex
+}
+
+func (t *TviewApplication) QueueUpdateDraw(f func()) {
+	if t.app != nil {
+		go func() {
+			t.app.QueueUpdateDraw(f)
+		}()
+	}
+}
+
+var lastUpdate time.Time
+
+func (t *TviewApplication) ShowInfo(str string) {
+	t.bottom.SetText(str)
+	lastUpdate = time.Now()
+	go func(startTime time.Time) {
+		time.Sleep(3 * time.Second)
+		if !startTime.Equal(lastUpdate) {
+			return
+		}
+		t.QueueUpdateDraw(func() {
+			t.bottom.SetText("")
+		})
+	}(lastUpdate)
 }

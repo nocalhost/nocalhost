@@ -5,7 +5,9 @@
 
 package ui
 
-import "github.com/derailed/tview"
+import (
+	"github.com/derailed/tview"
+)
 
 type EnhancedTreeNode struct {
 	*tview.TreeNode

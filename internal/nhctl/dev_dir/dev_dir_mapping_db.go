@@ -140,7 +140,7 @@ func (devDirMapping *DevDirMapping) genPathToPackMap() map[DevPath][]*SvcPack {
 
 		toPack := pack.toPack()
 		if toPack == nil {
-			log.Error(fmt.Sprintf("Pack can not case to svcPack %v", pack))
+			log.Logf(fmt.Sprintf("Pack can not case to svcPack %v", pack))
 			continue
 		}
 		pathToPack[path] = append(pathToPack[path], toPack)

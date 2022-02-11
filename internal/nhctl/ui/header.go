@@ -18,9 +18,8 @@ func (t *TviewApplication) RefreshHeader() {
 	clusterInfo.GetCell(0, 1).SetText(t.clusterInfo.Cluster)
 	clusterInfo.GetCell(1, 1).SetText(t.clusterInfo.Context)
 	clusterInfo.GetCell(2, 1).SetText(t.clusterInfo.User)
-	clusterInfo.GetCell(3, 1).SetText(t.clusterInfo.NameSpace)
-	clusterInfo.GetCell(4, 1).SetText(t.clusterInfo.K8sVer)
-	clusterInfo.GetCell(5, 1).SetText(daemon_common.Version)
+	clusterInfo.GetCell(3, 1).SetText(t.clusterInfo.K8sVer)
+	clusterInfo.GetCell(4, 1).SetText(daemon_common.Version)
 
 	clWidth := 50
 	size := len(t.clusterInfo.Cluster) + clusterInfoPad
@@ -41,6 +40,7 @@ func buildHeader() *tview.Flex {
 		clWidth = size
 	}
 
+	header.SetBackgroundColor(backgroundColor)
 	header.AddItem(clusterInfo(), clWidth, 1, false)
 	header.AddItem(keyInfo(), clWidth, 1, false)
 	return header
@@ -49,21 +49,23 @@ func buildHeader() *tview.Flex {
 func clusterInfo() tview.Primitive {
 	table := tview.NewTable()
 	table.SetBorderPadding(0, 0, 1, 0)
-	for row, section := range []string{"Context", "Cluster", "User", "NameSpace", "K8s Rev", "Nhctl Rev"} {
+	for row, section := range []string{"Context", "Cluster", "User", "K8s Rev", "Nhctl Rev"} {
 		table.SetCell(row, 0, sectionCell(section))
 		table.SetCell(row, 1, infoCell("nil"))
 	}
+	table.SetBackgroundColor(backgroundColor)
 	return table
 }
 
 func keyInfo() tview.Primitive {
 	table := tview.NewTable()
 	table.SetBorderPadding(0, 0, 1, 0)
-	keyList := []string{"Esc", "Left", "Ctrl+C"}
-	descList := []string{"Back to main", "Back to previous", "Exit"}
+	keyList := []string{"Esc", "Tab", "Ctrl+C"}
+	descList := []string{"Back or Cancel", "Change focus", "Exit"}
 	for row, section := range keyList {
 		table.SetCell(row, 0, keyCell(section))
 		table.SetCell(row, 1, infoCell(descList[row]))
 	}
+	table.SetBackgroundColor(backgroundColor)
 	return table
 }

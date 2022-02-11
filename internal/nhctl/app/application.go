@@ -238,7 +238,7 @@ func (a *Application) loadSvcCfmFromAnnotationIfValid(svcName string, svcType ba
 		return false
 	} else {
 		_, // local config should not contain app config
-		svcCfg, err := LoadSvcCfgFromStrIfValid(v, svcName, svcType)
+			svcCfg, err := LoadSvcCfgFromStrIfValid(v, svcName, svcType)
 		if err != nil {
 			hint(
 				"Load nocalhost svc config from [Resource:%s, Name:%s] annotation fail, err: %s",
@@ -298,7 +298,7 @@ func (a *Application) loadSvcCfgFromCmIfValid(svcName string, svcType base.SvcTy
 	}
 
 	_, // local config should not contain app config
-	svcCfg, err := LoadSvcCfgFromStrIfValid(cfgStr, svcName, svcType)
+		svcCfg, err := LoadSvcCfgFromStrIfValid(cfgStr, svcName, svcType)
 	if err != nil {
 		hint("Load nocalhost svc config from cm fail, err: %s", err.Error())
 		return false
@@ -507,16 +507,16 @@ func loadServiceConfigsFromProfile(profiles []*profile.SvcProfileV2) []*profile.
 	var configs = []*profile.ServiceConfigV2{}
 
 	for _, p := range profiles {
-		if p.ServiceConfigV2 != nil {
-			configs = append(configs, p.ServiceConfigV2)
-		} else {
-			configs = append(
-				configs, &profile.ServiceConfigV2{
-					Name: p.GetName(),
-					Type: p.GetType(),
-				},
-			)
-		}
+		//if p.ServiceConfigV2 != nil {
+		//	configs = append(configs, p.ServiceConfigV2)
+		//} else {
+		configs = append(
+			configs, &profile.ServiceConfigV2{
+				Name: p.GetName(),
+				Type: p.GetType(),
+			},
+		)
+		//}
 	}
 
 	return configs

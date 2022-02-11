@@ -6,9 +6,7 @@
 package ui
 
 import (
-	"context"
 	"github.com/gdamore/tcell/v2"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strings"
 	"time"
 
@@ -20,28 +18,29 @@ const (
 	clusterInfoWidth = 50
 	clusterInfoPad   = 15
 
-	// Main Menu
-	deployApplicationOption = " Deploy Application"
-	switchContextOption     = " Switch Context"
+	deployDemoAppOption      = "Quickstart: Deploy BookInfo demo application"
+	deployHelmAppOption      = "Helm: Use my own Helm chart (e.g. local via ./chart/ or any remote chart)"
+	deployKubectlAppOption   = "Kubectl: Use existing Kubernetes manifests (e.g. ./kube/deployment.yaml)"
+	deployKustomizeAppOption = "Kustomize: Use an existing Kustomization (e.g. ./kube/kustomization/)"
 
-	deployDemoAppOption      = " Quickstart: Deploy BookInfo demo application"
-	deployHelmAppOption      = " Helm: Use my own Helm chart (e.g. local via ./chart/ or any remote chart)"
-	deployKubectlAppOption   = " Kubectl: Use existing Kubernetes manifests (e.g. ./kube/deployment.yaml)"
-	deployKustomizeAppOption = " Kustomize: Use an existing Kustomization (e.g. ./kube/kustomization/)"
-
-	startDevModeOpt  = " Start DevMode"
-	endDevModeOpt    = " End DevMode"
-	viewDevConfigOpt = " View Dev Config"
-	viewLogsOpt      = " View Logs"
-	portForwardOpt   = " Port Forward"
-	syncLogsOpt      = " File Sync Logs"
-	openGuiOpt       = " Open Sync GUI"
-	openTerminalOpt  = " Open Terminal"
-	showTreeOpt      = " Show Tree"
+	startDevModeOpt    = "Start DevMode"
+	startDupDevModeOpt = "Start DevMode(Duplicate)"
+	endDevModeOpt      = "End DevMode"
+	viewDevConfigOpt   = "View Dev Config"
+	viewLogsOpt        = "View Logs"
+	portForwardOpt     = "Port Forward"
+	syncLogsOpt        = "File Sync Logs"
+	openGuiOpt         = "Open Sync GUI"
+	openTerminalOpt    = "Open Terminal"
+	viewProfile        = "View Profile"
+	viewDBData         = "View DB Data"
 )
 
 func RunTviewApplication() {
 	app := NewTviewApplication()
+	if app == nil {
+		return
+	}
 	stopChan := make(chan struct{})
 	go func() {
 		if err := app.Run(); err != nil {
@@ -49,78 +48,64 @@ func RunTviewApplication() {
 		}
 	}()
 
-	lp := getLastPosition()
-	if lp == "" {
-		return
-	}
+	go func() {
+		lp := getLastPosition()
+		if lp != "" {
+			strs := strings.Split(lp, "/")
+			if len(strs) == 0 {
+				return
+			}
 
-	strs := strings.Split(lp, "/")
-	if len(strs) == 0 {
-		return
-	}
+			if app.treeInBody == nil {
+				return
+			}
+			app.app.SetFocus(app.treeInBody)
+			r := app.treeInBody.GetRoot()
+			if r == nil {
+				return
+			}
 
-	//go func() {
-	app.app.SetFocus(app.treeInBody)
-	r := app.treeInBody.GetRoot()
-	for _, str := range strs {
-		var found bool
-		for _, node := range r.GetChildren() {
-			if node.GetText() == str {
-				app.treeInBody.SetCurrentNode(node)
-				r = node
-				go func() {
-					app.app.QueueEvent(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone))
-				}()
-				for i := 0; i < 200; i++ {
-					time.Sleep(100 * time.Millisecond)
-					if len(r.GetChildren()) > 0 {
-						node.SetExpanded(true)
+			for _, str := range strs {
+				var found bool
+				for _, node := range r.GetChildren() {
+					if GetText(node) == str {
+						app.treeInBody.SetCurrentNode(node)
+						r = node
+						go func() {
+							app.app.QueueEvent(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone))
+						}()
+						for i := 0; i < 200; i++ {
+							time.Sleep(100 * time.Millisecond)
+							if len(r.GetChildren()) > 0 {
+								ExpandText(node)
+								node.SetExpanded(true)
+								break
+							}
+						}
+						found = true
 						break
 					}
 				}
-				found = true
-				break
+				if !found {
+					return
+				}
 			}
 		}
-		if !found {
-			return
-		}
-	}
+	}()
+
 	<-stopChan
 }
 
-func (t *TviewApplication) buildMainMenu() tview.Primitive {
-	mainMenu := t.NewBorderedTable(" Menu")
-	mainMenu.SetCell(1, 0, coloredCell(deployApplicationOption))
-	mainMenu.SetCell(2, 0, coloredCell(showTreeOpt))
-	mainMenu.SetCell(3, 0, coloredCell(switchContextOption))
-
-	// Make selected eventHandler the same as clicked
-	mainMenu.SetSelectedFunc(func(row, column int) {
-		selectedCell := mainMenu.GetCell(row, column)
-		var m tview.Primitive
-		switch selectedCell.Text {
-		case deployApplicationOption:
-			m = t.buildDeployApplicationMenu()
-		case switchContextOption:
-			m = t.buildSelectContextMenu()
-		default:
-			return
-		}
-		t.switchRightBodyToC(mainMenu, m)
-	})
-	return mainMenu
-}
-
 func (t *TviewApplication) buildSelectContextMenu() *EnhancedTable {
-	table := t.NewBorderedTable(" Select a context")
+	pageName := "ClusterPage"
+	table := NewRowSelectableTable("Select a context")
 
-	for col, section := range []string{" Context", "Cluster", "User", "NameSpace", "K8s Rev"} {
+	for col, section := range []string{"Context", "Cluster", "User", "NameSpace", "K8s Rev"} {
 		table.SetCell(0, col, infoCell(section))
 	}
 	cs := loadAllClusterInfos()
 	for i, c := range cs {
-		table.SetCell(i+1, 0, coloredCell(" "+c.Context))
+		table.SetCell(i+1, 0, coloredCell(c.Context))
 		table.SetCell(i+1, 1, coloredCell(c.Cluster))
 		table.SetCell(i+1, 2, coloredCell(c.User))
 		table.SetCell(i+1, 3, coloredCell(c.NameSpace))
@@ -131,31 +116,27 @@ func (t *TviewApplication) buildSelectContextMenu() *EnhancedTable {
 		if row > 0 {
 			if len(cs) >= row {
 				t.clusterInfo = cs[row-1]
-				if !t.clusterInfo.k8sClient.IsClusterAdmin() {
-					t.RefreshHeader()
-					t.switchMainMenu()
-					return
-				}
-				ns, err := t.clusterInfo.k8sClient.ClientSet.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
-				if err != nil {
-					return
-				}
-				nsTable := t.NewBorderedTable("Select a namespace")
-				for i, item := range ns.Items {
-					nsTable.SetCell(i, 0, coloredCell(" "+item.Name))
-				}
-				nsTable.SetSelectedFunc(func(row, column int) {
-					cell := nsTable.GetCell(row, column)
-					t.clusterInfo.NameSpace = strings.Trim(cell.Text, " ")
-					t.clusterInfo.k8sClient.NameSpace(strings.Trim(cell.Text, " "))
-					t.RefreshHeader()
-					t.switchMainMenu()
+				//if !t.clusterInfo.k8sClient.IsClusterAdmin() {
+				t.RefreshHeader()
+				t.QueueUpdateDraw(func() {
+					t.buildTreeBody()
 				})
-				t.switchRightBodyToC(table, nsTable)
+				t.pages.RemovePage(pageName)
+				return
+				//}
 			}
 		}
 	})
-
+	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEscape {
+			t.pages.RemovePage(pageName)
+			return nil
+		}
+		return event
+	})
+	table.SetRect(t.getCenterRect(100, 10))
+	t.app.SetFocus(table)
+	t.pages.AddPage(pageName, table, false, true)
 	table.Select(1, 0)
 	return table
 }
