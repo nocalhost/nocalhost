@@ -364,12 +364,12 @@ func FillingExtField(s *profile2.SvcProfileV2, meta *ApplicationMeta, appName, n
 	s.Developing = devStatus != NONE
 	s.DevelopStatus = string(devStatus)
 
-	if meta.Config != nil {
-		svcConfig := meta.Config.GetSvcConfigV2(s.GetName(), svcType)
-		if svcConfig != nil {
-			s.ServiceConfigV2 = svcConfig
-		}
-	}
+	//if meta.Config != nil {
+	//	svcConfig := meta.Config.GetSvcConfigV2(s.GetName(), svcType)
+	//	if svcConfig != nil {
+	//		s.ServiceConfigV2 = svcConfig
+	//	}
+	//}
 
 	s.Possess = meta.SvcDevModePossessor(
 		s.GetName(), svcType,
