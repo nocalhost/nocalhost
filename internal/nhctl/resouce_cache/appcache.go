@@ -132,10 +132,7 @@ func (r *ResourceEventHandlerFuncs) OnDelete(obj interface{}) {
 			name := fmt.Sprintf("%s/%s", r.Gvr.Resource, objectTemp.GetName())
 			if client, err := daemon_client.GetDaemonClient(false); err == nil {
 				path := k8sutils.GetOrGenKubeConfigPath(string(r.kubeconfigBytes))
-				if readClose, _ := client.SendVPNOperateCommand(
-					path, objectTemp.GetNamespace(), command.DisConnect, name); readClose != nil {
-					readClose.Close()
-				}
+				_ = client.SendVPNOperateCommand(path, objectTemp.GetNamespace(), command.DisConnect, name, nil)
 			}
 		}
 	}()

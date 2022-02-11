@@ -56,28 +56,28 @@ var connectCmd = &cobra.Command{
 			return
 		}
 		must(common.Prepare())
-		readClose, err := client.SendVPNOperateCommand(common.KubeConfig, common.NameSpace, command.Connect, workloads)
+		err = client.SendVPNOperateCommand(common.KubeConfig, common.NameSpace, command.Connect, workloads, f)
 		if err != nil {
 			log.Warn(err)
-			return
-		}
-		stream := bufio.NewReader(readClose)
-		for {
-			if line, _, err := stream.ReadLine(); errors.Is(err, io.EOF) {
-				return
-			} else {
-				if len(line) == 0 {
-					continue
-				}
-				if strings.Contains(string(line), util.EndSignOK) {
-					readClose.Close()
-					return
-				} else if strings.Contains(string(line), util.EndSignFailed) {
-					readClose.Close()
-					return
-				}
-				fmt.Println(string(line))
-			}
 		}
 	},
+}
+
+var f = func(reader io.Reader) error {
+	stream := bufio.NewReader(reader)
+	for {
+		if line, _, err := stream.ReadLine(); errors.Is(err, io.EOF) {
+			return nil
+		} else {
+			if len(line) == 0 {
+				continue
+			}
+			if strings.Contains(string(line), util.EndSignOK) {
+				return nil
+			} else if strings.Contains(string(line), util.EndSignFailed) {
+				return nil
+			}
+			fmt.Println(string(line))
+		}
+	}
 }

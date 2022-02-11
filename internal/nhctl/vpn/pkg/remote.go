@@ -13,6 +13,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"net"
@@ -25,16 +26,16 @@ import (
 
 func createOutboundRouterPodIfNecessary(
 	clientset *kubernetes.Clientset,
-	namespace string,
+	ns string,
 	serverIP *net.IPNet,
 	podCIDR []*net.IPNet,
 	logger *log.Logger,
-) (string, error) {
-	routerPod, err := clientset.CoreV1().Pods(namespace).Get(context.TODO(), util.TrafficManager, metav1.GetOptions{})
+) (net.IP, error) {
+	routerPod, err := clientset.CoreV1().Pods(ns).Get(context.TODO(), util.TrafficManager, metav1.GetOptions{})
 	if err == nil && routerPod.DeletionTimestamp == nil {
-		remote.UpdateRefCount(clientset, namespace, routerPod.Name, 1)
+		remote.UpdateRefCount(clientset, ns, routerPod.Name, 1)
 		logger.Infoln("traffic manager already exist, not need to create it")
-		return routerPod.Status.PodIP, nil
+		return net.ParseIP(routerPod.Status.PodIP), nil
 	}
 	logger.Infoln("try to create traffic manager...")
 	args := []string{
@@ -55,7 +56,7 @@ func createOutboundRouterPodIfNecessary(
 	pod := v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        name,
-			Namespace:   namespace,
+			Namespace:   ns,
 			Labels:      map[string]string{"app": util.TrafficManager},
 			Annotations: map[string]string{"ref-count": "1"},
 		},
@@ -93,39 +94,38 @@ func createOutboundRouterPodIfNecessary(
 			PriorityClassName: "system-cluster-critical",
 		},
 	}
-	pods, err := clientset.CoreV1().Pods(namespace).Create(context.TODO(), &pod, metav1.CreateOptions{})
+	pods, err := clientset.CoreV1().Pods(ns).Create(context.TODO(), &pod, metav1.CreateOptions{})
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if pods.Status.Phase == v1.PodRunning {
-		return pods.Status.PodIP, nil
+		return net.ParseIP(pods.Status.PodIP), nil
 	}
-	watch, err := clientset.CoreV1().Pods(namespace).Watch(context.TODO(), metav1.SingleObject(metav1.ObjectMeta{Name: name}))
+	w, err := clientset.CoreV1().Pods(ns).Watch(context.TODO(), metav1.SingleObject(metav1.ObjectMeta{Name: name}))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	defer watch.Stop()
+	defer w.Stop()
 	var phase v1.PodPhase
 	for {
 		select {
-		case e := <-watch.ResultChan():
+		case e := <-w.ResultChan():
+			if e.Type == watch.Deleted {
+				return nil, errors.New("traffic manager is deleted")
+			}
 			if podT, ok := e.Object.(*v1.Pod); ok {
 				if phase != podT.Status.Phase {
 					logger.Infof("traffic manager is %s...", podT.Status.Phase)
 				}
 				if podT.Status.Phase == v1.PodRunning {
-					return podT.Status.PodIP, nil
+					return net.ParseIP(podT.Status.PodIP), nil
 				}
 				phase = podT.Status.Phase
 			}
 		case <-time.Tick(time.Minute * 5):
-			return "", errors.New("wait for pod traffic manager to be ready timeout")
+			return nil, errors.New("wait for pod traffic manager to be ready timeout")
 		}
 	}
-}
-
-func getController() Scalable {
-	return nil
 }
 
 func CreateInboundPod(
