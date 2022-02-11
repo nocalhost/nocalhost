@@ -65,9 +65,10 @@ var fileSyncCmd = &cobra.Command{
 
 		common.InitAppAndCheckIfSvcExist(applicationName, common.WorkloadName, common.ServiceType)
 
-		dev.StartSyncthing(
+		d := dev.DevStartOps{DevStartOptions: &model.DevStartOptions{}}
+		d.StartSyncthing(
 			"", fileSyncOps.Resume, fileSyncOps.Stop,
-			&fileSyncOps.SyncDouble, fileSyncOps.Override, &model.DevStartOptions{},
+			&fileSyncOps.SyncDouble, fileSyncOps.Override,
 		)
 	},
 }

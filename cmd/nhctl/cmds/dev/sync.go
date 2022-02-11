@@ -12,7 +12,6 @@ import (
 	"nocalhost/internal/nhctl/coloredoutput"
 	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/daemon_common"
-	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/syncthing"
 	"nocalhost/internal/nhctl/utils"
@@ -23,7 +22,7 @@ import (
 	"time"
 )
 
-func StartSyncthing(podName string, resume bool, stop bool, syncDouble *bool, override bool, devOps *model.DevStartOptions) {
+func (d *DevStartOps) StartSyncthing(podName string, resume bool, stop bool, syncDouble *bool, override bool) {
 	if !common.NocalhostSvc.IsInReplaceDevMode() && !common.NocalhostSvc.IsInDuplicateDevMode() {
 		log.Fatalf("Service \"%s\" is not in developing", common.WorkloadName)
 	}
@@ -72,7 +71,7 @@ func StartSyncthing(podName string, resume bool, stop bool, syncDouble *bool, ov
 		flag := false
 
 		config := common.NocalhostSvc.Config()
-		if cfg := config.GetContainerDevConfig(devOps.Container); cfg != nil && cfg.Sync != nil {
+		if cfg := config.GetContainerDevConfig(d.Container); cfg != nil && cfg.Sync != nil {
 			switch cfg.Sync.Type {
 
 			case _const.DefaultSyncType:
@@ -96,7 +95,7 @@ func StartSyncthing(podName string, resume bool, stop bool, syncDouble *bool, ov
 	// If the file is deleted remotely, but the syncthing database is not reset (the development is not finished),
 	// the files that have been synchronized will not be synchronized.
 	newSyncthing, err := common.NocalhostSvc.NewSyncthing(
-		devOps.Container, svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin, *syncDouble,
+		d.Container, svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin, *syncDouble,
 	)
 	utils.ShouldI(err, "Failed to new syncthing")
 
@@ -104,8 +103,8 @@ func StartSyncthing(podName string, resume bool, stop bool, syncDouble *bool, ov
 	var downloadVersion = daemon_common.Version
 
 	// for debug only
-	if devOps.SyncthingVersion != "" {
-		downloadVersion = devOps.SyncthingVersion
+	if d.SyncthingVersion != "" {
+		downloadVersion = d.SyncthingVersion
 	}
 
 	_, err = syncthing.NewInstaller(newSyncthing.BinPath, downloadVersion, daemon_common.CommitId).InstallIfNeeded()

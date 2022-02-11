@@ -215,7 +215,8 @@ func (t *TviewApplication) buildWorkloadList(appMeta *appmeta.ApplicationMeta, n
 								if ops == startDupDevModeOpt {
 									devStartOps.DevModeType = "duplicate"
 								}
-								dev.StartDevMode(appMeta.Application, devStartOps)
+								d := dev.DevStartOps{DevStartOptions: devStartOps}
+								d.StartDevMode(appMeta.Application)
 								RecoverOut()
 
 								podList, err := common2.NocalhostSvc.GetPodList()

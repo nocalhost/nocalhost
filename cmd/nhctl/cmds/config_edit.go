@@ -26,6 +26,12 @@ import (
 	"nocalhost/pkg/nhctl/log"
 )
 
+type CommonFlags struct {
+	SvcName   string
+	AppName   string
+	AppConfig bool
+}
+
 type ConfigEditFlags struct {
 	CommonFlags
 	Content   string
@@ -34,6 +40,7 @@ type ConfigEditFlags struct {
 }
 
 var configEditFlags = ConfigEditFlags{}
+var commonFlags = CommonFlags{}
 
 func init() {
 	configEditCmd.Flags().StringVarP(
