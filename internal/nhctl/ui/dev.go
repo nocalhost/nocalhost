@@ -22,6 +22,7 @@ import (
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_handler/item"
 	"nocalhost/internal/nhctl/model"
+	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/utils"
 	yaml "nocalhost/pkg/nhctl/utils/custom_yaml_v3"
 	"os"
@@ -141,7 +142,8 @@ func (t *TviewApplication) buildWorkloadList(appMeta *appmeta.ApplicationMeta, n
 				options = append(options, startDupDevModeOpt)
 			}
 
-			options = append(options, portForwardOpt, viewDevConfigOpt, "Reset Pod", viewLogsOpt, openTerminalOpt, syncLogsOpt, openGuiOpt)
+			options = append(options, portForwardOpt, viewDevConfigOpt, "Reset Pod", viewLogsOpt, openTerminalOpt, syncLogsOpt, openGuiOpt,
+				viewProfile, viewDBData)
 			for i, option := range options {
 				opsTable.SetCell(i, 0, tview.NewTableCell(option).SetTextColor(tcell.Color(4294967449)))
 			}
@@ -525,7 +527,40 @@ func (t *TviewApplication) buildWorkloadList(appMeta *appmeta.ApplicationMeta, n
 					go func() {
 						exec.Command(`open`, fmt.Sprintf("http://localhost:%s", guiPortCell.Text)).Start()
 					}()
+				case viewProfile:
+					pro, err := common2.NocalhostSvc.GetProfile()
+					if err != nil {
+						t.showErr(err, nil)
+						return
+					}
+					w := t.switchBodyToScrollingView("Profile", workloadListTable)
+					bys, _ := yaml.Marshal(pro)
+					go func() {
+						_, err = w.Write(bys)
+						if err != nil {
+							t.showErr(err, nil)
+							return
+						}
+					}()
+				case viewDBData:
+					appName := common2.NocalhostApp.Name
+					nid := common2.NocalhostApp.GetAppMeta().NamespaceId
+					result, err := nocalhost.ListAllFromApplicationDb(ns, appName, nid)
+					if err != nil {
+						t.showErr(err, nil)
+						return
+					}
+					w := t.switchBodyToScrollingView("DB Data", workloadListTable)
+					go func() {
+						for key, val := range result {
+							_, err = w.Write([]byte(fmt.Sprintf("%s=%s\n", key, val)))
+							if err != nil {
+								t.ShowInfo(err.Error())
+							}
+						}
+					}()
 				}
+
 			})
 		}
 	}

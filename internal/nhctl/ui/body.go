@@ -125,6 +125,22 @@ func (t *TviewApplication) buildTreeBody() {
 				}
 			})
 			return nil
+		} else if event.Key() == tcell.KeyCtrlU {
+			cn := tree.GetCurrentNode()
+			if cn == nil {
+				return nil
+			}
+			if cn.GetReference() == nil {
+				return nil
+			}
+			s, ok := cn.GetReference().(string)
+			if !ok || s != "application" {
+				return nil
+			}
+
+			t.ConfirmationBox("Do you want to uninstall application "+GetText(cn)+" ?", func() {
+
+			}, nil)
 		}
 		return event
 	})
@@ -155,6 +171,7 @@ func (t *TviewApplication) buildTreeBody() {
 			nsNode.ClearChildren()
 			for _, meta := range metas {
 				appNode := NewTreeNode(meta.Application)
+				appNode.SetReference("application")
 				CollapseText(appNode)
 				gs := []string{"Workloads", "CustomResources", "Network", "Configuration", "Storage"}
 				for _, g := range gs {

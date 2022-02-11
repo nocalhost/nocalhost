@@ -18,10 +18,6 @@ const (
 	clusterInfoWidth = 50
 	clusterInfoPad   = 15
 
-	// Main Menu
-	deployApplicationOption = " Deploy Application"
-	switchContextOption     = " Switch Context"
-
 	deployDemoAppOption      = "Quickstart: Deploy BookInfo demo application"
 	deployHelmAppOption      = "Helm: Use my own Helm chart (e.g. local via ./chart/ or any remote chart)"
 	deployKubectlAppOption   = "Kubectl: Use existing Kubernetes manifests (e.g. ./kube/deployment.yaml)"
@@ -36,7 +32,8 @@ const (
 	syncLogsOpt        = "File Sync Logs"
 	openGuiOpt         = "Open Sync GUI"
 	openTerminalOpt    = "Open Terminal"
-	showTreeOpt        = "Show Tree"
+	viewProfile        = "View Profile"
+	viewDBData         = "View DB Data"
 )
 
 func RunTviewApplication() {
