@@ -125,13 +125,14 @@ var configEditCmd = &cobra.Command{
 		}
 
 		svcConfig := &profile.ServiceConfigV2{}
-		common.CheckIfSvcExist(configEditFlags.SvcName, common.ServiceType)
+		nocalhostSvc, err := common.InitAndCheckIfSvcExist(configEditFlags.SvcName, common.ServiceType)
+		must(err)
 
 		if err := unmashaler(svcConfig); err != nil {
 			log.Fatal(err)
 		}
 
-		containers, _ := common.NocalhostSvc.GetOriginalContainers()
+		containers, _ := nocalhostSvc.GetOriginalContainers()
 		config_validate.PrepareForConfigurationValidate(common.NocalhostApp.GetClient(), containers)
 		if err := config_validate.Validate(svcConfig); err != nil {
 			log.Fatal(err)
@@ -142,6 +143,6 @@ var configEditCmd = &cobra.Command{
 		if !nocalhost.CheckIfResourceTypeIsSupported(base.SvcType(svcConfig.Type)) {
 			must(errors.New(fmt.Sprintf("Service Type %s is unsupported", ot)))
 		}
-		must(common.NocalhostSvc.UpdateConfig(*svcConfig))
+		must(nocalhostSvc.UpdateConfig(*svcConfig))
 	},
 }

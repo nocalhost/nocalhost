@@ -15,6 +15,7 @@ import (
 	"nocalhost/internal/nhctl/coloredoutput"
 	"nocalhost/internal/nhctl/common/base"
 	_const "nocalhost/internal/nhctl/const"
+	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/dev_dir"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/nocalhost"
@@ -35,6 +36,7 @@ var (
 
 type DevStartOps struct {
 	*model.DevStartOptions
+	nocalhostSvc *controller.Controller
 }
 
 var devStartOps = &model.DevStartOptions{}
@@ -101,16 +103,16 @@ var DevStartCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		d := DevStartOps{devStartOps}
-		d.StartDevMode(args[0])
+		d := DevStartOps{DevStartOptions: devStartOps}
+		must(d.StartDevMode(args[0]))
 	},
 }
 
-func (d *DevStartOps) StartDevMode(applicationName string) {
+func (d *DevStartOps) StartDevMode(applicationName string) error {
 
 	dt := profile.DevModeType(d.DevModeType)
 	if !dt.IsDuplicateDevMode() && !dt.IsReplaceDevMode() {
-		log.Fatalf("Unsupported DevModeType %s", dt)
+		return errors.New(fmt.Sprintf("Unsupported DevModeType %s", dt))
 	}
 
 	if len(d.LocalSyncDir) > 1 {
@@ -119,31 +121,35 @@ func (d *DevStartOps) StartDevMode(applicationName string) {
 		log.Fatal("'local-sync(-s)' must be specified")
 	}
 
-	common.InitAppAndCheckIfSvcExist(applicationName, common.WorkloadName, common.ServiceType)
+	nocalhostSvc, err := common.InitAppAndCheckIfSvcExist(applicationName, common.WorkloadName, common.ServiceType)
+	if err != nil {
+		return err
+	}
+	d.nocalhostSvc = nocalhostSvc
 
 	if !common.NocalhostApp.GetAppMeta().IsInstalled() {
 		log.Fatal(common.NocalhostApp.GetAppMeta().NotInstallTips())
 	}
 
-	if common.NocalhostSvc.IsInDevMode() {
-		coloredoutput.Hint(fmt.Sprintf("Already in %s DevMode...", common.NocalhostSvc.DevModeType.ToString()))
+	if d.nocalhostSvc.IsInDevMode() {
+		coloredoutput.Hint(fmt.Sprintf("Already in %s DevMode...", d.nocalhostSvc.DevModeType.ToString()))
 
-		podName, err := common.NocalhostSvc.GetDevModePodName()
+		podName, err := d.nocalhostSvc.GetDevModePodName()
 		must(err)
 
 		if !d.NoSyncthing {
-			if common.NocalhostSvc.IsProcessor() {
+			if d.nocalhostSvc.IsProcessor() {
 				d.startSyncthing(podName, true)
 			}
 		} else {
 			coloredoutput.Success("File sync is not resumed caused by --without-sync flag.")
 		}
 
-		if common.NocalhostSvc.IsProcessor() {
+		if d.nocalhostSvc.IsProcessor() {
 			if !d.NoTerminal || shell != "" {
-				must(common.NocalhostSvc.EnterPodTerminal(podName, d.Container, shell, ""))
+				must(d.nocalhostSvc.EnterPodTerminal(podName, d.Container, shell, ""))
 			}
-			return
+			return nil
 		}
 	}
 
@@ -160,17 +166,17 @@ func (d *DevStartOps) StartDevMode(applicationName string) {
 
 	coloredoutput.Hint(fmt.Sprintf("Starting %s DevMode...", dt.ToString()))
 
-	common.NocalhostSvc.DevModeType = dt
+	d.nocalhostSvc.DevModeType = dt
 	d.loadLocalOrCmConfigIfValid()
-	stopPreviousSyncthing()
+	d.stopPreviousSyncthing()
 	d.recordLocalSyncDirToProfile()
 	d.prepareSyncThing()
-	stopPreviousPortForward()
+	d.stopPreviousPortForward()
 	if err := d.enterDevMode(dt); err != nil {
 		log.FatalE(err, "")
 	}
 
-	devPodName, err := common.NocalhostSvc.GetDevModePodName()
+	devPodName, err := d.nocalhostSvc.GetDevModePodName()
 	must(err)
 
 	d.startPortForwardAfterDevStart(devPodName)
@@ -182,29 +188,30 @@ func (d *DevStartOps) StartDevMode(applicationName string) {
 	}
 
 	if !d.NoTerminal || shell != "" {
-		must(common.NocalhostSvc.EnterPodTerminal(devPodName, "", shell, ""))
+		must(d.nocalhostSvc.EnterPodTerminal(devPodName, "", shell, ""))
 	}
+	return nil
 }
 
 var pfListBeforeDevStart []*profile.DevPortForward
 
-func stopPreviousPortForward() {
+func (d *DevStartOps) stopPreviousPortForward() {
 	appProfile, _ := common.NocalhostApp.GetProfile()
-	pfListBeforeDevStart = appProfile.SvcProfileV2(common.WorkloadName, string(common.NocalhostSvc.Type)).DevPortForwardList
+	pfListBeforeDevStart = appProfile.SvcProfileV2(common.WorkloadName, string(d.nocalhostSvc.Type)).DevPortForwardList
 	for _, pf := range pfListBeforeDevStart {
 		log.Infof("Stopping %d:%d", pf.LocalPort, pf.RemotePort)
-		utils.Should(common.NocalhostSvc.EndDevPortForward(pf.LocalPort, pf.RemotePort))
+		utils.Should(d.nocalhostSvc.EndDevPortForward(pf.LocalPort, pf.RemotePort))
 	}
 }
 
 func (d *DevStartOps) prepareSyncThing() {
 	dt := profile.DevModeType(d.DevModeType)
-	must(common.NocalhostSvc.CreateSyncThingSecret(d.Container, d.LocalSyncDir, dt.IsDuplicateDevMode()))
+	must(d.nocalhostSvc.CreateSyncThingSecret(d.Container, d.LocalSyncDir, dt.IsDuplicateDevMode()))
 }
 
 func (d *DevStartOps) recordLocalSyncDirToProfile() {
 	must(
-		common.NocalhostSvc.UpdateSvcProfile(
+		d.nocalhostSvc.UpdateSvcProfile(
 			func(svcProfile *profile.SvcProfileV2) error {
 				svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin = d.LocalSyncDir
 				return nil
@@ -218,11 +225,11 @@ func (d *DevStartOps) recordLocalSyncDirToProfile() {
 func (d *DevStartOps) loadLocalOrCmConfigIfValid() {
 
 	svcPack := dev_dir.NewSvcPack(
-		common.NocalhostSvc.NameSpace,
-		common.NocalhostSvc.AppMeta.NamespaceId,
-		common.NocalhostSvc.AppName,
-		common.NocalhostSvc.Type,
-		common.NocalhostSvc.Name,
+		d.nocalhostSvc.NameSpace,
+		d.nocalhostSvc.AppMeta.NamespaceId,
+		d.nocalhostSvc.AppName,
+		d.nocalhostSvc.Type,
+		d.nocalhostSvc.Name,
 		d.Container,
 	)
 
@@ -249,17 +256,17 @@ func (d *DevStartOps) loadLocalOrCmConfigIfValid() {
 
 // we should clean previous Syncthing
 // prevent previous syncthing hold the db lock
-func stopPreviousSyncthing() {
+func (d *DevStartOps) stopPreviousSyncthing() {
 	// Clean up previous syncthing
 	must(
-		common.NocalhostSvc.FindOutSyncthingProcess(
+		d.nocalhostSvc.FindOutSyncthingProcess(
 			func(pid int) error {
 				return syncthing.Stop(pid, true)
 			},
 		),
 	)
 	// kill syncthing process by find find it with terminal
-	str := strings.ReplaceAll(common.NocalhostSvc.GetSyncDir(), nocalhost_path.GetNhctlHomeDir(), "")
+	str := strings.ReplaceAll(d.nocalhostSvc.GetSyncDir(), nocalhost_path.GetNhctlHomeDir(), "")
 	utils2.KillSyncthingProcess(str)
 }
 
@@ -274,13 +281,13 @@ func (d *DevStartOps) startSyncthing(podName string, resume bool) {
 
 func (d *DevStartOps) enterDevMode(devModeType profile.DevModeType) error {
 	must(
-		common.NocalhostSvc.AppMeta.SvcDevStarting(
-			common.NocalhostSvc.Name, common.NocalhostSvc.Type,
+		d.nocalhostSvc.AppMeta.SvcDevStarting(
+			d.nocalhostSvc.Name, d.nocalhostSvc.Type,
 			common.NocalhostApp.Identifier, devModeType,
 		),
 	)
 	must(
-		common.NocalhostSvc.UpdateSvcProfile(
+		d.nocalhostSvc.UpdateSvcProfile(
 			func(v2 *profile.SvcProfileV2) error {
 				v2.OriginDevContainer = d.Container
 				return nil
@@ -294,8 +301,8 @@ func (d *DevStartOps) enterDevMode(devModeType profile.DevModeType) error {
 	defer func() {
 		if !devStartSuccess {
 			log.Infof("Roll backing dev mode...")
-			_ = common.NocalhostSvc.AppMeta.SvcDevEnd(
-				common.NocalhostSvc.Name, common.NocalhostSvc.Identifier, common.NocalhostSvc.Type, devModeType,
+			_ = d.nocalhostSvc.AppMeta.SvcDevEnd(
+				d.nocalhostSvc.Name, d.nocalhostSvc.Identifier, d.nocalhostSvc.Type, devModeType,
 			)
 		}
 	}()
@@ -303,7 +310,7 @@ func (d *DevStartOps) enterDevMode(devModeType profile.DevModeType) error {
 	// Only `replace` DevMode needs to disable hpa
 	if devModeType.IsReplaceDevMode() {
 		log.Info("Disabling hpa...")
-		hl, err := common.NocalhostSvc.ListHPA()
+		hl, err := d.nocalhostSvc.ListHPA()
 		if err != nil {
 			log.WarnE(err, "Failed to find hpa")
 		}
@@ -321,7 +328,7 @@ func (d *DevStartOps) enterDevMode(devModeType profile.DevModeType) error {
 				var i int32 = 1
 				h.Spec.MinReplicas = &i
 			}
-			if _, err = common.NocalhostSvc.Client.UpdateHPA(&h); err != nil {
+			if _, err = d.nocalhostSvc.Client.UpdateHPA(&h); err != nil {
 				log.WarnE(err, fmt.Sprintf("Failed to update hpa %s", h.Name))
 			} else {
 				log.Infof("HPA %s has been disabled", h.Name)
@@ -329,24 +336,24 @@ func (d *DevStartOps) enterDevMode(devModeType profile.DevModeType) error {
 		}
 	}
 
-	//common.NocalhostSvc.DevModeType = devModeType
-	if err = common.NocalhostSvc.BuildPodController().ReplaceImage(context.TODO(), d.DevStartOptions); err != nil {
+	//d.nocalhostSvc.DevModeType = devModeType
+	if err = d.nocalhostSvc.BuildPodController().ReplaceImage(context.TODO(), d.DevStartOptions); err != nil {
 		log.WarnE(err, "Failed to replace dev container")
 		log.Info("Resetting workload...")
-		_ = common.NocalhostSvc.DevEnd(true)
+		_ = d.nocalhostSvc.DevEnd(true)
 		if errors.Is(err, nocalhost.CreatePvcFailed) {
 			log.Info("Failed to provision persistent volume due to insufficient resources")
 		}
 		return err
 	}
 
-	if err = common.NocalhostSvc.AppMeta.SvcDevStartComplete(
-		common.NocalhostSvc.Name, common.NocalhostSvc.Type, common.NocalhostSvc.Identifier, devModeType,
+	if err = d.nocalhostSvc.AppMeta.SvcDevStartComplete(
+		d.nocalhostSvc.Name, d.nocalhostSvc.Type, d.nocalhostSvc.Identifier, devModeType,
 	); err != nil {
 		return err
 	}
 
-	utils.Should(common.NocalhostSvc.IncreaseDevModeCount())
+	utils.Should(d.nocalhostSvc.IncreaseDevModeCount())
 
 	// mark dev start as true
 	devStartSuccess = true
@@ -356,9 +363,9 @@ func (d *DevStartOps) enterDevMode(devModeType profile.DevModeType) error {
 
 func (d *DevStartOps) startPortForwardAfterDevStart(devPodName string) {
 	for _, pf := range pfListBeforeDevStart {
-		utils.Should(common.NocalhostSvc.PortForward(devPodName, pf.LocalPort, pf.RemotePort, pf.Role))
+		utils.Should(d.nocalhostSvc.PortForward(devPodName, pf.LocalPort, pf.RemotePort, pf.Role))
 	}
-	must(common.NocalhostSvc.PortForwardAfterDevStart(devPodName, d.Container))
+	must(d.nocalhostSvc.PortForwardAfterDevStart(devPodName, d.Container))
 }
 
 func must(err error) {

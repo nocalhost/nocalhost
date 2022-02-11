@@ -33,7 +33,8 @@ var profileGetCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		common.InitAppAndCheckIfSvcExist(args[0], common.WorkloadName, common.ServiceType)
+		nocalhostSvc, err := common.InitAppAndCheckIfSvcExist(args[0], common.WorkloadName, common.ServiceType)
+		must(err)
 		if configKey == "" {
 			log.Fatal("--key must be specified")
 		}
@@ -41,13 +42,13 @@ var profileGetCmd = &cobra.Command{
 			log.Fatal("--container must be specified")
 		}
 
-		_ = common.NocalhostSvc.LoadConfigFromHubC(container)
+		_ = nocalhostSvc.LoadConfigFromHubC(container)
 
-		_ = common.NocalhostApp.ReloadSvcCfg(common.WorkloadName, common.NocalhostSvc.Type, false, true)
+		_ = common.NocalhostApp.ReloadSvcCfg(common.WorkloadName, nocalhostSvc.Type, false, true)
 
 		switch configKey {
 		case "image":
-			p := common.NocalhostSvc.Config()
+			p := nocalhostSvc.Config()
 
 			var defaultContainerConfig *profile.ContainerConfig
 			for _, c := range p.ContainerConfigs {
@@ -72,7 +73,7 @@ var profileGetCmd = &cobra.Command{
 					p.ContainerConfigs[defaultIndex] = defaultContainerConfig
 					defaultContainerConfig.Name = container // setting container name
 				}
-				must(common.NocalhostSvc.UpdateConfig(*p))
+				must(nocalhostSvc.UpdateConfig(*p))
 				fmt.Printf(`{"image": "%s"}`, defaultContainerConfig.Dev.Image)
 			}
 		default:

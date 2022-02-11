@@ -64,7 +64,8 @@ var upgradeCmd = &cobra.Command{
 
 		pfListMap := make(map[string][]*profile.DevPortForward, 0)
 		for _, svcProfile := range appProfile.SvcProfile {
-			nhSvc := common.InitService(svcProfile.GetName(), svcProfile.GetType())
+			nhSvc, err := common.InitService(svcProfile.GetName(), svcProfile.GetType())
+			must(err)
 			pfList := make([]*profile.DevPortForward, 0)
 			for _, pf := range svcProfile.DevPortForwardList {
 				if pf.ServiceType == "" {
@@ -90,7 +91,8 @@ var upgradeCmd = &cobra.Command{
 			for _, pf := range pfList {
 				// find first pod
 				ctx, _ := context.WithTimeout(context.Background(), 5*time.Minute)
-				nhSvc := common.InitService(svcName, pf.ServiceType)
+				nhSvc, err := common.InitService(svcName, pf.ServiceType)
+				must(err)
 				podName, err := controller.GetDefaultPodName(ctx, nhSvc)
 				if err != nil {
 					log.WarnE(err, "")

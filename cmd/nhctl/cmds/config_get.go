@@ -125,22 +125,23 @@ var configGetCmd = &cobra.Command{
 			fmt.Println(string(bys))
 
 		} else {
-			common.CheckIfSvcExist(commonFlags.SvcName, common.ServiceType)
-
-			_ = common.NocalhostSvc.LoadConfigFromHub()
-			// need to load latest config
-			_ = common.NocalhostApp.ReloadSvcCfg(commonFlags.SvcName, common.NocalhostSvc.Type, false, true)
-			common.NocalhostSvc.ReloadConfig()
-
-			svcProfile, err := common.NocalhostSvc.GetProfile()
+			nocalhostSvc, err := common.InitAndCheckIfSvcExist(commonFlags.SvcName, common.ServiceType)
 			must(err)
-			svcConfig := common.NocalhostSvc.Config()
+
+			_ = nocalhostSvc.LoadConfigFromHub()
+			// need to load latest config
+			_ = common.NocalhostApp.ReloadSvcCfg(commonFlags.SvcName, nocalhostSvc.Type, false, true)
+			nocalhostSvc.ReloadConfig()
+
+			svcProfile, err := nocalhostSvc.GetProfile()
+			must(err)
+			svcConfig := nocalhostSvc.Config()
 
 			// to avoid empty config
 			if svcConfig == nil {
 				svcConfig = &profile.ServiceConfigV2{
 					Name:             commonFlags.SvcName,
-					Type:             common.NocalhostSvc.Type.String(),
+					Type:             nocalhostSvc.Type.String(),
 					ContainerConfigs: []*profile.ContainerConfig{},
 				}
 			}
@@ -150,11 +151,11 @@ var configGetCmd = &cobra.Command{
 				must(errors.Wrap(err, "fail to marshal svc config"))
 
 				pack := dev_dir.NewSvcPack(
-					common.NocalhostSvc.NameSpace,
-					common.NocalhostSvc.AppMeta.NamespaceId,
-					common.NocalhostSvc.AppName,
-					common.NocalhostSvc.Type,
-					common.NocalhostSvc.Name,
+					nocalhostSvc.NameSpace,
+					nocalhostSvc.AppMeta.NamespaceId,
+					nocalhostSvc.AppName,
+					nocalhostSvc.Type,
+					nocalhostSvc.Name,
 					"",
 				)
 

@@ -77,7 +77,8 @@ func SyncStatus(opt *app.SyncStatusOptions, ns, app, svc, svcType, kubeconfig st
 		return req.AppNotInstalledTemplate
 	}
 
-	nhSvc := common.InitService(svc, svcType)
+	nhSvc, err := common.InitService(svc, svcType)
+	must(err)
 
 	if !nhSvc.IsInDevMode() {
 		return req.NotInDevModeTemplate

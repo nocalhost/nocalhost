@@ -68,8 +68,9 @@ var pvcCleanCmd = &cobra.Command{
 
 		// Clean up PVCs of specified service
 		if pvcFlags.Svc != "" {
-			common.InitAppAndCheckIfSvcExist(pvcFlags.App, pvcFlags.Svc, common.ServiceType)
-			pvcs, err = common.NocalhostSvc.GetPVCsBySvc()
+			nocalhostSvc, err := common.InitAppAndCheckIfSvcExist(pvcFlags.App, pvcFlags.Svc, common.ServiceType)
+			must(err)
+			pvcs, err = nocalhostSvc.GetPVCsBySvc()
 		} else {
 			// Clean up all pvcs in application
 			common.InitApp(pvcFlags.App)

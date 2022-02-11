@@ -26,23 +26,26 @@ var (
 	NameSpace    string
 
 	NocalhostApp *app.Application
-	NocalhostSvc *controller.Controller
+	//NocalhostSvc *controller.Controller
 )
 
-func InitAppAndCheckIfSvcExist(appName string, svcName string, svcType string) error {
+func InitAppAndCheckIfSvcExist(appName string, svcName string, svcType string) (*controller.Controller, error) {
 	if err := InitApp(appName); err != nil {
-		return err
+		return nil, err
 	}
-	return CheckIfSvcExist(svcName, svcType)
+	return InitAndCheckIfSvcExist(svcName, svcType)
 }
 
 func InitApp(appName string) error {
 	return InitAppMutate(appName)
 }
 
-func CheckIfSvcExist(svcName string, svcType string) error {
-	NocalhostSvc = InitService(svcName, svcType)
-	return NocalhostSvc.CheckIfExist()
+func InitAndCheckIfSvcExist(svcName string, svcType string) (*controller.Controller, error) {
+	nocalhostSvc, err := InitService(svcName, svcType)
+	if err != nil {
+		return nil, err
+	}
+	return nocalhostSvc, nocalhostSvc.CheckIfExist()
 	//log.AddField("SVC", svcName)
 }
 
@@ -67,19 +70,15 @@ func InitAppMutate(appName string) error {
 	return nil
 }
 
-func InitService(svcName string, svcType string) *controller.Controller {
+func InitService(svcName string, svcType string) (*controller.Controller, error) {
 	if svcName == "" {
-		log.Fatal("please use -d to specify a k8s workload")
+		return nil, errors.New("please use -d to specify a k8s workload")
 	}
 	st, err := nocalhost.SvcTypeOfMutate(svcType)
 	if err != nil {
-		log.FatalE(err, "")
+		return nil, err
 	}
-	c, err := NocalhostApp.Controller(svcName, st)
-	if err != nil {
-		log.FatalE(err, "")
-	}
-	return c
+	return NocalhostApp.Controller(svcName, st)
 }
 
 func Prepare() error {

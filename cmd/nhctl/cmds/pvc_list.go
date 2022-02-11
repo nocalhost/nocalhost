@@ -49,8 +49,9 @@ var pvcListCmd = &cobra.Command{
 		if pvcFlags.App != "" {
 			var err error
 			if pvcFlags.Svc != "" {
-				common.InitAppAndCheckIfSvcExist(pvcFlags.App, pvcFlags.Svc, common.ServiceType)
-				pvcList, err = common.NocalhostSvc.GetPVCsBySvc()
+				nocalhostSvc, err := common.InitAppAndCheckIfSvcExist(pvcFlags.App, pvcFlags.Svc, common.ServiceType)
+				must(err)
+				pvcList, err = nocalhostSvc.GetPVCsBySvc()
 				must(err)
 			} else {
 				common.InitApp(pvcFlags.App)

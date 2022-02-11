@@ -149,8 +149,8 @@ var installCmd = &cobra.Command{
 
 		// Start port forward
 		for _, svcProfile := range configV2.ServiceConfigs {
-			common2.CheckIfSvcExist(svcProfile.Name, svcProfile.Type)
-			nhSvc := common2.NocalhostSvc
+			nhSvc, err := common2.InitAndCheckIfSvcExist(svcProfile.Name, svcProfile.Type)
+			must(err)
 			for _, cc := range svcProfile.ContainerConfigs {
 				if cc.Install == nil || len(cc.Install.PortForward) == 0 {
 					continue

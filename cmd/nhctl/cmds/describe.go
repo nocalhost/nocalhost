@@ -47,8 +47,9 @@ var describeCmd = &cobra.Command{
 				fmt.Print(string(bytes))
 			}
 		} else {
-			common.CheckIfSvcExist(deploy, common.ServiceType)
-			svcProfile := common.NocalhostSvc.GetDescription()
+			nocalhostSvc, err := common.InitAndCheckIfSvcExist(deploy, common.ServiceType)
+			must(err)
+			svcProfile := nocalhostSvc.GetDescription()
 			bytes, err := yaml.Marshal(svcProfile)
 			if err == nil {
 				fmt.Print(string(bytes))

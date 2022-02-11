@@ -74,11 +74,13 @@ var devAssociateCmd = &cobra.Command{
 
 		must(common.Prepare())
 		must(common.InitApp(commonFlags.AppName))
-		must(common.CheckIfSvcExist(commonFlags.SvcName, common.ServiceType))
+
+		nocalhostSvc, err := common.InitAndCheckIfSvcExist(commonFlags.SvcName, common.ServiceType)
+		must(err)
 
 		svcPack := dev_dir.NewSvcPack(
 			common.NameSpace,
-			common.NocalhostSvc.AppMeta.NamespaceId,
+			nocalhostSvc.AppMeta.NamespaceId,
 			commonFlags.AppName,
 			base.SvcType(common.ServiceType),
 			commonFlags.SvcName,
@@ -101,18 +103,18 @@ var devAssociateCmd = &cobra.Command{
 			log.Fatal("--local-sync must specify")
 		}
 
-		if (common.NocalhostSvc.IsInReplaceDevMode() && common.NocalhostSvc.IsProcessor()) || common.NocalhostSvc.IsInDuplicateDevMode() {
+		if (nocalhostSvc.IsInReplaceDevMode() && nocalhostSvc.IsProcessor()) || nocalhostSvc.IsInDuplicateDevMode() {
 			if !dev_dir.DevPath(workDir).AlreadyAssociate(svcPack) {
 				log.PWarn("Current svc is already in DevMode, so can not switch associate dir, please exit the DevMode and try again.")
 				os.Exit(1)
 			} else {
-				if profile, err := common.NocalhostSvc.GetProfile(); err != nil {
+				if profile, err := nocalhostSvc.GetProfile(); err != nil {
 					log.PWarn("Fail to get profile of current svc, please exit the DevMode and try again.")
 					os.Exit(1)
 				} else {
 					svcPack = dev_dir.NewSvcPack(
 						common.NameSpace,
-						common.NocalhostSvc.AppMeta.NamespaceId,
+						nocalhostSvc.AppMeta.NamespaceId,
 						commonFlags.AppName,
 						base.SvcType(common.ServiceType),
 						commonFlags.SvcName,
@@ -124,6 +126,6 @@ var devAssociateCmd = &cobra.Command{
 
 		must(dev_dir.DevPath(workDir).Associate(svcPack, common.KubeConfig, !migrate))
 
-		must(common.NocalhostApp.ReloadSvcCfg(common.NocalhostSvc.Name, common.NocalhostSvc.Type, false, false))
+		must(common.NocalhostApp.ReloadSvcCfg(nocalhostSvc.Name, nocalhostSvc.Type, false, false))
 	},
 }

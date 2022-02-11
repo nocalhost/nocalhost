@@ -23,11 +23,11 @@ import (
 )
 
 func (d *DevStartOps) StartSyncthing(podName string, resume bool, stop bool, syncDouble *bool, override bool) {
-	if !common.NocalhostSvc.IsInReplaceDevMode() && !common.NocalhostSvc.IsInDuplicateDevMode() {
+	if !d.nocalhostSvc.IsInReplaceDevMode() && !d.nocalhostSvc.IsInDuplicateDevMode() {
 		log.Fatalf("Service \"%s\" is not in developing", common.WorkloadName)
 	}
 
-	if !common.NocalhostSvc.IsProcessor() {
+	if !d.nocalhostSvc.IsProcessor() {
 		log.Fatalf(
 			"Service \"%s\" is not process by current device (DevMode is start by other device),"+
 				" so can not operate the file sync", common.WorkloadName,
@@ -36,12 +36,12 @@ func (d *DevStartOps) StartSyncthing(podName string, resume bool, stop bool, syn
 
 	// resume port-forward and syncthing
 	if resume || stop {
-		utils.ShouldI(common.NocalhostSvc.StopFileSyncOnly(), "Error occurs when stopping sync process")
+		utils.ShouldI(d.nocalhostSvc.StopFileSyncOnly(), "Error occurs when stopping sync process")
 		if stop {
 			return
 		}
 	} else {
-		if err := common.NocalhostSvc.FindOutSyncthingProcess(
+		if err := d.nocalhostSvc.FindOutSyncthingProcess(
 			func(pid int) error {
 				coloredoutput.Hint("Syncthing has been started")
 				return errors.New("")
@@ -51,26 +51,26 @@ func (d *DevStartOps) StartSyncthing(podName string, resume bool, stop bool, syn
 		}
 	}
 
-	svcProfile, _ := common.NocalhostSvc.GetProfile()
+	svcProfile, _ := d.nocalhostSvc.GetProfile()
 	if podName == "" {
 		var err error
-		if podName, err = common.NocalhostSvc.GetDevModePodName(); err != nil {
+		if podName, err = d.nocalhostSvc.GetDevModePodName(); err != nil {
 			must(err)
 		}
 	}
 	log.Infof("Syncthing port-forward pod %s, namespace %s", podName, common.NocalhostApp.NameSpace)
 
 	// Start a pf for syncthing
-	must(common.NocalhostSvc.PortForward(podName, svcProfile.RemoteSyncthingPort, svcProfile.RemoteSyncthingPort, "SYNC"))
+	must(d.nocalhostSvc.PortForward(podName, svcProfile.RemoteSyncthingPort, svcProfile.RemoteSyncthingPort, "SYNC"))
 
-	str := strings.ReplaceAll(common.NocalhostSvc.GetSyncDir(), nocalhost_path.GetNhctlHomeDir(), "")
+	str := strings.ReplaceAll(d.nocalhostSvc.GetSyncDir(), nocalhost_path.GetNhctlHomeDir(), "")
 
 	utils2.KillSyncthingProcess(str)
 
 	if syncDouble == nil {
 		flag := false
 
-		config := common.NocalhostSvc.Config()
+		config := d.nocalhostSvc.Config()
 		if cfg := config.GetContainerDevConfig(d.Container); cfg != nil && cfg.Sync != nil {
 			switch cfg.Sync.Type {
 
@@ -86,7 +86,7 @@ func (d *DevStartOps) StartSyncthing(podName string, resume bool, stop bool, syn
 	}
 
 	// Delete service folder
-	dir := common.NocalhostSvc.GetSyncDir()
+	dir := d.nocalhostSvc.GetSyncDir()
 	if err2 := os.RemoveAll(dir); err2 != nil {
 		log.Logf("Failed to delete dir: %s before starting syncthing, err: %v", dir, err2)
 	}
@@ -94,7 +94,7 @@ func (d *DevStartOps) StartSyncthing(podName string, resume bool, stop bool, syn
 	// TODO
 	// If the file is deleted remotely, but the syncthing database is not reset (the development is not finished),
 	// the files that have been synchronized will not be synchronized.
-	newSyncthing, err := common.NocalhostSvc.NewSyncthing(
+	newSyncthing, err := d.nocalhostSvc.NewSyncthing(
 		d.Container, svcProfile.LocalAbsoluteSyncDirFromDevStartPlugin, *syncDouble,
 	)
 	utils.ShouldI(err, "Failed to new syncthing")
@@ -116,7 +116,7 @@ func (d *DevStartOps) StartSyncthing(podName string, resume bool, stop bool, syn
 	// starts up a local syncthing
 	utils.ShouldI(newSyncthing.Run(context.TODO()), "Failed to run syncthing")
 
-	must(common.NocalhostSvc.SetSyncingStatus(true))
+	must(d.nocalhostSvc.SetSyncingStatus(true))
 
 	if override {
 		var i = 10
@@ -125,7 +125,7 @@ func (d *DevStartOps) StartSyncthing(podName string, resume bool, stop bool, syn
 
 			i--
 			// to force override the remote changing
-			client := common.NocalhostSvc.NewSyncthingHttpClient(2)
+			client := d.nocalhostSvc.NewSyncthingHttpClient(2)
 			err = client.FolderOverride()
 			if err == nil {
 				log.Info("Force overriding workDir's remote changing")
