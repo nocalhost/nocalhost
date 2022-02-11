@@ -36,16 +36,17 @@ var configReloadCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		commonFlags.AppName = args[0]
-		common.InitApp(commonFlags.AppName)
+		nocalhostApp, err := common.InitApp(commonFlags.AppName)
+		must(err)
 
 		if commonFlags.SvcName == "" {
-			if err := common.NocalhostApp.ReloadCfg(true, false); err != nil {
+			if err := nocalhostApp.ReloadCfg(true, false); err != nil {
 				log.Fatal(errors.Wrap(err, ""))
 			}
 		} else {
-			nocalhostSvc, err := common.InitAndCheckIfSvcExist(commonFlags.SvcName, common.ServiceType)
+			nocalhostSvc, err := nocalhostApp.InitAndCheckIfSvcExist(commonFlags.SvcName, common.ServiceType)
 			must(err)
-			if err := common.NocalhostApp.ReloadSvcCfg(commonFlags.SvcName, nocalhostSvc.Type, true, false); err != nil {
+			if err := nocalhostApp.ReloadSvcCfg(commonFlags.SvcName, nocalhostSvc.Type, true, false); err != nil {
 				log.Fatal(errors.Wrap(err, ""))
 			}
 		}

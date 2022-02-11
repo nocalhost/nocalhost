@@ -58,7 +58,7 @@ func (d *DevStartOps) StartSyncthing(podName string, resume bool, stop bool, syn
 			must(err)
 		}
 	}
-	log.Infof("Syncthing port-forward pod %s, namespace %s", podName, common.NocalhostApp.NameSpace)
+	log.Infof("Syncthing port-forward pod %s, namespace %s", podName, d.nocalhostApp.NameSpace)
 
 	// Start a pf for syncthing
 	must(d.nocalhostSvc.PortForward(podName, svcProfile.RemoteSyncthingPort, svcProfile.RemoteSyncthingPort, "SYNC"))

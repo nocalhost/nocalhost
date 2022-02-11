@@ -76,7 +76,7 @@ nhctl get service serviceName [-n namespace] --kubeconfig=kubeconfigfile
 		}
 		if appName != "" {
 			go func() {
-				if err := common.InitAppMutate(appName); err != nil {
+				if _, err := common.InitAppMutate(appName); err != nil {
 					log.Logf("error while init app: %s on namespace: %s, error: %v", appName, common.NameSpace, err)
 				}
 			}()

@@ -73,12 +73,15 @@ func SyncStatus(opt *app.SyncStatusOptions, ns, app, svc, svcType, kubeconfig st
 	common.NameSpace = ns
 	common.KubeConfig = kubeconfig
 
-	if err := common.InitAppMutate(app); err != nil {
+	nocalhostApp, err := common.InitAppMutate(app)
+	if err != nil {
 		return req.AppNotInstalledTemplate
 	}
 
-	nhSvc, err := common.InitService(svc, svcType)
-	must(err)
+	nhSvc, err := nocalhostApp.InitService(svc, svcType)
+	if err != nil {
+		return req.NotInDevModeTemplate
+	}
 
 	if !nhSvc.IsInDevMode() {
 		return req.NotInDevModeTemplate

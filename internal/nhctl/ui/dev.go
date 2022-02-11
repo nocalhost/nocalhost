@@ -111,7 +111,7 @@ func (t *TviewApplication) buildWorkloadList(appMeta *appmeta.ApplicationMeta, n
 			common2.ServiceType = strings.ToLower(strings.TrimSuffix(wl, "s"))
 			common2.KubeConfig = t.clusterInfo.KubeConfig
 			common2.NameSpace = ns
-			nocalhostSvc, err := common2.InitAppAndCheckIfSvcExist(appMeta.Application, common2.WorkloadName, common2.ServiceType)
+			nocalhostApp, nocalhostSvc, err := common2.InitAppAndCheckIfSvcExist(appMeta.Application, common2.WorkloadName, common2.ServiceType)
 			if err != nil {
 				t.showErr(err, nil)
 				return
@@ -548,8 +548,8 @@ func (t *TviewApplication) buildWorkloadList(appMeta *appmeta.ApplicationMeta, n
 						}
 					}()
 				case viewDBData:
-					appName := common2.NocalhostApp.Name
-					nid := common2.NocalhostApp.GetAppMeta().NamespaceId
+					appName := nocalhostApp.Name
+					nid := nocalhostApp.GetAppMeta().NamespaceId
 					result, err := nocalhost.ListAllFromApplicationDb(ns, appName, nid)
 					if err != nil {
 						t.showErr(err, nil)

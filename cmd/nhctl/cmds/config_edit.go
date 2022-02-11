@@ -76,7 +76,8 @@ var configEditCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		configEditFlags.AppName = args[0]
 
-		common.InitApp(configEditFlags.AppName)
+		nocalhostApp, err := common.InitApp(configEditFlags.AppName)
+		must(err)
 
 		if len(configEditFlags.Content) == 0 && len(configEditFlags.file) == 0 {
 			log.Fatal("one of --content or --filename is required")
@@ -120,12 +121,12 @@ var configEditCmd = &cobra.Command{
 		if configEditFlags.AppConfig {
 			applicationConfig := &profile.ApplicationConfig{}
 			must(errors.Wrap(unmashaler(applicationConfig), "fail to unmarshal content"))
-			must(common.NocalhostApp.SaveAppProfileV2(applicationConfig))
+			must(nocalhostApp.SaveAppProfileV2(applicationConfig))
 			return
 		}
 
 		svcConfig := &profile.ServiceConfigV2{}
-		nocalhostSvc, err := common.InitAndCheckIfSvcExist(configEditFlags.SvcName, common.ServiceType)
+		nocalhostSvc, err := nocalhostApp.InitAndCheckIfSvcExist(configEditFlags.SvcName, common.ServiceType)
 		must(err)
 
 		if err := unmashaler(svcConfig); err != nil {
@@ -133,7 +134,7 @@ var configEditCmd = &cobra.Command{
 		}
 
 		containers, _ := nocalhostSvc.GetOriginalContainers()
-		config_validate.PrepareForConfigurationValidate(common.NocalhostApp.GetClient(), containers)
+		config_validate.PrepareForConfigurationValidate(nocalhostApp.GetClient(), containers)
 		if err := config_validate.Validate(svcConfig); err != nil {
 			log.Fatal(err)
 		}

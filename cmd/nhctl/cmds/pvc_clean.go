@@ -10,6 +10,8 @@ import (
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
 	"nocalhost/cmd/nhctl/cmds/common"
+	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/controller"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"path/filepath"
 
@@ -66,15 +68,18 @@ var pvcCleanCmd = &cobra.Command{
 			err  error
 		)
 
+		var nocalhostApp *app.Application
+		var nocalhostSvc *controller.Controller
 		// Clean up PVCs of specified service
 		if pvcFlags.Svc != "" {
-			nocalhostSvc, err := common.InitAppAndCheckIfSvcExist(pvcFlags.App, pvcFlags.Svc, common.ServiceType)
+			nocalhostApp, nocalhostSvc, err = common.InitAppAndCheckIfSvcExist(pvcFlags.App, pvcFlags.Svc, common.ServiceType)
 			must(err)
 			pvcs, err = nocalhostSvc.GetPVCsBySvc()
 		} else {
 			// Clean up all pvcs in application
-			common.InitApp(pvcFlags.App)
-			pvcs, err = common.NocalhostApp.GetAllPVCs()
+			nocalhostApp, err = common.InitApp(pvcFlags.App)
+			must(err)
+			pvcs, err = nocalhostApp.GetAllPVCs()
 		}
 
 		must(err)
@@ -85,7 +90,7 @@ var pvcCleanCmd = &cobra.Command{
 
 		// todo check if pvc still is used by some pods
 		for _, pvc := range pvcs {
-			err = common.NocalhostApp.GetClient().DeletePVC(pvc.Name)
+			err = nocalhostApp.GetClient().DeletePVC(pvc.Name)
 			if err != nil {
 				log.WarnE(err, fmt.Sprintf("error occurs while deleting persistent volume %s", pvc.Name))
 			} else {

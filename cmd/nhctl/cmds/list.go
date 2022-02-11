@@ -44,9 +44,9 @@ var listCmd = &cobra.Command{
 		must(common2.Prepare())
 
 		if len(args) > 0 { // list application detail
-			applicationName := args[0]
-			common2.InitApp(applicationName)
-			ListApplicationSvc(common2.NocalhostApp)
+			nocalhostApp, err := common2.InitApp(args[0])
+			must(err)
+			ListApplicationSvc(nocalhostApp)
 			os.Exit(0)
 		}
 
@@ -136,7 +136,7 @@ func DoGetApplicationMetas() (appmeta.ApplicationMetas, error) {
 
 	if !foundDefaultApp {
 		// try init default application
-		common2.NocalhostApp, err = common.InitDefaultApplicationInCurrentNs(
+		nocalhostApp, err := common.InitDefaultApplicationInCurrentNs(
 			_const.DefaultNocalhostApplication, common2.NameSpace, common2.KubeConfig,
 		)
 
@@ -147,7 +147,7 @@ func DoGetApplicationMetas() (appmeta.ApplicationMetas, error) {
 			log.Logf("failed to init default application in namespace: %s", common2.NameSpace)
 			metas = append(metas, appmeta.FakeAppMeta(common2.NameSpace, _const.DefaultNocalhostApplication))
 		} else {
-			metas = append(metas, common2.NocalhostApp.GetAppMeta())
+			metas = append(metas, nocalhostApp.GetAppMeta())
 		}
 	}
 

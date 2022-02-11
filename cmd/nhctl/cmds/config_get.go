@@ -99,14 +99,15 @@ var configGetCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		commonFlags.AppName = args[0]
-		if err := common.InitAppMutate(commonFlags.AppName); err != nil {
+		nocalhostApp, err := common.InitAppMutate(commonFlags.AppName)
+		if err != nil {
 			log.Logf("init app:%s on namespace: %s, error: %v", commonFlags.AppName, common.NameSpace, err)
 			return
 		}
 		// get application config
 		if commonFlags.AppConfig {
 
-			applicationConfig := common.NocalhostApp.GetApplicationConfigV2()
+			applicationConfig := nocalhostApp.GetApplicationConfigV2()
 			bys, err := yaml.Marshal(applicationConfig)
 			must(errors.Wrap(err, "fail to get application config"))
 			fmt.Println(string(bys))
@@ -114,7 +115,7 @@ var configGetCmd = &cobra.Command{
 		}
 
 		if commonFlags.SvcName == "" {
-			appConfig := common.NocalhostApp.GetApplicationConfigV2()
+			appConfig := nocalhostApp.GetApplicationConfigV2()
 			config := &ConfigForPlugin{}
 			config.Services = make([]*profile.ServiceConfigV2, 0)
 			for _, svcPro := range appConfig.ServiceConfigs {
@@ -125,12 +126,12 @@ var configGetCmd = &cobra.Command{
 			fmt.Println(string(bys))
 
 		} else {
-			nocalhostSvc, err := common.InitAndCheckIfSvcExist(commonFlags.SvcName, common.ServiceType)
+			nocalhostSvc, err := nocalhostApp.InitAndCheckIfSvcExist(commonFlags.SvcName, common.ServiceType)
 			must(err)
 
 			_ = nocalhostSvc.LoadConfigFromHub()
 			// need to load latest config
-			_ = common.NocalhostApp.ReloadSvcCfg(commonFlags.SvcName, nocalhostSvc.Type, false, true)
+			_ = nocalhostApp.ReloadSvcCfg(commonFlags.SvcName, nocalhostSvc.Type, false, true)
 			nocalhostSvc.ReloadConfig()
 
 			svcProfile, err := nocalhostSvc.GetProfile()

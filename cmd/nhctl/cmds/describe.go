@@ -36,18 +36,19 @@ var describeCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		applicationName := args[0]
-		common.InitApp(applicationName)
+		nocalhostApp, err := common.InitApp(applicationName)
+		must(err)
 		if deploy == "" {
-			appProfile := common.NocalhostApp.GetDescription()
+			appProfile := nocalhostApp.GetDescription()
 			for _, svcProfileV2 := range appProfile.SvcProfile {
-				svcProfileV2.DevModeType = common.NocalhostApp.GetAppMeta().GetCurrentDevModeTypeOfWorkload(svcProfileV2.Name, base.SvcType(svcProfileV2.Type), appProfile.Identifier)
+				svcProfileV2.DevModeType = nocalhostApp.GetAppMeta().GetCurrentDevModeTypeOfWorkload(svcProfileV2.Name, base.SvcType(svcProfileV2.Type), appProfile.Identifier)
 			}
 			bytes, err := yaml.Marshal(appProfile)
 			if err == nil {
 				fmt.Print(string(bytes))
 			}
 		} else {
-			nocalhostSvc, err := common.InitAndCheckIfSvcExist(deploy, common.ServiceType)
+			nocalhostSvc, err := nocalhostApp.InitAndCheckIfSvcExist(deploy, common.ServiceType)
 			must(err)
 			svcProfile := nocalhostSvc.GetDescription()
 			bytes, err := yaml.Marshal(svcProfile)

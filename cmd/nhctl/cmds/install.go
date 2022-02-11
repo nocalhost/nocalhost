@@ -141,15 +141,15 @@ var installCmd = &cobra.Command{
 		}
 
 		log.Info("Installing application...")
-		common2.NocalhostApp, err = common.InstallApplication(installFlags, applicationName, common2.KubeConfig, common2.NameSpace)
+		nocalhostApp, err := common.InstallApplication(installFlags, applicationName, common2.KubeConfig, common2.NameSpace)
 		must(err)
 		log.Infof("Application %s installed", applicationName)
 
-		configV2 := common2.NocalhostApp.GetApplicationConfigV2()
+		configV2 := nocalhostApp.GetApplicationConfigV2()
 
 		// Start port forward
 		for _, svcProfile := range configV2.ServiceConfigs {
-			nhSvc, err := common2.InitAndCheckIfSvcExist(svcProfile.Name, svcProfile.Type)
+			nhSvc, err := nocalhostApp.InitAndCheckIfSvcExist(svcProfile.Name, svcProfile.Type)
 			must(err)
 			for _, cc := range svcProfile.ContainerConfigs {
 				if cc.Install == nil || len(cc.Install.PortForward) == 0 {
@@ -169,7 +169,7 @@ var installCmd = &cobra.Command{
 						continue
 					}
 					log.Infof("Waiting pod %s to be ready", podName)
-					pod, err := common2.NocalhostApp.GetClient().GetPod(podName)
+					pod, err := nocalhostApp.GetClient().GetPod(podName)
 					if err != nil {
 						log.Info(err.Error())
 						continue

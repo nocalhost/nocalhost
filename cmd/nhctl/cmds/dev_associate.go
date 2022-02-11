@@ -73,9 +73,10 @@ var devAssociateCmd = &cobra.Command{
 		commonFlags.AppName = args[0]
 
 		must(common.Prepare())
-		must(common.InitApp(commonFlags.AppName))
+		nocalhostApp, err := common.InitApp(commonFlags.AppName)
+		must(err)
 
-		nocalhostSvc, err := common.InitAndCheckIfSvcExist(commonFlags.SvcName, common.ServiceType)
+		nocalhostSvc, err := nocalhostApp.InitAndCheckIfSvcExist(commonFlags.SvcName, common.ServiceType)
 		must(err)
 
 		svcPack := dev_dir.NewSvcPack(
@@ -126,6 +127,6 @@ var devAssociateCmd = &cobra.Command{
 
 		must(dev_dir.DevPath(workDir).Associate(svcPack, common.KubeConfig, !migrate))
 
-		must(common.NocalhostApp.ReloadSvcCfg(nocalhostSvc.Name, nocalhostSvc.Type, false, false))
+		must(nocalhostApp.ReloadSvcCfg(nocalhostSvc.Name, nocalhostSvc.Type, false, false))
 	},
 }

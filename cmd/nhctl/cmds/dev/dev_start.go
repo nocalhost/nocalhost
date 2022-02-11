@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"nocalhost/cmd/nhctl/cmds/common"
+	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/coloredoutput"
 	"nocalhost/internal/nhctl/common/base"
 	_const "nocalhost/internal/nhctl/const"
@@ -37,6 +38,7 @@ var (
 type DevStartOps struct {
 	*model.DevStartOptions
 	nocalhostSvc *controller.Controller
+	nocalhostApp *app.Application
 }
 
 var devStartOps = &model.DevStartOptions{}
@@ -121,14 +123,15 @@ func (d *DevStartOps) StartDevMode(applicationName string) error {
 		log.Fatal("'local-sync(-s)' must be specified")
 	}
 
-	nocalhostSvc, err := common.InitAppAndCheckIfSvcExist(applicationName, common.WorkloadName, common.ServiceType)
+	nocalhostApp, nocalhostSvc, err := common.InitAppAndCheckIfSvcExist(applicationName, common.WorkloadName, common.ServiceType)
 	if err != nil {
 		return err
 	}
 	d.nocalhostSvc = nocalhostSvc
+	d.nocalhostApp = nocalhostApp
 
-	if !common.NocalhostApp.GetAppMeta().IsInstalled() {
-		log.Fatal(common.NocalhostApp.GetAppMeta().NotInstallTips())
+	if !nocalhostApp.GetAppMeta().IsInstalled() {
+		log.Fatal(nocalhostApp.GetAppMeta().NotInstallTips())
 	}
 
 	if d.nocalhostSvc.IsInDevMode() {
@@ -196,7 +199,7 @@ func (d *DevStartOps) StartDevMode(applicationName string) error {
 var pfListBeforeDevStart []*profile.DevPortForward
 
 func (d *DevStartOps) stopPreviousPortForward() {
-	appProfile, _ := common.NocalhostApp.GetProfile()
+	appProfile, _ := d.nocalhostApp.GetProfile()
 	pfListBeforeDevStart = appProfile.SvcProfileV2(common.WorkloadName, string(d.nocalhostSvc.Type)).DevPortForwardList
 	for _, pf := range pfListBeforeDevStart {
 		log.Infof("Stopping %d:%d", pf.LocalPort, pf.RemotePort)
@@ -243,12 +246,12 @@ func (d *DevStartOps) loadLocalOrCmConfigIfValid() {
 
 		must(associatePath.Associate(svcPack, common.KubeConfig, true))
 
-		_ = common.NocalhostApp.ReloadSvcCfg(common.WorkloadName, base.SvcType(common.ServiceType), false, false)
+		_ = d.nocalhostApp.ReloadSvcCfg(common.WorkloadName, base.SvcType(common.ServiceType), false, false)
 	case 1:
 
 		must(dev_dir.DevPath(d.LocalSyncDir[0]).Associate(svcPack, common.KubeConfig, true))
 
-		_ = common.NocalhostApp.ReloadSvcCfg(common.WorkloadName, base.SvcType(common.ServiceType), false, false)
+		_ = d.nocalhostApp.ReloadSvcCfg(common.WorkloadName, base.SvcType(common.ServiceType), false, false)
 	default:
 		log.Fatal(errors.New("Can not define multi 'local-sync(-s)'"))
 	}
@@ -283,7 +286,7 @@ func (d *DevStartOps) enterDevMode(devModeType profile.DevModeType) error {
 	must(
 		d.nocalhostSvc.AppMeta.SvcDevStarting(
 			d.nocalhostSvc.Name, d.nocalhostSvc.Type,
-			common.NocalhostApp.Identifier, devModeType,
+			d.nocalhostApp.Identifier, devModeType,
 		),
 	)
 	must(

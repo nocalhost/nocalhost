@@ -44,9 +44,10 @@ var portForwardListCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		applicationName := args[0]
-		common.InitApp(applicationName)
+		nocalhostApp, err := common.InitApp(applicationName)
+		must(err)
 
-		p, err := common.NocalhostApp.GetProfile()
+		p, err := nocalhostApp.GetProfile()
 		must(err)
 
 		pfList := make([]PortForwardItem, 0)

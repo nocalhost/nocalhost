@@ -763,3 +763,22 @@ func (a *Application) PortForwardFollow(podName string, localPort int, remotePor
 	}()
 	return <-errChan
 }
+
+func (a *Application) InitService(svcName string, svcType string) (*controller.Controller, error) {
+	if svcName == "" {
+		return nil, errors.New("please use -d to specify a k8s workload")
+	}
+	st, err := nocalhost.SvcTypeOfMutate(svcType)
+	if err != nil {
+		return nil, err
+	}
+	return a.Controller(svcName, st)
+}
+
+func (a *Application) InitAndCheckIfSvcExist(svcName string, svcType string) (*controller.Controller, error) {
+	nocalhostSvc, err := a.InitService(svcName, svcType)
+	if err != nil {
+		return nil, err
+	}
+	return nocalhostSvc, nocalhostSvc.CheckIfExist()
+}

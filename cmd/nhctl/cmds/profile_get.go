@@ -33,7 +33,7 @@ var profileGetCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		nocalhostSvc, err := common.InitAppAndCheckIfSvcExist(args[0], common.WorkloadName, common.ServiceType)
+		nocalhostApp, nocalhostSvc, err := common.InitAppAndCheckIfSvcExist(args[0], common.WorkloadName, common.ServiceType)
 		must(err)
 		if configKey == "" {
 			log.Fatal("--key must be specified")
@@ -44,7 +44,7 @@ var profileGetCmd = &cobra.Command{
 
 		_ = nocalhostSvc.LoadConfigFromHubC(container)
 
-		_ = common.NocalhostApp.ReloadSvcCfg(common.WorkloadName, nocalhostSvc.Type, false, true)
+		_ = nocalhostApp.ReloadSvcCfg(common.WorkloadName, nocalhostSvc.Type, false, true)
 
 		switch configKey {
 		case "image":
