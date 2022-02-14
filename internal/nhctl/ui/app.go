@@ -188,12 +188,6 @@ func (t *TviewApplication) initEventHandler() {
 			t.showColorPage()
 		case tcell.KeyCtrlS:
 			t.buildSelectContextMenu()
-
-			//	t.app.QueueUpdateDraw(func() {})
-			//case tcell.KeyEscape:
-			//	t.switchMainMenu()
-			//case tcell.KeyLeft:
-			//	t.switchBodyToPre()
 		}
 		return event
 	})
