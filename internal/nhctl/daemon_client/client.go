@@ -459,8 +459,12 @@ func (d *DaemonClient) SendKubeconfigOperationCommand(kubeconfigBytes []byte, ns
 }
 
 func (d *DaemonClient) SendVPNOperateCommand(
-	kubeconfig, ns string, operation command.VPNOperation, workloads string,
-) (io.ReadCloser, error) {
+	kubeconfig,
+	ns string,
+	operation command.VPNOperation,
+	workloads string,
+	consumer func(io.Reader) error,
+) error {
 	cmd := &command.VPNOperateCommand{
 		CommandType: command.VPNOperate,
 		ClientStack: string(debug.Stack()),
@@ -472,13 +476,16 @@ func (d *DaemonClient) SendVPNOperateCommand(
 	}
 	bys, err := json.Marshal(cmd)
 	if err != nil {
-		return nil, errors.Wrap(err, "")
+		return errors.Wrap(err, "")
 	}
-	return d.sendAndWaitForStream(bys)
+	return d.sendAndWaitForStream(bys, consumer)
 }
 
 func (d *DaemonClient) SendSudoVPNOperateCommand(
-	kubeconfig, ns string, operation command.VPNOperation) (io.ReadCloser, error) {
+	kubeconfig, ns string,
+	operation command.VPNOperation,
+	consumer func(io.Reader) error,
+) error {
 	cmd := &command.VPNOperateCommand{
 		CommandType: command.SudoVPNOperate,
 		ClientStack: string(debug.Stack()),
@@ -489,9 +496,9 @@ func (d *DaemonClient) SendSudoVPNOperateCommand(
 	}
 	bys, err := json.Marshal(cmd)
 	if err != nil {
-		return nil, errors.Wrap(err, "")
+		return errors.Wrap(err, "")
 	}
-	return d.sendAndWaitForStream(bys)
+	return d.sendAndWaitForStream(bys, consumer)
 }
 
 func (d *DaemonClient) SendVPNStatusCommand() (interface{}, error) {
@@ -549,27 +556,31 @@ func (d *DaemonClient) sendDataToDaemonServer(data []byte) error {
 }
 
 // sendAndWaitForResponse send data to daemon and wait for response
-func (d *DaemonClient) sendAndWaitForStream(req []byte) (io.ReadCloser, error) {
+func (d *DaemonClient) sendAndWaitForStream(req []byte, consumer func(io.Reader) error) error {
 	var conn net.Conn
 	var err error
 	baseCmd := command.BaseCommand{}
 	err = json.Unmarshal(req, &baseCmd)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to unmarshal command")
+		return errors.Wrap(err, "Failed to unmarshal command")
 	}
 	conn, err = net.DialTimeout("tcp", fmt.Sprintf("%s:%d", "127.0.0.1", d.daemonServerListenPort), time.Second*30)
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("%s failed to dial to daemon", baseCmd.CommandType))
+		return errors.Wrap(err, fmt.Sprintf("%s failed to dial to daemon", baseCmd.CommandType))
 	}
+	defer conn.Close()
 	if _, err = conn.Write(req); err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("%s failed to write to daemon", baseCmd.CommandType))
+		return errors.Wrap(err, fmt.Sprintf("%s failed to write to daemon", baseCmd.CommandType))
 	}
 	cw, ok := conn.(interface{ CloseWrite() error })
 	if !ok {
-		return nil, errors.New(fmt.Sprintf("%s failed to close write to daemon server", baseCmd.CommandType))
+		return errors.New(fmt.Sprintf("%s failed to close write to daemon server", baseCmd.CommandType))
 	}
 	log.WrapAndLogE(cw.CloseWrite())
-	return conn, nil
+	if consumer != nil {
+		return consumer(conn)
+	}
+	return nil
 }
 func (d *DaemonClient) sendAndWaitForResponse(req []byte, resp interface{}) error {
 	var (

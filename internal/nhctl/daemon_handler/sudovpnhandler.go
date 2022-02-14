@@ -147,6 +147,8 @@ func disconnect(logger *logrus.Logger) {
 		}); err != nil {
 			logger.Errorf("failed to release ip to dhcp, err: %v", err)
 		}
+	}
+	if connected != nil && connected.GetClientSet() != nil {
 		remote.CleanUpTrafficManagerIfRefCountIsZero(connected.GetClientSet(), connected.Namespace)
 	}
 	logger.Info("clean up successful")

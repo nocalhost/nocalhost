@@ -117,12 +117,17 @@ func TestConnect(t *testing.T) {
 	if err = updateConnectConfigMap(options.GetClientSet().CoreV1().ConfigMaps(options.Namespace), insertFunc); err != nil {
 		panic(err)
 	}
-	logger.Infof("connecting to new namespace...")
-	r, err := client.SendSudoVPNOperateCommand("/Users/naison/.kube/mesh", "naison-test", command.Connect)
+	logger.Infof("connecting to new namespace: %s...", "naison-test")
+	err = client.SendSudoVPNOperateCommand("/Users/naison/.kube/mesh",
+		"naison-test",
+		command.Connect,
+		func(closer io.Reader) error {
+			if ok := transStreamToWriter(closer, os.Stdout); !ok {
+				panic(fmt.Errorf("failed to connect to namespace: %s", "naison-test"))
+			}
+			return nil
+		})
 	if err != nil {
 		panic(err)
-	}
-	if ok := transStreamToWriter(r, os.Stdout); !ok {
-		panic(fmt.Errorf("failed to connect to namespace: %s", "naison-test"))
 	}
 }

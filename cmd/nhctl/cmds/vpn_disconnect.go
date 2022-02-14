@@ -6,12 +6,8 @@
 package cmds
 
 import (
-	"bufio"
-	"fmt"
-	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"io"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/retry"
 	"nocalhost/cmd/nhctl/cmds/common"
@@ -21,7 +17,6 @@ import (
 	"nocalhost/internal/nhctl/vpn/util"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 func init() {
@@ -46,28 +41,9 @@ var disconnectCmd = &cobra.Command{
 			return
 		}
 		must(common.Prepare())
-		readClose, err := client.SendVPNOperateCommand(common.KubeConfig, common.NameSpace, command.DisConnect, workloads)
+		err = client.SendVPNOperateCommand(common.KubeConfig, common.NameSpace, command.DisConnect, workloads, f)
 		if err != nil {
 			log.Warn(err)
-			return
-		}
-		stream := bufio.NewReader(readClose)
-		for {
-			if line, _, err := stream.ReadLine(); errors.Is(err, io.EOF) {
-				return
-			} else {
-				if len(line) == 0 {
-					continue
-				}
-				if strings.Contains(string(line), util.EndSignOK) {
-					readClose.Close()
-					return
-				} else if strings.Contains(string(line), util.EndSignFailed) {
-					readClose.Close()
-					return
-				}
-				fmt.Println(string(line))
-			}
 		}
 	},
 	PostRun: func(_ *cobra.Command, _ []string) {

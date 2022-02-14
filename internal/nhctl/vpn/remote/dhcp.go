@@ -198,7 +198,6 @@ func sortString(m []string) []string {
 func (d *DHCPManager) ReleaseIP(ips ...int) error {
 	configMap, err := d.client.CoreV1().ConfigMaps(d.namespace).Get(context.Background(), util.TrafficManager, metav1.GetOptions{})
 	if err != nil {
-		log.Errorf("failed to get dhcp, err: %v", err)
 		return err
 	}
 	used := FromStringToDHCP(configMap.Data[util.DHCP])
@@ -210,11 +209,7 @@ func (d *DHCPManager) ReleaseIP(ips ...int) error {
 	}
 	configMap.Data[util.DHCP] = ToString(used)
 	_, err = d.client.CoreV1().ConfigMaps(d.namespace).Update(context.Background(), configMap, metav1.UpdateOptions{})
-	if err != nil {
-		log.Errorf("update dhcp error after release ip, need to try again, err: %v", err)
-		return err
-	}
-	return nil
+	return err
 }
 
 type DHCPRecordMap struct {
