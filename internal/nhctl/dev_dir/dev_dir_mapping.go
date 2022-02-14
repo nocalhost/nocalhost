@@ -151,6 +151,9 @@ func (svcPack *SvcPack) UnAssociatePath() {
 		func(dirMapping *DevDirMapping, pathToPack map[DevPath][]*SvcPack) error {
 			delete(dirMapping.PackToPath, svcPack.Key())
 			delete(dirMapping.PackToPath, svcPack.KeyWithoutContainer())
+
+			delete(dirMapping.PackToPath, svcPack.Key().WithoutNid())
+			delete(dirMapping.PackToPath, svcPack.KeyWithoutContainer().WithoutNid())
 			return nil
 		},
 	); err != nil {
