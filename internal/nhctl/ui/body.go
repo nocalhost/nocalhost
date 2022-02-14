@@ -7,10 +7,12 @@ package ui
 
 import (
 	"context"
+	"fmt"
 	"github.com/derailed/tview"
 	"github.com/gdamore/tcell/v2"
 	"io/ioutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"nocalhost/cmd/nhctl/cmds/install"
 	"nocalhost/internal/nhctl/app_flags"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/common"
@@ -133,13 +135,21 @@ func (t *TviewApplication) buildTreeBody() {
 			if cn.GetReference() == nil {
 				return nil
 			}
-			s, ok := cn.GetReference().(string)
-			if !ok || s != "application" {
+			s, ok := cn.GetReference().([]string)
+			if !ok || s[0] != "application" {
 				return nil
 			}
 
-			t.ConfirmationBox("Do you want to uninstall application "+GetText(cn)+" ?", func() {
-
+			t.ConfirmationBox(fmt.Sprintf("Do you want to uninstall application %s in %s ?", GetText(cn), s[1]), func() {
+				sbd := t.switchBodyToScrollingView("", nil)
+				log.RedirectionDefaultLogger(sbd)
+				go func() {
+					err := install.Uninstall(t.clusterInfo.KubeConfig, s[1], GetText(cn))
+					if err != nil {
+						t.showErr(err, nil)
+					}
+					log.RedirectionDefaultLogger(os.Stdout)
+				}()
 			}, nil)
 		}
 		return event
@@ -171,7 +181,7 @@ func (t *TviewApplication) buildTreeBody() {
 			nsNode.ClearChildren()
 			for _, meta := range metas {
 				appNode := NewTreeNode(meta.Application)
-				appNode.SetReference("application")
+				appNode.SetReference([]string{"application", GetText(nsNode)})
 				CollapseText(appNode)
 				gs := []string{"Workloads", "CustomResources", "Network", "Configuration", "Storage"}
 				for _, g := range gs {

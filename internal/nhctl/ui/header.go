@@ -60,8 +60,8 @@ func clusterInfo() tview.Primitive {
 func keyInfo() tview.Primitive {
 	table := tview.NewTable()
 	table.SetBorderPadding(0, 0, 1, 0)
-	keyList := []string{"Esc", "Tab", "Ctrl+C"}
-	descList := []string{"Back or Cancel", "Change focus", "Exit"}
+	keyList := []string{"esc", "tab", "ctrl-c", "ctrl-d", "ctrl-u"}
+	descList := []string{"Back or Cancel", "Change Focus", "Exit", "Deploy Application", "Uninstall Application"}
 	for row, section := range keyList {
 		table.SetCell(row, 0, keyCell(section))
 		table.SetCell(row, 1, infoCell(descList[row]))
