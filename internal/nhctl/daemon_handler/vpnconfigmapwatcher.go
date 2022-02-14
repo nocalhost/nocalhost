@@ -128,43 +128,52 @@ func GetReverseInfo() *sync.Map {
 }
 
 type ConnectInfo struct {
+	uid             string
 	kubeconfigBytes []byte
 	namespace       string
-	ip              string
-	health          HealthEnum
+	// kubeNs those who connect to this cluster
+	kubeNs sets.String
+	ip     string
+	health HealthEnum
 }
 
-func (c ConnectInfo) toKey() string {
-	return util.GenerateKey(c.kubeconfigBytes, c.namespace)
-}
+//func (c ConnectInfo) toKey() string {
+//	return util.GenerateKey(c.kubeconfigBytes, c.namespace)
+//}
 
 func (c ConnectInfo) Status() string {
 	return c.health.String()
 }
 
 func (c *ConnectInfo) cleanup() {
-	c.namespace = ""
-	c.kubeconfigBytes = []byte{}
 	c.ip = ""
+	c.uid = ""
+	c.kubeNs = sets.NewString()
+	c.kubeconfigBytes = []byte{}
+	c.namespace = ""
 }
 
 func (c *ConnectInfo) IsEmpty() bool {
-	return c == nil || len(c.namespace) == 0 || len(c.kubeconfigBytes) == 0
+	return c == nil || c.uid == ""
 }
 
-func (c *ConnectInfo) IsSame(kubeconfigBytes []byte, namespace string) bool {
-	return util.GenerateKey(c.kubeconfigBytes, c.namespace) == util.GenerateKey(kubeconfigBytes, namespace)
+func (c *ConnectInfo) IsSameUid(uid string) bool {
+	return c.uid == uid
 }
 
 func (c *ConnectInfo) IsSameCluster(kubeconfigBytes []byte) bool {
-	return util.GenerateKey(kubeconfigBytes, "") == util.GenerateKey(c.kubeconfigBytes, "")
+	return c.kubeNs.Has(util.GenerateKey(kubeconfigBytes, ""))
 }
 
 func (c *ConnectInfo) getIPIfIsMe(kubeconfigBytes []byte, namespace string) (ip string) {
-	if c.IsSame(kubeconfigBytes, namespace) {
+	if c.kubeNs.Has(util.GenerateKey(kubeconfigBytes, namespace)) {
 		ip = c.ip
 	}
 	return
+}
+
+func (c *ConnectInfo) GetUid() string {
+	return c.uid
 }
 
 func (c *ConnectInfo) GetNamespace() string {
@@ -223,6 +232,8 @@ func (w *ConfigMapWatcher) Stop() {
 }
 
 type resourceHandler struct {
+	// unique id
+	uid             string
 	namespace       string
 	kubeconfigBytes []byte
 	statusInfoLock  *sync.Mutex
@@ -238,22 +249,27 @@ func (h *resourceHandler) OnAdd(obj interface{}) {
 	defer h.statusInfoLock.Unlock()
 
 	configMap := obj.(*corev1.ConfigMap)
+	h.uid = string(configMap.GetUID())
 	toStatus := ToStatus(configMap.Data)
 	modifyReverseInfo(h, toStatus)
 	backup := *connectInfo
 	// if connect to a cluster, needs to keep it connect
 	if toStatus.connect.IsConnected() {
+		connectInfo.uid = h.uid
 		connectInfo.namespace = h.namespace
 		connectInfo.kubeconfigBytes = h.kubeconfigBytes
 		connectInfo.ip = toStatus.mac2ip.GetIPByMac(util.GetMacAddress().String())
+		connectInfo.kubeNs = sets.NewString(
+			util.GenerateKey(h.kubeconfigBytes, h.namespace), util.GenerateKey(h.kubeconfigBytes, ""),
+		)
 		// if is connected to other cluster, needs to disconnect it
 		funcChan <- func() {
-			if !backup.IsEmpty() && !backup.IsSame(h.kubeconfigBytes, h.namespace) {
+			if !backup.IsEmpty() && !backup.IsSameUid(h.uid) {
 				// release others
 				release(backup.kubeconfigBytes, backup.namespace)
 			}
 			// connect to this cluster
-			notifySudoDaemonToConnect(h.kubeconfigBytes, h.namespace)
+			notifySudoDaemonToConnect(h.uid, h.kubeconfigBytes, h.namespace)
 		}
 	}
 }
@@ -268,26 +284,30 @@ func (h *resourceHandler) OnUpdate(oldObj, newObj interface{}) {
 	backup := *connectInfo
 	// if connect to a cluster, needs to keep it connect
 	if newStatus.connect.IsConnected() {
+		connectInfo.uid = h.uid
 		connectInfo.namespace = h.namespace
 		connectInfo.kubeconfigBytes = h.kubeconfigBytes
 		connectInfo.ip = newStatus.mac2ip.GetIPByMac(util.GetMacAddress().String())
+		connectInfo.kubeNs = sets.NewString(
+			util.GenerateKey(h.kubeconfigBytes, h.namespace), util.GenerateKey(h.kubeconfigBytes, ""),
+		)
 		funcChan <- func() {
 			// if is connected to other cluster, needs to disconnect it
-			if !backup.IsEmpty() && !backup.IsSame(h.kubeconfigBytes, h.namespace) {
+			if !backup.IsEmpty() && !backup.IsSameUid(h.uid) {
 				// release others
 				release(backup.kubeconfigBytes, backup.namespace)
 			}
 			// connect to this cluster
-			notifySudoDaemonToConnect(h.kubeconfigBytes, h.namespace)
+			notifySudoDaemonToConnect(h.uid, h.kubeconfigBytes, h.namespace)
 		}
 	} else
 	// if connected --> disconnected, needs to notify sudo daemon to disconnect
 	// other user can close vpn you create
 	if oldStatus.connect.IsConnected() && !newStatus.connect.IsConnected() {
-		if backup.IsSame(h.kubeconfigBytes, h.namespace) {
+		if backup.IsSameUid(h.uid) {
 			connectInfo.cleanup()
 			funcChan <- func() {
-				notifySudoDaemonToDisConnect(h.kubeconfigBytes, h.namespace)
+				notifySudoDaemonToDisConnect(h.uid, h.kubeconfigBytes, h.namespace)
 			}
 		}
 	}
@@ -303,10 +323,10 @@ func (h *resourceHandler) OnDelete(obj interface{}) {
 	toStatus := ToStatus(configMap.Data)
 	h.statusInfo.Delete(h.toKey())
 	// if this machine is connected, needs to disconnect vpn, but still keep watching configmap
-	if toStatus.connect.IsConnected() && connectInfo.IsSame(h.kubeconfigBytes, h.namespace) {
+	if toStatus.connect.IsConnected() && connectInfo.IsSameUid(h.uid) {
 		connectInfo.cleanup()
 		funcChan <- func() {
-			notifySudoDaemonToDisConnect(h.kubeconfigBytes, h.namespace)
+			notifySudoDaemonToDisConnect(h.uid, h.kubeconfigBytes, h.namespace)
 		}
 	}
 }
@@ -361,7 +381,7 @@ func modifyReverseInfo(h *resourceHandler, latest *status) {
 	}
 }
 
-func notifySudoDaemonToConnect(kubeconfigBytes []byte, namespace string) {
+func notifySudoDaemonToConnect(uid string, kubeconfigBytes []byte, namespace string) {
 	if !util.IsPortListening(daemon_common.SudoDaemonPort) {
 		return
 	}
@@ -370,7 +390,7 @@ func notifySudoDaemonToConnect(kubeconfigBytes []byte, namespace string) {
 		return
 	}
 	if info, err := getSudoConnectInfo(); err == nil && !info.IsEmpty() {
-		if info.IsSame(kubeconfigBytes, namespace) {
+		if info.IsSameUid(uid) {
 			return
 		}
 		// disconnect from current cluster
@@ -396,7 +416,7 @@ func notifySudoDaemonToConnect(kubeconfigBytes []byte, namespace string) {
 }
 
 // disconnect from special cluster
-func notifySudoDaemonToDisConnect(kubeconfigBytes []byte, namespace string) {
+func notifySudoDaemonToDisConnect(uid string, kubeconfigBytes []byte, namespace string) {
 	if !util.IsPortListening(daemon_common.SudoDaemonPort) {
 		return
 	}
@@ -411,7 +431,7 @@ func notifySudoDaemonToDisConnect(kubeconfigBytes []byte, namespace string) {
 			return
 		}
 		// if sudo daemon is not connect to this cluster, no needs to disconnect from it
-		if !info.IsSame(kubeconfigBytes, namespace) {
+		if !info.IsSameUid(uid) {
 			return
 		}
 	}
@@ -429,6 +449,7 @@ func getSudoConnectInfo() (info *ConnectInfo, err error) {
 				var result pkg.ConnectOptions
 				if err = json.Unmarshal(bytes, &result); err == nil {
 					return &ConnectInfo{
+						uid:             result.Uid,
 						kubeconfigBytes: result.KubeconfigBytes,
 						namespace:       result.Namespace,
 					}, nil

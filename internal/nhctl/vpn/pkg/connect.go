@@ -35,6 +35,7 @@ import (
 
 type ConnectOptions struct {
 	Ctx              context.Context `json:"-"`
+	Uid              string
 	KubeconfigPath   string
 	KubeconfigBytes  []byte
 	Namespace        string
@@ -65,9 +66,8 @@ func (c *ConnectOptions) SetLogger(logger *log.Logger) {
 	c.log = logger
 }
 
-func (c *ConnectOptions) IsSameKubeconfigAndNamespace(another *ConnectOptions) bool {
-	return util.GenerateKey(c.KubeconfigBytes, c.Namespace) ==
-		util.GenerateKey(another.KubeconfigBytes, another.Namespace)
+func (c *ConnectOptions) IsSameUid(another *ConnectOptions) bool {
+	return c.Uid == another.Uid
 }
 
 func (c *ConnectOptions) IsEmpty() bool {
@@ -199,10 +199,11 @@ func getHandler(factory cmdutil.Factory, clientset *kubernetes.Clientset, namesp
 
 func (c *ConnectOptions) InitDHCP(ctx context.Context) error {
 	c.dhcp = remote.NewDHCPManager(c.clientset, c.Namespace, &util.RouterIP)
-	err := c.dhcp.InitDHCPIfNecessary(ctx)
+	cm, err := c.dhcp.InitDHCPIfNecessary(ctx)
 	if err != nil {
 		return err
 	}
+	c.Uid = string(cm.GetUID())
 	return c.GenerateTunIP(ctx)
 }
 

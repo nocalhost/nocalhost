@@ -56,9 +56,11 @@ func HandleVPNStatus() (interface{}, error) {
 		return nil, nil
 	}
 	return struct {
+		Uid        string
 		Namespace  string
 		Kubeconfig string
 	}{
+		Uid:        connectInfo.GetUid(),
 		Namespace:  connectInfo.GetNamespace(),
 		Kubeconfig: connectInfo.GetKubeconfig(),
 	}, nil

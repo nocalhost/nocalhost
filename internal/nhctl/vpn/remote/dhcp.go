@@ -39,11 +39,11 @@ func NewDHCPManager(client *kubernetes.Clientset, namespace string, addr *net.IP
 }
 
 //	todo optimize dhcp, using mac address, ip and deadline as unit
-func (d *DHCPManager) InitDHCPIfNecessary(ctx context.Context) error {
+func (d *DHCPManager) InitDHCPIfNecessary(ctx context.Context) (*v1.ConfigMap, error) {
 	configMap, err := d.client.CoreV1().ConfigMaps(d.namespace).Get(context.Background(), util.TrafficManager, metav1.GetOptions{})
 	// already exists, do nothing
 	if err == nil && configMap != nil {
-		return nil
+		return configMap, nil
 	}
 
 	result := &v1.ConfigMap{
@@ -56,12 +56,12 @@ func (d *DHCPManager) InitDHCPIfNecessary(ctx context.Context) error {
 			util.GetMacAddress().String(): sets.NewInt(100),
 		})},
 	}
-	_, err = d.client.CoreV1().ConfigMaps(d.namespace).Create(context.Background(), result, metav1.CreateOptions{})
+	configMap, err = d.client.CoreV1().ConfigMaps(d.namespace).Create(context.Background(), result, metav1.CreateOptions{})
 	if err != nil && !errors.IsAlreadyExists(err) {
 		util.GetLoggerFromContext(ctx).Errorf("create DHCP error, err: %v", err)
-		return err
+		return nil, err
 	}
-	return nil
+	return configMap, nil
 }
 
 // ToString mac address --> rent ips

@@ -46,7 +46,10 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 	if err = connect.Prepare(logCtx); err != nil {
 		return
 	}
-	_ = remote.NewDHCPManager(connect.GetClientSet(), cmd.Namespace, &util.RouterIP).InitDHCPIfNecessary(logCtx)
+	_, err = remote.NewDHCPManager(connect.GetClientSet(), cmd.Namespace, &util.RouterIP).InitDHCPIfNecessary(logCtx)
+	if err != nil {
+		return err
+	}
 	GetOrGenerateConfigMapWatcher(connect.KubeconfigBytes, cmd.Namespace, connect.GetClientSet().CoreV1().RESTClient())
 	switch cmd.Action {
 	case command.Connect:
@@ -63,7 +66,7 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 		}
 
 		// change to another cluster or namespace, clean all reverse
-		if !connectInfo.IsEmpty() && !connectInfo.IsSame(connect.KubeconfigBytes, cmd.Namespace) {
+		if !connectInfo.IsEmpty() && !connectInfo.IsSameUid(connect.Uid) {
 			logger.Infof("switching from namespace: %s to namespace: %s...", connectInfo.namespace, cmd.Namespace)
 			path := k8sutils.GetOrGenKubeConfigPath(string(connectInfo.kubeconfigBytes))
 			if err = disconnectedFromNamespace(logCtx, writer, path, connectInfo.namespace); err != nil {

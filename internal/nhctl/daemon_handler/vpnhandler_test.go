@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_server/command"
@@ -101,6 +102,23 @@ func TestStruct(t *testing.T) {
 	fmt.Println(string(marshal))
 }
 
+func TestGetDaemonVPNStatus(t *testing.T) {
+	client, err := daemon_client.GetDaemonClient(true)
+	if err != nil {
+		panic(err)
+	}
+	statusCommand, err := client.SendSudoVPNStatusCommand()
+	if err != nil {
+		panic(err)
+	}
+	marshal, err := json.Marshal(statusCommand)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(string(marshal))
+
+}
+
 func TestConnect(t *testing.T) {
 	client, err := daemon_client.GetDaemonClient(true)
 	if err != nil {
@@ -130,4 +148,22 @@ func TestConnect(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func TestToStatus(t *testing.T) {
+	ns := "demo"
+	options := pkg.ConnectOptions{
+		KubeconfigPath: "/Users/naison/.kube/nocalhost.large",
+		Namespace:      ns,
+	}
+	if err := options.InitClient(context.TODO()); err != nil {
+		panic(err)
+	}
+	get, err := options.GetClientSet().CoreV1().ConfigMaps(ns).
+		Get(context.TODO(), util.TrafficManager, metav1.GetOptions{})
+	if err != nil {
+		panic(err)
+	}
+	toStatus := ToStatus(get.Data)
+	fmt.Println(toStatus)
 }
