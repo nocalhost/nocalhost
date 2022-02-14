@@ -75,7 +75,7 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 		if err = connectToNamespace(logCtx, writer, cmd.KubeConfig, cmd.Namespace); err != nil {
 			return err
 		}
-		logger.Infof("connected to new namespace")
+		logger.Infof("connected to new namespace: %s", cmd.Namespace)
 		// reverse resource if needed
 		if len(cmd.Resource) != 0 {
 			logger.Infof("prepare to reverse resource: %s...", cmd.Resource)
@@ -191,12 +191,11 @@ func init() {
 }
 
 // true: command execute no error, false: command occur error
-func transStreamToWriter(r io.ReadCloser, writer ...io.Writer) bool {
+func transStreamToWriter(r io.Reader, writer ...io.Writer) bool {
 	if r == nil {
 		return false
 	}
 	w := io.MultiWriter(writer...)
-	defer func() { _ = r.Close() }()
 	reader := bufio.NewReader(r)
 	for {
 		line, _, err := reader.ReadLine()
@@ -252,15 +251,13 @@ func connectToNamespace(ctx context.Context, writer io.WriteCloser, kubeconfigPa
 	if err = updateConnectConfigMap(options.GetClientSet().CoreV1().ConfigMaps(namespace), insertFunc); err != nil {
 		return err
 	}
-	logger.Infof("connecting to new namespace...")
-	r, err := client.SendSudoVPNOperateCommand(kubeconfigPath, namespace, command.Connect)
-	if err != nil {
-		return err
-	}
-	if ok := transStreamToWriter(r, writer); !ok {
-		return fmt.Errorf("failed to connect to namespace: %s", namespace)
-	}
-	return nil
+	logger.Infof("connecting to new namespace: %s...", namespace)
+	return client.SendSudoVPNOperateCommand(kubeconfigPath, namespace, command.Connect, func(r io.Reader) error {
+		if ok := transStreamToWriter(r, writer); !ok {
+			return fmt.Errorf("failed to connect to namespace: %s", namespace)
+		}
+		return nil
+	})
 }
 
 func disconnectedFromNamespace(ctx context.Context, writer io.WriteCloser, kubeconfigPath, namespace string) error {
@@ -296,14 +293,15 @@ func disconnectedFromNamespace(ctx context.Context, writer io.WriteCloser, kubec
 	if err != nil {
 		return err
 	}
-	logger.Infof("disconnecting from namespace...")
-	r, err := client.SendSudoVPNOperateCommand(kubeconfigPath, namespace, command.DisConnect)
-	if err != nil {
-		return fmt.Errorf("failed to send disconnect request to sudo daemon")
+	logger.Infof("disconnecting from namespace: %s...", namespace)
+	if err = client.SendSudoVPNOperateCommand(kubeconfigPath, namespace, command.DisConnect, func(r io.Reader) error {
+		if ok := transStreamToWriter(r, writer); !ok {
+			return fmt.Errorf("failed to disconnect from namespace: %s", namespace)
+		}
+		return nil
+	}); err == nil {
+		logger.Infof("disconnected from namespace: %s", namespace)
+		return nil
 	}
-	if ok := transStreamToWriter(r, writer); !ok {
-		return fmt.Errorf("failed to disconnect from namespace: %s", namespace)
-	}
-	logger.Infof("disconnected from namespace")
-	return nil
+	return err
 }

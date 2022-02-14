@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/client-go/util/homedir"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"path/filepath"
 	"testing"
@@ -31,8 +30,9 @@ func TestPod(t *testing.T) {
 }
 
 func TestPortForward(t *testing.T) {
-	path := filepath.Join(homedir.HomeDir(), ".kube", "minikube")
-	ns := "anur"
+	//path := filepath.Join(homedir.HomeDir(), ".kube", "minikube")
+	path := "/Users/naison/.nh/intellij-plugin/kubeConfigs/481c2a40-172f-4d09-bf9b-374d481a3584_config"
+	ns := "default"
 	c := ConnectOptions{
 		Ctx:            context.TODO(),
 		KubeconfigPath: path,

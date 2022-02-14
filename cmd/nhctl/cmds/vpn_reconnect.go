@@ -6,11 +6,7 @@
 package cmds
 
 import (
-	"bufio"
-	"fmt"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"io"
 	"k8s.io/client-go/tools/clientcmd"
 	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/daemon_client"
@@ -18,7 +14,6 @@ import (
 	"nocalhost/internal/nhctl/vpn/driver"
 	"nocalhost/internal/nhctl/vpn/util"
 	"nocalhost/pkg/nhctl/log"
-	"strings"
 )
 
 func init() {
@@ -55,28 +50,9 @@ var reconnectCmd = &cobra.Command{
 			return
 		}
 		must(common.Prepare())
-		readClose, err := client.SendVPNOperateCommand(common.KubeConfig, common.NameSpace, command.Reconnect, workloads)
+		err = client.SendVPNOperateCommand(common.KubeConfig, common.NameSpace, command.Reconnect, workloads, f)
 		if err != nil {
 			log.Warn(err)
-			return
-		}
-		stream := bufio.NewReader(readClose)
-		for {
-			if line, _, err := stream.ReadLine(); errors.Is(err, io.EOF) {
-				return
-			} else {
-				if len(line) == 0 {
-					continue
-				}
-				if strings.Contains(string(line), util.EndSignOK) {
-					readClose.Close()
-					return
-				} else if strings.Contains(string(line), util.EndSignFailed) {
-					readClose.Close()
-					return
-				}
-				fmt.Println(string(line))
-			}
 		}
 	},
 }

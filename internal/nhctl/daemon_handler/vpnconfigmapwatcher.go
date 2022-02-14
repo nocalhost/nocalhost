@@ -375,21 +375,24 @@ func notifySudoDaemonToConnect(kubeconfigBytes []byte, namespace string) {
 		}
 		// disconnect from current cluster
 		path := k8sutils.GetOrGenKubeConfigPath(string(info.kubeconfigBytes))
-		if reader, err := client.SendSudoVPNOperateCommand(path, info.namespace, command.DisConnect); err == nil {
-			if ok := transStreamToWriter(reader, os.Stdout); !ok {
+		if err = client.SendSudoVPNOperateCommand(path, info.namespace, command.DisConnect, func(r io.Reader) error {
+			if ok := transStreamToWriter(r, os.Stdout); !ok {
 				log.Warnf("can not disconnect from kubeconfig: %s", path)
-				return
+				return fmt.Errorf("can not disconnect from kubeconfig: %s", path)
 			}
+			return nil
+		}); err != nil {
+			return
 		}
 		time.Sleep(time.Second * 1)
 	}
 	path := k8sutils.GetOrGenKubeConfigPath(string(kubeconfigBytes))
-	if reader, err := client.SendSudoVPNOperateCommand(path, namespace, command.Connect); err == nil {
+	_ = client.SendSudoVPNOperateCommand(path, namespace, command.Connect, func(reader io.Reader) error {
 		if ok := transStreamToWriter(reader, os.Stdout); !ok {
 			log.Warnf("can not connect to kubeconfig: %s", path)
-			return
 		}
-	}
+		return nil
+	})
 }
 
 // disconnect from special cluster
@@ -413,9 +416,10 @@ func notifySudoDaemonToDisConnect(kubeconfigBytes []byte, namespace string) {
 		}
 	}
 	path := k8sutils.GetOrGenKubeConfigPath(string(kubeconfigBytes))
-	if reader, err := client.SendSudoVPNOperateCommand(path, namespace, command.DisConnect); err == nil {
-		_, _ = io.Copy(os.Stdout, reader)
-	}
+	_ = client.SendSudoVPNOperateCommand(path, namespace, command.DisConnect, func(reader io.Reader) error {
+		_, err = io.Copy(os.Stdout, reader)
+		return err
+	})
 }
 
 func getSudoConnectInfo() (info *ConnectInfo, err error) {

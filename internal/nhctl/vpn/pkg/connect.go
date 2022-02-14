@@ -45,7 +45,7 @@ type ConnectOptions struct {
 	factory          cmdutil.Factory
 	cidrs            []*net.IPNet
 	localTunIP       *net.IPNet
-	trafficManagerIP string
+	trafficManagerIP net.IP
 	dhcp             *remote.DHCPManager
 	log              *log.Logger
 }
@@ -128,7 +128,7 @@ func (c *ConnectOptions) createRemoteInboundPod() error {
 					c.Namespace,
 					finalWorkload,
 					c.localTunIP.IP.String(),
-					c.trafficManagerIP,
+					c.trafficManagerIP.String(),
 					shadowTunIP.String(),
 					util.RouterIP.String(),
 				)
@@ -243,7 +243,7 @@ func (c *ConnectOptions) DoReverse(ctx context.Context) error {
 	if len(pod.Status.PodIP) == 0 {
 		return errors.New("can not found router ip while reverse resource")
 	}
-	c.trafficManagerIP = pod.Status.PodIP
+	c.trafficManagerIP = net.ParseIP(pod.Status.PodIP)
 	return c.createRemoteInboundPod()
 }
 
@@ -324,6 +324,8 @@ func (c *ConnectOptions) portForward(ctx context.Context) error {
 		return err
 	case <-time.Tick(time.Second * 30):
 		return errors.New("wait port forward 10800:10800 to be ready timeout")
+	case <-ctx.Done():
+		return ctx.Err()
 	}
 }
 
