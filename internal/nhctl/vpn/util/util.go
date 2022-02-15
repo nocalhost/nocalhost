@@ -487,11 +487,11 @@ func GetMacAddress() net.HardwareAddr {
 	if mac != nil {
 		return mac
 	}
-	interfaces, _ := net.Interfaces()
-	var i = make(ifcs, len(interfaces))
-	copy(i, interfaces)
-	sort.Sort(i)
-	for _, ifc := range i {
+	data, _ := net.Interfaces()
+	var interfaces = make(ifcs, len(data))
+	copy(interfaces, data)
+	sort.Sort(interfaces)
+	for _, ifc := range interfaces {
 		if ifc.HardwareAddr != nil {
 			if ifc.Flags&net.FlagUp|net.FlagMulticast|net.FlagBroadcast ==
 				net.FlagUp|net.FlagMulticast|net.FlagBroadcast {
