@@ -18,10 +18,10 @@ var (
 )
 
 func Update(fun func(dirMapping *DevDirMapping,
-	// be careful, this map is immutable !!!!
-	// it is a map generate from #PathToDefaultPackKey and #PackToPath
-	// when we change #PathToDefaultPackKey or #PackToPath, we should
-	// regenerate this map
+// be careful, this map is immutable !!!!
+// it is a map generate from #PathToDefaultPackKey and #PackToPath
+// when we change #PathToDefaultPackKey or #PackToPath, we should
+// regenerate this map
 	pathToPack map[DevPath][]*SvcPack) error) error {
 	return doGetOrModify(fun, false)
 }
@@ -139,7 +139,7 @@ func (devDirMapping *DevDirMapping) genPathToPackMap() map[DevPath][]*SvcPack {
 
 		toPack := pack.toPack()
 		if toPack == nil {
-			//log.Error(fmt.Sprintf("Pack can not case to svcPack %v", pack))
+			log.Logf(fmt.Sprintf("Pack can not case to svcPack %v", pack))
 			continue
 		}
 		pathToPack[path] = append(pathToPack[path], toPack)
@@ -163,12 +163,14 @@ type AllSvcPackAssociateByPath struct {
 }
 
 func NewSvcPack(ns string,
+	nid string,
 	app string,
 	svcType base.SvcType,
 	svc string,
 	container string) *SvcPack {
 	return &SvcPack{
 		Ns:        ns,
+		Nid:       nid,
 		App:       app,
 		SvcType:   svcType,
 		Svc:       svc,
@@ -178,6 +180,7 @@ func NewSvcPack(ns string,
 
 type SvcPack struct {
 	Ns        string       `yaml:"ns" json:"ns"`
+	Nid       string       `yaml:"nid" json:"nid"`
 	App       string       `yaml:"app" json:"app"`
 	SvcType   base.SvcType `yaml:"svc_type" json:"svc_type"`
 	Svc       string       `yaml:"svc" json:"svc"`
@@ -187,17 +190,33 @@ type SvcPack struct {
 func (svcPackKey *SvcPackKey) toPack() *SvcPack {
 	array := strings.Split(string(*svcPackKey), splitter)
 
-	if len(array) != 5 {
+	if len(array) < 5 {
 		return nil
+	}
+
+	// nid is supported later version
+	// so need to special compatibility handling
+	nid := ""
+	if len(array) > 5 {
+		nid = array[5]
 	}
 
 	return &SvcPack{
 		Ns:        array[0],
+		Nid:       nid,
 		App:       array[1],
 		SvcType:   base.SvcType(array[2]),
 		Svc:       array[3],
 		Container: array[4],
 	}
+}
+
+func (svcPackKey SvcPackKey) WithoutNid() SvcPackKey {
+	str := string(svcPackKey)
+	if len(strings.Split(str, splitter)) > 5 {
+		return SvcPackKey(str[:strings.LastIndex(str, splitter)])
+	}
+	return svcPackKey
 }
 
 func (svcPack SvcPack) Key() SvcPackKey {
@@ -207,8 +226,8 @@ func (svcPack SvcPack) Key() SvcPackKey {
 
 	return SvcPackKey(
 		fmt.Sprintf(
-			"%s"+splitter+"%s"+splitter+"%s"+splitter+"%s"+splitter+"%s",
-			svcPack.Ns, svcPack.App, svcPack.SvcType, svcPack.Svc, svcPack.Container,
+			"%s"+splitter+"%s"+splitter+"%s"+splitter+"%s"+splitter+"%s"+splitter+"%s",
+			svcPack.Ns, svcPack.App, svcPack.SvcType, svcPack.Svc, svcPack.Container, svcPack.Nid,
 		),
 	)
 }
@@ -216,8 +235,8 @@ func (svcPack SvcPack) Key() SvcPackKey {
 func (svcPack SvcPack) KeyWithoutContainer() SvcPackKey {
 	return SvcPackKey(
 		fmt.Sprintf(
-			"%s"+splitter+"%s"+splitter+"%s"+splitter+"%s"+splitter+"%s",
-			svcPack.Ns, svcPack.App, svcPack.SvcType, svcPack.Svc, "",
+			"%s"+splitter+"%s"+splitter+"%s"+splitter+"%s"+splitter+"%s"+splitter+"%s",
+			svcPack.Ns, svcPack.App, svcPack.SvcType, svcPack.Svc, "", svcPack.Nid,
 		),
 	)
 }

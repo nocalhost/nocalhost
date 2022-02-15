@@ -7,6 +7,7 @@ package cmds
 
 import (
 	"github.com/spf13/cobra"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
@@ -23,7 +24,7 @@ var resetCmd = &cobra.Command{
 	Long:  `reset application`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		must(Prepare())
+		must(common.Prepare())
 
 		if len(args) > 0 {
 			applicationName := args[0]
@@ -34,7 +35,7 @@ var resetCmd = &cobra.Command{
 		}
 
 		// Reset all applications under specify namespace
-		metas, err := nocalhost.GetApplicationMetas(nameSpace, kubeConfig)
+		metas, err := nocalhost.GetApplicationMetas(common.NameSpace, common.KubeConfig)
 		mustI(err, "Failed to get applications")
 		for _, meta := range metas {
 			resetApplication(meta.Application)
@@ -44,11 +45,11 @@ var resetCmd = &cobra.Command{
 
 func resetApplication(applicationName string) {
 	var err error
-	initApp(applicationName)
+	common.InitApp(applicationName)
 	// Stop BackGroup Process
-	appProfile, _ := nocalhostApp.GetProfile()
+	appProfile, _ := common.NocalhostApp.GetProfile()
 	for _, profile := range appProfile.SvcProfile {
-		nhSvc := initService(profile.GetName(), profile.GetType())
+		nhSvc := common.InitService(profile.GetName(), profile.GetType())
 		if nhSvc.IsInDevMode() {
 			utils.Should(nhSvc.StopSyncAndPortForwardProcess(true))
 		} else if len(profile.DevPortForwardList) > 0 {
@@ -58,7 +59,7 @@ func resetApplication(applicationName string) {
 
 	// Remove files
 	time.Sleep(1 * time.Second)
-	if err = nocalhost.CleanupAppFilesUnderNs(nameSpace, nocalhostApp.GetAppMeta().NamespaceId); err != nil {
+	if err = nocalhost.CleanupAppFilesUnderNs(common.NameSpace, common.NocalhostApp.GetAppMeta().NamespaceId); err != nil {
 		log.WarnE(err, "")
 	} else {
 		log.Info("Files have been clean up")

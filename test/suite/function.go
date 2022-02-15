@@ -10,16 +10,17 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"k8s.io/client-go/util/homedir"
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	utils2 "nocalhost/pkg/nhctl/utils"
+	"nocalhost/test/cluster"
 	"nocalhost/test/runner"
 	"nocalhost/test/testcase"
 	"nocalhost/test/testdata"
-	"nocalhost/test/tke"
 	"nocalhost/test/util"
 	"strings"
 	"time"
@@ -463,36 +464,34 @@ func Install(cli runner.Client) {
 
 // Prepare will install a nhctl client, create a k8s cluster if necessary
 func Prepare() (cancelFunc func(), namespaceResult, kubeconfigResult string) {
-	if util.NeedsToInitK8sOnTke() {
-		t, err := tke.CreateK8s()
-		if err != nil {
-			log.Info(err)
-			if t != nil {
-				t.Delete()
-			}
-			panic(err)
-		}
-		cancelFunc = func() {
-			LogsForArchive()
-			if errs := recover(); errs != nil {
-				log.Infof("ignores timeout archive panic %v", errs)
-			}
+	t := cluster.NewDefaultVCluster()
+	kubeconfig, err := t.Create()
+	if err != nil {
+		log.Info(err)
+		if t != nil {
 			t.Delete()
 		}
-		defer func() {
-			if errs := recover(); errs != nil {
-				LogsForArchive()
-				t.Delete()
-				panic(errs)
-			}
-		}()
+		panic(err)
 	}
+	cancelFunc = func() {
+		LogsForArchive()
+		if errs := recover(); errs != nil {
+			log.Infof("ignores timeout archive panic %v", errs)
+		}
+		t.Delete()
+	}
+	defer func() {
+		if errs := recover(); errs != nil {
+			LogsForArchive()
+			t.Delete()
+			panic(errs)
+		}
+	}()
 
 	go util.TimeoutChecker(30*time.Minute, cancelFunc)
 
 	_, currentVersion := testcase.GetVersion()
 	util.Retry("Prepare", []func() error{func() error { return testcase.InstallNhctl(currentVersion) }})
-	kubeconfig := util.GetKubeconfig()
 	namespace := "test"
 	tempCli := runner.NewNhctl(namespace, kubeconfig, "Prepare")
 	clientgoutils.Must(testcase.NhctlVersion(tempCli))
@@ -509,7 +508,7 @@ func Prepare() (cancelFunc func(), namespaceResult, kubeconfigResult string) {
 		}
 	}
 
-	kubeconfigResult, err := testcase.GetKubeconfig(webAddr, namespace, kubeconfig)
+	kubeconfigResult, err = testcase.GetKubeconfig(webAddr, namespace, kubeconfig)
 	clientgoutils.Must(err)
 	namespaceResult, err = clientgoutils.GetNamespaceFromKubeConfig(kubeconfigResult)
 	clientgoutils.Must(err)
@@ -538,16 +537,27 @@ func KillSyncthingProcess(cli runner.Client) {
 }
 
 func Get(cli runner.Client) {
+	appName := "bookinfo-test"
+	// kubectl annotate --overwrite deployments productpage dev.nocalhost/application-name=bookinfo111
+	_, _, _ = cli.GetKubectl().RunWithRollingOut(context.Background(),
+		"annotate",
+		"deployments/productpage",
+		fmt.Sprintf("%s=%s", _const.NocalhostApplicationName, appName),
+		"--overwrite")
+	// wait for informer to parse app from annotation
+	<-time.Tick(time.Second * 10)
 	cases := []struct {
 		resource string
 		appName  string
 		keywords []string
 	}{
-		{resource: "deployments", appName: "bookinfo", keywords: []string{"details", "productpage", "ratings", "reviews"}},
+		{resource: "deployments", appName: "bookinfo", keywords: []string{"details", "ratings", "reviews"}},
 		{resource: "jobs", appName: "bookinfo", keywords: []string{"print-num-01"}},
-		{resource: "service", appName: "bookinfo", keywords: []string{"details", "productpage", "ratings", "reviews"}},
-		{resource: "pods", appName: "", keywords: []string{"details", "productpage", "ratings", "reviews"}},
+		{resource: "service", appName: "bookinfo", keywords: []string{"details", "ratings", "reviews"}},
+		{resource: "pods", appName: "", keywords: []string{"details", "ratings", "reviews"}},
+		{resource: "app", appName: "", keywords: []string{"bookinfo", appName}},
 	}
+
 	funcs := []func() error{
 		func() error {
 			for _, item := range cases {

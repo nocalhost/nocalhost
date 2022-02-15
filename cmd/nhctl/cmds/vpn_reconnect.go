@@ -6,23 +6,19 @@
 package cmds
 
 import (
-	"bufio"
-	"fmt"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"io"
 	"k8s.io/client-go/tools/clientcmd"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/vpn/driver"
 	"nocalhost/internal/nhctl/vpn/util"
 	"nocalhost/pkg/nhctl/log"
-	"strings"
 )
 
 func init() {
-	reconnectCmd.Flags().StringVar(&kubeConfig, "kubeconfig", clientcmd.RecommendedHomeFile, "kubeconfig")
-	reconnectCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "namespace")
+	reconnectCmd.Flags().StringVar(&common.KubeConfig, "kubeconfig", clientcmd.RecommendedHomeFile, "kubeconfig")
+	reconnectCmd.Flags().StringVarP(&common.NameSpace, "namespace", "n", "", "namespace")
 	reconnectCmd.Flags().StringVar(&workloads, "workloads", "", "workloads, like: services/tomcat, deployment/nginx, replicaset/tomcat...")
 	reconnectCmd.Flags().BoolVar(&util.Debug, "debug", false, "true/false")
 	vpnCmd.AddCommand(reconnectCmd)
@@ -53,29 +49,10 @@ var reconnectCmd = &cobra.Command{
 			log.Warn(err)
 			return
 		}
-		must(Prepare())
-		readClose, err := client.SendVPNOperateCommand(kubeConfig, nameSpace, command.Reconnect, workloads)
+		must(common.Prepare())
+		err = client.SendVPNOperateCommand(common.KubeConfig, common.NameSpace, command.Reconnect, workloads, f)
 		if err != nil {
 			log.Warn(err)
-			return
-		}
-		stream := bufio.NewReader(readClose)
-		for {
-			if line, _, err := stream.ReadLine(); errors.Is(err, io.EOF) {
-				return
-			} else {
-				if len(line) == 0 {
-					continue
-				}
-				if strings.Contains(string(line), util.EndSignOK) {
-					readClose.Close()
-					return
-				} else if strings.Contains(string(line), util.EndSignFailed) {
-					readClose.Close()
-					return
-				}
-				fmt.Println(string(line))
-			}
 		}
 	},
 }

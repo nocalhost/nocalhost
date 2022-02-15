@@ -11,7 +11,6 @@ import (
 	"net"
 	"nocalhost/internal/nhctl/utils"
 	"path/filepath"
-	"sync"
 	"testing"
 	"time"
 )
@@ -56,17 +55,17 @@ func TestDaemonClient_SendGetResourceInfoCommand(t *testing.T) {
 		panic(err)
 	}
 	kube := filepath.Join(utils.GetHomePath(), ".kube", "config")
-	wg := sync.WaitGroup{}
-	for i := 0; i < 1000; i++ {
-		wg.Add(1)
-		go func() {
-			_, err = c.SendGetResourceInfoCommand(kube, "nocalhost-test", "", "crds", "", nil, false)
-			if err != nil {
-				panic(err)
-			}
-			wg.Done()
-		}()
-		//fmt.Printf("%s\n", resp)
+	//wg := sync.WaitGroup{}
+	//for i := 0; i < 1000; i++ {
+	//	wg.Add(1)
+	//	go func() {
+	resp, err := c.SendGetResourceInfoCommand(kube, "nocalhost-test", "bookinfo", "deployment", "", nil, false)
+	if err != nil {
+		panic(err)
 	}
-	wg.Wait()
+	//wg.Done()
+	//}()
+	fmt.Printf("%v\n", resp)
+	//}
+	//wg.Wait()
 }

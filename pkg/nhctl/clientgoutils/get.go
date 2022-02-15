@@ -9,20 +9,15 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/resource"
-	"strings"
 )
 
 func (c *ClientGoUtils) GetResourceInfo(resourceType string, resourceName string) (*resource.Info, error) {
-	ls := ""
-	for s, s2 := range c.labels {
-		ls += s + "=" + s2 + ","
-	}
-	ls = strings.TrimRight(ls, ",")
 	r := c.NewFactory().NewBuilder().
 		Unstructured().
-		LabelSelector(ls).
+		LabelSelector(labels.SelectorFromSet(c.labels).String()).
 		NamespaceParam(c.namespace).DefaultNamespace().
 		ResourceTypeOrNameArgs(true, []string{resourceType, resourceName}...).
 		ContinueOnError().
@@ -54,14 +49,9 @@ func (c *ClientGoUtils) Get(resourceType string, resourceName string) (*runtime.
 }
 
 func (c *ClientGoUtils) ListResourceInfo(resourceType string) ([]*resource.Info, error) {
-	ls := ""
-	for s, s2 := range c.labels {
-		ls += s + "=" + s2 + ","
-	}
-	ls = strings.TrimRight(ls, ",")
 	r := c.NewFactory().NewBuilder().
 		Unstructured().
-		LabelSelector(ls).
+		LabelSelector(labels.SelectorFromSet(c.labels).String()).
 		NamespaceParam(c.namespace).DefaultNamespace().
 		ResourceTypeOrNameArgs(true, []string{resourceType}...).
 		ContinueOnError().

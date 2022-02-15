@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 	"io"
 	"k8s.io/client-go/tools/clientcmd"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/vpn/driver"
@@ -23,8 +24,8 @@ import (
 var workloads string
 
 func init() {
-	connectCmd.Flags().StringVar(&kubeConfig, "kubeconfig", clientcmd.RecommendedHomeFile, "kubeconfig")
-	connectCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "namespace")
+	connectCmd.Flags().StringVar(&common.KubeConfig, "kubeconfig", clientcmd.RecommendedHomeFile, "kubeconfig")
+	connectCmd.Flags().StringVarP(&common.NameSpace, "namespace", "n", "", "namespace")
 	connectCmd.Flags().StringVar(&workloads, "workloads", "", "workloads, like: services/tomcat, deployment/nginx, replicaset/tomcat...")
 	vpnCmd.AddCommand(connectCmd)
 }
@@ -54,29 +55,29 @@ var connectCmd = &cobra.Command{
 			log.Warn(err)
 			return
 		}
-		must(Prepare())
-		readClose, err := client.SendVPNOperateCommand(kubeConfig, nameSpace, command.Connect, workloads)
+		must(common.Prepare())
+		err = client.SendVPNOperateCommand(common.KubeConfig, common.NameSpace, command.Connect, workloads, f)
 		if err != nil {
 			log.Warn(err)
-			return
-		}
-		stream := bufio.NewReader(readClose)
-		for {
-			if line, _, err := stream.ReadLine(); errors.Is(err, io.EOF) {
-				return
-			} else {
-				if len(line) == 0 {
-					continue
-				}
-				if strings.Contains(string(line), util.EndSignOK) {
-					readClose.Close()
-					return
-				} else if strings.Contains(string(line), util.EndSignFailed) {
-					readClose.Close()
-					return
-				}
-				fmt.Println(string(line))
-			}
 		}
 	},
+}
+
+var f = func(reader io.Reader) error {
+	stream := bufio.NewReader(reader)
+	for {
+		if line, _, err := stream.ReadLine(); errors.Is(err, io.EOF) {
+			return nil
+		} else {
+			if len(line) == 0 {
+				continue
+			}
+			if strings.Contains(string(line), util.EndSignOK) {
+				return nil
+			} else if strings.Contains(string(line), util.EndSignFailed) {
+				return nil
+			}
+			fmt.Println(string(line))
+		}
+	}
 }

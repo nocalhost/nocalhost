@@ -6,6 +6,7 @@
 package pkg
 
 import (
+	"context"
 	"fmt"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/tools/clientcmd"
@@ -26,4 +27,22 @@ func TestPod(t *testing.T) {
 	fmt.Println(zero, annotation, ports, s, err)
 	err = restore(factory, set, namespace, s)
 	fmt.Println(err)
+}
+
+func TestPortForward(t *testing.T) {
+	//path := filepath.Join(homedir.HomeDir(), ".kube", "minikube")
+	path := "/Users/naison/.nh/intellij-plugin/kubeConfigs/481c2a40-172f-4d09-bf9b-374d481a3584_config"
+	ns := "default"
+	c := ConnectOptions{
+		Ctx:            context.TODO(),
+		KubeconfigPath: path,
+		Namespace:      ns,
+	}
+	err := c.InitClient(context.Background())
+	if err != nil {
+		panic(err)
+	}
+	if err = c.portForward(context.TODO()); err != nil {
+		panic(err)
+	}
 }

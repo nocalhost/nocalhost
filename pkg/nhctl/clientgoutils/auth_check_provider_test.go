@@ -9,7 +9,7 @@ func TestAuth(t *testing.T) {
 
 	if err := CheckForResource(
 		fp.NewFilePath("/Users/anur/.kube/config").ReadFile(),
-		"default", nil, "pods", "deployments",
+		"default", nil, false, "pods", "deployments",
 	); err != nil {
 		t.Error(err)
 	}

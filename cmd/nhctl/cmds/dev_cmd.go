@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/pkg/nhctl/log"
 )
 
@@ -27,9 +28,9 @@ var commandType string
 var container string
 
 func init() {
-	devCmdCmd.Flags().StringVarP(&deployment, "deployment", "d", "",
+	devCmdCmd.Flags().StringVarP(&common.WorkloadName, "deployment", "d", "",
 		"K8s deployment which your developing service exists")
-	devCmdCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "deployment",
+	devCmdCmd.Flags().StringVarP(&common.ServiceType, "controller-type", "t", "deployment",
 		"kind of k8s controller,such as deployment,statefulSet")
 	devCmdCmd.Flags().StringVarP(&container, "container", "c", "",
 		"which container of pod to run command")
@@ -54,30 +55,29 @@ var devCmdCmd = &cobra.Command{
 			log.Fatal("--dev-command-type mush be specified")
 		}
 		applicationName := args[0]
-		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
-		if !nocalhostSvc.IsInDevMode() {
-			log.Fatalf("%s is not in DevMode", deployment)
+		common.InitAppAndCheckIfSvcExist(applicationName, common.WorkloadName, common.ServiceType)
+		if !common.NocalhostSvc.IsInDevMode() {
+			log.Fatalf("%s is not in DevMode", common.WorkloadName)
 		}
 
-		profile, err := nocalhostSvc.GetProfile()
-		must(err)
+		svcConfig := common.NocalhostSvc.Config()
 
-		if profile.GetContainerDevConfigOrDefault(container) == nil ||
-			profile.GetContainerDevConfigOrDefault(container).Command == nil {
+		if svcConfig.GetContainerDevConfigOrDefault(container) == nil ||
+			svcConfig.GetContainerDevConfigOrDefault(container).Command == nil {
 			log.Fatalf("%s command not defined", commandType)
 		}
 		var targetCommand []string
 		switch commandType {
 		case string(buildCommand):
-			targetCommand = profile.GetContainerDevConfigOrDefault(container).Command.Build
+			targetCommand = svcConfig.GetContainerDevConfigOrDefault(container).Command.Build
 		case string(runCommand):
-			targetCommand = profile.GetContainerDevConfigOrDefault(container).Command.Run
+			targetCommand = svcConfig.GetContainerDevConfigOrDefault(container).Command.Run
 		case string(debugCommand):
-			targetCommand = profile.GetContainerDevConfigOrDefault(container).Command.Debug
+			targetCommand = svcConfig.GetContainerDevConfigOrDefault(container).Command.Debug
 		case string(hotReloadDebugCommand):
-			targetCommand = profile.GetContainerDevConfigOrDefault(container).Command.HotReloadDebug
+			targetCommand = svcConfig.GetContainerDevConfigOrDefault(container).Command.HotReloadDebug
 		case string(hotReloadRunCommand):
-			targetCommand = profile.GetContainerDevConfigOrDefault(container).Command.HotReloadRun
+			targetCommand = svcConfig.GetContainerDevConfigOrDefault(container).Command.HotReloadRun
 		default:
 			log.Fatalf("%s is not supported", commandType)
 
@@ -85,7 +85,7 @@ var devCmdCmd = &cobra.Command{
 		if len(targetCommand) == 0 {
 			log.Fatalf("%s command not defined", commandType)
 		}
-		podList, err := nocalhostSvc.GetPodList()
+		podList, err := common.NocalhostSvc.GetPodList()
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -98,6 +98,6 @@ var devCmdCmd = &cobra.Command{
 		if len(runningPod) != 1 {
 			log.Fatalf("pod number: %d, is not 1, please make sure pod number is 1", len(runningPod))
 		}
-		must(nocalhostApp.Exec(runningPod[0], container, targetCommand))
+		must(common.NocalhostApp.Exec(runningPod[0], container, targetCommand))
 	},
 }

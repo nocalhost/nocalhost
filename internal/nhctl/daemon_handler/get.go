@@ -6,6 +6,7 @@
 package daemon_handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -38,7 +39,12 @@ import (
 
 var svcProfileCacheMap = cache.NewLRUExpireCache(10000)
 
-func getServiceProfile(ns, appName string, kubeconfigBytes []byte) map[string]map[string]*profile.SvcProfileV2 {
+func getServiceProfile(
+	f func(resourceType string) (resouce_cache.GvkGvrWithAlias, error),
+	ns,
+	appName string,
+	kubeconfigBytes []byte,
+) map[string]map[string]*profile.SvcProfileV2 {
 	serviceProfileMap := make(map[string]map[string]*profile.SvcProfileV2)
 	if appName == "" || ns == "" {
 		return serviceProfileMap
@@ -51,11 +57,14 @@ func getServiceProfile(ns, appName string, kubeconfigBytes []byte) map[string]ma
 				//svcProfileV2.DevModeType = appMeta.GetCurrentDevModeTypeOfWorkload(
 				//	svcProfileV2.Name, base.SvcType(svcProfileV2.Type), description.Identifier,
 				//)
-				//name := strings.ToLower(svcProfileV2.GetType()) + "s"
-				if len(serviceProfileMap[svcProfileV2.GetType()]) == 0 {
-					serviceProfileMap[svcProfileV2.GetType()] = map[string]*profile.SvcProfileV2{}
+				name := strings.ToLower(svcProfileV2.GetType())
+				if mapping, err := f(svcProfileV2.GetType()); err == nil {
+					name = mapping.GetFullName()
 				}
-				serviceProfileMap[svcProfileV2.GetType()][svcProfileV2.GetName()] = svcProfileV2
+				if len(serviceProfileMap[name]) == 0 {
+					serviceProfileMap[name] = map[string]*profile.SvcProfileV2{}
+				}
+				serviceProfileMap[name][svcProfileV2.GetName()] = svcProfileV2
 				//serviceMap[name+"/"+svcProfileV2.GetName()] = svcProfileV2
 			}
 		}
@@ -102,20 +111,20 @@ func GetDescriptionDaemon(ns, appName string, kubeconfigBytes []byte) *profile.A
 				svcProfile.Name, base.SvcType(svcProfile.Type), appProfile.Identifier,
 			)
 
-			if svcProfile.ServiceConfigV2 == nil {
-				svcProfile.ServiceConfigV2 = &profile.ServiceConfigV2{
-					Name: svcProfile.GetName(),
-					Type: base.Deployment.String(),
-					ContainerConfigs: []*profile.ContainerConfig{
-						{
-							Dev: &profile.ContainerDevConfig{
-								Image:   profile.DefaultDevImage,
-								WorkDir: profile.DefaultWorkDir,
-							},
-						},
-					},
-				}
-			}
+			//if svcProfile.ServiceConfigV2 == nil {
+			//	svcProfile.ServiceConfigV2 = &profile.ServiceConfigV2{
+			//		Name: svcProfile.GetName(),
+			//		Type: base.Deployment.String(),
+			//		ContainerConfigs: []*profile.ContainerConfig{
+			//			{
+			//				Dev: &profile.ContainerDevConfig{
+			//					Image:   profile.DefaultDevImage,
+			//					WorkDir: profile.DefaultWorkDir,
+			//				},
+			//			},
+			//		},
+			//	}
+			//}
 
 			appmeta.FillingExtField(svcProfile, &meta, appName, ns, appProfile.Identifier)
 
@@ -168,30 +177,27 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) (inte
 				//if err2 != nil {
 				//	return nil
 				//}
-				okChan := make(chan struct{}, 2)
-				go func() {
-					time.Sleep(time.Second * 10)
-					okChan <- struct{}{}
-				}()
-				var wg sync.WaitGroup
+				ctx, cancelFunc := context.WithTimeout(context.Background(), time.Second*10)
+				defer cancelFunc()
+				var wg = &sync.WaitGroup{}
+				wg.Add(len(nsObjectList))
 				var lock sync.Mutex
 				for _, nsObject := range nsObjectList {
-					wg.Add(1)
-					go func(finalNs metav1.Object) {
+					go func(finalNs string) {
 						app := getApplicationByNs(
-							finalNs.GetName(), request.KubeConfig, s, request.Label, request.ShowHidden,
+							finalNs, request.KubeConfig, s, request.Label, request.ShowHidden,
 						)
 						lock.Lock()
 						result = append(result, app)
 						lock.Unlock()
 						wg.Done()
-					}(nsObject.(metav1.Object))
+					}(nsObject.(metav1.Object).GetName())
 				}
 				go func() {
 					wg.Wait()
-					okChan <- struct{}{}
+					cancelFunc()
 				}()
-				<-okChan
+				<-ctx.Done()
 				return result, nil
 			}
 		}
@@ -278,23 +284,10 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) (inte
 		// resource namespace filter status is active
 		result := make([]item.Item, 0, 0)
 		for _, datum := range data {
-			um, ok := datum.(*unstructured.Unstructured)
-			if !ok {
-				continue
-			}
-			if um.GetDeletionTimestamp() != nil {
-				continue
-			}
-			j, err := um.MarshalJSON()
-			if err != nil {
-				continue
-			}
-			namespace := &v1.Namespace{}
-			if err = json.Unmarshal(j, namespace); err != nil {
-				continue
-			}
-			if namespace.Status.Phase == v1.NamespaceActive {
-				result = append(result, item.Item{Metadata: datum})
+			if um, ok := datum.(metav1.Object); ok {
+				if um.GetDeletionTimestamp() == nil {
+					result = append(result, item.Item{Metadata: datum})
+				}
 			}
 		}
 		// add default namespace if can't list namespace
@@ -326,7 +319,7 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) (inte
 		serviceMap := make(map[string]map[string]*profile.SvcProfileV2)
 		if len(request.AppName) != 0 {
 			//nid := getNidByAppName(ns, request.KubeConfig, request.AppName)
-			serviceMap = getServiceProfile(ns, request.AppName, KubeConfigBytes)
+			serviceMap = getServiceProfile(s.GetResourceInfo, ns, request.AppName, KubeConfigBytes)
 		}
 		var belongsToMe = NewSet()
 		var reverseReversed = sets.NewString()
@@ -352,13 +345,14 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) (inte
 		for _, i := range items {
 			tempItem := item.Item{Metadata: i}
 			if mapping, err := s.GetResourceInfo(request.Resource); err == nil {
-				var tt string
-				if nocalhost.IsBuildInGvk(&mapping.Gvk) {
-					tt = strings.ToLower(mapping.Gvk.Kind)
-				} else {
-					tt = fmt.Sprintf("%s.%s.%s", mapping.Gvr.Resource, mapping.Gvr.Version, mapping.Gvr.Group)
-				}
-				if tm, ok := serviceMap[tt]; ok {
+				//var tt string
+				//if nocalhost.IsBuildInGvk(&mapping.Gvk) {
+				//	tt = strings.ToLower(mapping.Gvk.Kind)
+				//} else {
+				//	tt := fmt.Sprintf("%s.%s.%s", mapping.Gvr.Resource, mapping.Gvr.Version, mapping.Gvr.Group)
+				//}
+				tempItem.Description = &profile.SvcProfileV2{}
+				if tm, ok := serviceMap[mapping.GetFullName()]; ok {
 					if d, ok := tm[i.(metav1.Object).GetName()]; ok {
 						tempItem.Description = d
 					}

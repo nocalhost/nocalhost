@@ -19,8 +19,6 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"golang.org/x/crypto/bcrypt"
-
 	"nocalhost/internal/nhctl/syncthing"
 	"nocalhost/pkg/nhctl/log"
 )
@@ -77,21 +75,14 @@ func (c *Controller) NewSyncthing(container string, localSyncDir []string, syncD
 		svcProfile.LocalSyncthingPort = localListenPort
 	}
 
-	hash, err := bcrypt.GenerateFromPassword([]byte(syncthing.Nocalhost), 0)
-	if err != nil {
-		log.Debugf("couldn't hash the password %s", err)
-		hash = []byte("")
-	}
 	sendMode := _const.DefaultSyncType
 	if !syncDouble {
 		sendMode = _const.SendOnlySyncType
 	}
-	localHomeDir := c.GetApplicationSyncDir()
+	localHomeDir := c.GetSyncDir()
 
 	s := &syncthing.Syncthing{
 		APIKey:           syncthing.DefaultAPIKey,
-		GUIPassword:      "nocalhost",
-		GUIPasswordHash:  string(hash),
 		BinPath:          filepath.Join(nocalhost.GetSyncThingBinDir(), syncthing.GetBinaryName()),
 		Client:           syncthing.NewAPIClient(),
 		FileWatcherDelay: syncthing.DefaultFileWatcherDelay,
@@ -164,7 +155,7 @@ func (c *Controller) NewSyncthingHttpClient(reqTimeoutSecond int) *req.Syncthing
 func (c *Controller) CreateSyncThingSecret(container string, localSyncDir []string, duplicateDevMode bool) error {
 
 	// Delete service folder
-	dir := c.GetApplicationSyncDir()
+	dir := c.GetSyncDir()
 	if err2 := os.RemoveAll(dir); err2 != nil {
 		log.Logf("Failed to delete dir: %s before starting syncthing, err: %v", dir, err2)
 	}
