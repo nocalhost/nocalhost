@@ -8,7 +8,6 @@ import (
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/dbutils"
 	"nocalhost/internal/nhctl/nocalhost_path"
-	"nocalhost/pkg/nhctl/log"
 	"os"
 	"strings"
 )
@@ -140,7 +139,7 @@ func (devDirMapping *DevDirMapping) genPathToPackMap() map[DevPath][]*SvcPack {
 
 		toPack := pack.toPack()
 		if toPack == nil {
-			log.Error(fmt.Sprintf("Pack can not case to svcPack %v", pack))
+			//log.Error(fmt.Sprintf("Pack can not case to svcPack %v", pack))
 			continue
 		}
 		pathToPack[path] = append(pathToPack[path], toPack)
