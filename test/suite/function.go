@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"k8s.io/client-go/util/homedir"
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing/ports"
@@ -536,16 +537,27 @@ func KillSyncthingProcess(cli runner.Client) {
 }
 
 func Get(cli runner.Client) {
+	appName := "bookinfo-test"
+	// kubectl annotate --overwrite deployments productpage dev.nocalhost/application-name=bookinfo111
+	_, _, _ = cli.GetKubectl().RunWithRollingOut(context.Background(),
+		"annotate",
+		"deployments/productpage",
+		fmt.Sprintf("%s=%s", _const.NocalhostApplicationName, appName),
+		"--overwrite")
+	// wait for informer to parse app from annotation
+	<-time.Tick(time.Second * 10)
 	cases := []struct {
 		resource string
 		appName  string
 		keywords []string
 	}{
-		{resource: "deployments", appName: "bookinfo", keywords: []string{"details", "productpage", "ratings", "reviews"}},
+		{resource: "deployments", appName: "bookinfo", keywords: []string{"details", "ratings", "reviews"}},
 		{resource: "jobs", appName: "bookinfo", keywords: []string{"print-num-01"}},
-		{resource: "service", appName: "bookinfo", keywords: []string{"details", "productpage", "ratings", "reviews"}},
-		{resource: "pods", appName: "", keywords: []string{"details", "productpage", "ratings", "reviews"}},
+		{resource: "service", appName: "bookinfo", keywords: []string{"details", "ratings", "reviews"}},
+		{resource: "pods", appName: "", keywords: []string{"details", "ratings", "reviews"}},
+		{resource: "app", appName: "", keywords: []string{"bookinfo", appName}},
 	}
+
 	funcs := []func() error{
 		func() error {
 			for _, item := range cases {
