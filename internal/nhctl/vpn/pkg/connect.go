@@ -379,6 +379,7 @@ func (c *ConnectOptions) startLocalTunServe(ctx context.Context) (chan error, er
 	if err = c.setupDNS(); err != nil {
 		return nil, errors2.WithStack(err)
 	}
+	c.detectConflictDevice()
 	log.Info("setup DNS service successfully")
 	return errChan, nil
 }
@@ -609,4 +610,14 @@ func (c *ConnectOptions) Shell(_ context.Context, workload string) (string, erro
 		c.Namespace,
 		"ping -c 4 "+c.localTunIP.IP.String(),
 	)
+}
+
+func (c *ConnectOptions) detectConflictDevice() {
+	tun := os.Getenv("tunName")
+	if len(tun) == 0 {
+		return
+	}
+	if err := DetectAndDisableConflictDevice(tun); err != nil {
+		log.Warnf("error occours while disable conflict devices, err: %v", err)
+	}
 }
