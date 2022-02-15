@@ -63,9 +63,10 @@ var fileSyncCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		applicationName := args[0]
 
-		common.InitAppAndCheckIfSvcExist(applicationName, common.WorkloadName, common.ServiceType)
+		nocalhostApp, nocalhostSvc, err := common.InitAppAndCheckIfSvcExist(applicationName, common.WorkloadName, common.ServiceType)
+		must(err)
 
-		d := dev.DevStartOps{DevStartOptions: &model.DevStartOptions{}}
+		d := dev.DevStartOps{DevStartOptions: &model.DevStartOptions{}, NocalhostApp: nocalhostApp, NocalhostSvc: nocalhostSvc}
 		d.StartSyncthing(
 			"", fileSyncOps.Resume, fileSyncOps.Stop,
 			&fileSyncOps.SyncDouble, fileSyncOps.Override,
