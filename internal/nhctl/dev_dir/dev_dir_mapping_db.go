@@ -8,6 +8,7 @@ import (
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/dbutils"
 	"nocalhost/internal/nhctl/nocalhost_path"
+	"nocalhost/pkg/nhctl/log"
 	"os"
 	"strings"
 )
@@ -18,10 +19,10 @@ var (
 )
 
 func Update(fun func(dirMapping *DevDirMapping,
-// be careful, this map is immutable !!!!
-// it is a map generate from #PathToDefaultPackKey and #PackToPath
-// when we change #PathToDefaultPackKey or #PackToPath, we should
-// regenerate this map
+	// be careful, this map is immutable !!!!
+	// it is a map generate from #PathToDefaultPackKey and #PackToPath
+	// when we change #PathToDefaultPackKey or #PackToPath, we should
+	// regenerate this map
 	pathToPack map[DevPath][]*SvcPack) error) error {
 	return doGetOrModify(fun, false)
 }
