@@ -40,15 +40,17 @@ var vpnStatusCmd = &cobra.Command{
 				}
 			}
 		}
-		if sudoclient, err := daemon_client.GetDaemonClient(true); err == nil {
-			if command, err := sudoclient.SendSudoVPNStatusCommand(); err == nil {
-				if marshal, err := json.Marshal(command); err == nil {
-					var result pkg.ConnectOptions
-					if err = json.Unmarshal(marshal, &result); err == nil {
-						n.SudoDaemon = cluster{
-							Uid:        result.Uid,
-							Namespace:  result.Namespace,
-							Kubeconfig: string(result.KubeconfigBytes),
+		if util.IsSudoDaemonServing() {
+			if sudoclient, err := daemon_client.GetDaemonClient(true); err == nil {
+				if command, err := sudoclient.SendSudoVPNStatusCommand(); err == nil {
+					if marshal, err := json.Marshal(command); err == nil {
+						var result pkg.ConnectOptions
+						if err = json.Unmarshal(marshal, &result); err == nil {
+							n.SudoDaemon = cluster{
+								Uid:        result.Uid,
+								Namespace:  result.Namespace,
+								Kubeconfig: string(result.KubeconfigBytes),
+							}
 						}
 					}
 				}

@@ -9,7 +9,6 @@
 package util
 
 import (
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/windows"
 	"os"
 	"strings"
@@ -17,7 +16,7 @@ import (
 )
 
 //	ref https://stackoverflow.com/questions/31558066/how-to-ask-for-administer-privileges-on-windows-with-go
-func RunWithElevated() {
+func RunWithElevated() error {
 	verb := "runas"
 	exe, _ := os.Executable()
 	cwd, _ := os.Getwd()
@@ -30,10 +29,7 @@ func RunWithElevated() {
 
 	var showCmd int32 = 0 //SW_NORMAL
 
-	err := windows.ShellExecute(0, verbPtr, exePtr, argPtr, cwdPtr, showCmd)
-	if err != nil {
-		logrus.Warn(err)
-	}
+	return windows.ShellExecute(0, verbPtr, exePtr, argPtr, cwdPtr, showCmd)
 }
 
 func IsAdmin() bool {
