@@ -36,6 +36,7 @@ import (
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_common"
 	"regexp"
+	"sort"
 	"strconv"
 	"time"
 
@@ -467,27 +468,50 @@ func IsSudoDaemonServing() bool {
 	return true
 }
 
+type ifcs []net.Interface
+
+func (ifc ifcs) Len() int {
+	return len(ifc)
+}
+
+func (ifc ifcs) Less(i, j int) bool {
+	return ifc[i].Name < ifc[j].Name
+}
+func (ifc ifcs) Swap(i, j int) {
+	ifc[i], ifc[j] = ifc[j], ifc[i]
+}
+
 var mac net.HardwareAddr
 
 func GetMacAddress() net.HardwareAddr {
 	if mac != nil {
 		return mac
 	}
-	if interfaces, err := net.Interfaces(); err == nil {
-		for _, ifc := range interfaces {
-			if ifc.HardwareAddr != nil {
-				if ifc.Flags&net.FlagUp|net.FlagMulticast|net.FlagBroadcast ==
-					net.FlagUp|net.FlagMulticast|net.FlagBroadcast {
-					return ifc.HardwareAddr
-				}
+	data, _ := net.Interfaces()
+	var interfaces = make(ifcs, len(data))
+	copy(interfaces, data)
+	sort.Sort(interfaces)
+	for _, ifc := range interfaces {
+		if ifc.HardwareAddr != nil {
+			if ifc.Flags&net.FlagUp|net.FlagMulticast|net.FlagBroadcast ==
+				net.FlagUp|net.FlagMulticast|net.FlagBroadcast {
+				mac = ifc.HardwareAddr
+				return mac
 			}
 		}
-		for _, ifc := range interfaces {
-			if ifc.HardwareAddr != nil {
-				if ifc.Flags&net.FlagUp == net.FlagUp {
-					return ifc.HardwareAddr
-				}
+	}
+	for _, ifc := range interfaces {
+		if ifc.HardwareAddr != nil {
+			if ifc.Flags&net.FlagUp == net.FlagUp {
+				mac = ifc.HardwareAddr
+				return mac
 			}
+		}
+	}
+	for _, ifc := range interfaces {
+		if ifc.HardwareAddr != nil {
+			mac = ifc.HardwareAddr
+			return mac
 		}
 	}
 	return net.HardwareAddr{0x00, 0x00, 0x5e, 0x00, 0x53, 0x01}

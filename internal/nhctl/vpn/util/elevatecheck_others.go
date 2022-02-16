@@ -9,14 +9,13 @@
 package util
 
 import (
-	log "github.com/sirupsen/logrus"
 	"os"
 	"os/exec"
 	"os/signal"
 	"syscall"
 )
 
-func RunWithElevated() {
+func RunWithElevated() error {
 	cmd := exec.Command("sudo", "-p", "Password:", "-S", os.Args[0], os.Args[1], "elevate")
 	//log.Info(cmd.Args)
 	cmd.Stdout = os.Stdout
@@ -29,10 +28,7 @@ func RunWithElevated() {
 		signal.Notify(signals, os.Interrupt, os.Kill, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGKILL, syscall.SIGSTOP)
 		<-signals
 	}()
-	err := cmd.Run()
-	if err != nil {
-		log.Warn(err)
-	}
+	return cmd.Run()
 }
 
 func IsAdmin() bool {

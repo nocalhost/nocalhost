@@ -40,14 +40,17 @@ var vpnStatusCmd = &cobra.Command{
 				}
 			}
 		}
-		if sudoclient, err := daemon_client.GetDaemonClient(true); err == nil {
-			if command, err := sudoclient.SendSudoVPNStatusCommand(); err == nil {
-				if marshal, err := json.Marshal(command); err == nil {
-					var result pkg.ConnectOptions
-					if err = json.Unmarshal(marshal, &result); err == nil {
-						n.SudoDaemon = cluster{
-							Namespace:  result.Namespace,
-							Kubeconfig: string(result.KubeconfigBytes),
+		if util.IsSudoDaemonServing() {
+			if sudoclient, err := daemon_client.GetDaemonClient(true); err == nil {
+				if command, err := sudoclient.SendSudoVPNStatusCommand(); err == nil {
+					if marshal, err := json.Marshal(command); err == nil {
+						var result pkg.ConnectOptions
+						if err = json.Unmarshal(marshal, &result); err == nil {
+							n.SudoDaemon = cluster{
+								Uid:        result.Uid,
+								Namespace:  result.Namespace,
+								Kubeconfig: string(result.KubeconfigBytes),
+							}
 						}
 					}
 				}
@@ -66,11 +69,11 @@ type name struct {
 }
 
 func (n *name) isEquals() {
-	n.Equal = util.GenerateKey([]byte(n.Daemon.Kubeconfig), n.Daemon.Namespace) ==
-		util.GenerateKey([]byte(n.SudoDaemon.Kubeconfig), n.SudoDaemon.Namespace)
+	n.Equal = n.Daemon.Uid == n.SudoDaemon.Uid
 }
 
 type cluster struct {
+	Uid        string
 	Namespace  string
 	Kubeconfig string
 }

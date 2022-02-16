@@ -54,7 +54,7 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser)
 		lock.Lock()
 		defer lock.Unlock()
 		if connected != nil && !connected.IsEmpty() {
-			if !connected.IsSameKubeconfigAndNamespace(connect) {
+			if !connected.IsSameUid(connect) {
 				logger.Errorf("connected to namespace: %s, but want's to connect to namespace: %s",
 					connected.Namespace, cmd.Namespace)
 				logger.Infoln(util.EndSignFailed)
@@ -118,7 +118,7 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser)
 			return nil
 		}
 		// todo how to check it
-		if !connected.IsSameKubeconfigAndNamespace(connect) {
+		if !connected.IsSameUid(connect) {
 			logger.Infoln("kubeconfig and namespace not match, can't disconnect vpn")
 			logger.Infoln(util.EndSignFailed)
 			return nil
