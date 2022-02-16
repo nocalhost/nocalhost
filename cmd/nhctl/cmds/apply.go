@@ -32,12 +32,13 @@ var applyCmd = &cobra.Command{
 		applicationName := args[0]
 		path := args[1]
 
-		common.InitApp(applicationName)
+		nocalhostApp, err := common.InitApp(applicationName)
+		must(err)
 		manifests := clientgoutils.LoadValidManifest([]string{path})
 
-		err := common.NocalhostApp.GetClient().Apply(
+		err = nocalhostApp.GetClient().Apply(
 			manifests, false,
-			app.StandardNocalhostMetas(common.NocalhostApp.Name, common.NocalhostApp.NameSpace), "",
+			app.StandardNocalhostMetas(nocalhostApp.Name, nocalhostApp.NameSpace), "",
 		)
 		if err != nil {
 			log.Fatal(err)

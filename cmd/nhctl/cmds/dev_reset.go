@@ -35,11 +35,12 @@ var devResetCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 
 		applicationName := args[0]
-		common.InitAppAndCheckIfSvcExist(applicationName, common.WorkloadName, common.ServiceType)
+		_, nocalhostSvc, err := common.InitAppAndCheckIfSvcExist(applicationName, common.WorkloadName, common.ServiceType)
+		must(err)
 
-		_ = common.NocalhostSvc.DevEnd(true)
+		_ = nocalhostSvc.DevEnd(true)
 
-		utils.Should(common.NocalhostSvc.DecreaseDevModeCount())
+		utils.Should(nocalhostSvc.DecreaseDevModeCount())
 		log.Infof("Service %s has been reset.\n", common.WorkloadName)
 	},
 }

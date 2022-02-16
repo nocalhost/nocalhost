@@ -47,10 +47,11 @@ var devTerminalCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		applicationName := args[0]
-		common.InitAppAndCheckIfSvcExist(applicationName, common.WorkloadName, common.ServiceType)
+		_, nocalhostSvc, err := common.InitAppAndCheckIfSvcExist(applicationName, common.WorkloadName, common.ServiceType)
+		must(err)
 
 		if pod == "" {
-			podList, err := common.NocalhostSvc.GetPodList()
+			podList, err := nocalhostSvc.GetPodList()
 			must(err)
 			var runningPod = make([]v1.Pod, 0, 1)
 
@@ -72,6 +73,6 @@ var devTerminalCmd = &cobra.Command{
 			}
 			pod = runningPod[0].Name
 		}
-		must(common.NocalhostSvc.EnterPodTerminal(pod, container, shell, ""))
+		must(nocalhostSvc.EnterPodTerminal(pod, container, shell, ""))
 	},
 }

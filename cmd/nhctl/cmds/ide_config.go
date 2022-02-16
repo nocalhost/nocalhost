@@ -38,8 +38,10 @@ var ideConfigCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		if configAction == "check" {
 			applicationName := args[0]
-			common.InitAppAndCheckIfSvcExist(applicationName, common.WorkloadName, common.ServiceType)
-			c := common.NocalhostSvc.Config()
+			_, nocalhostSvc, err := common.InitAppAndCheckIfSvcExist(applicationName, common.WorkloadName, common.ServiceType)
+			must(err)
+
+			c := nocalhostSvc.Config()
 			for _, containerConfig := range c.ContainerConfigs {
 				if containerConfig.Dev != nil && containerConfig.Dev.Image != "" {
 					fmt.Print("true")

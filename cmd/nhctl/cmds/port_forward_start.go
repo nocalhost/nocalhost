@@ -66,12 +66,13 @@ var portForwardStartCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 
 		applicationName := args[0]
-		common.InitAppAndCheckIfSvcExist(applicationName, common.WorkloadName, common.ServiceType)
+		nocalhostApp, nocalhostSvc, err := common.InitAppAndCheckIfSvcExist(applicationName, common.WorkloadName, common.ServiceType)
+		must(err)
 
 		log.Info("Starting port-forwarding")
 
 		// find deployment pods
-		podName, err := common.NocalhostSvc.GetDevModePodName()
+		podName, err := nocalhostSvc.GetDevModePodName()
 		if err != nil {
 			// use serviceType get pods name
 			// can not find devContainer, means need port-forward normal service, get pods from command flags
@@ -91,9 +92,9 @@ var portForwardStartCmd = &cobra.Command{
 
 		for index, localPort := range localPorts {
 			if portForwardOptions.Follow {
-				must(common.NocalhostApp.PortForwardFollow(podName, localPort, remotePorts[index], nil))
+				must(nocalhostApp.PortForwardFollow(podName, localPort, remotePorts[index], nil))
 			} else {
-				must(common.NocalhostSvc.PortForward(podName, localPort, remotePorts[index], ""))
+				must(nocalhostSvc.PortForward(podName, localPort, remotePorts[index], ""))
 			}
 		}
 	},

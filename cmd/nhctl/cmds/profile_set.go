@@ -41,7 +41,8 @@ var profileSetCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		common.InitAppAndCheckIfSvcExist(args[0], common.WorkloadName, common.ServiceType)
+		_, nocalhostSvc, err := common.InitAppAndCheckIfSvcExist(args[0], common.WorkloadName, common.ServiceType)
+		must(err)
 		if configKey == "" {
 			log.Fatal("--key must be specified")
 		}
@@ -57,7 +58,7 @@ var profileSetCmd = &cobra.Command{
 			log.Fatalf("Config key %s is unsupported", configKey)
 		}
 
-		svcConfig := common.NocalhostSvc.Config()
+		svcConfig := nocalhostSvc.Config()
 		var defaultContainerConfig, targetContainerConfig *profile.ContainerConfig
 		for _, c := range svcConfig.ContainerConfigs {
 			if c.Name == "" {
@@ -80,7 +81,7 @@ var profileSetCmd = &cobra.Command{
 			} else if configKey == gitUrlKey {
 				targetContainerConfig.Dev.GitUrl = configVal
 			}
-			must(common.NocalhostSvc.UpdateConfig(*svcConfig))
+			must(nocalhostSvc.UpdateConfig(*svcConfig))
 			return
 		}
 		targetContainerConfig = &profile.ContainerConfig{Dev: &profile.ContainerDevConfig{}, Name: container}
@@ -91,45 +92,7 @@ var profileSetCmd = &cobra.Command{
 			targetContainerConfig.Dev.GitUrl = configVal
 		}
 		svcConfig.ContainerConfigs = append(svcConfig.ContainerConfigs, targetContainerConfig)
-		must(common.NocalhostSvc.UpdateConfig(*svcConfig))
-
-		//common.NocalhostSvc.UpdateSvcProfile(func(v2 *profile.SvcProfileV2) error {
-		//	var defaultContainerConfig, targetContainerConfig *profile.ContainerConfig
-		//	for _, c := range v2.ContainerConfigs {
-		//		if c.Name == "" {
-		//			defaultContainerConfig = c
-		//		} else if c.Name == container {
-		//			targetContainerConfig = c
-		//			break
-		//		}
-		//	}
-		//	if targetContainerConfig == nil && defaultContainerConfig != nil {
-		//		defaultContainerConfig.Name = container
-		//		targetContainerConfig = defaultContainerConfig
-		//	}
-		//
-		//	if targetContainerConfig != nil {
-		//		if targetContainerConfig.Dev == nil {
-		//			targetContainerConfig.Dev = &profile.ContainerDevConfig{}
-		//		}
-		//		if configKey == imageKey {
-		//			targetContainerConfig.Dev.Image = configVal
-		//		} else if configKey == gitUrlKey {
-		//			targetContainerConfig.Dev.GitUrl = configVal
-		//		}
-		//		return nil
-		//	}
-		//	// Create one
-		//	targetContainerConfig = &profile.ContainerConfig{Dev: &profile.ContainerDevConfig{}, Name: container}
-		//	switch configKey {
-		//	case imageKey:
-		//		targetContainerConfig.Dev.Image = configVal
-		//	case gitUrlKey:
-		//		targetContainerConfig.Dev.GitUrl = configVal
-		//	}
-		//	v2.ContainerConfigs = append(v2.ContainerConfigs, targetContainerConfig)
-		//	return nil
-		//})
+		must(nocalhostSvc.UpdateConfig(*svcConfig))
 	},
 }
 

@@ -45,11 +45,14 @@ var resetCmd = &cobra.Command{
 
 func resetApplication(applicationName string) {
 	var err error
-	common.InitApp(applicationName)
+	nocalhostApp, err := common.InitApp(applicationName)
+	must(err)
+
 	// Stop BackGroup Process
-	appProfile, _ := common.NocalhostApp.GetProfile()
+	appProfile, _ := nocalhostApp.GetProfile()
 	for _, profile := range appProfile.SvcProfile {
-		nhSvc := common.InitService(profile.GetName(), profile.GetType())
+		nhSvc, err := nocalhostApp.InitService(profile.GetName(), profile.GetType())
+		must(err)
 		if nhSvc.IsInDevMode() {
 			utils.Should(nhSvc.StopSyncAndPortForwardProcess(true))
 		} else if len(profile.DevPortForwardList) > 0 {
@@ -59,7 +62,7 @@ func resetApplication(applicationName string) {
 
 	// Remove files
 	time.Sleep(1 * time.Second)
-	if err = nocalhost.CleanupAppFilesUnderNs(common.NameSpace, common.NocalhostApp.GetAppMeta().NamespaceId); err != nil {
+	if err = nocalhost.CleanupAppFilesUnderNs(common.NameSpace, nocalhostApp.GetAppMeta().NamespaceId); err != nil {
 		log.WarnE(err, "")
 	} else {
 		log.Info("Files have been clean up")

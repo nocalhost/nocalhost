@@ -47,14 +47,15 @@ var pvcListCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var pvcList []v1.PersistentVolumeClaim
 		if pvcFlags.App != "" {
-			var err error
 			if pvcFlags.Svc != "" {
-				common.InitAppAndCheckIfSvcExist(pvcFlags.App, pvcFlags.Svc, common.ServiceType)
-				pvcList, err = common.NocalhostSvc.GetPVCsBySvc()
+				_, nocalhostSvc, err := common.InitAppAndCheckIfSvcExist(pvcFlags.App, pvcFlags.Svc, common.ServiceType)
+				must(err)
+				pvcList, err = nocalhostSvc.GetPVCsBySvc()
 				must(err)
 			} else {
-				common.InitApp(pvcFlags.App)
-				pvcList, err = common.NocalhostApp.GetAllPVCs()
+				nocalhostApp, err := common.InitApp(pvcFlags.App)
+				must(err)
+				pvcList, err = nocalhostApp.GetAllPVCs()
 				must(err)
 			}
 		} else {

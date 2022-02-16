@@ -55,12 +55,14 @@ var devCmdCmd = &cobra.Command{
 			log.Fatal("--dev-command-type mush be specified")
 		}
 		applicationName := args[0]
-		common.InitAppAndCheckIfSvcExist(applicationName, common.WorkloadName, common.ServiceType)
-		if !common.NocalhostSvc.IsInDevMode() {
+		nocalhostApp, nocalhostSvc, err := common.InitAppAndCheckIfSvcExist(applicationName, common.WorkloadName, common.ServiceType)
+		must(err)
+
+		if !nocalhostSvc.IsInDevMode() {
 			log.Fatalf("%s is not in DevMode", common.WorkloadName)
 		}
 
-		svcConfig := common.NocalhostSvc.Config()
+		svcConfig := nocalhostSvc.Config()
 
 		if svcConfig.GetContainerDevConfigOrDefault(container) == nil ||
 			svcConfig.GetContainerDevConfigOrDefault(container).Command == nil {
@@ -85,7 +87,7 @@ var devCmdCmd = &cobra.Command{
 		if len(targetCommand) == 0 {
 			log.Fatalf("%s command not defined", commandType)
 		}
-		podList, err := common.NocalhostSvc.GetPodList()
+		podList, err := nocalhostSvc.GetPodList()
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -98,6 +100,6 @@ var devCmdCmd = &cobra.Command{
 		if len(runningPod) != 1 {
 			log.Fatalf("pod number: %d, is not 1, please make sure pod number is 1", len(runningPod))
 		}
-		must(common.NocalhostApp.Exec(runningPod[0], container, targetCommand))
+		must(nocalhostApp.Exec(runningPod[0], container, targetCommand))
 	},
 }

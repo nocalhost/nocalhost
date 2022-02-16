@@ -10,7 +10,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"nocalhost/cmd/nhctl/cmds/common"
+	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/common/base"
+	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/dev_dir"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
@@ -75,10 +77,12 @@ var devAssociateCmd = &cobra.Command{
 
 		var err error = nil
 		var nid = ""
+		var nocalhostApp *app.Application
+		var nocalhostSvc *controller.Controller
 		if err = common.Prepare(); err == nil {
-			if err = common.InitApp(commonFlags.AppName); err == nil {
-				if err := common.CheckIfSvcExist(commonFlags.SvcName, common.ServiceType); err == nil {
-					nid = common.NocalhostSvc.AppMeta.NamespaceId
+			if nocalhostApp, err = common.InitApp(commonFlags.AppName); err == nil {
+				if nocalhostSvc, err = nocalhostApp.InitAndCheckIfSvcExist(commonFlags.SvcName, common.ServiceType); err == nil {
+					nid = nocalhostSvc.AppMeta.NamespaceId
 				}
 			}
 		}
@@ -110,12 +114,12 @@ var devAssociateCmd = &cobra.Command{
 
 		must(err)
 
-		if (common.NocalhostSvc.IsInReplaceDevMode() && common.NocalhostSvc.IsProcessor()) || common.NocalhostSvc.IsInDuplicateDevMode() {
+		if (nocalhostSvc.IsInReplaceDevMode() && nocalhostSvc.IsProcessor()) || nocalhostSvc.IsInDuplicateDevMode() {
 			if !dev_dir.DevPath(workDir).AlreadyAssociate(svcPack) {
 				log.PWarn("Current svc is already in DevMode, so can not switch associate dir, please exit the DevMode and try again.")
 				os.Exit(1)
 			} else {
-				if profile, err := common.NocalhostSvc.GetProfile(); err != nil {
+				if profile, err := nocalhostSvc.GetProfile(); err != nil {
 					log.PWarn("Fail to get profile of current svc, please exit the DevMode and try again.")
 					os.Exit(1)
 				} else {
@@ -133,13 +137,13 @@ var devAssociateCmd = &cobra.Command{
 
 		must(dev_dir.DevPath(workDir).Associate(svcPack, common.KubeConfig, !migrate))
 		must(
-			common.NocalhostSvc.UpdateSvcProfile(
+			nocalhostSvc.UpdateSvcProfile(
 				func(v2 *profile.SvcProfileV2) error {
 					return nil
 				},
 			),
 		)
 
-		must(common.NocalhostApp.ReloadSvcCfg(common.NocalhostSvc.Name, common.NocalhostSvc.Type, false, false))
+		must(nocalhostApp.ReloadSvcCfg(nocalhostSvc.Name, nocalhostSvc.Type, false, false))
 	},
 }

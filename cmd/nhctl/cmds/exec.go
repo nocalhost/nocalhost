@@ -57,8 +57,10 @@ var execCmd = &cobra.Command{
 		for i := 0; i < len(execFlags.Commands); i++ {
 			execFlags.Commands[i] = compile.ReplaceAllString(execFlags.Commands[i], "${$1}")
 		}
-		common.InitAppAndCheckIfSvcExist(execFlags.AppName, execFlags.SvcName, common.ServiceType)
-		podList, err := common.NocalhostSvc.GetPodList()
+		nocalhostApp, nocalhostSvc, err := common.InitAppAndCheckIfSvcExist(execFlags.AppName, execFlags.SvcName, common.ServiceType)
+		must(err)
+
+		podList, err := nocalhostSvc.GetPodList()
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -83,6 +85,6 @@ var execCmd = &cobra.Command{
 			log.Fatalf("pod number: %d, is not 1, please make sure pod number is 1", len(runningPod))
 		}
 		ableToExec = &runningPod[0]
-		must(common.NocalhostApp.Exec(*ableToExec, execFlags.Container, execFlags.Commands))
+		must(nocalhostApp.Exec(*ableToExec, execFlags.Container, execFlags.Commands))
 	},
 }

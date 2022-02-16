@@ -40,9 +40,10 @@ var devContainersCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		applicationName := args[0]
-		common.InitAppAndCheckIfSvcExist(applicationName, common.WorkloadName, common.ServiceType)
+		_, nocalhostSvc, err := common.InitAppAndCheckIfSvcExist(applicationName, common.WorkloadName, common.ServiceType)
+		must(err)
 
-		containerList, err := common.NocalhostSvc.GetOriginalContainers()
+		containerList, err := nocalhostSvc.GetOriginalContainers()
 		must(err)
 		var containers = make([]string, 0)
 		for _, item := range containerList {

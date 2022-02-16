@@ -13,6 +13,7 @@ import (
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"nocalhost/cmd/nhctl/cmds/common"
+	"nocalhost/cmd/nhctl/cmds/install"
 	"nocalhost/internal/nhctl/common/base"
 	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/nocalhost"
@@ -51,6 +52,8 @@ func init() {
 		&common.KubeConfig, "kubeconfig", "",
 		"the path of the kubeconfig file",
 	)
+
+	rootCmd.AddCommand(install.UninstallCmd)
 
 }
 

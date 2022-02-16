@@ -36,9 +36,10 @@ var devPodCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		applicationName := args[0]
-		common.InitAppAndCheckIfSvcExist(applicationName, common.WorkloadName, common.ServiceType)
+		_, nocalhostSvc, err := common.InitAppAndCheckIfSvcExist(applicationName, common.WorkloadName, common.ServiceType)
+		must(err)
 
-		podList, err := common.NocalhostSvc.GetPodList()
+		podList, err := nocalhostSvc.GetPodList()
 		if err != nil || len(podList) != 1 {
 			return
 		}

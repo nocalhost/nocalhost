@@ -29,10 +29,6 @@ var installFlags = &app_flags.InstallFlags{}
 func init() {
 
 	installCmd.Flags().StringVarP(
-		&common2.NameSpace, "namespace", "n", "",
-		"kubernetes namespace",
-	)
-	installCmd.Flags().StringVarP(
 		&installFlags.GitUrl, "git-url", "u", "",
 		"resources git url",
 	)
@@ -141,16 +137,16 @@ var installCmd = &cobra.Command{
 		}
 
 		log.Info("Installing application...")
-		common2.NocalhostApp, err = common.InstallApplication(installFlags, applicationName, common2.KubeConfig, common2.NameSpace)
+		nocalhostApp, err := common.InstallApplication(installFlags, applicationName, common2.KubeConfig, common2.NameSpace)
 		must(err)
 		log.Infof("Application %s installed", applicationName)
 
-		configV2 := common2.NocalhostApp.GetApplicationConfigV2()
+		configV2 := nocalhostApp.GetApplicationConfigV2()
 
 		// Start port forward
 		for _, svcProfile := range configV2.ServiceConfigs {
-			common2.CheckIfSvcExist(svcProfile.Name, svcProfile.Type)
-			nhSvc := common2.NocalhostSvc
+			nhSvc, err := nocalhostApp.InitAndCheckIfSvcExist(svcProfile.Name, svcProfile.Type)
+			must(err)
 			for _, cc := range svcProfile.ContainerConfigs {
 				if cc.Install == nil || len(cc.Install.PortForward) == 0 {
 					continue
@@ -169,7 +165,7 @@ var installCmd = &cobra.Command{
 						continue
 					}
 					log.Infof("Waiting pod %s to be ready", podName)
-					pod, err := common2.NocalhostApp.GetClient().GetPod(podName)
+					pod, err := nocalhostApp.GetClient().GetPod(podName)
 					if err != nil {
 						log.Info(err.Error())
 						continue

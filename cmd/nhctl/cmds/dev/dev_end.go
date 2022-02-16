@@ -12,6 +12,7 @@ import (
 	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/coloredoutput"
 	_const "nocalhost/internal/nhctl/const"
+	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	"strconv"
@@ -35,28 +36,29 @@ var DevEndCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		applicationName := args[0]
-		common.InitAppAndCheckIfSvcExist(applicationName, common.WorkloadName, common.ServiceType)
-		EndDevMode()
+		_, nocalhostSvc, err := common.InitAppAndCheckIfSvcExist(applicationName, common.WorkloadName, common.ServiceType)
+		must(err)
+		EndDevMode(nocalhostSvc)
 	},
 }
 
-func EndDevMode() error {
-	if !common.NocalhostSvc.IsInReplaceDevMode() && !common.NocalhostSvc.IsInDuplicateDevMode() {
+func EndDevMode(nocalhostSvc *controller.Controller) error {
+	if !nocalhostSvc.IsInReplaceDevMode() && !nocalhostSvc.IsInDuplicateDevMode() {
 		return errors.New(fmt.Sprintf("Service %s is not in DevMode", common.WorkloadName))
 	}
 
 	var needToRecoverHPA bool
-	if !common.NocalhostSvc.IsInDuplicateDevMode() {
+	if !nocalhostSvc.IsInDuplicateDevMode() {
 		needToRecoverHPA = true
 	}
 
-	common.Must(common.NocalhostSvc.DevEnd(false))
-	utils.Should(common.NocalhostSvc.DecreaseDevModeCount())
+	common.Must(nocalhostSvc.DevEnd(false))
+	utils.Should(nocalhostSvc.DecreaseDevModeCount())
 
 	// Recover hpa
 	if needToRecoverHPA {
 		log.Info("Recovering HPA...")
-		hl, err := common.NocalhostSvc.ListHPA()
+		hl, err := nocalhostSvc.ListHPA()
 		if err != nil {
 			log.WarnE(err, "Failed to find HPA")
 		}
@@ -84,7 +86,7 @@ func EndDevMode() error {
 				minInt32 := int32(minInt)
 				h.Spec.MinReplicas = &minInt32
 			}
-			if _, err = common.NocalhostSvc.Client.UpdateHPA(&h); err != nil {
+			if _, err = nocalhostSvc.Client.UpdateHPA(&h); err != nil {
 				log.WarnE(err, fmt.Sprintf("Failed to update hpa %s", h.Name))
 			} else {
 				log.Infof("HPA %s has been recovered", h.Name)

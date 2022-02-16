@@ -104,7 +104,6 @@ func (t *TviewApplication) buildWorkloadList(appMeta *appmeta.ApplicationMeta, n
 		}
 	})
 
-	var err error
 	var selectWorkloadFunc = func(row, column int) {
 		if row > 0 {
 			workloadNameCell := workloadListTable.GetCell(row, 0)
@@ -112,14 +111,14 @@ func (t *TviewApplication) buildWorkloadList(appMeta *appmeta.ApplicationMeta, n
 			common2.ServiceType = strings.ToLower(strings.TrimSuffix(wl, "s"))
 			common2.KubeConfig = t.clusterInfo.KubeConfig
 			common2.NameSpace = ns
-			err = common2.InitAppAndCheckIfSvcExist(appMeta.Application, common2.WorkloadName, common2.ServiceType)
+			nocalhostApp, nocalhostSvc, err := common2.InitAppAndCheckIfSvcExist(appMeta.Application, common2.WorkloadName, common2.ServiceType)
 			if err != nil {
 				t.showErr(err, nil)
 				return
 			}
 
 			getPodNameList := func() ([]string, error) {
-				pl, err := common2.NocalhostSvc.GetPodList()
+				pl, err := nocalhostSvc.GetPodList()
 				if err != nil {
 					return nil, err
 				}
@@ -133,12 +132,12 @@ func (t *TviewApplication) buildWorkloadList(appMeta *appmeta.ApplicationMeta, n
 			opsTable := NewRowSelectableTable("")
 			options := make([]string, 0)
 
-			if common2.NocalhostSvc.IsInDevMode() {
+			if nocalhostSvc.IsInDevMode() {
 				options = append(options, endDevModeOpt)
 			} else {
 				options = append(options, startDevModeOpt)
 			}
-			if !common2.NocalhostSvc.IsProcessor() {
+			if !nocalhostSvc.IsProcessor() {
 				options = append(options, startDupDevModeOpt)
 			}
 
@@ -166,7 +165,12 @@ func (t *TviewApplication) buildWorkloadList(appMeta *appmeta.ApplicationMeta, n
 				switch ops {
 				case startDevModeOpt, startDupDevModeOpt:
 					devStartOps := &model.DevStartOptions{}
-					containerTable := t.ShowOriginalContainersTable(x+10, y, 50, 10)
+					containerList, err := nocalhostSvc.GetOriginalContainers()
+					if err != nil {
+						t.showErr(err, nil)
+						return
+					}
+					containerTable := t.containersTable(containerList, x+10, y, 50, 10)
 					if containerTable == nil {
 						return
 					}
@@ -174,7 +178,7 @@ func (t *TviewApplication) buildWorkloadList(appMeta *appmeta.ApplicationMeta, n
 					containerTable.SetSelectedFunc(func(row, column int) {
 						t.pages.HidePage("containers")
 						devStartOps.Container = containerTable.GetCell(row, column).Text
-						svcConfig := common2.NocalhostSvc.Config()
+						svcConfig := nocalhostSvc.Config()
 						if svcConfig == nil {
 							t.showErr(errors.New("svc config is nil"), nil)
 							return
@@ -187,7 +191,7 @@ func (t *TviewApplication) buildWorkloadList(appMeta *appmeta.ApplicationMeta, n
 								t.pages.HidePage(devImagesPage)
 								image := imageTables.GetCell(row, 0).Text
 								config.Image = image
-								err = common2.NocalhostSvc.UpdateConfig(*svcConfig)
+								err = nocalhostSvc.UpdateConfig(*svcConfig)
 								if err != nil {
 									t.showErr(err, nil)
 									return
@@ -215,10 +219,11 @@ func (t *TviewApplication) buildWorkloadList(appMeta *appmeta.ApplicationMeta, n
 								if ops == startDupDevModeOpt {
 									devStartOps.DevModeType = "duplicate"
 								}
-								dev.StartDevMode(appMeta.Application, devStartOps)
+								d := dev.DevStartOps{DevStartOptions: devStartOps}
+								d.StartDevMode(appMeta.Application)
 								RecoverOut()
 
-								podList, err := common2.NocalhostSvc.GetPodList()
+								podList, err := nocalhostSvc.GetPodList()
 								if err != nil {
 									t.showErr(err, func() {})
 									return
@@ -236,7 +241,7 @@ func (t *TviewApplication) buildWorkloadList(appMeta *appmeta.ApplicationMeta, n
 								}
 								t.app.Suspend(func() {
 									fmt.Print("\033[H\033[2J") // clear screen
-									common2.NocalhostSvc.EnterPodTerminal(runningPod[0].Name, "nocalhost-dev", "bash", _const.DevModeTerminalBanner)
+									nocalhostSvc.EnterPodTerminal(runningPod[0].Name, "nocalhost-dev", "bash", _const.DevModeTerminalBanner)
 									t.QueueUpdateDraw(func() {
 										t.app.SetFocus(t.body.ItemAt(1))
 									})
@@ -250,7 +255,7 @@ func (t *TviewApplication) buildWorkloadList(appMeta *appmeta.ApplicationMeta, n
 					writer := t.switchBodyToScrollingView(" End DevMode", workloadListTable)
 					RedirectionOut(writer)
 					go func() {
-						dev.EndDevMode()
+						dev.EndDevMode(nocalhostSvc)
 						RecoverOut()
 					}()
 				case portForwardOpt:
@@ -294,7 +299,7 @@ func (t *TviewApplication) buildWorkloadList(appMeta *appmeta.ApplicationMeta, n
 
 					updatePfListFunc := func() {
 						// find port forward
-						pro, err := common2.NocalhostSvc.GetProfile()
+						pro, err := nocalhostSvc.GetProfile()
 						if err != nil {
 							t.showErr(err, nil)
 							return
@@ -315,7 +320,7 @@ func (t *TviewApplication) buildWorkloadList(appMeta *appmeta.ApplicationMeta, n
 					pfListTable.SetSelectedFunc(func(row, column int) {
 						pf := pfListTable.GetCell(row, 0).Text
 						t.ConfirmationBox(fmt.Sprintf("Do you want to stop PortForward %s?", pf), func() {
-							err := common2.NocalhostSvc.StopPortForwardByPort(pf)
+							err := nocalhostSvc.StopPortForwardByPort(pf)
 							if err != nil {
 								t.showErr(err, nil)
 							} else {
@@ -353,7 +358,7 @@ func (t *TviewApplication) buildWorkloadList(appMeta *appmeta.ApplicationMeta, n
 								return
 							}
 							t.buildReusableTable(pl, func(podName string) {
-								err = common2.NocalhostSvc.PortForward(podName, l, r, "")
+								err = nocalhostSvc.PortForward(podName, l, r, "")
 								if err != nil {
 									t.showErr(err, nil)
 									return
@@ -377,7 +382,7 @@ func (t *TviewApplication) buildWorkloadList(appMeta *appmeta.ApplicationMeta, n
 				case viewDevConfigOpt:
 					writer := t.switchBodyToScrollingView("Dev Config", workloadListTable)
 					go func() {
-						config := common2.NocalhostSvc.Config()
+						config := nocalhostSvc.Config()
 						bys, err := yaml.Marshal(config)
 						if err != nil {
 							t.showErr(err, nil)
@@ -387,7 +392,7 @@ func (t *TviewApplication) buildWorkloadList(appMeta *appmeta.ApplicationMeta, n
 					}()
 				case openTerminalOpt:
 					go func() {
-						podList, err := common2.NocalhostSvc.GetPodList()
+						podList, err := nocalhostSvc.GetPodList()
 						if err != nil {
 							t.showErr(err, nil)
 							return
@@ -403,10 +408,10 @@ func (t *TviewApplication) buildWorkloadList(appMeta *appmeta.ApplicationMeta, n
 							return
 						}
 
-						if common2.NocalhostSvc.IsInDevMode() {
+						if nocalhostSvc.IsInDevMode() {
 							t.app.Suspend(func() {
 								fmt.Print("\033[H\033[2J") // clear screen
-								common2.NocalhostSvc.EnterPodTerminal(runningPod[0].Name, "nocalhost-dev", "bash", _const.DevModeTerminalBanner)
+								nocalhostSvc.EnterPodTerminal(runningPod[0].Name, "nocalhost-dev", "bash", _const.DevModeTerminalBanner)
 							})
 							t.app.QueueUpdateDraw(func() {
 								t.app.SetFocus(workloadListTable)
@@ -435,7 +440,7 @@ func (t *TviewApplication) buildWorkloadList(appMeta *appmeta.ApplicationMeta, n
 								t.buildReusableTable(cs, func(selectedItem string) {
 									t.app.Suspend(func() {
 										fmt.Print("\033[H\033[2J") // clear screen
-										common2.NocalhostSvc.EnterPodTerminal(selectedPod, selectedItem, "bash", _const.DevModeTerminalBanner)
+										nocalhostSvc.EnterPodTerminal(selectedPod, selectedItem, "bash", _const.DevModeTerminalBanner)
 									})
 									t.app.QueueUpdateDraw(func() {
 										t.app.SetFocus(workloadListTable)
@@ -446,7 +451,7 @@ func (t *TviewApplication) buildWorkloadList(appMeta *appmeta.ApplicationMeta, n
 					}()
 				case viewLogsOpt:
 					// get pod list
-					podList, err := common2.NocalhostSvc.GetPodList()
+					podList, err := nocalhostSvc.GetPodList()
 					if err != nil {
 						t.showErr(err, nil)
 						return
@@ -501,7 +506,7 @@ func (t *TviewApplication) buildWorkloadList(appMeta *appmeta.ApplicationMeta, n
 					}
 
 				case syncLogsOpt:
-					logPath := filepath.Join(common2.NocalhostSvc.GetSyncDir(), "syncthing.log")
+					logPath := filepath.Join(nocalhostSvc.GetSyncDir(), "syncthing.log")
 					if _, err = os.Stat(logPath); err != nil {
 						t.showErr(err, nil)
 						return
@@ -528,7 +533,7 @@ func (t *TviewApplication) buildWorkloadList(appMeta *appmeta.ApplicationMeta, n
 						exec.Command(`open`, fmt.Sprintf("http://localhost:%s", guiPortCell.Text)).Start()
 					}()
 				case viewProfile:
-					pro, err := common2.NocalhostSvc.GetProfile()
+					pro, err := nocalhostSvc.GetProfile()
 					if err != nil {
 						t.showErr(err, nil)
 						return
@@ -543,8 +548,8 @@ func (t *TviewApplication) buildWorkloadList(appMeta *appmeta.ApplicationMeta, n
 						}
 					}()
 				case viewDBData:
-					appName := common2.NocalhostApp.Name
-					nid := common2.NocalhostApp.GetAppMeta().NamespaceId
+					appName := nocalhostApp.Name
+					nid := nocalhostApp.GetAppMeta().NamespaceId
 					result, err := nocalhost.ListAllFromApplicationDb(ns, appName, nid)
 					if err != nil {
 						t.showErr(err, nil)
@@ -569,14 +574,14 @@ func (t *TviewApplication) buildWorkloadList(appMeta *appmeta.ApplicationMeta, n
 	return workloadListTable
 }
 
-func (t *TviewApplication) ShowOriginalContainersTable(x, y, width, height int) *EnhancedTable {
-	containerList, err := common2.NocalhostSvc.GetOriginalContainers()
-	if err != nil {
-		t.showErr(err, nil)
-		return nil
-	}
-	return t.containersTable(containerList, x, y, width, height)
-}
+//func (t *TviewApplication) ShowOriginalContainersTable(x, y, width, height int) *EnhancedTable {
+//	containerList, err := nocalhostSvc.GetOriginalContainers()
+//	if err != nil {
+//		t.showErr(err, nil)
+//		return nil
+//	}
+//	return t.containersTable(containerList, x, y, width, height)
+//}
 
 func (t *TviewApplication) containersTable(containerList []v1.Container, x, y, width, height int) *EnhancedTable {
 	containerTable := t.NewBorderedTable("Containers")
