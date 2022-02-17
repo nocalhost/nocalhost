@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	coreV1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"nocalhost/internal/nhctl/daemon_client"
@@ -21,7 +22,6 @@ import (
 
 // HandleVPNOperate not sudo daemon, vpn controller
 func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (err error) {
-	preCheck(cmd)
 	logCtx := util.GetContextWithLogger(writer)
 	logger := util.GetLoggerFromContext(logCtx)
 	defer func() {
@@ -37,7 +37,6 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 		Ctx:            logCtx,
 		KubeconfigPath: cmd.KubeConfig,
 		Namespace:      cmd.Namespace,
-		Workloads:      []string{cmd.Resource},
 	}
 	if err = connect.InitClient(logCtx); err != nil {
 		logger.Errorln("init client err, please make sure your kubeconfig is available!")
@@ -53,6 +52,25 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 	GetOrGenerateConfigMapWatcher(connect.KubeconfigBytes, cmd.Namespace, connect.GetClientSet().CoreV1().RESTClient())
 	switch cmd.Action {
 	case command.Connect:
+		if len(cmd.Resource) != 0 {
+			// if controller is not nil
+			object, errs := connect.GetUnstructuredObject(cmd.Resource)
+			if errs != nil {
+				return errs
+			}
+			workload := fmt.Sprintf("%s.%s.%s/%s",
+				object.Mapping.Resource.Resource,
+				object.Mapping.GroupVersionKind.Version,
+				object.Mapping.GroupVersionKind.Group,
+				object.Name)
+			connect.Workloads = []string{workload}
+			cmd.Resource = workload
+			if own := object.Object.(*unstructured.Unstructured).GetOwnerReferences(); own != nil {
+				return fmt.Errorf("controller is not nil, please connect to resource: %s/%s",
+					own[0].Kind, own[0].Name)
+			}
+		}
+
 		// pre-check if resource already in reversing mode
 		if load, ok := GetReverseInfo().Load(util.GenerateKey(connect.KubeconfigBytes, connect.Namespace)); ok {
 			if mac := load.(*status).getMacByResource(cmd.Resource); len(mac) != 0 {
@@ -214,29 +232,6 @@ func transStreamToWriter(r io.Reader, writer ...io.Writer) bool {
 			}
 			_, _ = w.Write(line)
 			_, _ = w.Write([]byte("\n"))
-		}
-	}
-}
-
-func preCheck(cmd *command.VPNOperateCommand) {
-	if len(cmd.Resource) != 0 {
-		tuple, b, err := util.SplitResourceTypeName(cmd.Resource)
-		if err == nil && b {
-			switch strings.ToLower(tuple.Resource) {
-			case "deployment", "deployments":
-				tuple.Resource = "deployments"
-			case "statefulset", "statefulsets":
-				tuple.Resource = "statefulsets"
-			case "replicaset", "replicasets":
-				tuple.Resource = "replicasets"
-			case "service", "services":
-				tuple.Resource = "services"
-			case "pod", "pods":
-				tuple.Resource = "pods"
-			default:
-				tuple.Resource = "customresourcedefinitions"
-			}
-			cmd.Resource = tuple.String()
 		}
 	}
 }

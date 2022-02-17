@@ -358,7 +358,10 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) (inte
 					}
 				}
 
-				n := fmt.Sprintf("%s/%s", mapping.Gvr.Resource, i.(metav1.Object).GetName())
+				n := fmt.Sprintf(
+					"%s.%s.%s/%s",
+					mapping.Gvr.Resource, mapping.Gvr.Version, mapping.Gvr.Group, i.(metav1.Object).GetName(),
+				)
 				if revering := belongsToMe.HasKey(n) || reverseReversed.Has(n); revering {
 					tempItem.VPN = &item.VPNInfo{
 						Status:      belongsToMe.Get(n).status(),

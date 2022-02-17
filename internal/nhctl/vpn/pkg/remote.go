@@ -18,6 +18,7 @@ import (
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"net"
 	_const "nocalhost/internal/nhctl/const"
+	"nocalhost/internal/nhctl/vpn/pkg/handler"
 	"nocalhost/internal/nhctl/vpn/remote"
 	"nocalhost/internal/nhctl/vpn/util"
 	"strings"
@@ -128,6 +129,10 @@ func createOutboundRouterPodIfNecessary(
 	}
 }
 
+// CreateInboundPod
+// 1, set replicset to 1
+// 2, backup origin manifest to workloads annotation
+// 3, patch a new sidecar
 func CreateInboundPod(
 	ctx context.Context,
 	factory cmdutil.Factory,
@@ -139,114 +144,22 @@ func CreateInboundPod(
 	shadowTunIP,
 	routes string,
 ) error {
-	var sc Scalable
-	sc, err := getHandler(factory, clientset, namespace, workloads)
+	var sc handler.Handler
+	sc, err := getHandler(factory, clientset, namespace, workloads, &handler.PodRouteConfig{
+		LocalTunIP:           localTunIP,
+		InboundPodTunIP:      shadowTunIP,
+		TrafficManagerRealIP: trafficManagerIP,
+		Route:                routes,
+	})
 	if err != nil {
 		return err
 	}
-	util.GetLoggerFromContext(ctx).Infoln("scaling workloads to 0...")
-	labels, annotations, ports, str, err := sc.ScaleToZero()
+	util.GetLoggerFromContext(ctx).Infoln("inject vpn sidecar ...")
+	err = sc.InjectVPNContainer()
 	if err != nil {
-		util.GetLoggerFromContext(ctx).Errorf("scale workloads to 0 failed, error: %v\n", err)
+		util.GetLoggerFromContext(ctx).Errorf("inject vpn sidecar failed, error: %v\n", err)
 		return err
 	}
-	get, err := clientset.CoreV1().Pods(namespace).Get(context.TODO(), sc.ToInboundPodName(), metav1.GetOptions{})
-	if get != nil {
-		if o := get.Annotations[util.OriginData]; len(o) != 0 {
-			str = o
-		}
-		zero := int64(0)
-		_ = clientset.CoreV1().Pods(namespace).Delete(
-			context.TODO(), sc.ToInboundPodName(), metav1.DeleteOptions{GracePeriodSeconds: &zero},
-		)
-	}
-
-	annotations[util.OriginData] = str
-	delete(annotations, "deployment.kubernetes.io/revision")
-	delete(annotations, "kubectl.kubernetes.io/last-applied-configuration")
-
-	t := true
-	zero := int64(0)
-	pod := v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      sc.ToInboundPodName(),
-			Namespace: namespace,
-			Labels:    labels,
-			// for restore
-			Annotations: annotations,
-		},
-		Spec: v1.PodSpec{
-			RestartPolicy: v1.RestartPolicyAlways,
-			Containers: []v1.Container{
-				{
-					Name:    "vpn",
-					Image:   _const.DefaultVPNImage,
-					Command: []string{"/bin/sh", "-c"},
-					Args: []string{
-						"sysctl net.ipv4.ip_forward=1;" +
-							"iptables -F;" +
-							"iptables -P INPUT ACCEPT;" +
-							"iptables -P FORWARD ACCEPT;" +
-							"iptables -t nat -A PREROUTING ! -p icmp -j DNAT --to " + localTunIP + ";" +
-							"iptables -t nat -A POSTROUTING ! -p icmp -j MASQUERADE;" +
-							"sysctl -w net.ipv4.conf.all.route_localnet=1;" +
-							"iptables -t nat -A OUTPUT -o lo ! -p icmp -j DNAT --to-destination " + localTunIP + ";" +
-							"nhctl vpn serve -L 'tun://0.0.0.0:8421/" + trafficManagerIP + ":8421?net=" + shadowTunIP + "&route=" + routes + "' --debug=true",
-					},
-					SecurityContext: &v1.SecurityContext{
-						Capabilities: &v1.Capabilities{
-							Add: []v1.Capability{
-								"NET_ADMIN",
-								//"SYS_MODULE",
-							},
-						},
-						RunAsUser:  &zero,
-						Privileged: &t,
-					},
-					Resources: v1.ResourceRequirements{
-						Requests: map[v1.ResourceName]resource.Quantity{
-							v1.ResourceCPU:    resource.MustParse("128m"),
-							v1.ResourceMemory: resource.MustParse("128Mi"),
-						},
-						Limits: map[v1.ResourceName]resource.Quantity{
-							v1.ResourceCPU:    resource.MustParse("256m"),
-							v1.ResourceMemory: resource.MustParse("256Mi"),
-						},
-					},
-					ImagePullPolicy: v1.PullAlways,
-					// without helm, not set ports are works fine, but if using helm, must set this filed, otherwise
-					// this pod will not add to service's endpoint
-					Ports: ports,
-				},
-			},
-			PriorityClassName: "system-cluster-critical",
-		},
-	}
-	newName := sc.ToInboundPodName()
-	if _, err = clientset.CoreV1().Pods(namespace).Create(context.TODO(), &pod, metav1.CreateOptions{}); err != nil {
-		return err
-	}
-	watch, err := clientset.CoreV1().Pods(namespace).Watch(context.TODO(), metav1.SingleObject(metav1.ObjectMeta{Name: newName}))
-	if err != nil {
-		return err
-	}
-	defer watch.Stop()
-	var s v1.PodPhase
-	for {
-		select {
-		case e := <-watch.ResultChan():
-			if p, ok := e.Object.(*v1.Pod); ok {
-				if p.Status.Phase != s {
-					s = p.Status.Phase
-					util.GetLoggerFromContext(ctx).Infof("pods: %s is %s...", p.Name, p.Status.Phase)
-				}
-				if p.Status.Phase == v1.PodRunning {
-					return nil
-				}
-			}
-		case <-time.Tick(time.Minute * 5):
-			util.GetLoggerFromContext(ctx).Infof("wait pods: %s to be ready timeout", newName)
-			return errors.New(fmt.Sprintf("wait pods: %s to be ready timeout", newName))
-		}
-	}
+	util.GetLoggerFromContext(ctx).Infoln("inject vpn sidecar ok")
+	return nil
 }

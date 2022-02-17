@@ -24,13 +24,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	json2 "k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
-	"k8s.io/cli-runtime/pkg/resource"
 	runtimeresource "k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/kubernetes"
+	coreV1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/clientcmd"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"nocalhost/internal/nhctl/daemon_client"
@@ -104,29 +104,35 @@ func PortForwardPod(
 	return nil
 }
 
-func GetTopController(factory cmdutil.Factory, clientset *kubernetes.Clientset, namespace, workload string) (controller ResourceTupleWithScale) {
-	object, err := GetUnstructuredObject(factory, namespace, workload)
-	if err != nil {
-		return
-	}
-	asSelector, _ := metav1.LabelSelectorAsSelector(GetLabelSelector(object.Object))
-	podList, _ := clientset.CoreV1().Pods(namespace).List(context.Background(), metav1.ListOptions{
-		LabelSelector: asSelector.String(),
+func GetTopControllerBaseOnPodLabel(factory cmdutil.Factory, clientset coreV1.PodInterface, namespace string, selector labels.Selector) (info *runtimeresource.Info, err error) {
+	podList, _ := clientset.List(context.Background(), metav1.ListOptions{
+		LabelSelector: selector.String(),
 	})
 	if len(podList.Items) == 0 {
-		return
+		return nil, errors.New("can not find any pod")
 	}
-	of := metav1.GetControllerOf(&podList.Items[0])
-	for of != nil {
-		object, err = GetUnstructuredObject(factory, namespace, fmt.Sprintf("%s/%s", of.Kind, of.Name))
+	var workloads = fmt.Sprintf("pods/%s", podList.Items[0].Name)
+	for {
+		obj, err := GetUnstructuredObject(factory, namespace, workloads)
 		if err != nil {
-			return
+			return nil, err
 		}
-		controller.Resource = strings.ToLower(of.Kind) + "s"
-		controller.Name = of.Name
-		of = GetOwnerReferences(object.Object)
+		ownerReference := metav1.GetControllerOf(obj.Object.(*unstructured.Unstructured))
+		if ownerReference == nil {
+			return obj, nil
+		}
+		// apiVersion format is Group/Version is like: apps/v1, apps.kruise.io/v1beta1
+		// we need to trans it to Kind.Group
+		version, err := schema.ParseGroupVersion(ownerReference.APIVersion)
+		if err != nil {
+			return obj, nil
+		}
+		gk := metav1.GroupKind{
+			Group: version.Group,
+			Kind:  ownerReference.Kind,
+		}
+		workloads = fmt.Sprintf("%s/%s", gk.String(), ownerReference.Name)
 	}
-	return
 }
 
 func UpdateReplicasScale(clientset *kubernetes.Clientset, namespace string, controller ResourceTupleWithScale) error {
@@ -160,7 +166,7 @@ func UpdateReplicasScale(clientset *kubernetes.Clientset, namespace string, cont
 	return err
 }
 
-func Shell(clientset *kubernetes.Clientset, restclient *rest.RESTClient, config *rest.Config, podName, namespace, cmd string) (string, error) {
+func Shell(clientset *kubernetes.Clientset, restclient *rest.RESTClient, config *rest.Config, podName, containerName, namespace, cmd string) (string, error) {
 	pod, err := clientset.CoreV1().Pods(namespace).Get(context.Background(), podName, metav1.GetOptions{})
 
 	if err != nil {
@@ -170,7 +176,9 @@ func Shell(clientset *kubernetes.Clientset, restclient *rest.RESTClient, config 
 		err = fmt.Errorf("cannot exec into a container in a completed pod; current phase is %s", pod.Status.Phase)
 		return "", err
 	}
-	containerName := pod.Spec.Containers[0].Name
+	if len(containerName) == 0 {
+		containerName = pod.Spec.Containers[0].Name
+	}
 	stdin, _, stderr := dockerterm.StdStreams()
 
 	stdoutBuf := bytes.NewBuffer(nil)
@@ -293,75 +301,6 @@ func GetUnstructuredObject(f cmdutil.Factory, namespace string, workloads string
 		return nil, errors.New("Not found")
 	}
 	return infos[0], err
-}
-
-func GetAndConsumeControllerObject(f cmdutil.Factory, namespace string, label labels.Selector, ff func(*unstructured.Unstructured)) ([]*resource.Info, error) {
-	do := f.NewBuilder().
-		Unstructured().
-		NamespaceParam(namespace).DefaultNamespace().AllNamespaces(false).
-		ResourceTypeOrNameArgs(true, strings.Join([]string{"deployments", "statefulset", "replicaset"}, ",")).
-		ContinueOnError().
-		LabelSelector(label.String()).
-		Latest().
-		Flatten().
-		TransformRequests(func(req *rest.Request) { req.Param("includeObject", "Object") }).
-		Do()
-	if err := do.Err(); err != nil {
-		return nil, err
-	}
-	infos, err := do.Infos()
-	if err != nil {
-		return nil, err
-	}
-	if ff != nil {
-		for _, info := range infos {
-			if o, ok := info.Object.(*unstructured.Unstructured); ok {
-				ff(o)
-			}
-		}
-	}
-	return infos, nil
-}
-
-func GetLabelSelector(object k8sruntime.Object) *metav1.LabelSelector {
-	u := object.(*unstructured.Unstructured)
-	stringMap, _, err := unstructured.NestedStringMap(u.Object, "spec", "selector")
-	if err == nil && len(stringMap) != 0 {
-		return &metav1.LabelSelector{MatchLabels: stringMap}
-	}
-	return &metav1.LabelSelector{MatchLabels: u.GetLabels()}
-}
-
-func GetPorts(object k8sruntime.Object) []v1.ContainerPort {
-	defer func() {
-		if err := recover(); err != nil {
-			log.Errorln(err)
-		}
-	}()
-	var result []v1.ContainerPort
-	replicasetPortPrinter, _ := printers.NewJSONPathPrinter("{.spec.template.spec.containers[0].ports}")
-	servicePortPrinter, _ := printers.NewJSONPathPrinter("{.spec.ports}")
-	buf := bytes.NewBuffer([]byte{})
-	err := replicasetPortPrinter.PrintObj(object, buf)
-	if err != nil {
-		_ = servicePortPrinter.PrintObj(object, buf)
-		var ports []v1.ServicePort
-		_ = json2.Unmarshal([]byte(buf.String()), &ports)
-		for _, port := range ports {
-			val := port.TargetPort.IntVal
-			if val == 0 {
-				val = port.Port
-			}
-			result = append(result, v1.ContainerPort{
-				Name:          port.Name,
-				ContainerPort: val,
-				Protocol:      port.Protocol,
-			})
-		}
-	} else {
-		_ = json2.Unmarshal([]byte(buf.String()), &result)
-	}
-	return result
 }
 
 func GetOwnerReferences(object k8sruntime.Object) *metav1.OwnerReference {
