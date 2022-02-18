@@ -357,7 +357,7 @@ func (c *ConnectOptions) startLocalTunServe(ctx context.Context) (chan error, er
 	if err = c.setupDNS(); err != nil {
 		return nil, errors2.WithStack(err)
 	}
-	c.detectConflictDevice()
+	//c.detectConflictDevice()
 	log.Info("setup DNS service successfully")
 	return errChan, nil
 }
