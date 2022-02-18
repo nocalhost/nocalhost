@@ -18,12 +18,12 @@ import (
 	"nocalhost/internal/nhctl/vpn/util"
 )
 
-func GetDNSServiceIPFromPod(clientset *kubernetes.Clientset, restclient *rest.RESTClient, config *rest.Config, podName, namespace string) (*miekgdns.ClientConfig, error) {
+func GetDNSServiceIPFromPod(client *kubernetes.Clientset, restclient *rest.RESTClient, config *rest.Config, podName, namespace string) (*miekgdns.ClientConfig, error) {
 	var ipp []string
-	if ips, err := getDNSIPFromDnsPod(clientset); err == nil && len(ips) != 0 {
+	if ips, err := getDNSIPFromDnsPod(client); err == nil && len(ips) != 0 {
 		ipp = ips
 	}
-	ip, err := util.Shell(clientset, restclient, config, podName, namespace, "cat /etc/resolv.conf")
+	ip, err := util.Shell(client, restclient, config, podName, "", namespace, "cat /etc/resolv.conf")
 	if err != nil {
 		return nil, err
 	}

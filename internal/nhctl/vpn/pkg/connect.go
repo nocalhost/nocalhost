@@ -17,11 +17,13 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"net"
 	"nocalhost/internal/nhctl/vpn/dns"
+	"nocalhost/internal/nhctl/vpn/pkg/handler"
 	"nocalhost/internal/nhctl/vpn/remote"
 	"nocalhost/internal/nhctl/vpn/util"
 	"os"
@@ -29,7 +31,6 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -106,93 +107,70 @@ func (c *ConnectOptions) ReleaseIP() error {
 }
 
 func (c *ConnectOptions) createRemoteInboundPod() error {
-	var wg = &sync.WaitGroup{}
-	var lock = &sync.Mutex{}
-	var errChan = make(chan error, len(c.Workloads))
 	for _, workload := range c.Workloads {
 		if len(workload) > 0 {
-			wg.Add(1)
-			go func(finalWorkload string) {
-				defer func() {
-					recover()
-					wg.Done()
-				}()
-				lock.Lock()
-				shadowTunIP, _ := c.RentIP(true)
-				lock.Unlock()
-
-				err := CreateInboundPod(
-					c.Ctx,
-					c.factory,
-					c.clientset,
-					c.Namespace,
-					finalWorkload,
-					c.localTunIP.IP.String(),
-					c.trafficManagerIP.String(),
-					shadowTunIP.String(),
-					util.RouterIP.String(),
-				)
-				if err != nil {
-					c.GetLogger().Errorf("error while reversing resource: %s, error: %s", finalWorkload, err)
-					errChan <- err
-				}
-			}(workload)
+			shadowTunIP, err := c.RentIP(true)
+			if err != nil {
+				return err
+			}
+			err = CreateInboundPod(
+				c.Ctx,
+				c.factory,
+				c.clientset,
+				c.Namespace,
+				workload,
+				c.localTunIP.IP.String(),
+				c.trafficManagerIP.String(),
+				shadowTunIP.String(),
+				util.RouterIP.String(),
+			)
+			if err != nil {
+				c.GetLogger().Errorf("error while reversing resource: %s, error: %s", workload, err)
+				return err
+			}
 		}
-	}
-	wg.Wait()
-	select {
-	case err := <-errChan:
-		if err != nil {
-			return err
-		}
-	default:
 	}
 	return nil
 }
 
 func (c *ConnectOptions) RemoveInboundPod() error {
 	for _, workload := range c.Workloads {
-		sc, err := getHandler(c.factory, c.clientset, c.Namespace, workload)
+		sc, err := getHandler(c.factory, c.clientset, c.Namespace, workload, nil)
 		if err != nil {
 			return fmt.Errorf(
 				"error while get handler of resource: %s in namespace: %s, error: %v",
 				workload, c.Namespace, err)
 		}
-		if err = sc.Reset(); err != nil {
+		if err = sc.Rollback(false); err != nil {
 			return fmt.Errorf(
 				"error while reset reverse resource: %s in namespace: %s, error: %v",
 				workload, c.Namespace, err)
-		}
-		if err = util.DeletePod(c.clientset, c.Namespace, sc.ToInboundPodName()); err != nil {
-			return fmt.Errorf(
-				"error while delete reverse pods: %s in namespace: %s, error: %v",
-				sc.ToInboundPodName(), c.Namespace, err)
 		}
 	}
 	return nil
 }
 
-func getHandler(factory cmdutil.Factory, clientset *kubernetes.Clientset, namespace, workload string) (Scalable, error) {
-	tuple, parsed, err2 := util.SplitResourceTypeName(workload)
-	if !parsed || err2 != nil {
-		return nil, errors.New("not need")
+func getHandler(
+	factory cmdutil.Factory,
+	clientset *kubernetes.Clientset,
+	namespace,
+	workload string,
+	config *handler.PodRouteConfig,
+) (handler.Handler, error) {
+	info, err := util.GetUnstructuredObject(factory, namespace, workload)
+	if err != nil {
+		return nil, err
 	}
-	var sc Scalable
-	switch strings.ToLower(tuple.Resource) {
-	case "deployment", "deployments":
-		sc = NewDeploymentHandler(factory, clientset, namespace, tuple.Name)
-	case "statefulset", "statefulsets":
-		sc = NewStatefulsetHandler(factory, clientset, namespace, tuple.Name)
-	case "replicaset", "replicasets":
-		sc = NewReplicasHandler(factory, clientset, namespace, tuple.Name)
-	case "service", "services":
-		sc = NewServiceHandler(factory, clientset, namespace, tuple.Name)
-	case "pod", "pods":
-		sc = NewPodHandler(factory, clientset, namespace, tuple.Name)
-	case "daemonset", "daemonsets":
-		sc = NewDaemonSetHandler(factory, clientset, namespace, tuple.Name)
+	gvk := info.Mapping.Resource
+	svcType := fmt.Sprintf("%s.%s.%s", gvk.Resource, gvk.Version, gvk.Group)
+	var sc handler.Handler
+	switch svcType {
+	case "services.v1.":
+		sc = handler.NewServiceHandler(factory, clientset.CoreV1().Services(info.Namespace), info, config)
+	case "pods.v1.":
+		sc = handler.NewPodHandler(factory, clientset.CoreV1().Pods(info.Namespace), info, config)
 	default:
-		sc = NewCustomResourceDefinitionHandler(factory, clientset, namespace, tuple.Resource, tuple.Name)
+		sc = handler.NewUnstructuredHandler(factory, info, config)
 	}
 	return sc, nil
 }
@@ -379,7 +357,7 @@ func (c *ConnectOptions) startLocalTunServe(ctx context.Context) (chan error, er
 	if err = c.setupDNS(); err != nil {
 		return nil, errors2.WithStack(err)
 	}
-	c.detectConflictDevice()
+	//c.detectConflictDevice()
 	log.Info("setup DNS service successfully")
 	return errChan, nil
 }
@@ -579,7 +557,11 @@ func (c *ConnectOptions) ConnectPingRemote() bool {
 }
 
 func (c *ConnectOptions) ReverePingLocal() bool {
-	handler, err := getHandler(c.factory, c.clientset, c.Namespace, c.Workloads[0])
+	h, err := getHandler(c.factory, c.clientset, c.Namespace, c.Workloads[0], nil)
+	if err != nil {
+		return false
+	}
+	pod, err := h.GetPod()
 	if err != nil {
 		return false
 	}
@@ -587,7 +569,8 @@ func (c *ConnectOptions) ReverePingLocal() bool {
 		c.clientset,
 		c.restclient,
 		c.config,
-		handler.ToInboundPodName(),
+		pod[0].Name,
+		handler.VPN,
 		c.Namespace,
 		fmt.Sprintf("ping %s -c 4", c.localTunIP),
 	)
@@ -598,7 +581,11 @@ func (c *ConnectOptions) Shell(_ context.Context, workload string) (string, erro
 	if len(workload) == 0 {
 		workload = c.Workloads[0]
 	}
-	handler, err := getHandler(c.factory, c.clientset, c.Namespace, workload)
+	h, err := getHandler(c.factory, c.clientset, c.Namespace, workload, nil)
+	if err != nil {
+		return "", err
+	}
+	pod, err := h.GetPod()
 	if err != nil {
 		return "", err
 	}
@@ -606,7 +593,8 @@ func (c *ConnectOptions) Shell(_ context.Context, workload string) (string, erro
 		c.clientset,
 		c.restclient,
 		c.config,
-		handler.ToInboundPodName(),
+		pod[0].Name,
+		handler.VPN,
 		c.Namespace,
 		"ping -c 4 "+c.localTunIP.IP.String(),
 	)
@@ -620,4 +608,8 @@ func (c *ConnectOptions) detectConflictDevice() {
 	if err := DetectAndDisableConflictDevice(tun); err != nil {
 		log.Warnf("error occours while disable conflict devices, err: %v", err)
 	}
+}
+
+func (c *ConnectOptions) GetUnstructuredObject(workload string) (*resource.Info, error) {
+	return util.GetUnstructuredObject(c.factory, c.Namespace, workload)
 }

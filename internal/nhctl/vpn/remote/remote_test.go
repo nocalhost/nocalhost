@@ -15,6 +15,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	json2 "k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -209,10 +210,17 @@ func TestGetTopController(t *testing.T) {
 	configFlags.KubeConfig = &clientcmd.RecommendedHomeFile
 	factory := cmdutil.NewFactory(cmdutil.NewMatchVersionFlags(configFlags))
 	clientset, _ := factory.KubernetesClientSet()
-	controller := util.GetTopController(factory, clientset, "default", "pods/productpage-69cf486c4f-z8hb9")
-	fmt.Println(controller.Resource)
+	controller, err := util.GetTopControllerBaseOnPodLabel(
+		factory,
+		clientset.CoreV1().Pods("default"),
+		"default",
+		labels.SelectorFromSet(map[string]string{"": ""}),
+	)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(controller)
 	fmt.Println(controller.Name)
-	fmt.Println(controller.Scale)
 }
 
 func TestUDP(t *testing.T) {

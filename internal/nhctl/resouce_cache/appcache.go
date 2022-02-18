@@ -124,12 +124,12 @@ func (r *ResourceEventHandlerFuncs) OnUpdate(_, _ interface{}) {
 }
 
 func (r *ResourceEventHandlerFuncs) OnDelete(obj interface{}) {
-	// delete vpn reverse proxy status
+	// uninstall application will disconnect vpn
 	go func() {
 		// if vpn reverse type is pod, it will delete origin pod, and create a new pod with same name
 		objectTemp, ok := obj.(metav1.Object)
 		if ok && !("pods" == r.Gvr.Resource && objectTemp.GetOwnerReferences() != nil) {
-			name := fmt.Sprintf("%s/%s", r.Gvr.Resource, objectTemp.GetName())
+			name := fmt.Sprintf("%s.%s.%s/%s", r.Gvr.Resource, r.Gvr.Version, r.Gvr.Group, objectTemp.GetName())
 			if client, err := daemon_client.GetDaemonClient(false); err == nil {
 				path := k8sutils.GetOrGenKubeConfigPath(string(r.kubeconfigBytes))
 				_ = client.SendVPNOperateCommand(path, objectTemp.GetNamespace(), command.DisConnect, name, nil)

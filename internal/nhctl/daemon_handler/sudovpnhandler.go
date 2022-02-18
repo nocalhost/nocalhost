@@ -30,7 +30,6 @@ func HandleSudoVPNStatus() (interface{}, error) {
 
 // HandleSudoVPNOperate sudo daemon, vpn executor
 func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) error {
-	preCheck(cmd)
 	logCtx := util.GetContextWithLogger(writer)
 	logger := util.GetLoggerFromContext(logCtx)
 	connect := &pkg.ConnectOptions{

@@ -8,9 +8,11 @@ import (
 	"io"
 	"io/ioutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	coreV1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"nocalhost/internal/nhctl/daemon_client"
+	"nocalhost/internal/nhctl/daemon_common"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/vpn/pkg"
 	"nocalhost/internal/nhctl/vpn/remote"
@@ -21,7 +23,6 @@ import (
 
 // HandleVPNOperate not sudo daemon, vpn controller
 func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (err error) {
-	preCheck(cmd)
 	logCtx := util.GetContextWithLogger(writer)
 	logger := util.GetLoggerFromContext(logCtx)
 	defer func() {
@@ -37,7 +38,6 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 		Ctx:            logCtx,
 		KubeconfigPath: cmd.KubeConfig,
 		Namespace:      cmd.Namespace,
-		Workloads:      []string{cmd.Resource},
 	}
 	if err = connect.InitClient(logCtx); err != nil {
 		logger.Errorln("init client err, please make sure your kubeconfig is available!")
@@ -51,6 +51,25 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 		return err
 	}
 	GetOrGenerateConfigMapWatcher(connect.KubeconfigBytes, cmd.Namespace, connect.GetClientSet().CoreV1().RESTClient())
+
+	if len(cmd.Resource) != 0 {
+		// if controller is not nil
+		object, errs := connect.GetUnstructuredObject(cmd.Resource)
+		if errs != nil {
+			return errs
+		}
+		workload := fmt.Sprintf("%s.%s.%s/%s",
+			object.Mapping.Resource.Resource,
+			object.Mapping.GroupVersionKind.Version,
+			object.Mapping.GroupVersionKind.Group,
+			object.Name)
+		connect.Workloads = []string{workload}
+		cmd.Resource = workload
+		if own := object.Object.(*unstructured.Unstructured).GetOwnerReferences(); own != nil {
+			return fmt.Errorf("controller is not nil, please connect to resource: %s/%s",
+				own[0].Kind, own[0].Name)
+		}
+	}
 	switch cmd.Action {
 	case command.Connect:
 		// pre-check if resource already in reversing mode
@@ -102,6 +121,7 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 	case command.DisConnect:
 		defer func() { _ = writer.Close() }()
 		if len(cmd.Resource) != 0 {
+			logger.Infof("disconnecting to resource: %s", cmd.Resource)
 			load, ok := GetReverseInfo().Load(util.GenerateKey(connect.KubeconfigBytes, connect.Namespace))
 			if !ok {
 				logger.Infof("can not found reverse info in namespace: %s, no need to cancel it", connect.Namespace)
@@ -125,6 +145,7 @@ func HandleVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser) (er
 			// if cancel last reverse resources, needs to close connect
 			if value, found := GetReverseInfo().Load(util.GenerateKey(connect.KubeconfigBytes, connect.Namespace)); found {
 				if value.(*status).reverse.GetBelongToMeResources().Len() != 0 {
+					logger.Infof("disconnected to resource: %s", cmd.Resource)
 					return
 				}
 			}
@@ -218,30 +239,10 @@ func transStreamToWriter(r io.Reader, writer ...io.Writer) bool {
 	}
 }
 
-func preCheck(cmd *command.VPNOperateCommand) {
-	if len(cmd.Resource) != 0 {
-		tuple, b, err := util.SplitResourceTypeName(cmd.Resource)
-		if err == nil && b {
-			switch strings.ToLower(tuple.Resource) {
-			case "deployment", "deployments":
-				tuple.Resource = "deployments"
-			case "statefulset", "statefulsets":
-				tuple.Resource = "statefulsets"
-			case "replicaset", "replicasets":
-				tuple.Resource = "replicasets"
-			case "service", "services":
-				tuple.Resource = "services"
-			case "pod", "pods":
-				tuple.Resource = "pods"
-			default:
-				tuple.Resource = "customresourcedefinitions"
-			}
-			cmd.Resource = tuple.String()
-		}
-	}
-}
-
 func connectToNamespace(ctx context.Context, writer io.WriteCloser, kubeconfigPath, namespace string) error {
+	if !util.IsPortListening(daemon_common.SudoDaemonPort) {
+		return errors.New("sudo daemon is not running")
+	}
 	client, err := daemon_client.GetDaemonClient(true)
 	if err != nil {
 		return err
@@ -291,8 +292,10 @@ func disconnectedFromNamespace(ctx context.Context, writer io.WriteCloser, kubec
 	if err = updateConnectConfigMap(options.GetClientSet().CoreV1().ConfigMaps(namespace), deleteFunc); err != nil {
 		logger.Infof("error while remove connection info of namespace: %s", namespace)
 	}
-	var client *daemon_client.DaemonClient
-	client, err = daemon_client.GetDaemonClient(true)
+	if !util.IsPortListening(daemon_common.SudoDaemonPort) {
+		return errors.New("sudo daemon is not running")
+	}
+	client, err := daemon_client.GetDaemonClient(true)
 	if err != nil {
 		return err
 	}

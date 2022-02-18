@@ -32,11 +32,15 @@ func IsBuildInGvk(gvk *schema.GroupVersionKind) bool {
 func init() {
 	supportedSvcType = make(map[base.SvcType]base.DevModeAction, 0)
 	supportedSvcType[base.Deployment] = DefaultDevModeAction
+	supportedSvcType["deployments.v1.apps"] = DefaultDevModeAction
 	supportedSvcType[base.StatefulSet] = DefaultDevModeAction
+	supportedSvcType["statefulsets.v1.apps"] = DefaultDevModeAction
 	supportedSvcType[base.DaemonSet] = DaemonSetDevModeAction
 	supportedSvcType[base.Job] = JobDevModeAction
 	supportedSvcType[base.CronJob] = CronJobDevModeAction
-	supportedSvcType[base.Pod] = PodDevModeAction // Todo
+	supportedSvcType[base.CronJob] = CronJobDevModeAction
+	supportedSvcType[base.Pod] = PodDevModeAction   // Todo
+	supportedSvcType["pods.v1."] = PodDevModeAction // Todo
 
 	// Kruise
 	supportedSvcType["clonesets.v1alpha1.apps.kruise.io"] = DefaultDevModeAction
