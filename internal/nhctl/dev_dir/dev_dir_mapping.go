@@ -260,7 +260,7 @@ func (d DevPath) RemovePack(specifyPack *SvcPack) error {
 func (d DevPath) removePackAndThen(
 	specifyPack *SvcPack,
 	fun func(dirMapping *DevDirMapping,
-	pathToPack map[DevPath][]*SvcPack) error) error {
+		pathToPack map[DevPath][]*SvcPack) error) error {
 	if !specifyPack.valid() {
 		return errors.New("Svc pack is invalid")
 	}
@@ -320,6 +320,9 @@ func (svcPack *SvcPack) valid() bool {
 
 func getDefaultPack(path DevPath) (*SvcPack, error) {
 	packs := getAllPacks(path)
+	if packs == nil {
+		return nil, NO_DEFAULT_PACK
+	}
 	defaultSvcPackKey := packs.DefaultSvcPackKey
 
 	if pack, ok := packs.Packs[defaultSvcPackKey]; ok {
