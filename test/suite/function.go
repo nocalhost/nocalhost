@@ -464,7 +464,7 @@ func Install(cli runner.Client) {
 
 // Prepare will install a nhctl client, create a k8s cluster if necessary
 func Prepare() (cancelFunc func(), namespaceResult, kubeconfigResult string) {
-	t := cluster.NewDefaultVCluster()
+	t := cluster.NewNothing()
 	kubeconfig, err := t.Create()
 	if err != nil {
 		log.Info(err)
