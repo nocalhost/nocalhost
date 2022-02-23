@@ -43,7 +43,7 @@ func InitApp(appName string) (*app.Application, error) {
 
 func InitAppMutate(appName string) (*app.Application, error) {
 	var err error
-	if err := Prepare(); err != nil {
+	if err = Prepare(); err != nil {
 		return nil, err
 	}
 
@@ -52,8 +52,7 @@ func InitAppMutate(appName string) (*app.Application, error) {
 		log.Logf("Get application %s on namespace %s occurs error: %v", appName, NameSpace, err)
 		// if default application not found, try to create one
 		if errors.Is(err, app.ErrNotFound) && appName == _const.DefaultNocalhostApplication {
-			nocalhostApp, err = common.InitDefaultApplicationInCurrentNs(appName, NameSpace, KubeConfig)
-			return nil, err
+			return common.InitDefaultApplicationInCurrentNs(appName, NameSpace, KubeConfig)
 		} else {
 			return nil, errors.New("Failed to get application info")
 		}
