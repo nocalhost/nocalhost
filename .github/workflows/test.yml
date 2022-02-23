@@ -90,8 +90,7 @@ jobs:
         uses: Azure/setup-kubectl@v1
       - name: Helm tool installer
         uses: Azure/setup-helm@v1
-      - uses: zhangjian10/nocalhost-server-cli@v0.0.8
-        id: create-cluster
+      - uses: zhangjian10/nocalhost-server-cli@latest
         with:
           host: ${{ secrets.NOCALHOST_VCLUSTER_HOST_FOR_TEST }}
           email: ${{ secrets.NOCALHOST_VCLUSTER_EMAIL_FOR_TEST }}
@@ -115,12 +114,3 @@ jobs:
           cd test
           go build
           ./test
-      - uses: zhangjian10/nocalhost-server-cli@v0.0.8
-        if: ${{ always() }}
-        with:
-          host: ${{ secrets.NOCALHOST_VCLUSTER_HOST_FOR_TEST }}
-          email: ${{ secrets.NOCALHOST_VCLUSTER_EMAIL_FOR_TEST }}
-          password: ${{ secrets.NOCALHOST_VCLUSTER_PASSWORD_FOR_TEST }}
-          action: devSpace.remove
-          # The deleted cluster id can be used with the cluster id created above
-          parameters: ${{ steps.create-cluster.outputs.space_id }}
