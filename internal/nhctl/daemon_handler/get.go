@@ -351,7 +351,9 @@ func HandleGetResourceInfoRequest(request *command.GetResourceInfoCommand) (inte
 				//} else {
 				//	tt := fmt.Sprintf("%s.%s.%s", mapping.Gvr.Resource, mapping.Gvr.Version, mapping.Gvr.Group)
 				//}
-				tempItem.Description = &profile.SvcProfileV2{}
+				tempItem.Description = &profile.SvcProfileV2{
+					DevPortForwardList: make([]*profile.DevPortForward, 0),
+				}
 				if tm, ok := serviceMap[mapping.GetFullName()]; ok {
 					if d, ok := tm[i.(metav1.Object).GetName()]; ok {
 						tempItem.Description = d
