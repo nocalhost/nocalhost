@@ -142,6 +142,8 @@ func RunSubProcess(args, env []string, exitParent bool) error {
 		return errors.Wrap(err, "")
 	}
 
+	go cmd.Wait()
+
 	if exitParent {
 		os.Exit(0)
 	}
