@@ -19,7 +19,6 @@ import (
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/internal/nhctl/utils"
-	"nocalhost/internal/nhctl/vpn/util"
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"runtime/debug"
@@ -113,10 +112,6 @@ func getCachedDaemonClient(isSudoUser bool) (*DaemonClient, error) {
 }
 
 func newDaemonClient(isSudoUser bool) (*DaemonClient, error) {
-
-	if isSudoUser && !util.IsAdmin() {
-		return nil, errors.New("Can not start daemon server with sudo")
-	}
 
 	var err error
 	client := &DaemonClient{
