@@ -8,6 +8,7 @@ package cmds
 import (
 	"github.com/spf13/cobra"
 	"nocalhost/internal/nhctl/daemon_client"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/internal/nhctl/vpn/util"
 	"nocalhost/pkg/nhctl/log"
 )
@@ -22,7 +23,7 @@ var vpnElevateCmd = &cobra.Command{
 	Long:  `elevate`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// if not sudo and sudo daemon is not running, needs sudo permission
-		if !util.IsAdmin() && !util.IsSudoDaemonServing() {
+		if !utils.IsAdmin() && !util.IsSudoDaemonServing() {
 			util.RunWithElevated()
 			return
 		}

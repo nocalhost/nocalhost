@@ -11,7 +11,6 @@ import (
 	"io/ioutil"
 	"nocalhost/internal/nhctl/syncthing/daemon"
 	"nocalhost/internal/nhctl/utils"
-	"nocalhost/internal/nhctl/vpn/util"
 	"path/filepath"
 )
 
@@ -64,7 +63,7 @@ func StartDaemonServerBySubProcess(isSudoUser bool) error {
 		err       error
 	)
 
-	if isSudoUser && !util.IsAdmin() {
+	if isSudoUser && !utils.IsAdmin() {
 		return errors.New("Can not start daemon server with sudo")
 	}
 

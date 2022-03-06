@@ -34,7 +34,3 @@ func RunWithElevated() {
 		log.Warn(err)
 	}
 }
-
-func IsAdmin() bool {
-	return os.Getuid() == 0
-}
