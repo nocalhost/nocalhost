@@ -52,7 +52,7 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser)
 	case command.Connect:
 		lock.Lock()
 		defer lock.Unlock()
-		if connected != nil && !connected.IsEmpty() {
+		if !connected.IsEmpty() {
 			if !connected.IsSameUid(connect) {
 				logger.Errorf("connected to namespace: %s, but want's to connect to namespace: %s",
 					connected.Namespace, cmd.Namespace)

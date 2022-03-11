@@ -72,7 +72,7 @@ func (c *ConnectOptions) IsSameUid(another *ConnectOptions) bool {
 }
 
 func (c *ConnectOptions) IsEmpty() bool {
-	return c == nil || (len(c.KubeconfigBytes)+len(c.Namespace)) == 0
+	return c == nil || len(c.Uid) == 0
 }
 
 func (c *ConnectOptions) GetClientSet() *kubernetes.Clientset {
