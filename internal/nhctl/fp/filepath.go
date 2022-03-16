@@ -239,6 +239,10 @@ func (f *FilePathEnhance) ReadEnvFileKV() map[string]string {
 	return envFiles
 }
 
+func (f *FilePathEnhance) Remove()error {
+	return os.Remove(f.absPath)
+}
+
 // DownloadFile will download a url to a local file. It's efficient because it will
 // write as it downloads and not load the whole file into memory.
 func downloadFile(url string) ([]byte, error) {

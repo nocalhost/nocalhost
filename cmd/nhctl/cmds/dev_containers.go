@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/pkg/nhctl/log"
 )
 
@@ -17,11 +18,11 @@ import (
 
 func init() {
 	devContainersCmd.Flags().StringVarP(
-		&deployment, "deployment", "d", "",
+		&common.WorkloadName, "deployment", "d", "",
 		"k8s deployment which your developing service exists",
 	)
 	devContainersCmd.Flags().StringVarP(
-		&serviceType, "controller-type", "t", "deployment",
+		&common.ServiceType, "controller-type", "t", "deployment",
 		"kind of k8s controller,such as deployment,statefulSet",
 	)
 	debugCmd.AddCommand(devContainersCmd)
@@ -39,7 +40,8 @@ var devContainersCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		applicationName := args[0]
-		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
+		_, nocalhostSvc, err := common.InitAppAndCheckIfSvcExist(applicationName, common.WorkloadName, common.ServiceType)
+		must(err)
 
 		containerList, err := nocalhostSvc.GetOriginalContainers()
 		must(err)

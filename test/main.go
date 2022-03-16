@@ -12,6 +12,7 @@ import (
 	"nocalhost/test/runner"
 	"nocalhost/test/suite"
 	"nocalhost/test/testcase"
+	"nocalhost/test/util"
 	"os"
 	"path/filepath"
 	"sync"
@@ -19,18 +20,16 @@ import (
 )
 
 func main() {
-	//_ = os.Setenv("LocalTest", "true")
 	_ = os.Setenv(_const.EnableFullLogEnvKey, "true")
-
 	start := time.Now()
-
 	var t *suite.T
 
 	if _, ok := os.LookupEnv("LocalTest"); ok {
 		// For local test
+		_ = os.Setenv(util.CommitId, "test")
 		t = suite.NewT("nocalhost", filepath.Join(utils.GetHomePath(), ".kube", "config"), nil)
-		_ = os.Setenv("commit_id", "test")
 	} else {
+		//_ = os.Setenv(util.CommitId, "test")
 		cancelFunc, ns, kubeconfig := suite.Prepare()
 		t = suite.NewT(ns, kubeconfig, cancelFunc)
 	}

@@ -442,14 +442,14 @@ func waitForJob(obj runtime.Object, name string) (bool, error) {
 
 	for _, c := range o.Status.Conditions {
 		if c.Type == batchv1.JobComplete && c.Status == "True" {
-			fmt.Printf("Job %s completed\n", name)
+			log.Infof("Job %s completed", name)
 			return true, nil
 		} else if c.Type == batchv1.JobFailed && c.Status == "True" {
-			fmt.Printf("Job %s failed\n", name)
+			log.Infof("Job %s failed", name)
 			return true, errors.Errorf("job failed: %s", c.Reason)
 		}
 	}
-	fmt.Printf("Job %s running\n", name)
+	log.Infof("Job %s running", name)
 
 	return false, nil
 }
@@ -566,5 +566,15 @@ out:
 		}
 	}
 	log.Infof("delete pod: %s successfully", podName)
+	return nil
+}
+
+// GetControllerOf returns a pointer to the controllerRef if controllee has a controller
+func GetControllerOfNoCopy(refs []metav1.OwnerReference) *metav1.OwnerReference {
+	for i := range refs {
+		if refs[i].Controller != nil && *refs[i].Controller {
+			return &refs[i]
+		}
+	}
 	return nil
 }

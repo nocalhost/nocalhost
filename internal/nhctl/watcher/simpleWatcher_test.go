@@ -6,6 +6,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	kblabels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	_const "nocalhost/internal/nhctl/const"
 	utils2 "nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
@@ -95,8 +96,15 @@ func containerStatusForDevPod(maybePod *unstructured.Unstructured, consumeFun fu
 		}
 	}
 
+	annotations := maybePod.GetAnnotations()
+	devContainerName, ok := annotations[_const.NocalhostDevContainerAnnotations]
+	if !ok {
+		devContainerName = _const.NocalhostDefaultDevContainerName
+	}
+
 	for _, status := range pod.Status.ContainerStatuses {
-		if status.Name != "nocalhost-dev" && status.Name != "nocalhost-sidecar" {
+
+		if status.Name != devContainerName && status.Name != _const.NocalhostDefaultDevSidecarName {
 			continue
 		}
 

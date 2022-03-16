@@ -92,7 +92,6 @@ func (asw *applicationSecretWatcher) join(secret *v1.Secret) error {
 			},
 		)
 	}
-
 	return nil
 }
 

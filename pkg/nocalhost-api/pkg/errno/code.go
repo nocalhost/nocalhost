@@ -39,6 +39,7 @@ var (
 	ErrDeleteUser                 = &Errno{Code: 20117, Message: "Failed to delete user"}
 	ErrUserLoginWebNotAllow       = &Errno{Code: 20118, Message: "Normal users are not allowed login web interface"}
 	RefreshTokenInvalidOrNotMatch = &Errno{Code: 20119, Message: "Refresh token is invalid or token not matched"}
+	LDAPBindFail                  = &Errno{Code: 20111, Message: "Fail to login into LDAP"}
 
 	// cluster errors for cluster module request
 	ErrClusterCreate      = &Errno{Code: 30100, Message: "Failed to add cluster, please try again"}
@@ -220,5 +221,18 @@ var (
 	}
 	ErrRoleBindingDelete = &Errno{
 		Code: 70007, Message: "Failed to remove role binding, please check your cluster and try again",
+	}
+
+	ErrFailToSaveLDAPSettings = &Errno{
+		Code: 110001, Message: "Failed to saving config, please check the type in and try again",
+	}
+	ErrFailToGetLDAPSettings = &Errno{
+		Code: 110002, Message: "Failed to getting config, please try again",
+	}
+	ErrFailLDAPBind = &Errno{
+		Code: 110003, Message: "Ldap binding fail, please check your bindDN and password and try again",
+	}
+	ErrFailToSearchLDAP = &Errno{
+		Code: 110004, Message: "Failed to search Ldap, please check your Ldap configurations and try again",
 	}
 )

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/const"
 	"nocalhost/pkg/nhctl/clientgoutils"
 
@@ -33,7 +34,7 @@ func init() {
 	pvcListCmd.Flags().BoolVar(&pvcFlags.Yaml, "yaml", false, "Use yaml as the output format")
 	pvcListCmd.Flags().BoolVar(&pvcFlags.Json, "json", false, "Use json as the output format")
 	pvcListCmd.Flags().StringVarP(
-		&serviceType, "controller-type", "t", "deployment",
+		&common.ServiceType, "controller-type", "t", "deployment",
 		"kind of k8s controller,such as deployment,statefulSet")
 	pvcCmd.AddCommand(pvcListCmd)
 }
@@ -46,19 +47,20 @@ var pvcListCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var pvcList []v1.PersistentVolumeClaim
 		if pvcFlags.App != "" {
-			var err error
 			if pvcFlags.Svc != "" {
-				initAppAndCheckIfSvcExist(pvcFlags.App, pvcFlags.Svc, serviceType)
+				_, nocalhostSvc, err := common.InitAppAndCheckIfSvcExist(pvcFlags.App, pvcFlags.Svc, common.ServiceType)
+				must(err)
 				pvcList, err = nocalhostSvc.GetPVCsBySvc()
 				must(err)
 			} else {
-				initApp(pvcFlags.App)
+				nocalhostApp, err := common.InitApp(pvcFlags.App)
+				must(err)
 				pvcList, err = nocalhostApp.GetAllPVCs()
 				must(err)
 			}
 		} else {
 			// List all pvc of current namespace
-			cli, err := clientgoutils.NewClientGoUtils(kubeConfig, nameSpace)
+			cli, err := clientgoutils.NewClientGoUtils(common.KubeConfig, common.NameSpace)
 			must(err)
 			pvcList, err = cli.ListPvcs()
 			must(err)

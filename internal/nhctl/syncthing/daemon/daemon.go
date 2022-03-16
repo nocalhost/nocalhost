@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package daemon
 
@@ -136,8 +136,13 @@ func RunSubProcess(args, env []string, exitParent bool) error {
 
 	err := cmd.Start()
 	if err != nil {
+		if cmd.Process != nil {
+			_ = cmd.Process.Kill()
+		}
 		return errors.Wrap(err, "")
 	}
+
+	go cmd.Wait()
 
 	if exitParent {
 		os.Exit(0)

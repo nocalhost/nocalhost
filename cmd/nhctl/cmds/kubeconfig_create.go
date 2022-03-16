@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api/v1"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
@@ -30,10 +31,10 @@ var kubeconfigCreateCmd = &cobra.Command{
 	Short:   "Create a kubeconfig for specified namespace",
 	Long:    `Create a kubeconfig for specified namespace`,
 	Run: func(cmd *cobra.Command, args []string) {
-		if kubeConfig == "" {
-			kubeConfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
+		if common.KubeConfig == "" {
+			common.KubeConfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
 		}
-		GenKubeconfig(kubeConfig, nameSpace)
+		GenKubeconfig(common.KubeConfig, common.NameSpace)
 	},
 }
 

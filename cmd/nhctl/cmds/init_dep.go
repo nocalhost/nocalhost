@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cmds
 
@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"io/ioutil"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
@@ -31,9 +32,9 @@ var InitDepCommand = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		must(Prepare())
+		must(common.Prepare())
 
-		rawKubeConfig, err := ioutil.ReadFile(kubeConfig)
+		rawKubeConfig, err := ioutil.ReadFile(common.KubeConfig)
 		must(errors.Wrap(err, ""))
 
 		goClient, err := clientgo.NewAdminGoClient(rawKubeConfig)
@@ -48,8 +49,8 @@ var InitDepCommand = &cobra.Command{
 		_, err, _ = clusterSetUp.InitCluster(tag)
 		mustI(err, "init dep component fail")
 
-		client, err := clientgoutils.NewClientGoUtils(kubeConfig, app.DefaultInitWaitNameSpace)
-		fmt.Printf("kubeconfig %s \n", kubeConfig)
+		client, err := clientgoutils.NewClientGoUtils(common.KubeConfig, app.DefaultInitWaitNameSpace)
+		fmt.Printf("kubeconfig %s \n", common.KubeConfig)
 		if err != nil || client == nil {
 			log.Fatalf("new go client fail, err: %s, or check you kubeconfig\n", err)
 			return

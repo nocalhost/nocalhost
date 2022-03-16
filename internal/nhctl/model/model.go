@@ -15,9 +15,9 @@ type NocalHostResource struct {
 }
 
 type DevStartOptions struct {
-	SideCarImage string
-	DevImage     string
-	Container string
+	SideCarImage     string
+	DevImage         string
+	Container        string
 
 	// for debug
 	SyncthingVersion string

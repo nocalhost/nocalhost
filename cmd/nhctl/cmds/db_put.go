@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"io/ioutil"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/log"
 )
@@ -33,11 +34,11 @@ var dbPutCmd = &cobra.Command{
 		}
 
 		if levelDbValue != "" {
-			must(nocalhost.UpdateKey(nameSpace, appName, nid, levelDbKey, levelDbValue))
+			must(nocalhost.UpdateKey(common.NameSpace, appName, nid, levelDbKey, levelDbValue))
 		} else if levelDbValueFile != "" {
 			bys, err := ioutil.ReadFile(levelDbValueFile)
 			must(errors.Wrap(err, ""))
-			must(nocalhost.UpdateKey(nameSpace, appName, nid, levelDbKey, string(bys)))
+			must(nocalhost.UpdateKey(common.NameSpace, appName, nid, levelDbKey, string(bys)))
 		} else {
 			log.Fatal("--value or --file must be specified")
 		}

@@ -1,13 +1,14 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package user
 
 import (
 	"context"
 	"github.com/spf13/cast"
+	"strconv"
 
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
@@ -82,6 +83,21 @@ func GetMe(c *gin.Context) {
 // @Success 200 {object} model.UserList "Get user list"
 // @Router /v1/users [get]
 func GetList(c *gin.Context) {
-	u, _ := service.Svc.UserSvc().GetUserList(context.TODO())
+	page := c.Query("page")
+	limit := c.Query("limit")
+
+	pageInt := 0
+	limitInt := 0
+	if page != "" {
+		pageInt, _ = strconv.Atoi(page)
+	}
+	if limit != "" {
+		limitInt, _ = strconv.Atoi(limit)
+	}
+
+	u, _ := service.Svc.UserSvc().GetUserPageable(
+		context.TODO(),
+		pageInt, limitInt,
+	)
 	api.SendResponse(c, nil, u)
 }

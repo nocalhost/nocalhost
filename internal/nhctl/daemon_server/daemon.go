@@ -362,6 +362,7 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 					acCmd.KubeConfigContent,
 					acCmd.NameSpace,
 					nil,
+					true,
 					acCmd.NeedChecks...)
 			})
 

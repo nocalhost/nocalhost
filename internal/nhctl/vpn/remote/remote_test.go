@@ -15,6 +15,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	json2 "k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
@@ -208,10 +210,17 @@ func TestGetTopController(t *testing.T) {
 	configFlags.KubeConfig = &clientcmd.RecommendedHomeFile
 	factory := cmdutil.NewFactory(cmdutil.NewMatchVersionFlags(configFlags))
 	clientset, _ := factory.KubernetesClientSet()
-	controller := util.GetTopController(factory, clientset, "default", "pods/productpage-69cf486c4f-z8hb9")
-	fmt.Println(controller.Resource)
+	controller, err := util.GetTopControllerBaseOnPodLabel(
+		factory,
+		clientset.CoreV1().Pods("default"),
+		"default",
+		labels.SelectorFromSet(map[string]string{"": ""}),
+	)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(controller)
 	fmt.Println(controller.Name)
-	fmt.Println(controller.Scale)
 }
 
 func TestUDP(t *testing.T) {
@@ -285,4 +294,27 @@ func server() {
 func TestGetMac(t *testing.T) {
 	address := util.GetMacAddress()
 	fmt.Println(address.String())
+}
+
+func TestPatchCm(t *testing.T) {
+	clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		&clientcmd.ClientConfigLoadingRules{ExplicitPath: clientcmd.RecommendedHomeFile}, nil,
+	)
+	config, err := clientConfig.ClientConfig()
+	if err != nil {
+		log.Fatal(err)
+	}
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		log.Fatal(err)
+	}
+	patch, err := clientset.CoreV1().ConfigMaps("default").Patch(
+		context.Background(),
+		"kubevpn.traffic.manager",
+		types.MergePatchType,
+		[]byte("{\"data\":{\"Connect\":\"1.1.1.1,2.2.2.666666\\nac:de:48:00:11:22\\n\"}}"),
+		metav1.PatchOptions{},
+	)
+	fmt.Println(err)
+	fmt.Println(patch)
 }

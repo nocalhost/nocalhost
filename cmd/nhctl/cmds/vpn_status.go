@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/vpn/pkg"
 	"nocalhost/internal/nhctl/vpn/util"
@@ -16,8 +17,8 @@ import (
 )
 
 func init() {
-	vpnStatusCmd.Flags().StringVar(&kubeConfig, "kubeconfig", clientcmd.RecommendedHomeFile, "kubeconfig")
-	vpnStatusCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "namespace")
+	vpnStatusCmd.Flags().StringVar(&common.NameSpace, "kubeconfig", clientcmd.RecommendedHomeFile, "kubeconfig")
+	vpnStatusCmd.Flags().StringVarP(&common.NameSpace, "namespace", "n", "", "namespace")
 	vpnStatusCmd.Flags().StringVar(&workloads, "workloads", "", "workloads, like: services/tomcat, deployment/nginx, replicaset/tomcat...")
 	vpnStatusCmd.Flags().BoolVar(&util.Debug, "debug", false, "true/false")
 	vpnCmd.AddCommand(vpnStatusCmd)
@@ -34,19 +35,22 @@ var vpnStatusCmd = &cobra.Command{
 				if marshal, err := json.Marshal(command); err == nil {
 					var result cluster
 					if err = json.Unmarshal(marshal, &result); err == nil {
-						n.Actual = result
+						n.Daemon = result
 					}
 				}
 			}
 		}
-		if sudoclient, err := daemon_client.GetDaemonClient(true); err == nil {
-			if command, err := sudoclient.SendSudoVPNStatusCommand(); err == nil {
-				if marshal, err := json.Marshal(command); err == nil {
-					var result pkg.ConnectOptions
-					if err = json.Unmarshal(marshal, &result); err == nil {
-						n.Expected = cluster{
-							Namespace:  result.Namespace,
-							Kubeconfig: string(result.KubeconfigBytes),
+		if util.IsSudoDaemonServing() {
+			if sudoclient, err := daemon_client.GetDaemonClient(true); err == nil {
+				if command, err := sudoclient.SendSudoVPNStatusCommand(); err == nil {
+					if marshal, err := json.Marshal(command); err == nil {
+						var result pkg.ConnectOptions
+						if err = json.Unmarshal(marshal, &result); err == nil {
+							n.SudoDaemon = cluster{
+								Uid:        result.Uid,
+								Namespace:  result.Namespace,
+								Kubeconfig: string(result.KubeconfigBytes),
+							}
 						}
 					}
 				}
@@ -59,17 +63,17 @@ var vpnStatusCmd = &cobra.Command{
 }
 
 type name struct {
-	Expected cluster
-	Actual   cluster
-	Equal    bool
+	SudoDaemon cluster
+	Daemon     cluster
+	Equal      bool
 }
 
 func (n *name) isEquals() {
-	n.Equal = util.GenerateKey([]byte(n.Actual.Kubeconfig), n.Actual.Namespace) ==
-		util.GenerateKey([]byte(n.Expected.Kubeconfig), n.Expected.Namespace)
+	n.Equal = n.Daemon.Uid == n.SudoDaemon.Uid
 }
 
 type cluster struct {
+	Uid        string
 	Namespace  string
 	Kubeconfig string
 }

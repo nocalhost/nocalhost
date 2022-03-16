@@ -8,6 +8,7 @@ package cmds
 import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/pkg/nhctl/log"
 )
 
@@ -17,7 +18,7 @@ func init() {
 		"k8s deployment which your developing service exists",
 	)
 	configReloadCmd.Flags().StringVarP(
-		&serviceType, "controller-type", "t", "deployment",
+		&common.ServiceType, "controller-type", "t", "deployment",
 		"kind of k8s controller,such as deployment,statefulSet",
 	)
 	configCmd.AddCommand(configReloadCmd)
@@ -35,14 +36,16 @@ var configReloadCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		commonFlags.AppName = args[0]
-		initApp(commonFlags.AppName)
+		nocalhostApp, err := common.InitApp(commonFlags.AppName)
+		must(err)
 
 		if commonFlags.SvcName == "" {
 			if err := nocalhostApp.ReloadCfg(true, false); err != nil {
 				log.Fatal(errors.Wrap(err, ""))
 			}
 		} else {
-			checkIfSvcExist(commonFlags.SvcName, serviceType)
+			nocalhostSvc, err := nocalhostApp.InitAndCheckIfSvcExist(commonFlags.SvcName, common.ServiceType)
+			must(err)
 			if err := nocalhostApp.ReloadSvcCfg(commonFlags.SvcName, nocalhostSvc.Type, true, false); err != nil {
 				log.Fatal(errors.Wrap(err, ""))
 			}

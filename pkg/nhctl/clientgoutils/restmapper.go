@@ -9,6 +9,7 @@ import (
 	"context"
 	"github.com/pkg/errors"
 	authorizationv1 "k8s.io/api/authorization/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/restmapper"
@@ -90,6 +91,34 @@ func (c *ClientGoUtils) ResourceFor(resourceArg string, tryLoadFromCache bool) s
 	return gvr
 }
 
-func (c *ClientGoUtils) KindFor(resource schema.GroupVersionResource) (schema.GroupVersionKind, error){
+func (c *ClientGoUtils) KindFor(resource schema.GroupVersionResource) (schema.GroupVersionKind, error) {
 	return c.restMapper.KindFor(resource)
+}
+
+func (c *ClientGoUtils) ResourceForGVK(gvk schema.GroupVersionKind) (schema.GroupVersionResource, bool, error) {
+	mapping, err := c.restMapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+	if err != nil {
+		return schema.GroupVersionResource{}, false, err
+	}
+
+	nsed, err := IsNamespaced(mapping.Resource, c.restMapper)
+	if err != nil {
+		return schema.GroupVersionResource{}, false, err
+	}
+
+	return mapping.Resource, nsed, nil
+}
+
+func IsNamespaced(gvr schema.GroupVersionResource, mapper meta.RESTMapper) (bool, error) {
+	kind, err := mapper.KindFor(gvr)
+	if err != nil {
+		return false, err
+	}
+
+	mapping, err := mapper.RESTMapping(kind.GroupKind(), kind.Version)
+	if err != nil {
+		return false, err
+	}
+
+	return mapping.Scope.Name() == meta.RESTScopeNameNamespace, nil
 }

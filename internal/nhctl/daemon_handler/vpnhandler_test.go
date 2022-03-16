@@ -2,14 +2,18 @@ package daemon_handler
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
+	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/vpn/pkg"
 	"nocalhost/internal/nhctl/vpn/util"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -96,4 +100,70 @@ func TestStruct(t *testing.T) {
 	marshal, err := json.Marshal(vpnStatus)
 	fmt.Println(err)
 	fmt.Println(string(marshal))
+}
+
+func TestGetDaemonVPNStatus(t *testing.T) {
+	client, err := daemon_client.GetDaemonClient(true)
+	if err != nil {
+		panic(err)
+	}
+	statusCommand, err := client.SendSudoVPNStatusCommand()
+	if err != nil {
+		panic(err)
+	}
+	marshal, err := json.Marshal(statusCommand)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(string(marshal))
+
+}
+
+func TestConnect(t *testing.T) {
+	client, err := daemon_client.GetDaemonClient(true)
+	if err != nil {
+		panic(err)
+	}
+	logger := util.GetLoggerFromContext(context.TODO())
+	options := pkg.ConnectOptions{
+		KubeconfigPath: "/Users/naison/.kube/mesh",
+		Namespace:      "naison-test",
+	}
+	if err = options.InitClient(context.TODO()); err != nil {
+		panic(err)
+	}
+	if err = updateConnectConfigMap(options.GetClientSet().CoreV1().ConfigMaps(options.Namespace), insertFunc); err != nil {
+		panic(err)
+	}
+	logger.Infof("connecting to new namespace: %s...", "naison-test")
+	err = client.SendSudoVPNOperateCommand("/Users/naison/.kube/mesh",
+		"naison-test",
+		command.Connect,
+		func(closer io.Reader) error {
+			if ok := transStreamToWriter(closer, os.Stdout); !ok {
+				panic(fmt.Errorf("failed to connect to namespace: %s", "naison-test"))
+			}
+			return nil
+		})
+	if err != nil {
+		panic(err)
+	}
+}
+
+func TestToStatus(t *testing.T) {
+	ns := "demo"
+	options := pkg.ConnectOptions{
+		KubeconfigPath: "/Users/naison/.kube/nocalhost.large",
+		Namespace:      ns,
+	}
+	if err := options.InitClient(context.TODO()); err != nil {
+		panic(err)
+	}
+	get, err := options.GetClientSet().CoreV1().ConfigMaps(ns).
+		Get(context.TODO(), util.TrafficManager, metav1.GetOptions{})
+	if err != nil {
+		panic(err)
+	}
+	toStatus := ToStatus(get.Data)
+	fmt.Println(toStatus)
 }

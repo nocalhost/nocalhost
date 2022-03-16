@@ -15,10 +15,10 @@ import (
 )
 
 func (c *Controller) GetSyncThingPidFile() string {
-	return filepath.Join(c.GetApplicationSyncDir(), _const.DefaultApplicationSyncPidFile)
+	return filepath.Join(c.GetSyncDir(), _const.DefaultApplicationSyncPidFile)
 }
 
-func (c *Controller) GetApplicationSyncDir() string {
+func (c *Controller) GetSyncDir() string {
 	dirPath := ""
 	if c.Type == base.Deployment {
 		dirPath = filepath.Join(c.getAppHomeDir(), _const.DefaultBinSyncThingDirName, c.Name)

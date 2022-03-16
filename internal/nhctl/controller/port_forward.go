@@ -177,7 +177,6 @@ func (c *Controller) PortForward(podName string, localPort, remotePort int, role
 	if err = client.SendStartPortForwardCommand(nhResource, localPort, remotePort, role, c.AppMeta.NamespaceId); err != nil {
 		return err
 	} else {
-		log.Infof("Port-forward %d:%d has been started", localPort, remotePort)
 		return c.SetPortForwardedStatus(true) //  todo: move port-forward start
 	}
 }

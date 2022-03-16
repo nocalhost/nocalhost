@@ -84,6 +84,9 @@ type ClusterList struct {
 type ClusterListVo struct {
 	ClusterList
 	Resources []Resource `json:"resources"`
+
+	// the user create the cluster
+	UserName  string     `json:"user_name"`
 }
 
 type Resource struct {

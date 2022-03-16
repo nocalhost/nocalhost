@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/common/base"
 )
 
@@ -19,7 +20,7 @@ func init() {
 	describeCmd.Flags().StringVarP(&deploy, "deployment", "d", "",
 		"k8s deployment which your developing service exists",
 	)
-	describeCmd.Flags().StringVarP(&serviceType, "type", "t", "deployment", "specify service type")
+	describeCmd.Flags().StringVarP(&common.ServiceType, "type", "t", "deployment", "specify service type")
 	rootCmd.AddCommand(describeCmd)
 }
 
@@ -35,7 +36,8 @@ var describeCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		applicationName := args[0]
-		initApp(applicationName)
+		nocalhostApp, err := common.InitApp(applicationName)
+		must(err)
 		if deploy == "" {
 			appProfile := nocalhostApp.GetDescription()
 			for _, svcProfileV2 := range appProfile.SvcProfile {
@@ -46,7 +48,8 @@ var describeCmd = &cobra.Command{
 				fmt.Print(string(bytes))
 			}
 		} else {
-			checkIfSvcExist(deploy, serviceType)
+			nocalhostSvc, err := nocalhostApp.InitAndCheckIfSvcExist(deploy, common.ServiceType)
+			must(err)
 			svcProfile := nocalhostSvc.GetDescription()
 			bytes, err := yaml.Marshal(svcProfile)
 			if err == nil {
