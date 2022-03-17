@@ -11,6 +11,7 @@ import (
 	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_server/command"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/internal/nhctl/vpn/driver"
 	"nocalhost/internal/nhctl/vpn/util"
 	"nocalhost/pkg/nhctl/log"
@@ -36,7 +37,7 @@ var reconnectCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		// if not sudo and sudo daemon is not running, needs sudo permission
-		if !util.IsAdmin() && !util.IsSudoDaemonServing() {
+		if !utils.IsAdmin() && !util.IsSudoDaemonServing() {
 			if err := util.RunWithElevated(); err != nil {
 				log.Warn(err)
 				return

@@ -64,6 +64,10 @@ func IsSudoUser() bool {
 	return false
 }
 
+func IsAdmin() bool {
+	return os.Getuid() == 0
+}
+
 func Sha1ToString(str string) string {
 	hash := sha1.New()
 	hash.Write([]byte(str))

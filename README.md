@@ -27,7 +27,7 @@ In order to give you a better understanding of Nocalhost, it is recommended that
 
 ### IDE Supports
 
-Nocalhost provides easy-to-use IDE extension for JetBrains and VSCode. These extension will enable developer to develop and debug cloud-based application in their local machine.
+Nocalhost provides easy-to-use IDE extensions for JetBrains and VSCode. These extensions will enable developer to develop and debug cloud-based application in their local machine.
 
 ## Start cloud-native application development in one click
 
