@@ -81,7 +81,7 @@ var devAssociateCmd = &cobra.Command{
 
 		var err error = nil
 
-		// init this is field logic:
+		// init this two field logic:
 		// if nid is not empty, delay init when use it
 		// if nid is empty, init it immediately
 		var nocalhostApp *app.Application
