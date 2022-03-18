@@ -59,6 +59,10 @@ func init() {
 		&info, "info", false,
 		"get associated path from svc ",
 	)
+	devAssociateCmd.Flags().StringVarP(
+		&nid, "nid", "", "",
+		"namespace id",
+	)
 	debugCmd.AddCommand(devAssociateCmd)
 }
 
@@ -76,15 +80,24 @@ var devAssociateCmd = &cobra.Command{
 		commonFlags.AppName = args[0]
 
 		var err error = nil
-		var nid = ""
+
+		// init this two field logic:
+		// if nid is not empty, delay init when use it
+		// if nid is empty, init it immediately
 		var nocalhostApp *app.Application
 		var nocalhostSvc *controller.Controller
-		if err = common.Prepare(); err == nil {
-			if nocalhostApp, err = common.InitApp(commonFlags.AppName); err == nil {
-				if nocalhostSvc, err = nocalhostApp.InitAndCheckIfSvcExist(commonFlags.SvcName, common.ServiceType); err == nil {
-					nid = nocalhostSvc.AppMeta.NamespaceId
+
+		var f = func() {
+			if err = common.Prepare(); err == nil {
+				if nocalhostApp, err = common.InitApp(commonFlags.AppName); err == nil {
+					if nocalhostSvc, err = nocalhostApp.InitAndCheckIfSvcExist(commonFlags.SvcName, common.ServiceType); err == nil {
+						nid = nocalhostSvc.AppMeta.NamespaceId
+					}
 				}
 			}
+		}
+		if len(nid) == 0 {
+			f()
 		}
 
 		svcPack := dev_dir.NewSvcPack(
@@ -113,6 +126,11 @@ var devAssociateCmd = &cobra.Command{
 		}
 
 		must(err)
+
+		// needs to init if not have init
+		if nocalhostApp == nil || nocalhostSvc == nil {
+			f()
+		}
 
 		if (nocalhostSvc.IsInReplaceDevMode() && nocalhostSvc.IsProcessor()) || nocalhostSvc.IsInDuplicateDevMode() {
 			if !dev_dir.DevPath(workDir).AlreadyAssociate(svcPack) {
