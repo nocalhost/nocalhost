@@ -30,3 +30,7 @@ func RunWithElevated() error {
 	}()
 	return cmd.Run()
 }
+
+func IsAdmin() bool {
+	return os.Getuid() == 0
+}

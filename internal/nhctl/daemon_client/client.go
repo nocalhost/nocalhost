@@ -112,7 +112,6 @@ func getCachedDaemonClient(isSudoUser bool) (*DaemonClient, error) {
 }
 
 func newDaemonClient(isSudoUser bool) (*DaemonClient, error) {
-
 	var err error
 	client := &DaemonClient{
 		isSudo: isSudoUser,
