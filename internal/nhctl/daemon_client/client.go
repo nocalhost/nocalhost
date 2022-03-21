@@ -211,10 +211,13 @@ func (d *DaemonClient) SendCheckClusterStatusCommand(kubeContent string) (*daemo
 	return r, err
 }
 
-func (d *DaemonClient) SendFlushDirMappingCacheCommand() error {
-	cmd := &command.CheckClusterStatusCommand{
+func (d *DaemonClient) SendFlushDirMappingCacheCommand(ns, nid, appName string) error {
+	cmd := &command.InvalidCacheCommand{
 		CommandType: command.FlushDirMappingCache,
 		ClientStack: string(debug.Stack()),
+		Namespace:   ns,
+		Nid:         nid,
+		AppName:     appName,
 	}
 
 	bys, err := json.Marshal(cmd)
