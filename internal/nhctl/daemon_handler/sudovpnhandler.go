@@ -59,8 +59,13 @@ func HandleSudoVPNOperate(cmd *command.VPNOperateCommand, writer io.WriteCloser)
 				logger.Infoln(util.EndSignFailed)
 			} else {
 				//<-done
-				logger.Debugf("connected to spec cluster sucessufully")
-				logger.Infoln(util.EndSignOK)
+				if err := connected.WaitTrafficManagerToAssignAnIP(logger); err != nil {
+					logger.Errorln(err)
+					logger.Infoln(util.EndSignFailed)
+				} else {
+					logger.Debugf("connected to spec cluster sucessufully")
+					logger.Infoln(util.EndSignOK)
+				}
 			}
 			writer.Close()
 			return nil
