@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 )
@@ -96,6 +97,12 @@ var portForwardStartCmd = &cobra.Command{
 			} else {
 				must(nocalhostSvc.PortForward(podName, localPort, remotePorts[index], ""))
 			}
+		}
+		// notify daemon to invalid cache before return
+		if client, err := daemon_client.GetDaemonClient(false); err == nil {
+			_ = client.SendFlushDirMappingCacheCommand(
+				nocalhostApp.NameSpace, nocalhostApp.GetAppMeta().NamespaceId, applicationName,
+			)
 		}
 	},
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/pkg/nhctl/log"
 )
 
@@ -41,6 +42,12 @@ var portForwardEndCmd = &cobra.Command{
 			log.WarnE(err, "stop port-forward fail")
 		} else {
 			log.Infof("%s port-forward has been stop", portForwardEndOptions.Port)
+		}
+		// notify daemon to invalid cache before return
+		if client, err := daemon_client.GetDaemonClient(false); err == nil {
+			_ = client.SendFlushDirMappingCacheCommand(
+				nocalhostSvc.NameSpace, nocalhostSvc.AppMeta.NamespaceId, applicationName,
+			)
 		}
 	},
 }
