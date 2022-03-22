@@ -224,7 +224,7 @@ func (d *DaemonClient) SendFlushDirMappingCacheCommand(ns, nid, appName string) 
 	if err != nil {
 		return errors.Wrap(err, "")
 	}
-	return d.sendDataToDaemonServer(bys)
+	return d.sendAndWaitForResponse(bys, nil)
 }
 
 // SendRestartDaemonServerCommand

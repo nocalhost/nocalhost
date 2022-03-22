@@ -432,7 +432,7 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 	case command.FlushDirMappingCache:
 		err = Process(
 			conn, func(conn net.Conn) (interface{}, error) {
-				//dev_dir.FlushCache()
+				dev_dir.FlushCache()
 				cmd := &command.InvalidCacheCommand{}
 				if err = json.Unmarshal(bys, cmd); err != nil {
 					return nil, errors.Wrap(err, "")
