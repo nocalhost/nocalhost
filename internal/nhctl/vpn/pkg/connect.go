@@ -12,14 +12,18 @@ import (
 	errors2 "github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
+	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/util/retry"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"net"
 	"nocalhost/internal/nhctl/vpn/dns"
@@ -77,6 +81,48 @@ func (c *ConnectOptions) IsEmpty() bool {
 
 func (c *ConnectOptions) GetClientSet() *kubernetes.Clientset {
 	return c.clientset
+}
+
+func (c *ConnectOptions) WaitTrafficManagerToAssignAnIP(log *log.Logger) error {
+	podInterface := c.clientset.CoreV1().Pods(c.Namespace)
+	if err := retry.OnError(wait.Backoff{
+		Duration: 1 * time.Second,
+		Factor:   1.0,
+		Steps:    120,
+		Cap:      120 * time.Second,
+	}, func(err error) bool {
+		return err != nil
+	}, func() error {
+		_, err := podInterface.Get(c.Ctx, util.TrafficManager, metav1.GetOptions{})
+		return err
+	}); err != nil {
+		return err
+	}
+	w, err := podInterface.Watch(c.Ctx, metav1.SingleObject(metav1.ObjectMeta{Name: util.TrafficManager}))
+	if err != nil {
+		return err
+	}
+	defer w.Stop()
+	var phase v1.PodPhase
+	for {
+		select {
+		case e := <-w.ResultChan():
+			if e.Type == watch.Deleted {
+				return errors.New("traffic manager is deleted")
+			}
+			if podT, ok := e.Object.(*v1.Pod); ok {
+				if phase != podT.Status.Phase {
+					log.Infof("traffic manager is %s...", podT.Status.Phase)
+				}
+				if len(podT.Status.PodIP) != 0 {
+					return nil
+				}
+				phase = podT.Status.Phase
+			}
+		case <-time.Tick(time.Minute * 5):
+			return errors.New("wait for pod traffic manager to assign an ip timeout")
+		}
+	}
 }
 
 func (c *ConnectOptions) RentIP(random bool) (ip *net.IPNet, err error) {
