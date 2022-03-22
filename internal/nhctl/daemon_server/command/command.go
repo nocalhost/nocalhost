@@ -87,6 +87,15 @@ type CheckClusterStatusCommand struct {
 	KubeConfigContent string `json:"kubeConfig"`
 }
 
+type InvalidCacheCommand struct {
+	CommandType DaemonCommandType
+	ClientStack string
+
+	Namespace string `json:"namespace"`
+	Nid       string `json:"nid"`
+	AppName   string `json:"appName"`
+}
+
 type GetApplicationMetasCommand struct {
 	CommandType DaemonCommandType
 	ClientStack string

@@ -13,6 +13,7 @@ import (
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/controller"
+	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/dev_dir"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
@@ -108,6 +109,13 @@ var devAssociateCmd = &cobra.Command{
 			commonFlags.SvcName,
 			container,
 		)
+
+		// notify daemon to invalid cache before reture
+		defer func() {
+			if client, err := daemon_client.GetDaemonClient(false); err == nil {
+				_ = client.SendFlushDirMappingCacheCommand(common.NameSpace, nid, commonFlags.AppName)
+			}
+		}()
 
 		if info {
 			fmt.Print(svcPack.GetAssociatePath().ToString())

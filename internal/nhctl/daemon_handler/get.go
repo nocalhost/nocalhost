@@ -39,6 +39,10 @@ import (
 
 var svcProfileCacheMap = cache.NewLRUExpireCache(10000)
 
+func InvalidCache(ns, nid, appName string) {
+	svcProfileCacheMap.Remove(fmt.Sprintf("%s/%s/%s", ns, nid, appName))
+}
+
 func getServiceProfile(
 	f func(resourceType string) (resouce_cache.GvkGvrWithAlias, error),
 	ns,
