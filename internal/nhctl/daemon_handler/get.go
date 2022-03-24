@@ -106,6 +106,26 @@ func GetDescriptionDaemon(ns, appName string, kubeconfigBytes []byte) *profile.A
 		appProfile.Installed = meta.IsInstalled()
 		devMeta := meta.DevMeta
 
+		// sort svc profiles based on name to prevent:
+		// in DevMode(Duplicate), check $(workload)-duplicate first and delete $(workload)-duplicate-$(id) key-value of devMeta,
+		// and when checking $(workload), DevModeType is NONE, devStatus NONE, expected STARTED
+		// example:
+		// after $(workload) start DevMode(Duplicate)
+		// app profile just have one record (from remote secret) about this workload: $(workload)-duplicate-$(id):$(id)
+		// CheckIfSvcDeveloping
+		// 1. check $(workload): hit, devMode duplicate, devStatus STARTED, delete $(workload) in devMeta, but not deleted because not exist this key
+		// 2. check $(workload)-duplicate-$(id): hit, devMode replace, devStatus STARTED, delete $(workload)-duplicate-$(id) in devMeta, deleted
+		// but if not sort, happen probably
+		// 1. check $(workload)-duplicate-$(id): hit, devMode replace, devStatus STARTED, delete $(workload)-duplicate-$(id) in meta, deleted
+		// 2. check $(workload): miss, devMode none, devStatus None
+		// step 2 is not as expected
+		// so must check $(workload) before check $(workload)-duplicate-$(id)
+		sort.Slice(appProfile.SvcProfile, func(i, j int) bool {
+			vi := appProfile.SvcProfile[i]
+			vj := appProfile.SvcProfile[j]
+			return vi.Name < vj.Name
+		})
+
 		// first iter from local svcProfile
 		for _, svcProfile := range appProfile.SvcProfile {
 			if svcProfile == nil {
