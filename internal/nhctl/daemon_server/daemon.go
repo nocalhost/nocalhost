@@ -363,6 +363,7 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 					acCmd.KubeConfigContent,
 					acCmd.NameSpace,
 					nil,
+					true,
 					acCmd.NeedChecks...)
 			})
 
@@ -432,6 +433,11 @@ func handleCommand(conn net.Conn, bys []byte, cmdType command.DaemonCommandType,
 		err = Process(
 			conn, func(conn net.Conn) (interface{}, error) {
 				dev_dir.FlushCache()
+				cmd := &command.InvalidCacheCommand{}
+				if err = json.Unmarshal(bys, cmd); err != nil {
+					return nil, errors.Wrap(err, "")
+				}
+				daemon_handler.InvalidCache(cmd.Namespace, cmd.Nid, cmd.AppName)
 				return nil, nil
 			},
 		)

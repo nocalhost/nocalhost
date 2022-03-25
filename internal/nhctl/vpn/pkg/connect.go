@@ -15,26 +15,32 @@ import (
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	watchtools "k8s.io/client-go/tools/watch"
+	"k8s.io/client-go/util/retry"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"net"
 	"nocalhost/internal/nhctl/vpn/dns"
+	"nocalhost/internal/nhctl/vpn/pkg/handler"
 	"nocalhost/internal/nhctl/vpn/remote"
 	"nocalhost/internal/nhctl/vpn/util"
 	"os"
 	"os/exec"
 	"regexp"
+	"runtime"
 	"strings"
-	"sync"
 	"time"
 )
 
 type ConnectOptions struct {
 	Ctx              context.Context `json:"-"`
+	Uid              string
 	KubeconfigPath   string
 	KubeconfigBytes  []byte
 	Namespace        string
@@ -45,7 +51,7 @@ type ConnectOptions struct {
 	factory          cmdutil.Factory
 	cidrs            []*net.IPNet
 	localTunIP       *net.IPNet
-	trafficManagerIP string
+	trafficManagerIP net.IP
 	dhcp             *remote.DHCPManager
 	log              *log.Logger
 }
@@ -65,13 +71,58 @@ func (c *ConnectOptions) SetLogger(logger *log.Logger) {
 	c.log = logger
 }
 
-func (c *ConnectOptions) IsSameKubeconfigAndNamespace(another *ConnectOptions) bool {
-	return util.GenerateKey(c.KubeconfigBytes, c.Namespace) ==
-		util.GenerateKey(another.KubeconfigBytes, another.Namespace)
+func (c *ConnectOptions) IsSameUid(another *ConnectOptions) bool {
+	return c.Uid == another.Uid
+}
+
+func (c *ConnectOptions) IsEmpty() bool {
+	return c == nil || len(c.Uid) == 0
 }
 
 func (c *ConnectOptions) GetClientSet() *kubernetes.Clientset {
 	return c.clientset
+}
+
+func (c *ConnectOptions) WaitTrafficManagerToAssignAnIP(log *log.Logger) error {
+	podInterface := c.clientset.CoreV1().Pods(c.Namespace)
+	if err := retry.OnError(wait.Backoff{
+		Duration: 1 * time.Second,
+		Factor:   1.0,
+		Steps:    120,
+		Cap:      120 * time.Second,
+	}, func(err error) bool {
+		return err != nil
+	}, func() error {
+		_, err := podInterface.Get(c.Ctx, util.TrafficManager, metav1.GetOptions{})
+		return err
+	}); err != nil {
+		return err
+	}
+	w, err := podInterface.Watch(c.Ctx, metav1.SingleObject(metav1.ObjectMeta{Name: util.TrafficManager}))
+	if err != nil {
+		return err
+	}
+	defer w.Stop()
+	var phase v1.PodPhase
+	for {
+		select {
+		case e := <-w.ResultChan():
+			if e.Type == watch.Deleted {
+				return errors.New("traffic manager is deleted")
+			}
+			if podT, ok := e.Object.(*v1.Pod); ok {
+				if phase != podT.Status.Phase {
+					log.Infof("traffic manager is %s...", podT.Status.Phase)
+				}
+				if len(podT.Status.PodIP) != 0 {
+					return nil
+				}
+				phase = podT.Status.Phase
+			}
+		case <-time.Tick(time.Minute * 5):
+			return errors.New("wait for pod traffic manager to assign an ip timeout")
+		}
+	}
 }
 
 func (c *ConnectOptions) RentIP(random bool) (ip *net.IPNet, err error) {
@@ -102,85 +153,81 @@ func (c *ConnectOptions) ReleaseIP() error {
 }
 
 func (c *ConnectOptions) createRemoteInboundPod() error {
-	wg := sync.WaitGroup{}
-	lock := sync.Mutex{}
 	for _, workload := range c.Workloads {
 		if len(workload) > 0 {
-			wg.Add(1)
-			go func(finalWorkload string) {
-				defer func() {
-					recover()
-					wg.Done()
-				}()
-				lock.Lock()
-				shadowTunIP, _ := c.RentIP(true)
-				lock.Unlock()
-
-				err := CreateInboundPod(
-					c.Ctx,
-					c.factory,
-					c.clientset,
-					c.Namespace,
-					finalWorkload,
-					c.localTunIP.IP.String(),
-					c.trafficManagerIP,
-					shadowTunIP.String(),
-					util.RouterIP.String(),
-				)
-				if err != nil {
-					c.GetLogger().Errorf("error while reversing resource: %s, error: %s\n", finalWorkload, err)
-				}
-			}(workload)
+			shadowTunIP, err := c.RentIP(true)
+			if err != nil {
+				return err
+			}
+			err = CreateInboundPod(
+				c.Ctx,
+				c.factory,
+				c.clientset,
+				c.Namespace,
+				workload,
+				c.localTunIP.IP.String(),
+				c.trafficManagerIP.String(),
+				shadowTunIP.String(),
+				util.RouterIP.String(),
+			)
+			if err != nil {
+				c.GetLogger().Errorf("error while reversing resource: %s, error: %s", workload, err)
+				return err
+			}
 		}
 	}
-	wg.Wait()
 	return nil
 }
 
 func (c *ConnectOptions) RemoveInboundPod() error {
-	sc, err := getHandler(c.factory, c.clientset, c.Namespace, c.Workloads[0])
-	if err != nil {
-		return err
+	for _, workload := range c.Workloads {
+		sc, err := getHandler(c.factory, c.clientset, c.Namespace, workload, nil)
+		if err != nil {
+			return fmt.Errorf(
+				"error while get handler of resource: %s in namespace: %s, error: %v",
+				workload, c.Namespace, err)
+		}
+		if err = sc.Rollback(false); err != nil {
+			return fmt.Errorf(
+				"error while reset reverse resource: %s in namespace: %s, error: %v",
+				workload, c.Namespace, err)
+		}
 	}
-	if err = sc.Reset(); err != nil {
-		log.Warnln(err)
-		return err
-	}
-	util.DeletePod(c.clientset, c.Namespace, sc.ToInboundPodName())
 	return nil
 }
 
-func getHandler(factory cmdutil.Factory, clientset *kubernetes.Clientset, namespace, workload string) (Scalable, error) {
-	tuple, parsed, err2 := util.SplitResourceTypeName(workload)
-	if !parsed || err2 != nil {
-		return nil, errors.New("not need")
+func getHandler(
+	factory cmdutil.Factory,
+	clientset *kubernetes.Clientset,
+	namespace,
+	workload string,
+	config *handler.PodRouteConfig,
+) (handler.Handler, error) {
+	info, err := util.GetUnstructuredObject(factory, namespace, workload)
+	if err != nil {
+		return nil, err
 	}
-	var sc Scalable
-	switch strings.ToLower(tuple.Resource) {
-	case "deployment", "deployments":
-		sc = NewDeploymentHandler(factory, clientset, namespace, tuple.Name)
-	case "statefulset", "statefulsets":
-		sc = NewStatefulsetHandler(factory, clientset, namespace, tuple.Name)
-	case "replicaset", "replicasets":
-		sc = NewReplicasHandler(factory, clientset, namespace, tuple.Name)
-	case "service", "services":
-		sc = NewServiceHandler(factory, clientset, namespace, tuple.Name)
-	case "pod", "pods":
-		sc = NewPodHandler(factory, clientset, namespace, tuple.Name)
-	case "daemonset", "daemonsets":
-		sc = NewDaemonSetHandler(factory, clientset, namespace, tuple.Name)
+	gvk := info.Mapping.Resource
+	svcType := fmt.Sprintf("%s.%s.%s", gvk.Resource, gvk.Version, gvk.Group)
+	var sc handler.Handler
+	switch svcType {
+	case "services.v1.":
+		sc = handler.NewServiceHandler(factory, clientset.CoreV1().Services(info.Namespace), info, config)
+	case "pods.v1.":
+		sc = handler.NewPodHandler(factory, clientset.CoreV1().Pods(info.Namespace), info, config)
 	default:
-		sc = NewCustomResourceDefinitionHandler(factory, clientset, namespace, tuple.Resource, tuple.Name)
+		sc = handler.NewUnstructuredHandler(factory, info, config)
 	}
 	return sc, nil
 }
 
 func (c *ConnectOptions) InitDHCP(ctx context.Context) error {
 	c.dhcp = remote.NewDHCPManager(c.clientset, c.Namespace, &util.RouterIP)
-	err := c.dhcp.InitDHCPIfNecessary(ctx)
+	cm, err := c.dhcp.InitDHCPIfNecessary(ctx)
 	if err != nil {
 		return err
 	}
+	c.Uid = string(cm.GetUID())
 	return c.GenerateTunIP(ctx)
 }
 
@@ -199,36 +246,29 @@ func (c *ConnectOptions) Prepare(ctx context.Context) error {
 
 func (c *ConnectOptions) DoConnect(ctx context.Context) (chan error, error) {
 	var err error
+	if err = util.WaitPortToBeFree(10800, time.Second*5); err != nil {
+		return nil, err
+	}
 	c.trafficManagerIP, err = createOutboundRouterPodIfNecessary(c.clientset, c.Namespace, &util.RouterIP, c.cidrs, c.GetLogger())
 	if err != nil {
 		return nil, errors2.WithStack(err)
 	}
 	c.GetLogger().Info("your ip is " + c.localTunIP.IP.String())
-	if err = util.WaitPortToBeFree(10800, time.Minute*2); err != nil {
+	if err = c.portForward(ctx); err != nil {
 		return nil, err
 	}
-	c.portForward(ctx)
 	return c.startLocalTunServe(ctx)
 }
 
 func (c *ConnectOptions) DoReverse(ctx context.Context) error {
-	timeout, cancelFunc := context.WithTimeout(ctx, 5*time.Minute)
-	defer cancelFunc()
-	w, err := c.clientset.CoreV1().Pods(c.Namespace).Watch(timeout, metav1.SingleObject(metav1.ObjectMeta{Name: util.TrafficManager}))
+	pod, err := c.clientset.CoreV1().Pods(c.Namespace).Get(ctx, util.TrafficManager, metav1.GetOptions{})
 	if err != nil {
+		return errors.New("can not found router pod")
+	}
+	if len(pod.Status.PodIP) == 0 {
 		return errors.New("can not found router ip while reverse resource")
 	}
-	event, err := watchtools.UntilWithoutRetry(timeout, w, func(event watch.Event) (bool, error) {
-		if p, ok := event.Object.(*v1.Pod); ok && len(p.Status.PodIP) != 0 {
-			return true, nil
-		}
-		return false, nil
-	})
-	if err != nil {
-		return err
-	}
-	pod, _ := event.Object.(*v1.Pod)
-	c.trafficManagerIP = pod.Status.PodIP
+	c.trafficManagerIP = net.ParseIP(pod.Status.PodIP)
 	return c.createRemoteInboundPod()
 }
 
@@ -250,15 +290,16 @@ func (c *ConnectOptions) heartbeats(ctx context.Context) {
 	}()
 }
 
-func (c *ConnectOptions) portForward(ctx context.Context) {
+func (c *ConnectOptions) portForward(ctx context.Context) error {
 	var readyChan = make(chan struct{}, 1)
+	var errChan = make(chan error, 1)
 	var first = true
 	go func(ctx context.Context) {
 		for ctx.Err() == nil {
 			func() {
 				defer func() {
 					if err := recover(); err != nil {
-						c.GetLogger().Warnf("recover error: %v, ignore", err)
+						c.GetLogger().Warnf("port-forward recover error: %v, ignore", err)
 					}
 				}()
 				if !first {
@@ -283,12 +324,17 @@ func (c *ConnectOptions) portForward(ctx context.Context) {
 					ctx.Done(),
 				)
 				if apierrors.IsNotFound(err) {
-					c.GetLogger().Errorf("can not found port-forward resource, err: %v, exiting\n", err)
+					c.GetLogger().Errorf("can not found traffic manager, err: %v, exiting", err)
 					return
 				}
 				if err != nil {
-					c.GetLogger().Errorf("port-forward occurs error, err: %v, retrying\n", err)
-					time.Sleep(time.Second * 1)
+					if strings.Contains(err.Error(), "unable to listen on any of the requested ports") ||
+						strings.Contains(err.Error(), "address already in use") {
+						errChan <- err
+						runtime.Goexit()
+					}
+					c.GetLogger().Errorf("port-forward occurs error, err: %v, retrying", err)
+					time.Sleep(time.Second * 2)
 				}
 			}()
 		}
@@ -297,8 +343,14 @@ func (c *ConnectOptions) portForward(ctx context.Context) {
 	select {
 	case <-readyChan:
 		c.GetLogger().Infoln("port forward 10800:10800 ready")
-	case <-time.Tick(time.Minute * 5):
-		c.GetLogger().Errorln("wait port forward 10800:10800 to be ready timeout")
+		return nil
+	case err := <-errChan:
+		c.GetLogger().Errorf("port-forward error, err: %v", err)
+		return err
+	case <-time.Tick(time.Second * 30):
+		return errors.New("wait port forward 10800:10800 to be ready timeout")
+	case <-ctx.Done():
+		return ctx.Err()
 	}
 }
 
@@ -351,6 +403,7 @@ func (c *ConnectOptions) startLocalTunServe(ctx context.Context) (chan error, er
 	if err = c.setupDNS(); err != nil {
 		return nil, errors2.WithStack(err)
 	}
+	//c.detectConflictDevice()
 	log.Info("setup DNS service successfully")
 	return errChan, nil
 }
@@ -398,46 +451,74 @@ func Start(ctx context.Context, r Route) (chan error, error) {
 }
 
 func getCIDR(clientset *kubernetes.Clientset, namespace string) ([]*net.IPNet, error) {
-	var cidrs []*net.IPNet
+	var CIDRList []*net.IPNet
+	// get pod CIDR from node spec
 	if nodeList, err := clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{}); err == nil {
+		var podCIDRs = sets.NewString()
 		for _, node := range nodeList.Items {
-			if _, ip, _ := net.ParseCIDR(node.Spec.PodCIDR); ip != nil {
-				ip.Mask = net.CIDRMask(16, 32)
-				ip.IP = ip.IP.Mask(ip.Mask)
-				cidrs = append(cidrs, ip)
+			if node.Spec.PodCIDRs != nil {
+				podCIDRs.Insert(node.Spec.PodCIDRs...)
+			}
+			if len(node.Spec.PodCIDR) != 0 {
+				podCIDRs.Insert(node.Spec.PodCIDR)
+			}
+		}
+		for _, podCIDR := range podCIDRs.List() {
+			if _, CIDR, err := net.ParseCIDR(podCIDR); err == nil {
+				CIDRList = append(CIDRList, CIDR)
 			}
 		}
 	}
-	if serviceList, err := clientset.CoreV1().Services(namespace).List(context.TODO(), metav1.ListOptions{}); err == nil {
-		for _, service := range serviceList.Items {
-			if ip := net.ParseIP(service.Spec.ClusterIP); ip != nil {
-				// todo service ip is not like pod have a range of ip, service have multiple range of ip, so make mask bigger
-				// maybe it's just occurs on docker-desktop
-				mask := net.CIDRMask(24, 32)
-				cidrs = append(cidrs, &net.IPNet{IP: ip.Mask(mask), Mask: mask})
-			}
-		}
-	}
+	// if node spec can not contain pod IP
 	if podList, err := clientset.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{}); err == nil {
 		for _, pod := range podList.Items {
 			if ip := net.ParseIP(pod.Status.PodIP); ip != nil {
-				mask := net.CIDRMask(16, 32)
-				cidrs = append(cidrs, &net.IPNet{IP: ip.Mask(mask), Mask: mask})
+				var contains bool
+				for _, CIDR := range CIDRList {
+					if CIDR.Contains(ip) {
+						contains = true
+						break
+					}
+				}
+				if !contains {
+					mask := net.CIDRMask(24, 32)
+					CIDRList = append(CIDRList, &net.IPNet{IP: ip.Mask(mask), Mask: mask})
+				}
 			}
 		}
 	}
+	// pod CIDR maybe is not same with service CIDR
+	if serviceList, err := clientset.CoreV1().Services(namespace).List(context.TODO(), metav1.ListOptions{}); err == nil {
+		for _, service := range serviceList.Items {
+			if ip := net.ParseIP(service.Spec.ClusterIP); ip != nil {
+				var contains bool
+				for _, CIDR := range CIDRList {
+					if CIDR.Contains(ip) {
+						contains = true
+						break
+					}
+				}
+				if !contains {
+					mask := net.CIDRMask(16, 32)
+					CIDRList = append(CIDRList, &net.IPNet{IP: ip.Mask(mask), Mask: mask})
+				}
+			}
+		}
+	}
+
+	// remove duplicate CIDR
 	result := make([]*net.IPNet, 0)
-	tempMap := make(map[string]*net.IPNet)
-	for _, cidr := range cidrs {
-		if _, found := tempMap[cidr.String()]; !found {
-			tempMap[cidr.String()] = cidr
+	set := sets.NewString()
+	for _, cidr := range CIDRList {
+		if !set.Has(cidr.String()) {
+			set.Insert(cidr.String())
 			result = append(result, cidr)
 		}
 	}
-	if len(result) != 0 {
-		return result, nil
+	if len(result) == 0 {
+		return nil, fmt.Errorf("can not found any CIDR")
 	}
-	return nil, fmt.Errorf("can not found CIDR")
+	return result, nil
 }
 
 func (c *ConnectOptions) InitClient(ctx context.Context) (err error) {
@@ -495,11 +576,15 @@ func (c *ConnectOptions) GenerateTunIP(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	get.Data[util.MacToIP] = mac2IP.AddMacToIPRecord(util.GetMacAddress().String(), c.localTunIP.IP).ToString()
-	if _, err = c.clientset.CoreV1().ConfigMaps(c.Namespace).Update(context.TODO(), get, metav1.UpdateOptions{}); err != nil {
-		return err
-	}
-	return nil
+	data := mac2IP.AddMacToIPRecord(util.GetMacAddress().String(), c.localTunIP.IP).ToString()
+	_, err = c.clientset.CoreV1().ConfigMaps(c.Namespace).Patch(
+		context.TODO(),
+		get.Name,
+		types.MergePatchType,
+		[]byte(fmt.Sprintf("{\"data\":{\"%s\":\"%s\"}}", util.MacToIP, data)),
+		metav1.PatchOptions{},
+	)
+	return err
 }
 
 func (c *ConnectOptions) ConnectPingRemote() bool {
@@ -518,7 +603,11 @@ func (c *ConnectOptions) ConnectPingRemote() bool {
 }
 
 func (c *ConnectOptions) ReverePingLocal() bool {
-	handler, err := getHandler(c.factory, c.clientset, c.Namespace, c.Workloads[0])
+	h, err := getHandler(c.factory, c.clientset, c.Namespace, c.Workloads[0], nil)
+	if err != nil {
+		return false
+	}
+	pod, err := h.GetPod()
 	if err != nil {
 		return false
 	}
@@ -526,7 +615,8 @@ func (c *ConnectOptions) ReverePingLocal() bool {
 		c.clientset,
 		c.restclient,
 		c.config,
-		handler.ToInboundPodName(),
+		pod[0].Name,
+		handler.VPN,
 		c.Namespace,
 		fmt.Sprintf("ping %s -c 4", c.localTunIP),
 	)
@@ -537,7 +627,11 @@ func (c *ConnectOptions) Shell(_ context.Context, workload string) (string, erro
 	if len(workload) == 0 {
 		workload = c.Workloads[0]
 	}
-	handler, err := getHandler(c.factory, c.clientset, c.Namespace, workload)
+	h, err := getHandler(c.factory, c.clientset, c.Namespace, workload, nil)
+	if err != nil {
+		return "", err
+	}
+	pod, err := h.GetPod()
 	if err != nil {
 		return "", err
 	}
@@ -545,8 +639,23 @@ func (c *ConnectOptions) Shell(_ context.Context, workload string) (string, erro
 		c.clientset,
 		c.restclient,
 		c.config,
-		handler.ToInboundPodName(),
+		pod[0].Name,
+		handler.VPN,
 		c.Namespace,
 		"ping -c 4 "+c.localTunIP.IP.String(),
 	)
+}
+
+func (c *ConnectOptions) detectConflictDevice() {
+	tun := os.Getenv("tunName")
+	if len(tun) == 0 {
+		return
+	}
+	if err := DetectAndDisableConflictDevice(tun); err != nil {
+		log.Warnf("error occours while disable conflict devices, err: %v", err)
+	}
+}
+
+func (c *ConnectOptions) GetUnstructuredObject(workload string) (*resource.Info, error) {
+	return util.GetUnstructuredObject(c.factory, c.Namespace, workload)
 }

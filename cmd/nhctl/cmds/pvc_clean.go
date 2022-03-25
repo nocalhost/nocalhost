@@ -9,6 +9,9 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
+	"nocalhost/cmd/nhctl/cmds/common"
+	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/controller"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"path/filepath"
 
@@ -20,7 +23,7 @@ func init() {
 	pvcCleanCmd.Flags().StringVar(&pvcFlags.Svc, "controller", "", "Clean up PVCs of specified service")
 	pvcCleanCmd.Flags().StringVar(&pvcFlags.Name, "name", "", "Clean up specified PVC")
 	pvcCleanCmd.Flags().StringVarP(
-		&serviceType, "controller-type", "t", "deployment",
+		&common.ServiceType, "controller-type", "t", "deployment",
 		"kind of k8s controller,such as deployment,statefulSet",
 	)
 	pvcCmd.AddCommand(pvcCleanCmd)
@@ -34,10 +37,10 @@ var pvcCleanCmd = &cobra.Command{
 
 		// Clean up specified pvc
 		if pvcFlags.Name != "" {
-			if abs, err := filepath.Abs(kubeConfig); err == nil {
-				kubeConfig = abs
+			if abs, err := filepath.Abs(common.KubeConfig); err == nil {
+				common.KubeConfig = abs
 			}
-			cli, err := clientgoutils.NewClientGoUtils(kubeConfig, nameSpace)
+			cli, err := clientgoutils.NewClientGoUtils(common.KubeConfig, common.NameSpace)
 			must(err)
 			mustI(cli.DeletePVC(pvcFlags.Name), "Failed to clean up pvc: "+pvcFlags.Name)
 			log.Infof("Persistent volume %s has been cleaned up", pvcFlags.Name)
@@ -46,7 +49,7 @@ var pvcCleanCmd = &cobra.Command{
 
 		if pvcFlags.App == "" {
 			// Clean up all pvcs in namespace
-			cli, err := clientgoutils.NewClientGoUtils(kubeConfig, nameSpace)
+			cli, err := clientgoutils.NewClientGoUtils(common.KubeConfig, common.NameSpace)
 			must(err)
 			pvcList, err := cli.ListPvcs()
 			must(err)
@@ -65,13 +68,17 @@ var pvcCleanCmd = &cobra.Command{
 			err  error
 		)
 
+		var nocalhostApp *app.Application
+		var nocalhostSvc *controller.Controller
 		// Clean up PVCs of specified service
 		if pvcFlags.Svc != "" {
-			initAppAndCheckIfSvcExist(pvcFlags.App, pvcFlags.Svc, serviceType)
+			nocalhostApp, nocalhostSvc, err = common.InitAppAndCheckIfSvcExist(pvcFlags.App, pvcFlags.Svc, common.ServiceType)
+			must(err)
 			pvcs, err = nocalhostSvc.GetPVCsBySvc()
 		} else {
 			// Clean up all pvcs in application
-			initApp(pvcFlags.App)
+			nocalhostApp, err = common.InitApp(pvcFlags.App)
+			must(err)
 			pvcs, err = nocalhostApp.GetAllPVCs()
 		}
 

@@ -7,6 +7,7 @@ package cmds
 
 import (
 	"github.com/spf13/cobra"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/pkg/nhctl/log"
 )
@@ -23,7 +24,7 @@ var dbCompactCmd = &cobra.Command{
 	Short: "compact leveldb data",
 	Long:  `compact leveldb data`,
 	Run: func(cmd *cobra.Command, args []string) {
-		must(nocalhost.CompactApplicationDb(nameSpace, appName, nid, levelDbKey))
+		must(nocalhost.CompactApplicationDb(common.NameSpace, appName, nid, levelDbKey))
 		log.Info("Db has been compacted")
 	},
 }

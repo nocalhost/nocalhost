@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package model
 
@@ -15,8 +15,6 @@ import (
 	"github.com/jinzhu/gorm"
 	// GORM MySQL
 	_ "github.com/jinzhu/gorm/dialects/mysql"
-
-	"nocalhost/pkg/nocalhost-api/pkg/log"
 )
 
 var DB *gorm.DB
@@ -46,7 +44,8 @@ func openDB(username, password, addr, name string) *gorm.DB {
 
 	db, err := gorm.Open("mysql", config)
 	if err != nil {
-		log.Errorf("Database connection failed. Database name: %s, err: %+v", name, err)
+		println("fuck")
+		//log.Errorf("Database connection failed. Database name: %s, err: %+v", name, err)
 		panic(err)
 	}
 
@@ -77,6 +76,6 @@ func GetDB() *gorm.DB {
 func MigrateDB() {
 	DB.AutoMigrate(
 		&ApplicationModel{}, &ClusterModel{}, &ClusterUserModel{}, &PrePullModel{}, &UserBaseModel{},
-		&ApplicationUserModel{},
+		&ApplicationUserModel{}, &LdapModel{},
 	)
 }

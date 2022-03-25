@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nocalhost-api/cache"
+	"nocalhost/pkg/nocalhost-api/pkg/utils"
 	"strings"
 	"time"
 
@@ -21,7 +22,6 @@ import (
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/repository/user"
 	"nocalhost/pkg/nocalhost-api/pkg/auth"
-	"nocalhost/pkg/nocalhost-api/pkg/token"
 )
 
 const (
@@ -33,24 +33,39 @@ var _ UserService = (*userService)(nil)
 
 // UserService
 type UserService interface {
-	Create(ctx context.Context, email, password, name string, status uint64, isAdmin uint64) (
+	Create(ctx context.Context, email, password, name, ldapDN string, ldapGen uint64, status, isAdmin *uint64) (
 		model.UserBaseModel, error,
 	)
+	Creates(
+		ctx context.Context, users []*model.UserBaseModel,
+	) error
+
 	Delete(ctx context.Context, id uint64) error
 	Register(ctx context.Context, email, password string) error
-	EmailLogin(ctx context.Context, email, password string) (tokenStr, refreshToken string, err error)
+	EmailLogin(ctx context.Context, email, password string) (err error)
 	GetUserByID(ctx context.Context, id uint64) (*model.UserBaseModel, error)
 	GetUserByPhone(ctx context.Context, phone int64) (*model.UserBaseModel, error)
 	GetUserByEmail(ctx context.Context, email string) (*model.UserBaseModel, error)
-
-	CreateOrGetUserByEmail(ctx context.Context, email string) (*model.UserBaseModel, error)
+	CreateOrUpdateUserByEmail(ctx context.Context, userEmail string,
+		userName, ldapDN string, ldapGen uint64, admin bool) (*model.UserBaseModel, error)
 	UpdateUser(ctx context.Context, id uint64, user *model.UserBaseModel) (*model.UserBaseModel, error)
-	GetUserList(ctx context.Context) ([]*model.UserList, error)
 	UpdateServiceAccountName(ctx context.Context, id uint64, saName string) error
+	GetUserPageable(ctx context.Context, page, limit int) ([]*model.UserBaseModel, error)
+	GetUserHasNotSa(ctx context.Context) ([]*model.UserBaseModel, error)
+	BatchListByUserId(ctx context.Context, userIdStart uint64) ([]*model.UserBaseModel, error)
+	//CreateUserWithLdap(ctx context.Context, userEmail string, userName, ldapDN string,
+	//	ldapGen uint64, admin bool) (*model.UserBaseModel, error)
+	UpdateUserByModelWithLdap(ctx context.Context, before *model.UserBaseModel,
+		userName, ldapDN string, ldapGen uint64, admin bool) (*model.UserBaseModel, error)
 
 	GetCache(id uint64) (model.UserBaseModel, error)
 	GetCacheBySa(sa string) (model.UserBaseModel, error)
 	Close()
+	DeleteOutOfSyncLdapUser(ldapGen uint64) (int64, error)
+	UpdateUsersLdapGen(list []*model.UserBaseModel, ldapGen uint64) bool
+
+	// deprecated
+	GetUserList(ctx context.Context) ([]*model.UserList, error)
 }
 
 type userService struct {
@@ -62,6 +77,10 @@ func NewUserService() UserService {
 	return &userService{
 		userRepo: user.NewUserRepo(db),
 	}
+}
+
+func (srv *userService) UpdateUsersLdapGen(list []*model.UserBaseModel, ldapGen uint64) bool {
+	return srv.userRepo.UpdateUsersLdapGen(list, ldapGen)
 }
 
 func (srv *userService) Evict(id uint64) {
@@ -113,8 +132,21 @@ func (srv *userService) GetCache(id uint64) (model.UserBaseModel, error) {
 	return *result, nil
 }
 
+func (srv *userService) GetUserPageable(ctx context.Context, page, limit int) ([]*model.UserBaseModel, error) {
+	return srv.userRepo.GetUserPageable(ctx, page, limit)
+}
+
+func (srv *userService) GetUserHasNotSa(ctx context.Context) ([]*model.UserBaseModel, error) {
+	return srv.userRepo.GetUserHasNotSa(ctx)
+}
+
+// deprecated
 func (srv *userService) GetUserList(ctx context.Context) ([]*model.UserList, error) {
 	return srv.userRepo.GetUserList(ctx)
+}
+
+func (srv *userService) DeleteOutOfSyncLdapUser(ldapGen uint64) (int64, error) {
+	return srv.userRepo.DeleteOutOfSyncLdapUser(ldapGen)
 }
 
 // Delete
@@ -129,7 +161,7 @@ func (srv *userService) Delete(ctx context.Context, id uint64) error {
 
 // Create
 func (srv *userService) Create(
-	ctx context.Context, email, password, name string, status uint64, isAdmin uint64,
+	ctx context.Context, email, password, name, ldapDN string, ldapGen uint64, status, isAdmin *uint64,
 ) (model.UserBaseModel, error) {
 	pwd, err := auth.Encrypt(password)
 	u := model.UserBaseModel{
@@ -137,8 +169,10 @@ func (srv *userService) Create(
 		Password:  pwd,
 		Email:     email,
 		Name:      name,
-		Status:    &status,
-		IsAdmin:   &isAdmin,
+		Status:    status,
+		IsAdmin:   isAdmin,
+		LdapDN:    ldapDN,
+		LdapGen:   ldapGen,
 		CreatedAt: time.Time{},
 		UpdatedAt: time.Time{},
 		Uuid:      uuid.NewV4().String(),
@@ -153,6 +187,18 @@ func (srv *userService) Create(
 
 	srv.Evict(result.ID)
 	return result, nil
+}
+
+// Create
+func (srv *userService) Creates(
+	ctx context.Context, users []*model.UserBaseModel,
+) error {
+	err := srv.userRepo.Creates(ctx, users)
+	if err != nil {
+		return errors.Wrapf(err, "create user")
+	}
+
+	return nil
 }
 
 // Register
@@ -178,28 +224,23 @@ func (srv *userService) Register(ctx context.Context, email, password string) er
 }
 
 // EmailLogin
-func (srv *userService) EmailLogin(ctx context.Context, email, password string) (tokenStr, refreshToken string, err error) {
+func (srv *userService) EmailLogin(ctx context.Context, email, password string) (err error) {
 	u, err := srv.GetUserByEmail(ctx, email)
 	if err != nil {
-		err = errors.Wrapf(err, "get user info err by email")
-		return
+		return errors.Wrapf(err, "get user info err by email")
 	}
 
 	// Compare the login password with the user password.
 	err = auth.Compare(u.Password, password)
 	if err != nil {
-		err = errors.Wrapf(err, "password compare err")
-		return
+		return errors.Wrapf(err, "password compare err")
 	}
 
 	if *u.Status == 0 {
-		err = errors.New("user not allow")
-		return
+		return errors.New("user not allow")
 	}
 
-	return token.Sign(
-		token.Context{UserID: u.ID, Username: u.Username, Uuid: u.Uuid, Email: u.Email, IsAdmin: *u.IsAdmin},
-	)
+	return nil
 }
 
 // UpdateUser update user info
@@ -235,15 +276,29 @@ func (srv *userService) GetUserByPhone(ctx context.Context, phone int64) (*model
 	return userModel, nil
 }
 
-func (srv *userService) CreateOrGetUserByEmail(ctx context.Context, userEmail string) (*model.UserBaseModel, error) {
-	userPointer, err := srv.GetUserByEmail(ctx, userEmail)
+func (srv *userService) CreateOrUpdateUserByEmail(ctx context.Context, userEmail string,
+	userName, ldapDN string, ldapGen uint64, admin bool) (*model.UserBaseModel, error) {
+	if userEmail == "" {
+		return nil, errors.New("Error while create or update user, user email is empty")
+	}
 
+	if !utils.IsEmail(userEmail) {
+		return nil, errors.New("Error while create or update user, user email is incorrect")
+	}
+
+	userPointer, err := srv.userRepo.GetUserByEmail(ctx, userEmail)
+
+	// if user of this email
 	if err != nil {
 		if gorm.IsRecordNotFoundError(err) {
-			userName := userEmail[:strings.Index(userEmail, "@")]
+			if userName == "" {
+				userName = userEmail[:strings.Index(userEmail, "@")]
+			}
 
 			userCreated, err := srv.Create(
-				ctx, userEmail, "123456", userName, _const.UintEnable, _const.UintDisable,
+				ctx, userEmail, "123456", userName, ldapDN, ldapGen,
+				_const.BoolToUint64Pointer(true),
+				_const.BoolToUint64Pointer(admin),
 			)
 
 			if err != nil {
@@ -255,8 +310,42 @@ func (srv *userService) CreateOrGetUserByEmail(ctx context.Context, userEmail st
 			return nil, errors.Wrap(err, fmt.Sprintf("Fail to get user by email %s", userEmail))
 		}
 	} else {
-		return userPointer, nil
+
+		if userName != "" {
+			userPointer.Username = userName
+			userPointer.Name = userName
+		}
+
+		userPointer.IsAdmin = _const.BoolToUint64Pointer(admin)
+		userPointer.LdapDN = ldapDN
+		userPointer.LdapGen = ldapGen
+		userPointer.Status = _const.BoolToUint64Pointer(true)
+
+		_, _ = srv.UpdateUser(ctx, userPointer.ID, userPointer)
 	}
+	return userPointer, nil
+}
+
+func (srv *userService) UpdateUserByModelWithLdap(ctx context.Context, before *model.UserBaseModel,
+	userName, ldapDN string, ldapGen uint64, admin bool) (*model.UserBaseModel, error) {
+
+	if userName != "" {
+		before.Username = userName
+		before.Name = userName
+	}
+
+	before.IsAdmin = _const.BoolToUint64Pointer(admin)
+	before.LdapDN = ldapDN
+	before.LdapGen = ldapGen
+	before.Status = _const.BoolToUint64Pointer(true)
+
+	_, _ = srv.UpdateUser(ctx, before.ID, before)
+
+	return before, nil
+}
+
+func (srv *userService) BatchListByUserId(ctx context.Context, userIdStart uint64) ([]*model.UserBaseModel, error) {
+	return srv.userRepo.ListStartById(ctx, userIdStart, 500)
 }
 
 func (srv *userService) GetUserByEmail(ctx context.Context, email string) (*model.UserBaseModel, error) {

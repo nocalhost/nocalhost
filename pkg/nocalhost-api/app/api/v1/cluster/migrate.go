@@ -69,7 +69,10 @@ func Migrate(c *gin.Context) {
 				userEmail += _const.DefaultEmailSuffix
 			}
 
-			userPointer, err := service.Svc.UserSvc().CreateOrGetUserByEmail(c, userEmail)
+			userPointer, err := service.Svc.UserSvc().CreateOrUpdateUserByEmail(
+				c, userEmail, "",
+				"", 0, false,
+			)
 			if err != nil {
 				log.ErrorE(err, "Fail to migrate user ")
 			}

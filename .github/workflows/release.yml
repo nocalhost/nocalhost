@@ -7,7 +7,7 @@ on:
 
 jobs:
   release-nhctl:
-    needs: [build-syncthing-macos-windows, build-syncthing-linux]
+    needs: [ build-syncthing-macos-windows, build-syncthing-linux ]
     name: Release nhctl
     runs-on: macos-latest
     environment:
@@ -201,20 +201,24 @@ jobs:
           OSX_BINARY: 'nhctl-darwin-amd64'
           OSX_ARM64_BINARY: 'nhctl-darwin-arm64'
           LINUX_BINARY: 'nhctl-linux-amd64'
+          LINUX_ARM_BINARY: 'nhctl-linux-arm64'
         run: |
           cd build
           curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=${GITHUB_SHA}"
           curl -T ${OSX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${OSX_BINARY}?version=${GITHUB_SHA}"
           curl -T ${OSX_ARM64_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${OSX_ARM64_BINARY}?version=${GITHUB_SHA}"
           curl -T ${LINUX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_BINARY}?version=${GITHUB_SHA}"
+          curl -T ${LINUX_ARM_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_ARM_BINARY}?version=${GITHUB_SHA}"
           curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=latest"
           curl -T ${OSX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${OSX_BINARY}?version=latest"
           curl -T ${OSX_ARM64_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${OSX_ARM64_BINARY}?version=latest"
           curl -T ${LINUX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_BINARY}?version=latest"
+          curl -T ${LINUX_ARM_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_ARM_BINARY}?version=latest"
           curl -T ${WINDOWS_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${WINDOWS_BINARY}?version=${{ env.RELEASE_VERSION }}"
           curl -T ${OSX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${OSX_BINARY}?version=${{ env.RELEASE_VERSION }}"
           curl -T ${OSX_ARM64_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${OSX_ARM64_BINARY}?version=${{ env.RELEASE_VERSION }}"
           curl -T ${LINUX_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_BINARY}?version=${{ env.RELEASE_VERSION }}"
+          curl -T ${LINUX_ARM_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_ARM_BINARY}?version=${{ env.RELEASE_VERSION }}"
 
       - name: Update Homebrew tap
         if: "!contains(github.ref,'rc')"
@@ -244,24 +248,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
-#      - name: Update changelog
-#        run: |
-#          git clone -b dev https://github.com/nocalhost/nocalhost.github.io.git
-#          cd nocalhost.github.io
-#          git checkout -b release/${{ env.RELEASE_VERSION }} || true
-#          git checkout release/${{ env.RELEASE_VERSION }} || true
-#          cd docs/changelogs
-#          git config user.email "nocalhost@nocalhost.dev"
-#          git config user.name "nocalhost"
-#          time=${{ env.RELEASE_VERSION }}" ("$(date "+%Y-%m-%d")")"
-#          echo $time
-#          sed -i "s/{{Next}}/$time/g" *.md
-#          head *.md
-#          cd ../../
-#          git add .
-#          git commit -m "update changelog"
-#          git remote set-url origin https://${{ secrets.GPR_USER }}:${{ secrets.GPR_PASS }}@github.com/nocalhost/nocalhost.github.io.git
-#          git push origin release/${{ env.RELEASE_VERSION }} -f
+      #      - name: Update changelog
+      #        run: |
+      #          git clone -b dev https://github.com/nocalhost/nocalhost.github.io.git
+      #          cd nocalhost.github.io
+      #          git checkout -b release/${{ env.RELEASE_VERSION }} || true
+      #          git checkout release/${{ env.RELEASE_VERSION }} || true
+      #          cd docs/changelogs
+      #          git config user.email "nocalhost@nocalhost.dev"
+      #          git config user.name "nocalhost"
+      #          time=${{ env.RELEASE_VERSION }}" ("$(date "+%Y-%m-%d")")"
+      #          echo $time
+      #          sed -i "s/{{Next}}/$time/g" *.md
+      #          head *.md
+      #          cd ../../
+      #          git add .
+      #          git commit -m "update changelog"
+      #          git remote set-url origin https://${{ secrets.GPR_USER }}:${{ secrets.GPR_PASS }}@github.com/nocalhost/nocalhost.github.io.git
+      #          git push origin release/${{ env.RELEASE_VERSION }} -f
 
       - name: Set up Go 1.x
         uses: actions/setup-go@v2
@@ -496,7 +500,7 @@ jobs:
 
   release-helm-chart:
     name: Release Nocalhost Helm Chart
-    needs: [release-nhctl, release-docker-image]
+    needs: [ release-nhctl, release-docker-image ]
     runs-on: ubuntu-latest
     steps:
       - name: Check out code

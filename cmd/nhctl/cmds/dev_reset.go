@@ -6,6 +6,7 @@
 package cmds
 
 import (
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 
@@ -14,9 +15,9 @@ import (
 )
 
 func init() {
-	devResetCmd.Flags().StringVarP(&deployment, "deployment", "d", "",
+	devResetCmd.Flags().StringVarP(&common.WorkloadName, "deployment", "d", "",
 		"k8s deployment which your developing service exists")
-	devResetCmd.Flags().StringVarP(&serviceType, "controller-type", "t", "deployment",
+	devResetCmd.Flags().StringVarP(&common.ServiceType, "controller-type", "t", "deployment",
 		"kind of k8s controller,such as deployment,statefulSet")
 	debugCmd.AddCommand(devResetCmd)
 }
@@ -34,11 +35,12 @@ var devResetCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 
 		applicationName := args[0]
-		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
+		_, nocalhostSvc, err := common.InitAppAndCheckIfSvcExist(applicationName, common.WorkloadName, common.ServiceType)
+		must(err)
 
 		_ = nocalhostSvc.DevEnd(true)
 
 		utils.Should(nocalhostSvc.DecreaseDevModeCount())
-		log.Infof("Service %s has been reset.\n", deployment)
+		log.Infof("Service %s has been reset.\n", common.WorkloadName)
 	},
 }

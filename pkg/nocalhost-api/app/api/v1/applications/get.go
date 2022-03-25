@@ -183,8 +183,13 @@ func listOwner(c *gin.Context, userId *uint64) ([]*model.ApplicationModel, error
 		return nil, err
 	}
 
+	currentUser, _ := ginbase.LoginUser(c)
+	var userName = ""
+	if cache, err := service.Svc.UserSvc().GetCache(currentUser); err == nil {
+		userName = cache.Name
+	}
 	for _, applicationModel := range result {
-		currentUser, _ := ginbase.LoginUser(c)
+		applicationModel.FillUserName(userName)
 		applicationModel.FillEditable(ginbase.IsAdmin(c), currentUser)
 		var applicationContext ApplicationJsonContext
 		err := json.Unmarshal([]byte(applicationModel.Context), &applicationContext)
@@ -220,6 +225,8 @@ func listPermitted(c *gin.Context, userId uint64) ([]*model.ApplicationModel, er
 		return nil, err
 	}
 
+	currentUser, _ := ginbase.LoginUser(c)
+
 	var result []*model.ApplicationModel
 	for _, app := range lists {
 		_, ok := set[app.ID]
@@ -242,7 +249,14 @@ func listPermitted(c *gin.Context, userId uint64) ([]*model.ApplicationModel, er
 			continue
 		}
 		applicationType := getApplicationType(applicationContext.ApplicationSource, applicationContext.ApplicationInstallType)
-		currentUser, _ := ginbase.LoginUser(c)
+
+		var userName = ""
+		if cache, err := service.Svc.UserSvc().GetCache(app.UserId); err == nil {
+			userName = cache.Name
+		}
+
+		app.FillUserName(userName)
+
 		app.FillEditable(ginbase.IsAdmin(c), currentUser)
 		app.FillApplicationType(applicationType)
 		result = append(result, app)

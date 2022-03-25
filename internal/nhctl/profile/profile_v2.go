@@ -241,7 +241,7 @@ func (a *AppProfileV2) CloseDb() error {
 }
 
 type SvcProfileV2 struct {
-	*ServiceConfigV2 `json:"rawConfig" yaml:"rawConfig"` // deprecated, move to app mate
+	//*ServiceConfigV2 `json:"rawConfig" yaml:"rawConfig"` // deprecated, move to app mate
 	//ContainerProfile []*ContainerProfileV2 `json:"containerProfile" yaml:"containerProfile"`
 	ActualName string `json:"actualName" yaml:"actualName"` // deprecated - for helm, actualName may be ReleaseName-Name
 
@@ -303,65 +303,31 @@ type ContainerProfileV2 struct {
 }
 
 type DevPortForward struct {
-	LocalPort       int    `json:"localport" yaml:"localport"`
-	RemotePort      int    `json:"remoteport" yaml:"remoteport"`
-	Role            string `json:"role" yaml:"role"`
-	Status          string `json:"status" yaml:"status"`
-	Reason          string `json:"reason" yaml:"reason"`
-	PodName         string `json:"podName" yaml:"podName"`
-	Updated         string `json:"updated" yaml:"updated"`
-	Sudo            bool   `json:"sudo" yaml:"sudo"`
-	DaemonServerPid int    `json:"daemonserverpid" yaml:"daemonserverpid"`
-	ServiceType     string `json:"servicetype" yaml:"servicetype"`
+	LocalPort       int               `json:"localport" yaml:"localport"`
+	RemotePort      int               `json:"remoteport" yaml:"remoteport"`
+	Role            string            `json:"role" yaml:"role"`
+	Status          string            `json:"status" yaml:"status"`
+	Reason          string            `json:"reason" yaml:"reason"`
+	PodName         string            `json:"podName" yaml:"podName"`
+	Labels          map[string]string `json:"labels" yaml:"labels"`
+	OwnerKind       string            `json:"ownerKind" yaml:"ownerKind"`
+	OwnerApiVersion string            `json:"ownerApiVersion" yaml:"ownerApiVersion"`
+	OwnerName       string            `json:"ownerName" yaml:"ownerName"`
+	Updated         string            `json:"updated" yaml:"updated"`
+	Sudo            bool              `json:"sudo" yaml:"sudo"`
+	DaemonServerPid int               `json:"daemonserverpid" yaml:"daemonserverpid"`
+	ServiceType     string            `json:"servicetype" yaml:"servicetype"`
 }
-
-// Compatible for v1
-// Finding `containerName` config, if not found, use the first container config
-//func (s *SvcProfileV2) GetContainerDevConfigOrDefault(containerName string) *ContainerDevConfig {
-//	if containerName == "" {
-//		return s.GetDefaultContainerDevConfig()
-//	}
-//	config := s.GetContainerDevConfig(containerName)
-//	if config == nil {
-//		config = s.GetDefaultContainerDevConfig()
-//	}
-//	return config
-//}
-
-//func (s *SvcProfileV2) GetDefaultContainerDevConfig() *ContainerDevConfig {
-//	if len(s.ContainerConfigs) == 0 {
-//		return nil
-//	}
-//	return s.ContainerConfigs[0].Dev
-//}
-
-//func (s *SvcProfileV2) GetContainerDevConfig(containerName string) *ContainerDevConfig {
-//	for _, devConfig := range s.ContainerConfigs {
-//		if devConfig.Name == containerName {
-//			return devConfig.Dev
-//		}
-//	}
-//	return nil
-//}
 
 func (s *SvcProfileV2) GetName() string {
 	if s.Name == "" {
 		if s.ActualName != "" {
 			s.Name = s.ActualName
-		} else {
-			if s.ServiceConfigV2 != nil {
-				s.Name = s.ServiceConfigV2.Name
-			}
 		}
 	}
 	return s.Name
 }
 
 func (s *SvcProfileV2) GetType() string {
-	if s.Type == "" {
-		if s.ServiceConfigV2 != nil {
-			s.Type = s.ServiceConfigV2.Type
-		}
-	}
 	return s.Type
 }

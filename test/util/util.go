@@ -9,8 +9,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/pkg/errors"
-	"os"
-	"path/filepath"
 	"time"
 )
 
@@ -55,28 +53,4 @@ func TimeoutChecker(d time.Duration, cancanFunc func()) {
 			panic(fmt.Sprintf("test case failed, timeout: %v", d))
 		}
 	}
-}
-
-func NeedsToInitK8sOnTke() bool {
-	debug := os.Getenv(Local)
-	if debug != "" {
-		return false
-	}
-	return true
-	//if strings.Contains(runtime.GOOS, "darwin") {
-	//	return true
-	//} else if strings.Contains(runtime.GOOS, "windows") {
-	//	return true
-	//} else {
-	//	return false
-	//}
-}
-
-func GetKubeconfig() string {
-	kubeconfig := os.Getenv(KubeconfigPath)
-	if kubeconfig == "" {
-		dir, _ := os.UserHomeDir()
-		kubeconfig = filepath.Join(dir, ".kube", "config")
-	}
-	return kubeconfig
 }

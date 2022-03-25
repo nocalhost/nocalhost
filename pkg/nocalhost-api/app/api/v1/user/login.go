@@ -1,11 +1,12 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package user
 
 import (
+	"nocalhost/internal/nocalhost-api/service/ldap"
 	"nocalhost/pkg/nocalhost-api/pkg/token"
 	"strings"
 
@@ -57,41 +58,53 @@ func Login(c *gin.Context) {
 	}
 
 	log.Infof("login req %#v", req)
+
 	// check param
 	if req.Email == "" || req.Password == "" {
 		log.Warnf("email or password is empty: %v", req)
 		api.SendResponse(c, errno.ErrParam, nil)
 		return
 	}
+
 	// By default, “From” is not passed in web login,
 	// and ordinary users are prohibited from logging in to the web interface
-	_, err := service.Svc.UserSvc().GetUserByEmail(c, req.Email)
+	usr, err := service.Svc.UserSvc().GetUserByEmail(c, req.Email)
 	if err != nil {
 		api.SendResponse(c, errno.ErrEmailOrPassword, nil)
 		return
 	}
 
-	// Log in to the web
-	//if *users.IsAdmin != 1 && req.From != "plugin" {
-	//	api.SendResponse(c, errno.ErrUserLoginWebNotAllow, nil)
-	//	return
-	//}
+	ldapBindPass := usr.LdapDN != "" &&
+		ldap.DoBindForLDAP("ldap://localhost", false, false, usr.LdapDN, req.Password) == nil
 
-	t, rt, err := service.Svc.UserSvc().EmailLogin(c, req.Email, req.Password)
-	if err != nil {
-		if strings.Contains(err.Error(), "allow") {
-			api.SendResponse(c, errno.ErrUserNotAllow, nil)
+	if !ldapBindPass {
+		err = service.Svc.UserSvc().EmailLogin(c, req.Email, req.Password)
+		if err != nil {
+			if strings.Contains(err.Error(), "allow") {
+				api.SendResponse(c, errno.ErrUserNotAllow, nil)
+				return
+			}
+
+			log.Warnf("email login err: %v", err)
+			api.SendResponse(c, errno.ErrEmailOrPassword, nil)
 			return
 		}
-		log.Warnf("email login err: %v", err)
-		api.SendResponse(c, errno.ErrEmailOrPassword, nil)
+	}
+
+	sign, refreshToken, err := token.Sign(
+		token.Context{UserID: usr.ID, Username: usr.Username, Uuid: usr.Uuid, Email: usr.Email, IsAdmin: *usr.IsAdmin},
+	)
+
+	if err != nil {
+		log.Warnf("login err, fail to create token: %v", err)
+		api.SendResponse(c, errno.InternalServerError, nil)
 		return
 	}
 
 	api.SendResponse(
 		c, nil, model.Token{
-			Token:        t,
-			RefreshToken: rt,
+			Token:        sign,
+			RefreshToken: refreshToken,
 		},
 	)
 }

@@ -9,13 +9,14 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/pkg/nhctl/log"
 )
 
 func init() {
-	profileGetCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s workload name")
-	profileGetCmd.Flags().StringVarP(&serviceType, "type", "t", "deployment", "specify service type")
+	profileGetCmd.Flags().StringVarP(&common.WorkloadName, "deployment", "d", "", "k8s workload name")
+	profileGetCmd.Flags().StringVarP(&common.ServiceType, "type", "t", "deployment", "specify service type")
 	profileGetCmd.Flags().StringVarP(&container, "container", "c", "", "container name of pod")
 	profileGetCmd.Flags().StringVarP(&configKey, "key", "k", "", "key of dev config")
 	profileCmd.AddCommand(profileGetCmd)
@@ -32,7 +33,8 @@ var profileGetCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		initAppAndCheckIfSvcExist(args[0], deployment, serviceType)
+		nocalhostApp, nocalhostSvc, err := common.InitAppAndCheckIfSvcExist(args[0], common.WorkloadName, common.ServiceType)
+		must(err)
 		if configKey == "" {
 			log.Fatal("--key must be specified")
 		}
@@ -42,7 +44,7 @@ var profileGetCmd = &cobra.Command{
 
 		_ = nocalhostSvc.LoadConfigFromHubC(container)
 
-		_ = nocalhostApp.ReloadSvcCfg(deployment, nocalhostSvc.Type, false, true)
+		_ = nocalhostApp.ReloadSvcCfg(common.WorkloadName, nocalhostSvc.Type, false, true)
 
 		switch configKey {
 		case "image":

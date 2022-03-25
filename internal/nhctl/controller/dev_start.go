@@ -61,52 +61,20 @@ func (c *Controller) GetDevSidecarImage(container string) string {
 	return ""
 }
 
-//func (c *Controller) markReplicaSetRevision() error {
-//
-//	dep0, err := c.Client.GetDeployment(c.Name)
-//	if err != nil {
-//		return err
-//	}
-//
-//	// Mark current revision for rollback
-//	rss, err := c.Client.GetSortedReplicaSetsByDeployment(c.Name)
-//	if err != nil {
-//		return err
-//	}
-//	if len(rss) > 0 {
-//		// Recording original pod replicas for dev end to recover
-//		originalPodReplicas := 1
-//		if dep0.Spec.Replicas != nil {
-//			originalPodReplicas = int(*dep0.Spec.Replicas)
-//		}
-//		for _, rs := range rss {
-//			if _, ok := rs.Annotations[_const.DevImageRevisionAnnotationKey]; ok {
-//				// already marked
-//				return nil
-//			}
-//		}
-//		rs := rss[0]
-//		retryTimes := 5
-//		for i := 0; i < retryTimes; i++ {
-//			time.Sleep(time.Second * 1)
-//			if err = c.Client.Patch(
-//				"ReplicaSet", rs.Name,
-//				fmt.Sprintf(
-//					`{"metadata":{"annotations":{"%s":"%d", "%s":"%s"}}}`,
-//					_const.DevImageOriginalPodReplicasAnnotationKey, originalPodReplicas,
-//					_const.DevImageRevisionAnnotationKey, _const.DevImageRevisionAnnotationValue,
-//				), "",
-//			); err == nil {
-//				break
-//			}
-//		}
-//		if err != nil {
-//			return errors.New("Failed to update rs's annotation :" + err.Error())
-//		}
-//		log.Infof("%s has been marked as first revision", rs.Name)
-//	}
-//	return nil
-//}
+func (c *Controller) GetDevContainerName(container string) string {
+	// Find service env
+	serviceConfig := c.Config()
+	for _, v := range serviceConfig.ContainerConfigs {
+		if v.Name == container || container == "" {
+			// Env has a higher priority than envFrom
+			if v.Dev != nil && v.Dev.DevContainerName != "" {
+				return v.Dev.DevContainerName
+			}
+		}
+	}
+
+	return _const.NocalhostDefaultDevContainerName
+}
 
 func (c *Controller) GetSyncThingSecretName() string {
 	if c.DevModeType.IsDuplicateDevMode() {
@@ -483,31 +451,6 @@ func convertToResourceList(cpu string, mem string) (corev1.ResourceList, error) 
 	return requestMap, nil
 }
 
-func waitingPodToBeReady(f func() (string, error)) error {
-	// Wait podList to be ready
-	log.Info("Waiting pod to start...")
-
-	for i := 0; i < 300; i++ {
-		<-time.NewTimer(time.Second * 1).C
-		if _, err := f(); err == nil {
-			break
-		}
-	}
-	return nil
-}
-
-func isContainerReadyAndRunning(containerName string, pod *corev1.Pod) bool {
-	if len(pod.Status.ContainerStatuses) == 0 {
-		return false
-	}
-	for _, status := range pod.Status.ContainerStatuses {
-		if status.Name == containerName && status.Ready && status.State.Running != nil {
-			return true
-		}
-	}
-	return false
-}
-
 // Find Ready Dev Pod's name
 func findDevPodName(podList ...corev1.Pod) (string, error) {
 	resultPodList := make([]corev1.Pod, 0)
@@ -532,9 +475,15 @@ func findDevPodName(podList ...corev1.Pod) (string, error) {
 			}
 		}
 
+		devContainerName, ok := latestPod.Annotations[_const.NocalhostDevContainerAnnotations]
+		if !ok {
+			devContainerName = _const.NocalhostDefaultDevContainerName
+		}
+
 		count := 0
 		for _, status := range latestPod.Status.ContainerStatuses {
-			if (status.Name == "nocalhost-dev" || status.Name == "nocalhost-sidecar") &&
+
+			if (status.Name == devContainerName || status.Name == _const.DefaultNocalhostSideCarName) &&
 				status.Ready {
 				count++
 			}
@@ -555,11 +504,16 @@ func containerStatusForDevPod(pod *corev1.Pod, consumeFun func(status string, er
 		return false
 	}
 
+	devContainerName, ok := pod.Annotations[_const.NocalhostDevContainerAnnotations]
+	if !ok {
+		devContainerName = _const.NocalhostDefaultDevContainerName
+	}
+
 	// dev container must have 2 containers: nocalhost-dev & nocalhost-sidecar
 
 	containerFoundCounter := 0
 	for _, container := range pod.Spec.Containers {
-		if container.Name == "nocalhost-dev" || container.Name == "nocalhost-sidecar" {
+		if container.Name == devContainerName || container.Name == _const.NocalhostDefaultDevSidecarName {
 			containerFoundCounter++
 		}
 	}
@@ -581,7 +535,7 @@ func containerStatusForDevPod(pod *corev1.Pod, consumeFun func(status string, er
 	}
 
 	for _, status := range pod.Status.ContainerStatuses {
-		if status.Name != "nocalhost-dev" && status.Name != "nocalhost-sidecar" {
+		if status.Name != devContainerName && status.Name != _const.NocalhostDefaultDevSidecarName {
 			continue
 		}
 
@@ -652,7 +606,7 @@ func (c *Controller) genContainersAndVolumes(podSpec *corev1.PodSpec,
 	sideCarContainer := generateSideCarContainer(c.GetDevSidecarImage(containerName), workDir)
 
 	devContainer.Image = devImage
-	devContainer.Name = "nocalhost-dev"
+	devContainer.Name = c.GetDevContainerName(containerName)
 	devContainer.Command = []string{"/bin/sh", "-c", "tail -f /dev/null"}
 	devContainer.WorkingDir = workDir
 

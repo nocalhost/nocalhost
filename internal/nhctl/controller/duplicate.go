@@ -60,6 +60,7 @@ func (c *Controller) ReplaceDuplicateModeImage(ctx context.Context, ops *model.D
 		}
 
 		podTemplate.Labels = c.getDuplicateLabelsMap()
+		podTemplate.Annotations = c.getDevContainerAnnotations(ops.Container, podTemplate.Annotations)
 
 		devContainer, sideCarContainer, devModeVolumes, err :=
 			c.genContainersAndVolumes(&podTemplate.Spec, ops.Container, ops.DevImage, ops.StorageClass, true)
@@ -139,10 +140,11 @@ func (c *Controller) ReplaceDuplicateModeImage(ctx context.Context, ops *model.D
 		if podTemplate, err = GetPodTemplateFromSpecPath(c.DevModeAction.PodTemplatePath, um.Object); err != nil {
 			return err
 		}
+		podTemplate.Annotations = c.getDevContainerAnnotations(ops.Container, podTemplate.Annotations)
 		genDeploy := &appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:   c.getDuplicateResourceName(),
-				Labels: labelsMap,
+				Name:        c.getDuplicateResourceName(),
+				Labels:      labelsMap,
 			},
 			Spec: appsv1.DeploymentSpec{
 				Template: *podTemplate,

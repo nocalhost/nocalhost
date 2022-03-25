@@ -11,6 +11,7 @@ import (
 	"nocalhost/pkg/nocalhost-api/app/api/v1/applications"
 	"nocalhost/pkg/nocalhost-api/app/api/v1/cluster"
 	"nocalhost/pkg/nocalhost-api/app/api/v1/cluster_user"
+	"nocalhost/pkg/nocalhost-api/app/api/v1/ldap"
 	"nocalhost/pkg/nocalhost-api/app/api/v1/service_account"
 	"nocalhost/pkg/nocalhost-api/app/api/v1/version"
 	"nocalhost/pkg/nocalhost-api/napp"
@@ -104,7 +105,7 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		c.POST("/:id/storage_class", cluster.GetStorageClassByKubeConfig)
 		c.PUT("/:id", cluster.Update)
 		c.GET("/:id/gen_namespace", cluster.GenNamespace)
-		c.PUT("/:id/migrate",cluster.Migrate)
+		c.PUT("/:id/migrate", cluster.Migrate)
 	}
 
 	// Applications
@@ -160,6 +161,17 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		dv.PUT("/:id/update_resource_limit", cluster_user.UpdateResourceLimit)
 		dv.PUT("/:id/update_mesh_dev_space_info", cluster_user.UpdateMeshDevSpaceInfo)
 		dv.GET("/:id/mesh_apps_info", cluster_user.GetAppsInfo)
+	}
+
+	l := g.Group("/v1/ldap")
+	l.Use(middleware.AuthMiddleware(), middleware.PermissionMiddleware())
+	{
+		l.GET("/config", ldap.GetConfiguration)
+		l.PUT("/config/set", ldap.Configuration)
+		l.PUT("/config/disable",ldap.DeleteConfiguration)
+		l.PUT("/bind", ldap.TestBind)
+		l.PUT("/search", ldap.TestSearch)
+		l.POST("/trigger",ldap.Trigger)
 	}
 
 	// Plug-in

@@ -1,23 +1,25 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cmds
 
 import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/app"
+	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/pkg/nhctl/log"
 )
 
 var portForwardEndOptions = &app.PortForwardEndOptions{}
 
 func init() {
-	portForwardEndCmd.Flags().StringVarP(&deployment, "deployment", "d", "", "k8s deployment which you want to forward to")
+	portForwardEndCmd.Flags().StringVarP(&common.WorkloadName, "deployment", "d", "", "k8s deployment which you want to forward to")
 	portForwardEndCmd.Flags().StringVarP(&portForwardEndOptions.Port, "port", "p", "", "stop specify port-forward")
-	portForwardEndCmd.Flags().StringVarP(&serviceType, "type", "t", "deployment", "specify service type")
+	portForwardEndCmd.Flags().StringVarP(&common.ServiceType, "type", "t", "deployment", "specify service type")
 	PortForwardCmd.AddCommand(portForwardEndCmd)
 }
 
@@ -33,12 +35,19 @@ var portForwardEndCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		applicationName := args[0]
-		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
-		err := nocalhostSvc.StopPortForwardByPort(portForwardEndOptions.Port)
+		_, nocalhostSvc, err := common.InitAppAndCheckIfSvcExist(applicationName, common.WorkloadName, common.ServiceType)
+		must(err)
+		err = nocalhostSvc.StopPortForwardByPort(portForwardEndOptions.Port)
 		if err != nil {
 			log.WarnE(err, "stop port-forward fail")
 		} else {
 			log.Infof("%s port-forward has been stop", portForwardEndOptions.Port)
+		}
+		// notify daemon to invalid cache before return
+		if client, err := daemon_client.GetDaemonClient(false); err == nil {
+			_ = client.SendFlushDirMappingCacheCommand(
+				nocalhostSvc.NameSpace, nocalhostSvc.AppMeta.NamespaceId, applicationName,
+			)
 		}
 	},
 }

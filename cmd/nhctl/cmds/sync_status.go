@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/util/retry"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/syncthing/network/req"
@@ -21,13 +22,13 @@ import (
 var syncStatusOps = &app.SyncStatusOptions{}
 
 func init() {
-	//syncStatusCmd.Flags().StringVarP(&nameSpace, "namespace", "n", "", "kubernetes namespace")
+	//syncStatusCmd.Flags().StringVarP(&common.NameSpace, "namespace", "n", "", "kubernetes namespace")
 	syncStatusCmd.Flags().StringVarP(
-		&deployment, "deployment", "d", string(base.Deployment),
+		&common.WorkloadName, "deployment", "d", string(base.Deployment),
 		"k8s deployment which your developing service exists",
 	)
 	syncStatusCmd.Flags().StringVarP(
-		&serviceType, "controller-type", "t", "deployment",
+		&common.ServiceType, "controller-type", "t", "deployment",
 		"kind of k8s controller,such as deployment,statefulSet",
 	)
 	syncStatusCmd.Flags().BoolVar(
@@ -62,21 +63,25 @@ var syncStatusCmd = &cobra.Command{
 			return
 		}
 
-		if data := SyncStatus(syncStatusOps, nameSpace, args[0], deployment, serviceType, kubeConfig); data != nil {
+		if data := SyncStatus(syncStatusOps, common.NameSpace, args[0], common.WorkloadName, common.ServiceType, common.KubeConfig); data != nil {
 			display(data)
 		}
 	},
 }
 
 func SyncStatus(opt *app.SyncStatusOptions, ns, app, svc, svcType, kubeconfig string) *req.SyncthingStatus {
-	nameSpace = ns
-	kubeConfig = kubeconfig
+	common.NameSpace = ns
+	common.KubeConfig = kubeconfig
 
-	if err := initAppMutate(app); err != nil {
+	nocalhostApp, err := common.InitAppMutate(app)
+	if err != nil {
 		return req.AppNotInstalledTemplate
 	}
 
-	nhSvc := initService(svc, svcType)
+	nhSvc, err := nocalhostApp.InitService(svc, svcType)
+	if err != nil {
+		return req.NotInDevModeTemplate
+	}
 
 	if !nhSvc.IsInDevMode() {
 		return req.NotInDevModeTemplate

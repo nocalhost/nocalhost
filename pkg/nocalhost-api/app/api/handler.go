@@ -1,11 +1,12 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package api
 
 import (
+	"fmt"
 	"github.com/spf13/viper"
 	"net/http"
 	"nocalhost/pkg/nocalhost-api/napp"
@@ -30,11 +31,13 @@ func SendResponse(c *gin.Context, err error, data interface{}) {
 	code, message := errno.DecodeErr(err)
 
 	// always return http.StatusOK
-	c.JSON(http.StatusOK, Response{
-		Code:    code,
-		Message: message,
-		Data:    data,
-	})
+	c.JSON(
+		http.StatusOK, Response{
+			Code:    code,
+			Message: message,
+			Data:    data,
+		},
+	)
 }
 
 // GetUserID
@@ -87,7 +90,7 @@ func Recover(c *gin.Context) {
 	defer func() {
 		if r := recover(); r != nil {
 
-			log.Errorf("panic: %v\n", r)
+			log.Error(fmt.Sprintf("panic: %v, %s\n", r, string(debug.Stack())))
 			// debug
 			if viper.GetString("app.run_mode") == napp.ModeDebug {
 				debug.PrintStack()
