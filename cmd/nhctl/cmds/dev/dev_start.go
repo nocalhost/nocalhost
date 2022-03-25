@@ -269,7 +269,7 @@ func (d *DevStartOps) stopPreviousSyncthing() {
 		),
 	)
 	// kill syncthing process by find find it with terminal
-	str := strings.ReplaceAll(d.NocalhostSvc.GetSyncDir(), nocalhost_path.GetNhctlHomeDir(), "")
+	str := strings.ReplaceAll(d.NocalhostSvc.GetSyncDir(), nocalhost_path.NhctlHome, "")
 	utils2.KillSyncthingProcess(str)
 }
 

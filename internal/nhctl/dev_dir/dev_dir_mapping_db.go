@@ -19,10 +19,10 @@ var (
 )
 
 func Update(fun func(dirMapping *DevDirMapping,
-// be careful, this map is immutable !!!!
-// it is a map generate from #PathToDefaultPackKey and #PackToPath
-// when we change #PathToDefaultPackKey or #PackToPath, we should
-// regenerate this map
+	// be careful, this map is immutable !!!!
+	// it is a map generate from #PathToDefaultPackKey and #PackToPath
+	// when we change #PathToDefaultPackKey or #PackToPath, we should
+	// regenerate this map
 	pathToPack map[DevPath][]*SvcPack) error) error {
 	return doGetOrModify(fun, false)
 }
@@ -48,9 +48,9 @@ func doGetOrModify(fun func(dirMapping *DevDirMapping,
 	readOnly bool) error {
 	var path string
 	if os.Getenv("TEST") == "" {
-		path = nocalhost_path.GetNocalhostDevDirMapping()
+		path = nocalhost_path.NhctlDevDirMapping
 	} else {
-		path = nocalhost_path.GetTestNocalhostDevDirMapping()
+		path = nocalhost_path.NhctlTestDevDirMapping
 	}
 
 	_ = dbutils.CreateLevelDB(path, false)

@@ -17,7 +17,7 @@ import (
 
 func cronJobForUpdatingHub() {
 	for {
-		hubDir := nocalhost_path.GetNocalhostHubDir()
+		hubDir := nocalhost_path.NhctlHubDir
 		_, err := os.Stat(hubDir)
 		if err != nil {
 			if os.IsNotExist(err) {

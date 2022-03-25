@@ -27,7 +27,7 @@ import (
 
 func Init() error {
 	var err error
-	nhctlHomeDir := nocalhost_path.GetNhctlHomeDir()
+	nhctlHomeDir := nocalhost_path.NhctlHome
 	if _, err = os.Stat(nhctlHomeDir); err != nil {
 		if os.IsNotExist(err) {
 			err = os.MkdirAll(nhctlHomeDir, _const.DefaultNewFilePermission)
@@ -36,7 +36,7 @@ func Init() error {
 			}
 
 			// Initial Ns dir
-			nsDir := nocalhost_path.GetNhctlNameSpaceBaseDir()
+			nsDir := nocalhost_path.NhctlNsDir
 			err = os.MkdirAll(nsDir, _const.DefaultNewFilePermission)
 			if err != nil {
 				return errors.Wrap(err, "")
@@ -73,11 +73,11 @@ func CleanupAppFilesUnderNs(namespace, nid string) error {
 }
 
 func GetSyncThingBinDir() string {
-	return filepath.Join(nocalhost_path.GetNhctlHomeDir(), _const.DefaultBinDirName, _const.DefaultBinSyncThingDirName)
+	return filepath.Join(nocalhost_path.NhctlHome, _const.DefaultBinDirName, _const.DefaultBinSyncThingDirName)
 }
 
 func GetLogDir() string {
-	return filepath.Join(nocalhost_path.GetNhctlHomeDir(), _const.DefaultLogDirName)
+	return filepath.Join(nocalhost_path.NhctlHome, _const.DefaultLogDirName)
 }
 
 type AppInfo struct {
@@ -88,7 +88,7 @@ type AppInfo struct {
 
 // MoveAppFromNsToNid For compatibility
 func MoveAppFromNsToNid() error {
-	nsBaseDir := nocalhost_path.GetNhctlNameSpaceBaseDir()
+	nsBaseDir := nocalhost_path.NhctlNsDir
 	nsList, err := ioutil.ReadDir(nsBaseDir)
 	if err != nil {
 		return errors.Wrap(err, "")
@@ -155,7 +155,7 @@ func MigrateNsDirToSupportNidIfNeeded(app, ns, nid string) error {
 		}
 
 		markedFileName := strings.Join([]string{app, ns, nid, "migrating"}, "-")
-		markedFilePath := filepath.Join(nocalhost_path.GetNhctlNameSpaceBaseDir(), ns, markedFileName)
+		markedFilePath := filepath.Join(nocalhost_path.NhctlNsDir, ns, markedFileName)
 		if _, err = os.Stat(markedFilePath); err == nil {
 			return errors.New(fmt.Sprintf("Another process is migrating %s-%s-%s", app, ns, nid))
 		}
@@ -189,7 +189,7 @@ func GetNsAndApplicationInfo(portForwardFilter, nidMigrate bool) ([]AppInfo, err
 	}
 
 	result := make([]AppInfo, 0)
-	nsDir := nocalhost_path.GetNhctlNameSpaceBaseDir()
+	nsDir := nocalhost_path.NhctlNsDir
 	nsList, err := ioutil.ReadDir(nsDir)
 	if err != nil {
 		return nil, errors.Wrap(err, "")

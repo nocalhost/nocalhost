@@ -79,7 +79,7 @@ var rootCmd = &cobra.Command{
 		log.AddField("ARGS", strings.Join(os.Args, " "))
 
 		var esUrl string
-		bys, err := ioutil.ReadFile(filepath.Join(nocalhost_path.GetNhctlHomeDir(), "config"))
+		bys, err := ioutil.ReadFile(filepath.Join(nocalhost_path.NhctlNsDir, "config"))
 		if err == nil && len(bys) > 0 {
 			configFile := base.ConfigFile{}
 			err = yaml.Unmarshal(bys, &configFile)

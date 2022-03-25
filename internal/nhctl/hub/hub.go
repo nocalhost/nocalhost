@@ -49,11 +49,11 @@ func findNocalhostSvcConfigInAllDir(svcName string, svcType base.SvcType, contai
 }
 
 func findNocalhostSvcConfigInIncubator(svcName string, svcType base.SvcType, container, image string) (*profile.ServiceConfigV2, error) {
-	return findNocalhostSvcConfigInDir(nocalhost_path.GetNocalhostIncubatorHubDir(), svcName, svcType, container, image)
+	return findNocalhostSvcConfigInDir(nocalhost_path.NhctlIncubatorHubDir, svcName, svcType, container, image)
 }
 
 func findNocalhostSvcConfigInStable(svcName string, svcType base.SvcType, container, image string) (*profile.ServiceConfigV2, error) {
-	return findNocalhostSvcConfigInDir(nocalhost_path.GetNocalhostStableHubDir(), svcName, svcType, container, image)
+	return findNocalhostSvcConfigInDir(nocalhost_path.NhctlStableHubDir, svcName, svcType, container, image)
 }
 
 func findNocalhostSvcConfigInDir(dir, svcName string, svcType base.SvcType, container, image string) (*profile.ServiceConfigV2, error) {
@@ -87,7 +87,7 @@ func findNocalhostConfigByAppName(appName string) (*profile.NocalHostAppConfigV2
 }
 
 func findNocalhostConfigByDirNameAndAppName(dirName, appName string) (*profile.NocalHostAppConfigV2, error) {
-	hubDir := nocalhost_path.GetNocalhostHubDir()
+	hubDir := nocalhost_path.NhctlHubDir
 	appConfigDirPath := filepath.Join(hubDir, dirName, appName)
 	return findNocalhostConfigByDir(appConfigDirPath)
 }
