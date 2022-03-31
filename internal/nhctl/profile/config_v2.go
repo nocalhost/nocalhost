@@ -58,24 +58,25 @@ type ContainerInstallConfig struct {
 }
 
 type ContainerDevConfig struct {
-	GitUrl                string                 `json:"gitUrl" yaml:"gitUrl"`
-	Image                 string                 `json:"image" yaml:"image"`
-	Shell                 string                 `json:"shell" yaml:"shell"`
-	WorkDir               string                 `json:"workDir" yaml:"workDir"`
-	StorageClass          string                 `validate:"StorageClass" json:"storageClass" yaml:"storageClass"`
-	DevContainerName      string                 `json:"devContainerName,omitempty" yaml:"devContainerName,omitempty"`
-	DevContainerResources *ResourceQuota         `json:"resources" yaml:"resources"`
-	PersistentVolumeDirs  []*PersistentVolumeDir `validate:"dive" json:"persistentVolumeDirs" yaml:"persistentVolumeDirs"`
-	Command               *DevCommands           `json:"command" yaml:"command"`
-	DebugConfig           *DebugConfig           `json:"debug" yaml:"debug"`
-	HotReload             bool                   `json:"hotReload" yaml:"hotReload"`
-	UseDevContainer       bool                   `json:"useDevContainer,omitempty" yaml:"useDevContainer,omitempty"`
-	Sync                  *SyncConfig            `json:"sync" yaml:"sync"`
-	Env                   []*Env                 `json:"env" yaml:"env"`
-	EnvFrom               *EnvFrom               `json:"envFrom,omitempty" yaml:"envFrom,omitempty"`
-	PortForward           []string               `validate:"dive,PortForward" json:"portForward" yaml:"portForward"`
-	SidecarImage          string                 `json:"sidecarImage,omitempty" yaml:"sidecarImage,omitempty"`
-	Patches               []base.PatchItem       `json:"patches,omitempty" yaml:"patches,omitempty"`
+	GitUrl                    string                 `json:"gitUrl" yaml:"gitUrl"`
+	Image                     string                 `json:"image" yaml:"image"`
+	Shell                     string                 `json:"shell" yaml:"shell"`
+	WorkDir                   string                 `json:"workDir" yaml:"workDir"`
+	StorageClass              string                 `validate:"StorageClass" json:"storageClass" yaml:"storageClass"`
+	DevContainerName          string                 `json:"devContainerName,omitempty" yaml:"devContainerName,omitempty"`
+	DevContainerResources     *ResourceQuota         `json:"resources" yaml:"resources"`
+	SidecarContainerResources *ResourceQuota         `json:"sidecarResources" yaml:"sidecarResources"`
+	PersistentVolumeDirs      []*PersistentVolumeDir `validate:"dive" json:"persistentVolumeDirs" yaml:"persistentVolumeDirs"`
+	Command                   *DevCommands           `json:"command" yaml:"command"`
+	DebugConfig               *DebugConfig           `json:"debug" yaml:"debug"`
+	HotReload                 bool                   `json:"hotReload" yaml:"hotReload"`
+	UseDevContainer           bool                   `json:"useDevContainer,omitempty" yaml:"useDevContainer,omitempty"`
+	Sync                      *SyncConfig            `json:"sync" yaml:"sync"`
+	Env                       []*Env                 `json:"env" yaml:"env"`
+	EnvFrom                   *EnvFrom               `json:"envFrom,omitempty" yaml:"envFrom,omitempty"`
+	PortForward               []string               `validate:"dive,PortForward" json:"portForward" yaml:"portForward"`
+	SidecarImage              string                 `json:"sidecarImage,omitempty" yaml:"sidecarImage,omitempty"`
+	Patches                   []base.PatchItem       `json:"patches,omitempty" yaml:"patches,omitempty"`
 }
 
 type DevCommands struct {

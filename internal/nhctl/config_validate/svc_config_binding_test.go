@@ -35,6 +35,16 @@ func TestBinding(t *testing.T) {
 							Cpu:    "500Ti",
 						},
 					},
+					SidecarContainerResources: &profile.ResourceQuota{
+						Limits: &profile.QuotaList{
+							Memory: "256Mi",
+							Cpu:    "1",
+						},
+						Requests: &profile.QuotaList{
+							Memory: "128Mi",
+							Cpu:    "150m",
+						},
+					},
 					PortForward: []string{
 						"8888",
 						"8888:8889",
