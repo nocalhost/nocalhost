@@ -36,6 +36,7 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/azure"
 	appsV1 "k8s.io/client-go/kubernetes/typed/apps/v1"
 	batchV1 "k8s.io/client-go/kubernetes/typed/batch/v1"
 	batchV1beta1 "k8s.io/client-go/kubernetes/typed/batch/v1beta1"

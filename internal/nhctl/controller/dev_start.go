@@ -409,6 +409,38 @@ func (c *Controller) genResourceReq(container string) *corev1.ResourceRequiremen
 	return requirements
 }
 
+func (c *Controller) genSideCarResourceReqOrDefault(container string) *corev1.ResourceRequirements {
+
+	var (
+		err          error
+		requirements *corev1.ResourceRequirements
+	)
+
+	// default sidecar resource
+	r := &profile.ResourceQuota{
+		Limits:   &profile.QuotaList{Memory: "1Gi", Cpu: "1"},
+		Requests: &profile.QuotaList{Memory: "50Mi", Cpu: "100m"},
+	}
+	requirements, _ = convertResourceQuota(r)
+
+	// try to get sidecar resource from config
+	svcProfile := c.Config()
+	containerConfig := svcProfile.GetContainerDevConfigOrDefault(container)
+	if containerConfig == nil {
+		log.Debug("Dev Sidecar Container uses default resource limits")
+		return requirements
+	}
+
+	resourceQuota := containerConfig.SidecarContainerResources
+	if resourceQuota != nil {
+		log.Debug("Dev Sidecar Container uses resource limits defined in config")
+		requirements, err = convertResourceQuota(resourceQuota)
+		utils.ShouldI(err, "Failed to parse resource requirements")
+	}
+
+	return requirements
+}
+
 func convertResourceQuota(quota *profile.ResourceQuota) (*corev1.ResourceRequirements, error) {
 	var err error
 	requirements := &corev1.ResourceRequirements{}
@@ -653,12 +685,9 @@ func (c *Controller) genContainersAndVolumes(podSpec *corev1.PodSpec,
 		)
 	}
 
-	r := &profile.ResourceQuota{
-		Limits:   &profile.QuotaList{Memory: "1Gi", Cpu: "1"},
-		Requests: &profile.QuotaList{Memory: "50Mi", Cpu: "100m"},
-	}
-	rq, _ := convertResourceQuota(r)
-	sideCarContainer.Resources = *rq
+	// set resources for sidecar
+	sideCarRequirements := c.genSideCarResourceReqOrDefault(containerName)
+	sideCarContainer.Resources = *sideCarRequirements
 	return devContainer, &sideCarContainer, devModeVolumes, nil
 }
 

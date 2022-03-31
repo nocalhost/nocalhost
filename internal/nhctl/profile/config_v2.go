@@ -65,6 +65,7 @@ type ContainerDevConfig struct {
 	StorageClass          string                 `validate:"StorageClass" json:"storageClass" yaml:"storageClass"`
 	DevContainerName      string                 `json:"devContainerName,omitempty" yaml:"devContainerName,omitempty"`
 	DevContainerResources *ResourceQuota         `json:"resources" yaml:"resources"`
+	SidecarContainerResources *ResourceQuota     `json:"sidecarResources" yaml:"sidecarResources"`
 	PersistentVolumeDirs  []*PersistentVolumeDir `validate:"dive" json:"persistentVolumeDirs" yaml:"persistentVolumeDirs"`
 	Command               *DevCommands           `json:"command" yaml:"command"`
 	DebugConfig           *DebugConfig           `json:"debug" yaml:"debug"`
