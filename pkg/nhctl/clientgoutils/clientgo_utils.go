@@ -40,6 +40,7 @@ import (
 	batchV1 "k8s.io/client-go/kubernetes/typed/batch/v1"
 	batchV1beta1 "k8s.io/client-go/kubernetes/typed/batch/v1beta1"
 	coreV1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/azure"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
