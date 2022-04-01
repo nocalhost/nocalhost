@@ -21,7 +21,7 @@ import (
 	"strings"
 
 	"github.com/emicklei/go-restful"
-	"k8s.io/kube-openapi/pkg/validation/spec"
+	"github.com/go-openapi/spec"
 )
 
 const (
@@ -55,11 +55,6 @@ type OpenAPIV3DefinitionGetter interface {
 
 type PathHandler interface {
 	Handle(path string, handler http.Handler)
-}
-
-type PathHandlerByGroupVersion interface {
-	Handle(path string, handler http.Handler)
-	HandlePrefix(path string, handler http.Handler)
 }
 
 // Config is set of configuration for openAPI spec generation.

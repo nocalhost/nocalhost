@@ -1,4 +1,4 @@
-//+build go1.9
+//+build !go1.9
 
 package reflect2
 
@@ -7,8 +7,8 @@ import (
 )
 
 //go:linkname makemap reflect.makemap
-func makemap(rtype unsafe.Pointer, cap int) (m unsafe.Pointer)
+func makemap(rtype unsafe.Pointer) (m unsafe.Pointer)
 
 func makeMapWithSize(rtype unsafe.Pointer, cap int) unsafe.Pointer {
-	return makemap(rtype, cap)
+	return makemap(rtype)
 }
