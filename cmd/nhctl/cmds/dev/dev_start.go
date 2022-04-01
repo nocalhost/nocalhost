@@ -92,6 +92,10 @@ func init() {
 		&devStartOps.DevModeType, "dev-mode", "m", "",
 		"specify which DevMode you want to enter, such as: replace,duplicate. Default: replace",
 	)
+	DevStartCmd.Flags().StringToStringVar(
+		&devStartOps.MeshHeader, "header", map[string]string{},
+		"mesh header while use duplicate devMode, traffic which have those headers will route to current workload",
+	)
 }
 
 var DevStartCmd = &cobra.Command{
@@ -154,6 +158,13 @@ func (d *DevStartOps) StartDevMode(applicationName string) error {
 			}
 			return nil
 		}
+	}
+	// not support enter replace and mesh mode at the same time
+	// because of if already in replace devMode, enter mesh mode will inject sidecar to origin workloads
+	// pods will recreate, effect other in replace
+	if len(d.MeshHeader) == 0 && d.NocalhostSvc.IsInReplaceDevMode() {
+		coloredoutput.Fail("Not support enter replace and mesh devMode at the same time")
+		return nil
 	}
 
 	// 1) reload svc config from local if needed
@@ -311,33 +322,34 @@ func (d *DevStartOps) enterDevMode(devModeType profile.DevModeType) error {
 	}()
 
 	// Only `replace` DevMode needs to disable hpa
-	if devModeType.IsReplaceDevMode() {
-		log.Info("Disabling hpa...")
-		hl, err := d.NocalhostSvc.ListHPA()
-		if err != nil {
-			log.WarnE(err, "Failed to find hpa")
+	// replace and duplicate devMode also needs to disable HPA
+	//if devModeType.IsReplaceDevMode() {
+	log.Info("Disabling hpa...")
+	hl, err := d.NocalhostSvc.ListHPA()
+	if err != nil {
+		log.WarnE(err, "Failed to find hpa")
+	}
+	if len(hl) == 0 {
+		log.Info("No hpa found")
+	}
+	for _, h := range hl {
+		if len(h.Annotations) == 0 {
+			h.Annotations = make(map[string]string)
 		}
-		if len(hl) == 0 {
-			log.Info("No hpa found")
+		h.Annotations[_const.HPAOriginalMaxReplicasKey] = strconv.Itoa(int(h.Spec.MaxReplicas))
+		h.Spec.MaxReplicas = 1
+		if h.Spec.MinReplicas != nil {
+			h.Annotations[_const.HPAOriginalMinReplicasKey] = strconv.Itoa(int(*h.Spec.MinReplicas))
+			var i int32 = 1
+			h.Spec.MinReplicas = &i
 		}
-		for _, h := range hl {
-			if len(h.Annotations) == 0 {
-				h.Annotations = make(map[string]string)
-			}
-			h.Annotations[_const.HPAOriginalMaxReplicasKey] = strconv.Itoa(int(h.Spec.MaxReplicas))
-			h.Spec.MaxReplicas = 1
-			if h.Spec.MinReplicas != nil {
-				h.Annotations[_const.HPAOriginalMinReplicasKey] = strconv.Itoa(int(*h.Spec.MinReplicas))
-				var i int32 = 1
-				h.Spec.MinReplicas = &i
-			}
-			if _, err = d.NocalhostSvc.Client.UpdateHPA(&h); err != nil {
-				log.WarnE(err, fmt.Sprintf("Failed to update hpa %s", h.Name))
-			} else {
-				log.Infof("HPA %s has been disabled", h.Name)
-			}
+		if _, err = d.NocalhostSvc.Client.UpdateHPA(&h); err != nil {
+			log.WarnE(err, fmt.Sprintf("Failed to update hpa %s", h.Name))
+		} else {
+			log.Infof("HPA %s has been disabled", h.Name)
 		}
 	}
+	//}
 
 	//d.NocalhostSvc.DevModeType = devModeType
 	if err = d.NocalhostSvc.BuildPodController().ReplaceImage(context.TODO(), d.DevStartOptions); err != nil {

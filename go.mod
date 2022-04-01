@@ -10,17 +10,19 @@ require (
 	github.com/alicebob/miniredis v2.5.0+incompatible
 	github.com/briandowns/spinner v1.11.1
 	github.com/cheggaaa/pb/v3 v3.0.5
-	github.com/derailed/tview v0.6.6
 	github.com/containerd/containerd v1.5.8
+	github.com/derailed/tview v0.6.6
 	github.com/docker/libcontainer v2.2.1+incompatible
+	github.com/envoyproxy/go-control-plane v0.10.1
 	github.com/fastly/go-utils v0.0.0-20180712184237-d95a45783239 // indirect
 	github.com/fatih/color v1.7.0
-	github.com/fsnotify/fsnotify v1.4.9
+	github.com/fsnotify/fsnotify v1.5.1
 	github.com/gdamore/tcell/v2 v2.4.1-0.20210905002822-f057f0a857a1
 	github.com/ghodss/yaml v1.0.0
 	github.com/gin-contrib/pprof v1.3.0
 	github.com/gin-gonic/gin v1.7.0
 	github.com/go-ldap/ldap/v3 v3.4.1
+	github.com/go-openapi/spec v0.19.5 // indirect
 	github.com/go-playground/validator/v10 v10.9.0
 	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/golang-jwt/jwt/v4 v4.1.0
@@ -70,7 +72,7 @@ require (
 	github.com/vmihailenco/msgpack v4.0.4+incompatible
 	github.com/willf/pad v0.0.0-20200313202418-172aa767f2a4
 	github.com/yuin/gopher-lua v0.0.0-20200816102855-ee81675732da // indirect
-	go.uber.org/zap v1.19.0
+	go.uber.org/zap v1.19.1
 	golang.org/x/crypto v0.0.0-20211215153901-e495a2d5b3d3
 	golang.org/x/mod v0.4.2
 	golang.org/x/net v0.0.0-20211215060638-4ddde0e984e9
@@ -85,14 +87,15 @@ require (
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 	istio.io/api v0.0.0-20210809175348-eff556fb5d8a
 	istio.io/client-go v1.11.0
-	k8s.io/api v0.21.2
-	k8s.io/apiextensions-apiserver v0.21.2
-	k8s.io/apimachinery v0.21.2
+	k8s.io/api v0.23.0
+	k8s.io/apiextensions-apiserver v0.23.0
+	k8s.io/apimachinery v0.23.0
 	k8s.io/cli-runtime v0.21.0-alpha.1
-	k8s.io/client-go v0.21.2
+	k8s.io/client-go v0.23.0
 	k8s.io/kubectl v0.21.0-alpha.1
+	sigs.k8s.io/controller-runtime v0.11.0
 	sigs.k8s.io/kustomize v2.0.3+incompatible
-	sigs.k8s.io/yaml v1.2.0
+	sigs.k8s.io/yaml v1.3.0
 )
 
 replace (

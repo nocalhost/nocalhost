@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -eu -o pipefail
+
+SOURCE="nocalhost/cmd/nocalhost-control-plane"
+BUILD_TARGET="c/nocalhost-control-plane"
+GOARCH=amd64 GOOS=linux CGO_ENABLED=0 go build -o "${BUILD_TARGET}" -gcflags "all=-N -l" "${SOURCE}"
+
+DOCKERFILE="deployments/nocalhost-control-plane/Dockerfile"
+TARGET="nocalhost-control-plane"
+
+docker build -t nocalhost-docker.pkg.coding.net/nocalhost/public/${TARGET}:v1 -f ${DOCKERFILE} build
