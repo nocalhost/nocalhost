@@ -10,9 +10,10 @@ require (
 	github.com/alicebob/miniredis v2.5.0+incompatible
 	github.com/briandowns/spinner v1.11.1
 	github.com/cheggaaa/pb/v3 v3.0.5
-	github.com/derailed/tview v0.6.6
 	github.com/containerd/containerd v1.5.8
+	github.com/derailed/tview v0.6.6
 	github.com/docker/libcontainer v2.2.1+incompatible
+	github.com/envoyproxy/go-control-plane v0.10.1
 	github.com/fastly/go-utils v0.0.0-20180712184237-d95a45783239 // indirect
 	github.com/fatih/color v1.7.0
 	github.com/fsnotify/fsnotify v1.4.9
@@ -29,7 +30,7 @@ require (
 	github.com/golang/snappy v0.0.4
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
 	github.com/google/uuid v1.2.0
-	github.com/hashicorp/golang-lru v0.5.1
+	github.com/hashicorp/golang-lru v0.5.4
 	github.com/heroku/docker-registry-client v0.0.0-20190909225348-afc9e1acc3d5
 	github.com/imroc/req v0.3.0
 	github.com/jehiah/go-strftime v0.0.0-20171201141054-1d33003b3869 // indirect
@@ -91,6 +92,7 @@ require (
 	k8s.io/cli-runtime v0.21.0-alpha.1
 	k8s.io/client-go v0.21.2
 	k8s.io/kubectl v0.21.0-alpha.1
+	sigs.k8s.io/controller-runtime v0.9.0
 	sigs.k8s.io/kustomize v2.0.3+incompatible
 	sigs.k8s.io/yaml v1.2.0
 )
