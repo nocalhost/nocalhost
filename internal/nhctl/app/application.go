@@ -681,20 +681,6 @@ func (a *Application) GetDescription() *profile.AppProfileV2 {
 	return nil
 }
 
-//func (a *Application) SendPortForwardTCPHeartBeat(addressWithPort string) error {
-//	conn, err := net.Dial("tcp", addressWithPort)
-//	if err != nil || conn == nil {
-//		return errors.New(fmt.Sprintf("connect port-forward heartbeat address fail, %s", addressWithPort))
-//	}
-//	// GET /heartbeat HTTP/1.1
-//	_, err = conn.Write([]byte("ping"))
-//	return errors.Wrap(err, "send port-forward heartbeat fail")
-//}
-
-//func (a *Application) PortForwardAPod(req clientgoutils.PortForwardAPodRequest) error {
-//	return a.client.PortForwardAPod(req)
-//}
-
 func (a *Application) PortForward(pod string, localPort, remotePort int, readyChan, stopChan chan struct{}, g genericclioptions.IOStreams) error {
 	return a.client.ForwardPortForwardByPod(pod, localPort, remotePort, readyChan, stopChan, g)
 }
