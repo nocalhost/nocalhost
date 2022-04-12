@@ -122,7 +122,7 @@ func ReCreate(c *gin.Context) {
 		return
 	}
 
-	clusterUser, errn := HasModifyPermissionToSomeDevSpace(c, devSpaceId)
+	clusterUser, errn := LoginUserHasModifyPermissionToSomeDevSpace(c, devSpaceId)
 	if errn != nil {
 		api.SendResponse(c, errn, nil)
 		return

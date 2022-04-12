@@ -78,6 +78,8 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		u.GET("", user.GetList)
 		u.POST("", user.Create)
 		u.PUT("/:id", user.Update)
+		u.POST("/import", user.Import)
+		u.GET("/import_status/:id", user.ImportStatus)
 		u.DELETE("/:id", user.Delete)
 		u.GET("/:id/dev_space_list", cluster_user.GetJoinClusterAndAppAndUser)
 		u.GET("/:id/applications", applications.ListPermitted)
@@ -168,10 +170,10 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 	{
 		l.GET("/config", ldap.GetConfiguration)
 		l.PUT("/config/set", ldap.Configuration)
-		l.PUT("/config/disable",ldap.DeleteConfiguration)
+		l.PUT("/config/disable", ldap.DeleteConfiguration)
 		l.PUT("/bind", ldap.TestBind)
 		l.PUT("/search", ldap.TestSearch)
-		l.POST("/trigger",ldap.Trigger)
+		l.POST("/trigger", ldap.Trigger)
 	}
 
 	// Plug-in

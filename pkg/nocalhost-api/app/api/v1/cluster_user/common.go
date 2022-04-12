@@ -6,6 +6,7 @@
 package cluster_user
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"nocalhost/internal/nocalhost-api/model"
@@ -17,13 +18,23 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
 )
 
-// HasModifyPermissionToSomeDevSpace
+// LoginUserHasModifyPermissionToSomeDevSpace
 // those role can modify the devSpace:
 // - is the cooperator of ns
 // - is nocalhost admin
 // - is owner
 // - is devSpace's cluster owner
-func HasModifyPermissionToSomeDevSpace(c *gin.Context, devSpaceId uint64) (*model.ClusterUserModel, error) {
+func LoginUserHasModifyPermissionToSomeDevSpace(c *gin.Context, devSpaceId uint64) (*model.ClusterUserModel, error) {
+
+	loginUser, err := ginbase.LoginUser(c)
+	if err != nil {
+		return nil, errno.ErrPermissionDenied
+	}
+
+	return HasModifyPermissionToSomeDevSpace(loginUser, devSpaceId)
+}
+
+func HasModifyPermissionToSomeDevSpace(userId, devSpaceId uint64) (*model.ClusterUserModel, error) {
 	devSpace, err := service.Svc.ClusterUser().GetCache(devSpaceId)
 	if err != nil {
 		return nil, errno.ErrClusterUserNotFound
@@ -34,12 +45,7 @@ func HasModifyPermissionToSomeDevSpace(c *gin.Context, devSpaceId uint64) (*mode
 		return nil, errno.ErrClusterNotFound
 	}
 
-	loginUser, err := ginbase.LoginUser(c)
-	if err != nil {
-		return nil, errno.ErrPermissionDenied
-	}
-
-	nss := ns_scope.AllCoopNs(devSpace.ClusterId, loginUser)
+	nss := ns_scope.AllCoopNs(devSpace.ClusterId, userId)
 
 	for _, s := range nss {
 		if devSpace.Namespace == s {
@@ -47,9 +53,14 @@ func HasModifyPermissionToSomeDevSpace(c *gin.Context, devSpaceId uint64) (*mode
 		}
 	}
 
-	if ginbase.IsAdmin(c) || cluster.UserId == loginUser || devSpace.UserId == loginUser {
+	usr, err := service.Svc.UserSvc().GetUserByID(context.TODO(), userId)
+	if err != nil {
+		return nil, err
+	}
+	if (usr.IsAdmin != nil && *usr.IsAdmin == 1) || cluster.UserId == userId || devSpace.UserId == userId {
 		return &devSpace, nil
 	}
+
 	return nil, errno.ErrPermissionDenied
 }
 
