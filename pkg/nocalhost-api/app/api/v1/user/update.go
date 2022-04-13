@@ -163,6 +163,7 @@ type ItemStatus struct {
 type ImportTaskStatus struct {
 	Process float32 // 0.0 ~ 1.0
 	Items   []ItemStatus
+	ErrInfo string
 }
 
 func ImportStatus(c *gin.Context) {
@@ -187,6 +188,7 @@ func importUsers(ctx *gin.Context, data [][]string, uuid string, loginUserId uin
 	cum := model.ClusterUserModel{}
 	devSpaces, err := cluster_user.DoList(&cum, loginUserId, true, false)
 	if err != nil {
+		itss.ErrInfo = err.Error()
 		log.Error(err.Error())
 		return
 	}
