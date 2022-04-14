@@ -100,19 +100,19 @@ func Import(c *gin.Context) {
 
 	userId, err := ginbase.LoginUser(c)
 	if err != nil {
-		api.SendResponse(c, errno.ErrPermissionDenied, nil)
+		api.SendResponse(c, errno.ErrPermissionDenied, err.Error())
 		return
 	}
 
 	file, err := c.FormFile("upload")
 	if err != nil {
-		api.SendResponse(c, errno.ErrUserImport, nil)
+		api.SendResponse(c, errno.ErrUserImport, err.Error())
 		return
 	}
 
 	fh, err := file.Open()
 	if err != nil {
-		api.SendResponse(c, errno.ErrUserImport, nil)
+		api.SendResponse(c, errno.ErrUserImport, err.Error())
 		return
 	}
 
@@ -188,14 +188,12 @@ func importUsers(ctx *gin.Context, data [][]string, uuid string, loginUserId uin
 	cum := model.ClusterUserModel{}
 	devSpaces, err := cluster_user.DoList(&cum, loginUserId, true, false)
 	if err != nil {
-		itss.ErrInfo = err.Error()
 		log.Error(err.Error())
-		return
 	}
 
 	for i, datum := range data {
 		if len(datum) < 2 {
-			itss.Process = float32(i) + 1.0/float32(len(data))
+			itss.Process = (float32(i) + 1.0) / float32(len(data))
 			itss.Items = append(itss.Items, ItemStatus{
 				Success: false,
 				ErrInfo: "Email or UserName can not be nil",
@@ -256,25 +254,26 @@ func importUsers(ctx *gin.Context, data [][]string, uuid string, loginUserId uin
 					spaceFound = true
 					cu, errn := cluster_user.LoginUserHasModifyPermissionToSomeDevSpace(ctx, space.ID)
 					if errn != nil {
-						errStr = errStr + " user has not permission to" + s
+						errStr = errStr + ",user has not permission to " + s
 						break
 					}
 					if cu.IsClusterAdmin() {
 						if err := cluster_scope.AsCooperator(cu.ClusterId, cu.UserId, usr.ID); err != nil {
-							errStr = errStr + "Error while add somebody as cluster cooperator"
+							errStr = errStr + fmt.Sprintf(",Error while adding %d as cluster cooperator", usr.ID)
 						}
 					} else if err := ns_scope.AsCooperator(cu.ClusterId, usr.ID, cu.Namespace); err != nil {
-						errStr = errStr + "Error while add somebody as cluster cooperator"
+						errStr = errStr + fmt.Sprintf(",Error while adding %d as cooperator", usr.ID)
 					}
 					break
 				}
 			}
 			if !spaceFound {
-				errStr = errStr + " " + s + " is not found"
+				errStr = errStr + ",DevSpace " + s + " is not found"
 			}
 		}
 
 		if errStr != "" {
+			errStr = strings.TrimLeft(errStr, ",")
 			itss.Process = (float32(i) + 1.0) / float32(len(data))
 			is.Success = false
 			is.ErrInfo = errStr
@@ -285,7 +284,7 @@ func importUsers(ctx *gin.Context, data [][]string, uuid string, loginUserId uin
 		for _, s := range viewerDevSpace {
 			strs := strings.Split(s, "/")
 			if len(strs) < 2 {
-				errStr = errStr + " " + s + " is invalid format"
+				errStr = errStr + "," + s + " is invalid format"
 				continue
 			}
 			var spaceFound bool
@@ -294,25 +293,26 @@ func importUsers(ctx *gin.Context, data [][]string, uuid string, loginUserId uin
 					spaceFound = true
 					cu, errn := cluster_user.LoginUserHasModifyPermissionToSomeDevSpace(ctx, space.ID)
 					if errn != nil {
-						errStr = errStr + " user has not permission to" + s
+						errStr = errStr + ",user has not permission to " + s
 						break
 					}
 					if cu.IsClusterAdmin() {
 						if err := cluster_scope.AsViewer(cu.ClusterId, cu.UserId, usr.ID); err != nil {
-							errStr = errStr + "Error while add somebody as cluster viewer"
+							errStr = errStr + fmt.Sprintf(",Error while adding %d as cluster viewer", usr.ID)
 						}
 					} else if err := ns_scope.AsViewer(cu.ClusterId, usr.ID, cu.Namespace); err != nil {
-						errStr = errStr + "Error while add somebody as cluster viewer"
+						errStr = errStr + fmt.Sprintf(",Error while adding %d as viewer", usr.ID)
 					}
 					break
 				}
 			}
 			if !spaceFound {
-				errStr = errStr + " " + s + " is not found"
+				errStr = errStr + "," + s + " is not found"
 			}
 		}
 
 		if errStr != "" {
+			errStr = strings.TrimLeft(errStr, ",")
 			itss.Process = (float32(i) + 1.0) / float32(len(data))
 			is.Success = false
 			itss.Items = append(itss.Items, is)

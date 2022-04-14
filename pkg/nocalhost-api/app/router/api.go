@@ -146,6 +146,10 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		dv2.GET("", cluster_user.ListV2)
 		dv2.GET("/cluster", cluster.GetDevSpaceClusterList)
 		dv2.GET("/detail", cluster_user.GetV2)
+		dv2.GET("/ns_list", cluster_user.GetNsInfo)
+		dv2.POST("/ns_import", cluster_user.NsImport)
+		dv2.POST("/ns_batch_import", cluster_user.NsBatchImport)
+		dv2.GET("/ns_import_status/:id", cluster_user.ImportStatus)
 		dv2.POST("/share", cluster_user.Share)
 		dv2.POST("/unshare", cluster_user.UnShare)
 	}

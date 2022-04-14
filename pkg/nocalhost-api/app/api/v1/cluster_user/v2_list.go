@@ -8,9 +8,8 @@ package cluster_user
 import (
 	"context"
 	"encoding/json"
-	"sort"
-
 	"github.com/gin-gonic/gin"
+	"sort"
 
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
