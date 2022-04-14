@@ -1,3 +1,5 @@
+# cloud.google.com/go v0.81.0
+cloud.google.com/go/compute/metadata
 # github.com/Azure/go-ansiterm v0.0.0-20210608223527-2377c96fe795
 github.com/Azure/go-ansiterm
 github.com/Azure/go-ansiterm/winterm
@@ -586,7 +588,11 @@ golang.org/x/net/webdav
 golang.org/x/net/webdav/internal/xml
 # golang.org/x/oauth2 v0.0.0-20210402161424-2e8d93401602
 golang.org/x/oauth2
+golang.org/x/oauth2/google
+golang.org/x/oauth2/google/internal/externalaccount
 golang.org/x/oauth2/internal
+golang.org/x/oauth2/jws
+golang.org/x/oauth2/jwt
 # golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 ## explicit
 golang.org/x/sync/errgroup
@@ -1047,6 +1053,8 @@ k8s.io/client-go/pkg/apis/clientauthentication/v1beta1
 k8s.io/client-go/pkg/version
 k8s.io/client-go/plugin/pkg/client/auth/azure
 k8s.io/client-go/plugin/pkg/client/auth/exec
+k8s.io/client-go/plugin/pkg/client/auth/gcp
+k8s.io/client-go/plugin/pkg/client/auth/oidc
 k8s.io/client-go/rest
 k8s.io/client-go/rest/watch
 k8s.io/client-go/restmapper
