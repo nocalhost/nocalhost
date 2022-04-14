@@ -77,15 +77,12 @@ func main() {
 	//routers.LoadWebRouter(router)
 
 	// init service
-	svc := service.New()
+	service.Init()
 
-	// set global service
-	service.Svc = svc
 	cluster.Init()
 
 	service.StartJob()
 	fmt.Printf("current run version %s, tag %s, branch %s \n", global.CommitId, global.Version, global.Branch)
-
 
 	// start grpc server reserved
 	//go server.New(controller)

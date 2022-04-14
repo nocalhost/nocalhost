@@ -18,7 +18,7 @@ import (
 // - * devspace
 // - * cluster
 func HasPrivilegeToSomeCluster(c *gin.Context, clusterId uint64) (*model.ClusterModel, error) {
-	cluster, err := service.Svc.ClusterSvc().GetCache(clusterId)
+	cluster, err := service.Svc.ClusterSvc.GetCache(clusterId)
 	if err != nil {
 		return nil, errno.ErrClusterNotFound
 	}

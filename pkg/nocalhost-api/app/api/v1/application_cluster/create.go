@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package application_cluster
 
@@ -36,16 +36,16 @@ func Create(c *gin.Context) {
 	// userId, _ := c.Get("userId")
 	applicationId := cast.ToUint64(c.Param("id"))
 	// check application auth
-	if _, err := service.Svc.ApplicationSvc().Get(c, applicationId); err != nil {
+	if _, err := service.Svc.ApplicationSvc.Get(c, applicationId); err != nil {
 		api.SendResponse(c, errno.ErrPermissionApplication, nil)
 		return
 	}
 	// check cluster auth
-	if _, err := service.Svc.ClusterSvc().Get(c, *req.ClusterId); err != nil {
+	if _, err := service.Svc.ClusterSvc.Get(c, *req.ClusterId); err != nil {
 		api.SendResponse(c, errno.ErrPermissionCluster, nil)
 		return
 	}
-	result, err := service.Svc.ApplicationClusterSvc().Create(c, applicationId, *req.ClusterId)
+	result, err := service.Svc.ApplicationClusterSvc.Create(c, applicationId, *req.ClusterId)
 	if err != nil {
 		log.Warnf("create ApplicationCluster err: %v", err)
 		api.SendResponse(c, errno.ErrBindApplicationClsuter, nil)

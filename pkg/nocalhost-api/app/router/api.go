@@ -78,6 +78,8 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		u.GET("", user.GetList)
 		u.POST("", user.Create)
 		u.PUT("/:id", user.Update)
+		u.POST("/import", user.Import)
+		u.GET("/import_status/:id", user.ImportStatus)
 		u.DELETE("/:id", user.Delete)
 		u.GET("/:id/dev_space_list", cluster_user.GetJoinClusterAndAppAndUser)
 		u.GET("/:id/applications", applications.ListPermitted)
@@ -144,6 +146,10 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		dv2.GET("", cluster_user.ListV2)
 		dv2.GET("/cluster", cluster.GetDevSpaceClusterList)
 		dv2.GET("/detail", cluster_user.GetV2)
+		dv2.GET("/ns_list", cluster_user.GetNsInfo)
+		dv2.POST("/ns_import", cluster_user.NsImport)
+		dv2.POST("/ns_batch_import", cluster_user.NsBatchImport)
+		dv2.GET("/ns_import_status/:id", cluster_user.ImportStatus)
 		dv2.POST("/share", cluster_user.Share)
 		dv2.POST("/unshare", cluster_user.UnShare)
 	}
@@ -168,10 +174,10 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 	{
 		l.GET("/config", ldap.GetConfiguration)
 		l.PUT("/config/set", ldap.Configuration)
-		l.PUT("/config/disable",ldap.DeleteConfiguration)
+		l.PUT("/config/disable", ldap.DeleteConfiguration)
 		l.PUT("/bind", ldap.TestBind)
 		l.PUT("/search", ldap.TestSearch)
-		l.POST("/trigger",ldap.Trigger)
+		l.POST("/trigger", ldap.Trigger)
 	}
 
 	// Plug-in

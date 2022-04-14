@@ -62,7 +62,7 @@ func Delete(c *gin.Context) {
 		}
 
 		// delete database cluster-user dev space
-		if err := service.Svc.ClusterUser().Delete(c, devSpaceId); err != nil {
+		if err := service.Svc.ClusterUserSvc.Delete(c, devSpaceId); err != nil {
 			api.SendResponse(c, errno.ErrDeletedClusterButDatabaseFail, nil)
 			return
 		}
@@ -71,7 +71,7 @@ func Delete(c *gin.Context) {
 		return
 	}
 
-	clusterData, err := service.Svc.ClusterSvc().Get(c, clusterUser.ClusterId)
+	clusterData, err := service.Svc.ClusterSvc.Get(c, clusterUser.ClusterId)
 	if err != nil {
 		api.SendResponse(c, errno.ErrClusterNotFound, nil)
 		return
@@ -122,7 +122,7 @@ func ReCreate(c *gin.Context) {
 		return
 	}
 
-	clusterUser, errn := HasModifyPermissionToSomeDevSpace(c, devSpaceId)
+	clusterUser, errn := LoginUserHasModifyPermissionToSomeDevSpace(c, devSpaceId)
 	if errn != nil {
 		api.SendResponse(c, errn, nil)
 		return
@@ -161,7 +161,7 @@ func ReCreate(c *gin.Context) {
 		IsBaseSpace:        clusterUser.IsBaseSpace,
 	}
 
-	cluster, err := service.Svc.ClusterSvc().GetCache(clusterUser.ClusterId)
+	cluster, err := service.Svc.ClusterSvc.GetCache(clusterUser.ClusterId)
 	if err != nil {
 		api.SendResponse(c, errno.ErrClusterNotFound, nil)
 		return
@@ -237,7 +237,7 @@ func PluginReCreate(c *gin.Context) {
 	// check permission
 	//userId, _ := c.Get("userId")
 	devSpaceId := cast.ToUint64(c.Param("id"))
-	_, err := service.Svc.ClusterUser().GetFirst(c, model.ClusterUserModel{ID: devSpaceId})
+	_, err := service.Svc.ClusterUserSvc.GetFirst(c, model.ClusterUserModel{ID: devSpaceId})
 	if err != nil {
 		api.SendResponse(c, errno.ErrClusterUserNotFound, nil)
 		return

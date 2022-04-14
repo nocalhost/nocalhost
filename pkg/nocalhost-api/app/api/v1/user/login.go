@@ -68,7 +68,7 @@ func Login(c *gin.Context) {
 
 	// By default, “From” is not passed in web login,
 	// and ordinary users are prohibited from logging in to the web interface
-	usr, err := service.Svc.UserSvc().GetUserByEmail(c, req.Email)
+	usr, err := service.Svc.UserSvc.GetUserByEmail(c, req.Email)
 	if err != nil {
 		api.SendResponse(c, errno.ErrEmailOrPassword, nil)
 		return
@@ -78,7 +78,7 @@ func Login(c *gin.Context) {
 		ldap.DoBindForLDAP("ldap://localhost", false, false, usr.LdapDN, req.Password) == nil
 
 	if !ldapBindPass {
-		err = service.Svc.UserSvc().EmailLogin(c, req.Email, req.Password)
+		err = service.Svc.UserSvc.EmailLogin(c, req.Email, req.Password)
 		if err != nil {
 			if strings.Contains(err.Error(), "allow") {
 				api.SendResponse(c, errno.ErrUserNotAllow, nil)

@@ -27,7 +27,7 @@ func PublicSwitch(c *gin.Context) {
 
 	//userId, _ := c.Get("userId")
 	applicationId := cast.ToUint64(c.Param("id"))
-	app, err2 := service.Svc.ApplicationSvc().Get(c, applicationId)
+	app, err2 := service.Svc.ApplicationSvc.Get(c, applicationId)
 	if err2 != nil {
 		api.SendResponse(c, errno.ErrApplicationGet, nil)
 		return
@@ -37,7 +37,7 @@ func PublicSwitch(c *gin.Context) {
 		return
 	}
 
-	err := service.Svc.ApplicationSvc().PublicSwitch(c, applicationId, *req.Public)
+	err := service.Svc.ApplicationSvc.PublicSwitch(c, applicationId, *req.Public)
 	if err != nil {
 		log.Warnf("update Application err: %v", err)
 		api.SendResponse(c, errno.ErrApplicationUpdate, nil)
@@ -87,7 +87,7 @@ func Update(c *gin.Context) {
 		Status:  *req.Status,
 		Public:  *req.Public,
 	}
-	result, err := service.Svc.ApplicationSvc().Update(c, &model)
+	result, err := service.Svc.ApplicationSvc.Update(c, &model)
 	if err != nil {
 		log.Warnf("update Application err: %v", err)
 		api.SendResponse(c, errno.ErrApplicationUpdate, nil)
@@ -125,7 +125,7 @@ func UpdateApplicationInstall(c *gin.Context) {
 		UserId:        userId.(uint64),
 		Status:        req.Status,
 	}
-	_, err := service.Svc.ClusterUser().Update(c, &model)
+	_, err := service.Svc.ClusterUserSvc.Update(c, &model)
 	if err != nil {
 		log.Warnf("update Application err: %v", err)
 		api.SendResponse(c, errno.ErrApplicationInstallUpdate, nil)

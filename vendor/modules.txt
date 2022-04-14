@@ -1,3 +1,6 @@
+# github.com/360EntSecGroup-Skylar/excelize v1.4.1
+## explicit
+github.com/360EntSecGroup-Skylar/excelize
 # cloud.google.com/go v0.81.0
 cloud.google.com/go/compute/metadata
 # github.com/Azure/go-ansiterm v0.0.0-20210608223527-2377c96fe795
@@ -382,6 +385,8 @@ github.com/moby/term/windows
 github.com/modern-go/concurrent
 # github.com/modern-go/reflect2 v1.0.1
 github.com/modern-go/reflect2
+# github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
+github.com/mohae/deepcopy
 # github.com/muesli/cache2go v0.0.0-20210519043705-f6c4b2d7bc5d
 ## explicit
 github.com/muesli/cache2go
