@@ -30,7 +30,7 @@ func AsCooperator(clusterId, fromUserId, shareUserId uint64) error {
 		return nil
 	}
 
-	u, err := service.Svc.UserSvc().GetCache(shareUserId)
+	u, err := service.Svc.UserSvc.GetCache(shareUserId)
 	if err != nil {
 		log.Error(err)
 		return errno.ErrUserNotFound
@@ -58,7 +58,7 @@ func RemoveFromCooperator(clusterId, fromUserId, shareUserId uint64) error {
 		return nil
 	}
 
-	u, err := service.Svc.UserSvc().GetCache(shareUserId)
+	u, err := service.Svc.UserSvc.GetCache(shareUserId)
 	if err != nil {
 		log.Error(err)
 		return errno.ErrUserNotFound
@@ -85,7 +85,7 @@ func AsViewer(clusterId, fromUserId, shareUserId uint64) error {
 		return nil
 	}
 
-	u, err := service.Svc.UserSvc().GetCache(shareUserId)
+	u, err := service.Svc.UserSvc.GetCache(shareUserId)
 	if err != nil {
 		log.Error(err)
 		return errno.ErrUserNotFound
@@ -159,7 +159,7 @@ func RemoveFromViewer(clusterId, fromUserId, shareUserId uint64) error {
 		return nil
 	}
 
-	u, err := service.Svc.UserSvc().GetCache(shareUserId)
+	u, err := service.Svc.UserSvc.GetCache(shareUserId)
 	if err != nil {
 		log.Error(err)
 		return errno.ErrUserNotFound

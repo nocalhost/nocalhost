@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package application_cluster
 
@@ -27,13 +27,13 @@ func GetBound(c *gin.Context) {
 	applicationId := cast.ToUint64(c.Param("id"))
 
 	// application permission
-	if _, err := service.Svc.ApplicationSvc().Get(c, applicationId); err != nil {
+	if _, err := service.Svc.ApplicationSvc.Get(c, applicationId); err != nil {
 		api.SendResponse(c, errno.ErrPermissionApplication, nil)
 		return
 	}
 
 	// get bound list
-	result, err := service.Svc.ApplicationClusterSvc().GetJoinCluster(c, applicationId)
+	result, err := service.Svc.ApplicationClusterSvc.GetJoinCluster(c, applicationId)
 	if err != nil {
 		api.SendResponse(c, errno.ErrApplicationBoundClusterList, nil)
 		return

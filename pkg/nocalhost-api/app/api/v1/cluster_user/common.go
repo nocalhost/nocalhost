@@ -35,12 +35,12 @@ func LoginUserHasModifyPermissionToSomeDevSpace(c *gin.Context, devSpaceId uint6
 }
 
 func HasModifyPermissionToSomeDevSpace(userId, devSpaceId uint64) (*model.ClusterUserModel, error) {
-	devSpace, err := service.Svc.ClusterUser().GetCache(devSpaceId)
+	devSpace, err := service.Svc.ClusterUserSvc.GetCache(devSpaceId)
 	if err != nil {
 		return nil, errno.ErrClusterUserNotFound
 	}
 
-	cluster, err := service.Svc.ClusterSvc().GetCache(devSpace.ClusterId)
+	cluster, err := service.Svc.ClusterSvc.GetCache(devSpace.ClusterId)
 	if err != nil {
 		return nil, errno.ErrClusterNotFound
 	}
@@ -53,7 +53,7 @@ func HasModifyPermissionToSomeDevSpace(userId, devSpaceId uint64) (*model.Cluste
 		}
 	}
 
-	usr, err := service.Svc.UserSvc().GetUserByID(context.TODO(), userId)
+	usr, err := service.Svc.UserSvc.GetUserByID(context.TODO(), userId)
 	if err != nil {
 		return nil, err
 	}
@@ -69,12 +69,12 @@ func HasModifyPermissionToSomeDevSpace(userId, devSpaceId uint64) (*model.Cluste
 // - update resource limit
 // - delete devspace
 func HasPrivilegeToSomeDevSpace(c *gin.Context, devSpaceId uint64) (*model.ClusterUserModel, error) {
-	devSpace, err := service.Svc.ClusterUser().GetCache(devSpaceId)
+	devSpace, err := service.Svc.ClusterUserSvc.GetCache(devSpaceId)
 	if err != nil {
 		return nil, errno.ErrClusterUserNotFound
 	}
 
-	cluster, err := service.Svc.ClusterSvc().GetCache(devSpace.ClusterId)
+	cluster, err := service.Svc.ClusterSvc.GetCache(devSpace.ClusterId)
 	if err != nil {
 		return nil, errno.ErrClusterNotFound
 	}
@@ -103,13 +103,13 @@ func IsShareUsersOk(cooperators, viewers []uint64, clusterUser *model.ClusterUse
 }
 
 func deleteShareSpaces(c *gin.Context, baseSpaceId uint64) {
-	shareSpaces, err := service.Svc.ClusterUser().GetList(c, model.ClusterUserModel{BaseDevSpaceId: baseSpaceId})
+	shareSpaces, err := service.Svc.ClusterUserSvc.GetList(c, model.ClusterUserModel{BaseDevSpaceId: baseSpaceId})
 	if err != nil {
 		// can not find share space, do nothing
 		return
 	}
 	for _, space := range shareSpaces {
-		clusterData, err := service.Svc.ClusterSvc().GetCache(space.ClusterId)
+		clusterData, err := service.Svc.ClusterSvc.GetCache(space.ClusterId)
 		if err != nil {
 			continue
 		}
@@ -127,7 +127,7 @@ func deleteShareSpaces(c *gin.Context, baseSpaceId uint64) {
 }
 
 func reCreateShareSpaces(c *gin.Context, user, baseSpaceId uint64) {
-	shareSpaces, err := service.Svc.ClusterUser().GetList(c, model.ClusterUserModel{BaseDevSpaceId: baseSpaceId})
+	shareSpaces, err := service.Svc.ClusterUserSvc.GetList(c, model.ClusterUserModel{BaseDevSpaceId: baseSpaceId})
 	if err != nil {
 		// can not find share space, do nothing
 		return
@@ -155,7 +155,7 @@ func reCreateShareSpaces(c *gin.Context, user, baseSpaceId uint64) {
 			MeshDevInfo:        meshDevInfo,
 		}
 
-		cluster, err := service.Svc.ClusterSvc().GetCache(clusterUser.ClusterId)
+		cluster, err := service.Svc.ClusterSvc.GetCache(clusterUser.ClusterId)
 		if err != nil {
 			log.Error(err)
 			return

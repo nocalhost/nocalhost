@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package application_cluster
 
@@ -13,40 +13,32 @@ import (
 	"github.com/pkg/errors"
 )
 
-type ApplicationClusterService interface {
-	Create(ctx context.Context, applicationId uint64, clusterId uint64) (model.ApplicationClusterModel, error)
-	GetFirst(ctx context.Context, id uint64) (model.ApplicationClusterModel, error)
-	GetList(ctx context.Context, id uint64) ([]*model.ApplicationClusterModel, error)
-	GetJoinCluster(ctx context.Context, id uint64) ([]*model.ApplicationClusterJoinModel, error)
-	Close()
+type ApplicationCluster struct {
+	applicationClusterRepo *application_cluster.ApplicationClusterRepoBase
 }
 
-type applicationClusterService struct {
-	applicationClusterRepo application_cluster.ApplicationClusterRepo
-}
-
-func NewApplicationClusterService() ApplicationClusterService {
+func NewApplicationClusterService() *ApplicationCluster {
 	db := model.GetDB()
-	return &applicationClusterService{applicationClusterRepo: application_cluster.NewApplicationClusterRepo(db)}
+	return &ApplicationCluster{applicationClusterRepo: application_cluster.NewApplicationClusterRepo(db)}
 }
 
-func (srv *applicationClusterService) GetJoinCluster(
+func (srv *ApplicationCluster) GetJoinCluster(
 	ctx context.Context, id uint64,
 ) ([]*model.ApplicationClusterJoinModel, error) {
 	return srv.applicationClusterRepo.GetJoinCluster(ctx, id)
 }
 
-func (srv *applicationClusterService) GetList(ctx context.Context, id uint64) (
+func (srv *ApplicationCluster) GetList(ctx context.Context, id uint64) (
 	[]*model.ApplicationClusterModel, error,
 ) {
 	return srv.applicationClusterRepo.GetList(ctx, id)
 }
 
-func (srv *applicationClusterService) GetFirst(ctx context.Context, id uint64) (model.ApplicationClusterModel, error) {
+func (srv *ApplicationCluster) GetFirst(ctx context.Context, id uint64) (model.ApplicationClusterModel, error) {
 	return srv.applicationClusterRepo.GetFirst(ctx, id)
 }
 
-func (srv *applicationClusterService) Create(
+func (srv *ApplicationCluster) Create(
 	ctx context.Context, applicationId uint64, clusterId uint64,
 ) (model.ApplicationClusterModel, error) {
 	c := model.ApplicationClusterModel{
@@ -60,6 +52,6 @@ func (srv *applicationClusterService) Create(
 	return c, nil
 }
 
-func (srv *applicationClusterService) Close() {
+func (srv *ApplicationCluster) Close() {
 	srv.applicationClusterRepo.Close()
 }

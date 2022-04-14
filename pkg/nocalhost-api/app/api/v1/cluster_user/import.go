@@ -38,7 +38,7 @@ type NamespaceInfo struct {
 
 func GetNsInfo(c *gin.Context) {
 
-	allClusters, _ := service.Svc.ClusterSvc().GetList(c)
+	allClusters, _ := service.Svc.ClusterSvc.GetList(c)
 	tempResult := make([]*model.ClusterList, 0, 0)
 	userId := c.GetUint64("userId")
 	// normal user can only see clusters they created, or devSpace's cluster
@@ -147,7 +147,7 @@ func importNsToDevSpace(ctx *gin.Context, devSpace []*BatchImportItem, uuid stri
 			uid = userId
 		} else {
 			var u *model.UserBaseModel
-			u, err = service.Svc.UserSvc().GetUserByEmail(context.TODO(), item.Owner)
+			u, err = service.Svc.UserSvc.GetUserByEmail(context.TODO(), item.Owner)
 			if err == nil {
 				uid = u.ID
 			}
@@ -157,7 +157,7 @@ func importNsToDevSpace(ctx *gin.Context, devSpace []*BatchImportItem, uuid stri
 			cs := make([]uint64, 0)
 			for _, s := range item.Collaborator {
 				var uu *model.UserBaseModel
-				uu, err = service.Svc.UserSvc().GetUserByEmail(context.TODO(), s)
+				uu, err = service.Svc.UserSvc.GetUserByEmail(context.TODO(), s)
 				if err != nil {
 					break
 				}
@@ -194,7 +194,7 @@ func importNs(c1 *gin.Context, req *NsImportItem) error {
 	var cucr ClusterUserCreateRequest
 
 	var clusterId uint64
-	clusters, _ := service.Svc.ClusterSvc().GetList(context.TODO())
+	clusters, _ := service.Svc.ClusterSvc.GetList(context.TODO())
 	var cluster *model.ClusterList
 	for _, list := range clusters {
 		if list.ClusterName == req.ClusterName {
@@ -321,7 +321,7 @@ func importNs(c1 *gin.Context, req *NsImportItem) error {
 	if srl != nil {
 		resSting, _ := json.Marshal(srl)
 		cu.SpaceResourceLimit = string(resSting)
-		_, err = service.Svc.ClusterUser().Update(c1, cu)
+		_, err = service.Svc.ClusterUserSvc.Update(c1, cu)
 		if err != nil {
 			return err
 		}

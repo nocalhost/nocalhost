@@ -39,7 +39,7 @@ func Delete(c *gin.Context) {
 		UserId: userId,
 	}
 	var clusterUserIds []uint64
-	clusterUserList, err := service.Svc.ClusterUser().GetJoinCluster(c, condition)
+	clusterUserList, err := service.Svc.ClusterUserSvc.GetJoinCluster(c, condition)
 	if len(clusterUserList) > 0 {
 		for _, clusterUser := range clusterUserList {
 			goClient, err := clientgo.NewAdminGoClient([]byte(clusterUser.AdminClusterKubeConfig))
@@ -58,14 +58,14 @@ func Delete(c *gin.Context) {
 		}
 	}
 
-	user, err := service.Svc.UserSvc().GetCache(userId)
+	user, err := service.Svc.UserSvc.GetCache(userId)
 	if err != nil {
 		log.Warnf("user delete error: %v", err)
 		api.SendResponse(c, errno.ErrUserNotFound, nil)
 		return
 	}
 
-	clusterList, err := service.Svc.ClusterSvc().GetList(c)
+	clusterList, err := service.Svc.ClusterSvc.GetList(c)
 	if err != nil {
 		log.Warnf("user delete error: %v", err)
 		api.SendResponse(c, errno.ErrClusterNotFound, nil)
@@ -73,7 +73,7 @@ func Delete(c *gin.Context) {
 	}
 
 	for _, clusterItem := range clusterList {
-		cl, err := service.Svc.ClusterSvc().GetCache(clusterItem.ID)
+		cl, err := service.Svc.ClusterSvc.GetCache(clusterItem.ID)
 		if err != nil {
 			log.Error(err)
 			continue
@@ -93,12 +93,12 @@ func Delete(c *gin.Context) {
 	}
 
 	// delete cluster user database record
-	err = service.Svc.ClusterUser().BatchDelete(c, clusterUserIds)
+	err = service.Svc.ClusterUserSvc.BatchDelete(c, clusterUserIds)
 	if err != nil {
 		log.Warnf("try to delete dev spaceId %s fail", clusterUserIds)
 	}
 
-	err = service.Svc.UserSvc().Delete(c, userId)
+	err = service.Svc.UserSvc.Delete(c, userId)
 	if err != nil {
 		log.Warnf("user delete error: %v", err)
 		api.SendResponse(c, errno.ErrDeleteUser, nil)
@@ -107,7 +107,7 @@ func Delete(c *gin.Context) {
 
 	// if delete normal user, needs to delete cluster which added by this user
 	if user.IsAdmin != nil && *user.IsAdmin != 1 {
-		err = service.Svc.ClusterSvc().DeleteByCreator(c, userId)
+		err = service.Svc.ClusterSvc.DeleteByCreator(c, userId)
 		if err != nil {
 			log.Warnf("delete cluster which created by this user error: %v", err)
 			api.SendResponse(c, errno.ErrDeleteUser, nil)

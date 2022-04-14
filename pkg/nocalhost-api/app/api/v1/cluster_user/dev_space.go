@@ -61,7 +61,7 @@ func (d *DevSpace) Delete() error {
 	_, _ = goClient.DeleteNS(d.DevSpaceParams.NameSpace)
 
 	// delete database cluster-user dev space
-	dErr := service.Svc.ClusterUser().Delete(d.c, *d.DevSpaceParams.ID)
+	dErr := service.Svc.ClusterUserSvc.Delete(d.c, *d.DevSpaceParams.ID)
 	if dErr != nil {
 		return errno.ErrDeletedClusterButDatabaseFail
 	}
@@ -73,13 +73,13 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 	clusterId := cast.ToUint64(d.DevSpaceParams.ClusterId)
 
 	// get user
-	usersRecord, err := service.Svc.UserSvc().GetUserByID(d.c, userId)
+	usersRecord, err := service.Svc.UserSvc.GetUserByID(d.c, userId)
 	if err != nil {
 		return nil, errno.ErrUserNotFound
 	}
 
 	// check cluster
-	clusterRecord, err := service.Svc.ClusterSvc().Get(context.TODO(), clusterId)
+	clusterRecord, err := service.Svc.ClusterSvc.Get(context.TODO(), clusterId)
 	if err != nil {
 		return nil, errno.ErrClusterNotFound
 	}
@@ -94,7 +94,7 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 		}
 	} else {
 		// check if space name exist
-		if _, err := service.Svc.ClusterUser().GetFirst(
+		if _, err := service.Svc.ClusterUserSvc.GetFirst(
 			d.c, model.ClusterUserModel{
 				SpaceName: d.DevSpaceParams.SpaceName,
 			},
@@ -107,7 +107,7 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 	baseClusterUser := &model.ClusterUserModel{}
 	if d.DevSpaceParams.BaseDevSpaceId > 0 {
 		var err error
-		baseClusterUser, err = service.Svc.ClusterUser().GetFirst(
+		baseClusterUser, err = service.Svc.ClusterUserSvc.GetFirst(
 			d.c, model.ClusterUserModel{
 				ID: d.DevSpaceParams.BaseDevSpaceId,
 			},
@@ -163,7 +163,7 @@ func getUnDuplicateName(times int, name string) (string, error) {
 	}
 
 	// check if space name exist
-	if _, err := service.Svc.ClusterUser().GetFirst(
+	if _, err := service.Svc.ClusterUserSvc.GetFirst(
 		context.TODO(), model.ClusterUserModel{
 			SpaceName: spaceName,
 		},
@@ -192,7 +192,7 @@ func (d *DevSpace) createClusterDevSpace(
 	clusterRecord model.ClusterModel, usersRecord *model.UserBaseModel,
 ) (*model.ClusterUserModel, error) {
 	trueFlag := uint64(1)
-	list, err := service.Svc.ClusterUser().GetList(
+	list, err := service.Svc.ClusterUserSvc.GetList(
 		context.TODO(), model.ClusterUserModel{
 			ClusterId:    clusterRecord.ID,
 			UserId:       usersRecord.ID,
@@ -203,7 +203,7 @@ func (d *DevSpace) createClusterDevSpace(
 		return nil, errno.ErrAlreadyExist
 	}
 
-	result, err := service.Svc.ClusterUser().CreateClusterAdminSpace(
+	result, err := service.Svc.ClusterUserSvc.CreateClusterAdminSpace(
 		context.TODO(), clusterRecord.ID, usersRecord.ID, d.DevSpaceParams.SpaceName,
 	)
 	if err != nil {
@@ -315,7 +315,7 @@ func (d *DevSpace) createDevSpace(
 
 	var result model.ClusterUserModel
 
-	if any, _ := service.Svc.ClusterUser().GetFirst(
+	if any, _ := service.Svc.ClusterUserSvc.GetFirst(
 		context.TODO(), model.ClusterUserModel{
 			Namespace: devNamespace,
 		},
@@ -323,7 +323,7 @@ func (d *DevSpace) createDevSpace(
 		result = *any
 	} else {
 		resString, err := json.Marshal(res)
-		result, err = service.Svc.ClusterUser().Create(
+		result, err = service.Svc.ClusterUserSvc.Create(
 			d.c, *d.DevSpaceParams.ClusterId, usersRecord.ID, *d.DevSpaceParams.Memory, *d.DevSpaceParams.Cpu,
 			"", devNamespace, d.DevSpaceParams.SpaceName, string(resString), d.DevSpaceParams.IsBaseSpace,
 			d.DevSpaceParams.Protected,
@@ -334,7 +334,7 @@ func (d *DevSpace) createDevSpace(
 	}
 
 	// auth application to user
-	_ = service.Svc.ApplicationUser().BatchInsert(d.c, applicationId, []uint64{usersRecord.ID})
+	_ = service.Svc.ApplicationUserSvc.BatchInsert(d.c, applicationId, []uint64{usersRecord.ID})
 
 	// authorize namespace to user
 	if err := service.Svc.AuthorizeNsToUser(clusterRecord.ID, usersRecord.ID, result.Namespace); err != nil {
@@ -369,7 +369,7 @@ func (d *DevSpace) initMeshDevSpace(
 
 	clusterUser.TraceHeader = d.DevSpaceParams.MeshDevInfo.Header
 	clusterUser.BaseDevSpaceId = d.DevSpaceParams.BaseDevSpaceId
-	return service.Svc.ClusterUser().Update(d.c, clusterUser)
+	return service.Svc.ClusterUserSvc.Update(d.c, clusterUser)
 }
 
 func (d *DevSpace) deleteTracingHeader() error {
@@ -378,7 +378,7 @@ func (d *DevSpace) deleteTracingHeader() error {
 	}
 
 	// check base dev space
-	baseDevspace, err := service.Svc.ClusterUser().GetFirst(
+	baseDevspace, err := service.Svc.ClusterUserSvc.GetFirst(
 		d.c, model.ClusterUserModel{
 			ID: d.DevSpaceParams.BaseDevSpaceId,
 		},

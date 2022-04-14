@@ -34,7 +34,7 @@ func Update(c *gin.Context) {
 	updateCol := map[string]interface{}{
 		"storage_class": req.StorageClass,
 	}
-	cluster, err2 := service.Svc.ClusterSvc().Get(c, clusterId)
+	cluster, err2 := service.Svc.ClusterSvc.Get(c, clusterId)
 	if err2 != nil {
 		api.SendResponse(c, errno.ErrUpdateCluster, nil)
 		return
@@ -43,7 +43,7 @@ func Update(c *gin.Context) {
 		api.SendResponse(c, errno.ErrPermissionDenied, nil)
 		return
 	}
-	result, err := service.Svc.ClusterSvc().Update(c, updateCol, clusterId)
+	result, err := service.Svc.ClusterSvc.Update(c, updateCol, clusterId)
 	if err != nil {
 		api.SendResponse(c, errno.ErrUpdateCluster, nil)
 		return

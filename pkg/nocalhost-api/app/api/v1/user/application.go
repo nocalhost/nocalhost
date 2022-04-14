@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package user
 
@@ -42,14 +42,14 @@ func ListNotInApplication(c *gin.Context) {
 // in application means user has the permission to this application
 func listByApplication(c *gin.Context, inApp bool) ([]*model.UserList, error) {
 	applicationId := cast.ToUint64(c.Param("id"))
-	applicationUsers, err := service.Svc.ApplicationUser().ListByApplicationId(c, applicationId)
+	applicationUsers, err := service.Svc.ApplicationUserSvc.ListByApplicationId(c, applicationId)
 
 	if err != nil {
 		log.Error(err)
 		return nil, errno.ErrListApplicationUser
 	}
 
-	userList, err := service.Svc.UserSvc().GetUserList(c)
+	userList, err := service.Svc.UserSvc.GetUserList(c)
 	if err != nil {
 		log.Error(err)
 		return nil, errno.ErrListApplicationUser

@@ -69,7 +69,7 @@ func Migrate(c *gin.Context) {
 				userEmail += _const.DefaultEmailSuffix
 			}
 
-			userPointer, err := service.Svc.UserSvc().CreateOrUpdateUserByEmail(
+			userPointer, err := service.Svc.UserSvc.CreateOrUpdateUserByEmail(
 				c, userEmail, "",
 				"", 0, false,
 			)

@@ -86,7 +86,7 @@ func Update(c *gin.Context) {
 		}
 	}
 
-	result, err := service.Svc.UserSvc().UpdateUser(context.TODO(), userId, &userMap)
+	result, err := service.Svc.UserSvc.UpdateUser(context.TODO(), userId, &userMap)
 	if err != nil {
 		log.Warnf("[user] update user err, %v", err)
 		api.SendResponse(c, errno.InternalServerError, nil)
@@ -231,7 +231,7 @@ func importUsers(ctx *gin.Context, data [][]string, uuid string, loginUserId uin
 		}
 		is.ViewerDevSpace = strings.Join(viewerDevSpace, ",")
 
-		usr, err := service.Svc.UserSvc().CreateOrUpdateUserByEmail(context.TODO(), datum[0], datum[1], "", 0, false)
+		usr, err := service.Svc.UserSvc.CreateOrUpdateUserByEmail(context.TODO(), datum[0], datum[1], "", 0, false)
 		if err != nil {
 			itss.Process = (float32(i) + 1.0) / float32(len(data))
 			is.ErrInfo = err.Error()

@@ -53,13 +53,13 @@ func ListAuthorization(c *gin.Context) {
 	}
 
 	// optimization required
-	clusters, err := service.Svc.ClusterSvc().GetList(c)
+	clusters, err := service.Svc.ClusterSvc.GetList(c)
 	if err != nil {
 		api.SendResponse(c, errno.ErrClusterNotFound, nil)
 		return
 	}
 
-	user, err := service.Svc.UserSvc().GetCache(userId)
+	user, err := service.Svc.UserSvc.GetCache(userId)
 	if err != nil {
 		api.SendResponse(c, errno.ErrUserNotFound, nil)
 		return
@@ -169,7 +169,7 @@ func GenKubeconfig(
 	privilegeType := NONE
 	var nss []NS
 
-	allDevSpace, err := service.Svc.ClusterUser().ListV2(model.ClusterUserModel{})
+	allDevSpace, err := service.Svc.ClusterUserSvc.ListV2(model.ClusterUserModel{})
 	devSpaceMapping := map[string]model.ClusterUserV2{}
 	for _, cu := range allDevSpace {
 		if !cu.IsClusterAdmin() {

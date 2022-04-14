@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package application_user
 
@@ -32,7 +32,7 @@ func BatchInsert(c *gin.Context) {
 		users = append(users, uint64(user))
 	}
 
-	err := service.Svc.ApplicationUser().BatchInsert(c, applicationId, users)
+	err := service.Svc.ApplicationUserSvc.BatchInsert(c, applicationId, users)
 
 	if err != nil {
 		api.SendResponse(c, errno.ErrInsertApplicationUser, nil)
@@ -59,7 +59,7 @@ func BatchDelete(c *gin.Context) {
 		users = append(users, uint64(user))
 	}
 
-	err := service.Svc.ApplicationUser().BatchDelete(c, applicationId, users)
+	err := service.Svc.ApplicationUserSvc.BatchDelete(c, applicationId, users)
 
 	if err != nil {
 		api.SendResponse(c, errno.ErrDeleteApplicationUser, nil)

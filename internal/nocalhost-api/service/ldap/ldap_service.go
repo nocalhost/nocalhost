@@ -5,37 +5,16 @@ import (
 	"nocalhost/internal/nocalhost-api/repository/ldap"
 )
 
-type LdapService interface {
-	Configuration(
-		Server string,
-		Tls *uint64,
-		Md5 *uint64,
-		BindDn string,
-		Password string,
-		BaseDn string,
-		Filter string,
-		AdminBaseDn string,
-		AdminFilter string,
-		EmailAttr string,
-		UserNameAttr string,
-		Enable *uint64) error
-	Get() (*model.LdapModel, error)
-	TryGetLock(id uint64, newProtectedTs, nowProtectedTs int64) bool
-	TryUnLock(id uint64, nowProtectedTs int64)
-	MarkErrorOccur(id, syncGen uint64, errMsg string) bool
-	UpdateGen(id, syncGen uint64, entries, inserts, updates, deletes, fails int, costs int64, ) error
-}
-
-type ldapService struct {
+type Ldap struct {
 	ldapRepo *ldap.LdapRepo
 }
 
-func NewLdapService() LdapService {
+func NewLdapService() *Ldap {
 	db := model.GetDB()
-	return &ldapService{ldapRepo: ldap.NewLdapRepo(db)}
+	return &Ldap{ldapRepo: ldap.NewLdapRepo(db)}
 }
 
-func (srv *ldapService) Configuration(
+func (srv *Ldap) Configuration(
 	Server string,
 	Tls *uint64,
 	Md5 *uint64,
@@ -66,23 +45,23 @@ func (srv *ldapService) Configuration(
 	return srv.ldapRepo.CreateOrUpdate(mapping)
 }
 
-func (srv *ldapService) Get() (*model.LdapModel, error) {
+func (srv *Ldap) Get() (*model.LdapModel, error) {
 	return srv.ldapRepo.SelectFirstOne()
 }
 
-func (srv *ldapService) TryGetLock(id uint64, newProtectedTs, nowProtectedTs int64) bool {
+func (srv *Ldap) TryGetLock(id uint64, newProtectedTs, nowProtectedTs int64) bool {
 	return srv.ldapRepo.TryLock(id, newProtectedTs, nowProtectedTs)
 }
 
-func (srv *ldapService) TryUnLock(id uint64, nowProtectedTs int64) {
+func (srv *Ldap) TryUnLock(id uint64, nowProtectedTs int64) {
 	srv.ldapRepo.TryUnLock(id, nowProtectedTs)
 }
 
-func (srv *ldapService) MarkErrorOccur(id, syncGen uint64, errMsg string) bool {
+func (srv *Ldap) MarkErrorOccur(id, syncGen uint64, errMsg string) bool {
 	return srv.ldapRepo.MarkErrorOccur(id, syncGen, errMsg)
 }
 
-func (srv *ldapService) UpdateGen(id, syncGen uint64, entries, inserts, updates, deletes, fails int, costs int64) error {
+func (srv *Ldap) UpdateGen(id, syncGen uint64, entries, inserts, updates, deletes, fails int, costs int64) error {
 	return srv.ldapRepo.UpdateGen(id, syncGen, entries, inserts, updates, deletes, fails, costs)
 }
 

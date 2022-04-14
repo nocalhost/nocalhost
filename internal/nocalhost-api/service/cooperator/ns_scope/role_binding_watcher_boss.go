@@ -23,7 +23,7 @@ type Supervisor struct {
 }
 
 func CoopSas(clusterId uint64, namespace string) []string {
-	cc, err := service.Svc.ClusterSvc().GetCache(clusterId)
+	cc, err := service.Svc.ClusterSvc.GetCache(clusterId)
 	if err != nil {
 		return nil
 	}
@@ -41,7 +41,7 @@ func CoopSas(clusterId uint64, namespace string) []string {
 }
 
 func ViewerSas(clusterId uint64, namespace string) []string {
-	cc, err := service.Svc.ClusterSvc().GetCache(clusterId)
+	cc, err := service.Svc.ClusterSvc.GetCache(clusterId)
 	if err != nil {
 		return nil
 	}
@@ -85,13 +85,13 @@ func AllViewNs(clusterId, userId uint64) []string {
 func getFromCache(clusterId, userId uint64) (
 	kubeConfig string, saName string, err error,
 ) {
-	cc, err := service.Svc.ClusterSvc().GetCache(clusterId)
+	cc, err := service.Svc.ClusterSvc.GetCache(clusterId)
 	if err != nil {
 		return
 	}
 	kubeConfig = cc.KubeConfig
 
-	uc, err := service.Svc.UserSvc().GetCache(userId)
+	uc, err := service.Svc.UserSvc.GetCache(userId)
 	if err != nil {
 		return
 	}

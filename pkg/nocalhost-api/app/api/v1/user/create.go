@@ -38,7 +38,7 @@ func Create(c *gin.Context) {
 		return
 	}
 
-	u, err := service.Svc.UserSvc().Create(c, req.Email, req.Password, req.Name, "", 0, req.Status, req.IsAdmin)
+	u, err := service.Svc.UserSvc.Create(c, req.Email, req.Password, req.Name, "", 0, req.Status, req.IsAdmin)
 	if err != nil {
 		log.Warnf("register err: %v", err)
 		api.SendResponse(c, errno.ErrRegisterFailed, nil)
