@@ -403,11 +403,15 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 
 			go func() {
 				defer utils.RecoverFromPanic()
-				<-readyCh
-				log.Infof("Port forward %d:%d is ready", localPort, remotePort)
-				p.lock.Lock()
-				_ = nhController.UpdatePortForwardStatus(localPort, remotePort, "LISTEN", "listen")
-				p.lock.Unlock()
+				select {
+				case <-readyCh:
+					log.Infof("Port forward %d:%d is ready", localPort, remotePort)
+					p.lock.Lock()
+					_ = nhController.UpdatePortForwardStatus(localPort, remotePort, "LISTEN", "listen")
+					p.lock.Unlock()
+				case <-time.After(60 * time.Second):
+					log.Infof("Waiting Port forward %d:%d timeout", localPort, remotePort)
+				}
 			}()
 
 			go func() {
@@ -420,6 +424,15 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 
 			select {
 			case errs := <-errCh:
+
+				// close readyCh
+				select {
+				case _, o := <-readyCh:
+					if o {
+						close(readyCh)
+					}
+				default:
+				}
 
 				reconnectMsg := fmt.Sprintf("Reconnecting after %s seconds...", sleepBackOff.String())
 
@@ -476,7 +489,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 
 				if block {
 					<-time.After(sleepBackOff)
-					log.Info("Reconnecting...")
+					log.Infof("Reconnecting %d:%d...", localPort, remotePort)
 				}
 
 			case <-ctx.Done():
