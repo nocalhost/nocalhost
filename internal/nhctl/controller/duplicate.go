@@ -18,6 +18,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/model"
@@ -41,6 +42,9 @@ const (
 	AnnotationMeshHeaderKey   = "dev.mesh.nocalhost.dev/header-key"
 	AnnotationMeshHeaderValue = "dev.mesh.nocalhost.dev/header-value"
 	AnnotationMeshPort        = "dev.mesh.nocalhost.dev/port"
+	AnnotationMeshTypeDev     = "dev"
+	AnnotationMeshTypeOrigin  = "origin"
+	EnvoyMeshSidecarName      = "nocalhost-mesh"
 )
 
 // ReplaceDuplicateModeImage Create a duplicate deployment instead of replacing image
@@ -94,7 +98,8 @@ func (c *Controller) ReplaceDuplicateModeImage(ctx context.Context, ops *model.D
 		patchDevContainerToPodSpec(&podTemplate.Spec, ops.Container, devContainer, sideCarContainer, devModeVolumes)
 		// add envoy sidecar
 		if len(ops.MeshHeader) != 0 {
-			if err = createMeshManager(ctx, c.Client.ClientSet, c.NameSpace); err != nil {
+			err = createMeshManagerIfNotExist(ctx, c.Client.ClientSet, c.NameSpace)
+			if err != nil {
 				return err
 			}
 			uuid := podTemplate.GetAnnotations()[AnnotationMeshUuid]
@@ -103,12 +108,13 @@ func (c *Controller) ReplaceDuplicateModeImage(ctx context.Context, ops *model.D
 			}
 			addAnnotationToDuplicate(podTemplate, uuid, ops.MeshHeader)
 			AddEnvoySidecarForMesh(podTemplate)
-			AddEnvoySidecarForMesh(podTemplateOrigin)
-			addAnnotationToMesh(podTemplateOrigin, uuid)
-			// update origin workloads
-			err = patchOriginWorkloads(umClone, podTemplateOrigin, c.DevModeAction.PodTemplatePath, c.Client)
-			if err != nil {
-				return err
+			if exist := AddEnvoySidecarForMesh(podTemplateOrigin); !exist {
+				addAnnotationToMesh(podTemplateOrigin, uuid)
+				// update origin workloads
+				err = patchOriginWorkloads(umClone, podTemplateOrigin, c.DevModeAction.PodTemplatePath, c.Client)
+				if err != nil {
+					return err
+				}
 			}
 		}
 
@@ -239,7 +245,7 @@ func addAnnotationToDuplicate(podTemplate *v1.PodTemplateSpec, uuid string, head
 	}
 	anno[AnnotationMeshUuid] = uuid
 	anno[AnnotationMeshEnable] = "true"
-	anno[AnnotationMeshType] = "dev"
+	anno[AnnotationMeshType] = AnnotationMeshTypeDev
 	anno[AnnotationMeshPort] = strconv.Itoa(int(podTemplate.Spec.Containers[0].Ports[0].ContainerPort))
 	anno[AnnotationMeshHeaderKey] = k
 	anno[AnnotationMeshHeaderValue] = v
@@ -253,21 +259,30 @@ func addAnnotationToMesh(podTemplate *v1.PodTemplateSpec, uuid string) {
 	}
 	anno[AnnotationMeshUuid] = uuid
 	anno[AnnotationMeshEnable] = "true"
-	anno[AnnotationMeshType] = "origin"
+	anno[AnnotationMeshType] = AnnotationMeshTypeOrigin
 	podTemplate.SetAnnotations(anno)
 }
 
-func AddEnvoySidecarForMesh(spec *v1.PodTemplateSpec) {
-	envoy := "envoy"
+func AddEnvoySidecarForMesh(spec *v1.PodTemplateSpec) (exist bool) {
 	for i := 0; i < len(spec.Spec.Containers); i++ {
-		if spec.Spec.Containers[i].Name == envoy {
+		if spec.Spec.Containers[i].Name == EnvoyMeshSidecarName {
+			exist = true
 			spec.Spec.Containers = append(spec.Spec.Containers[:i], spec.Spec.Containers[i+1:]...)
 			i--
 		}
 	}
+	var port = sets.NewString()
+	for _, container := range spec.Spec.Containers {
+		for _, containerPort := range container.Ports {
+			port.Insert(strconv.Itoa(int(containerPort.ContainerPort)))
+		}
+	}
+	if len(port) == 0 {
+		port.Insert("8080", "80")
+	}
 	t := true
 	spec.Spec.Containers = append(spec.Spec.Containers, v1.Container{
-		Name:  envoy,
+		Name:  EnvoyMeshSidecarName,
 		Image: EnvoySidecarImage,
 		Args: []string{
 			"envoy",
@@ -278,32 +293,41 @@ func AddEnvoySidecarForMesh(spec *v1.PodTemplateSpec) {
 			"--service-node",
 			"$(POD_NAME)",
 		},
-		Env: []v1.EnvVar{{
-			Name: "POD_NAME",
-			ValueFrom: &v1.EnvVarSource{
-				FieldRef: &v1.ObjectFieldSelector{
-					APIVersion: "v1",
-					FieldPath:  "metadata.name",
+		Env: []v1.EnvVar{
+			{
+				Name: "POD_NAME",
+				ValueFrom: &v1.EnvVarSource{
+					FieldRef: &v1.ObjectFieldSelector{
+						APIVersion: "v1",
+						FieldPath:  "metadata.name",
+					},
 				},
 			},
-		}},
+			{
+				Name:  "NOCALHOST_PORT",
+				Value: strings.Join(port.List(), ","),
+			}},
 		ImagePullPolicy: v1.PullAlways,
 		SecurityContext: &v1.SecurityContext{
 			Privileged: &t,
 		},
 	})
+	return
 }
 
-// create mesh-manager if needed
-func createMeshManager(ctx context.Context, clientset kubernetes.Interface, namespace string) error {
+// create mesh-manager if needed, resources: role, serviceAccount, roleBinding, deployment, service
+func createMeshManagerIfNotExist(ctx context.Context, clientset kubernetes.Interface, namespace string) error {
 	_, err := clientset.AppsV1().Deployments(namespace).Get(ctx, MeshManager, metav1.GetOptions{})
 	if err != nil && !k8serrors.IsNotFound(err) {
 		return err
 	}
+	// already exist, do nothing
 	if err == nil {
 		return nil
 	}
-	role := &rbacv1.Role{
+
+	// create role if not exists
+	_, err = clientset.RbacV1().Roles(namespace).Create(ctx, &rbacv1.Role{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      MeshManager,
 			Namespace: namespace,
@@ -313,22 +337,24 @@ func createMeshManager(ctx context.Context, clientset kubernetes.Interface, name
 			APIGroups: []string{""},
 			Resources: []string{"pods"},
 		}},
-	}
-	_, err = clientset.RbacV1().Roles(namespace).Create(ctx, role, metav1.CreateOptions{})
+	}, metav1.CreateOptions{})
 	if err != nil && !k8serrors.IsAlreadyExists(err) {
 		return err
 	}
-	account := &v1.ServiceAccount{
+
+	// create service account if not exists
+	_, err = clientset.CoreV1().ServiceAccounts(namespace).Create(ctx, &v1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      MeshManager,
 			Namespace: namespace,
 		},
-	}
-	_, err = clientset.CoreV1().ServiceAccounts(namespace).Create(ctx, account, metav1.CreateOptions{})
+	}, metav1.CreateOptions{})
 	if err != nil && !k8serrors.IsAlreadyExists(err) {
 		return err
 	}
-	roleBinding := &rbacv1.RoleBinding{
+
+	// create roleBinding if not exists
+	_, err = clientset.RbacV1().RoleBindings(namespace).Create(ctx, &rbacv1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      MeshManager,
 			Namespace: namespace,
@@ -343,11 +369,12 @@ func createMeshManager(ctx context.Context, clientset kubernetes.Interface, name
 			Kind:     "Role",
 			Name:     MeshManager,
 		},
-	}
-	_, err = clientset.RbacV1().RoleBindings(namespace).Create(ctx, roleBinding, metav1.CreateOptions{})
+	}, metav1.CreateOptions{})
 	if err != nil && !k8serrors.IsAlreadyExists(err) {
 		return err
 	}
+
+	// create mesh-manager if not exists
 	m := map[string]string{"app": "mesh-manager"}
 	one := int32(1)
 	_, err = clientset.AppsV1().Deployments(namespace).Create(ctx, &appsv1.Deployment{
@@ -386,6 +413,8 @@ func createMeshManager(ctx context.Context, clientset kubernetes.Interface, name
 	if err != nil && !k8serrors.IsAlreadyExists(err) {
 		return err
 	}
+
+	// create service if not exists
 	_, err = clientset.CoreV1().Services(namespace).Create(ctx, &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      MeshManager,
