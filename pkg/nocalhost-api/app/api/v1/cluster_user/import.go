@@ -71,7 +71,7 @@ func GetNsInfo(c *gin.Context) {
 
 	cum := model.ClusterUserModel{}
 	devSpaces, err := DoList(&cum, userId, true, false)
-	if err != nil {
+	if err != nil && !errors.Is(err, errno.ErrClusterNotFound) {
 		api.SendResponse(c, err, "")
 		return
 	}
@@ -250,20 +250,24 @@ func importNs(c1 *gin.Context, req *NsImportItem) error {
 	if err != nil {
 		return err
 	}
-	if len(rqs.Items) > 0 {
-		resourceList := rqs.Items[0].Spec.Hard
+
+	for _, item := range rqs.Items {
+		if item.Spec.ScopeSelector != nil || len(item.Spec.Scopes) != 0 {
+			continue
+		}
+		resourceList := item.Spec.Hard
 		if len(resourceList) > 0 {
 			if srl == nil {
 				srl = &SpaceResourceLimit{}
 			}
 			if rs, ok := resourceList[corev1.ResourceRequestsMemory]; ok {
-				srl.SpaceReqMem = rs.String()
+				srl.SpaceReqMem = fmt.Sprintf("%dMi", rs.Value()>>20)
 			}
 			if rs, ok := resourceList[corev1.ResourceRequestsCPU]; ok {
 				srl.SpaceReqCpu = rs.String()
 			}
 			if rs, ok := resourceList[corev1.ResourceLimitsMemory]; ok {
-				srl.SpaceLimitsMem = rs.String()
+				srl.SpaceLimitsMem = fmt.Sprintf("%dMi", rs.Value()>>20)
 			}
 			if rs, ok := resourceList[corev1.ResourceLimitsCPU]; ok {
 				srl.SpaceLimitsCpu = rs.String()
@@ -282,13 +286,14 @@ func importNs(c1 *gin.Context, req *NsImportItem) error {
 			}
 		}
 	}
+
 	lrs, err := goClient.GetClientSet().CoreV1().LimitRanges(req.Namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 
-	if len(lrs.Items) > 0 {
-		ls := lrs.Items[0].Spec.Limits
+	for _, item := range lrs.Items {
+		ls := item.Spec.Limits
 		if len(ls) > 0 {
 			if srl == nil {
 				srl = &SpaceResourceLimit{}
@@ -297,7 +302,7 @@ func importNs(c1 *gin.Context, req *NsImportItem) error {
 				if l.Type == corev1.LimitTypeContainer {
 					limits := l.Default
 					if li, ok := limits[corev1.ResourceMemory]; ok {
-						srl.ContainerLimitsMem = li.String()
+						srl.ContainerLimitsMem = fmt.Sprintf("%dMi", li.Value()>>20)
 					}
 					if li, ok := limits[corev1.ResourceCPU]; ok {
 						srl.ContainerLimitsCpu = li.String()
@@ -308,7 +313,7 @@ func importNs(c1 *gin.Context, req *NsImportItem) error {
 
 					requests := l.DefaultRequest
 					if li, ok := requests[corev1.ResourceMemory]; ok {
-						srl.ContainerReqMem = li.String()
+						srl.ContainerReqMem = fmt.Sprintf("%dMi", li.Value()>>20)
 					}
 					if li, ok := requests[corev1.ResourceCPU]; ok {
 						srl.ContainerReqCpu = li.String()
