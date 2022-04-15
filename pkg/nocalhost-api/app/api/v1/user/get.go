@@ -36,7 +36,7 @@ func Get(c *gin.Context) {
 	}
 
 	// Get the user by the `user_id` from the database.
-	u, err := service.Svc.UserSvc().GetUserByID(context.TODO(), userID)
+	u, err := service.Svc.UserSvc.GetUserByID(context.TODO(), userID)
 	if err != nil {
 		log.Warnf("get user info err: %v", err)
 		api.SendResponse(c, errno.ErrUserNotFound, nil)
@@ -63,7 +63,7 @@ func GetMe(c *gin.Context) {
 	}
 
 	// Get the user by the `user_id` from the database.
-	u, err := service.Svc.UserSvc().GetUserByID(context.TODO(), userID.(uint64))
+	u, err := service.Svc.UserSvc.GetUserByID(context.TODO(), userID.(uint64))
 	if err != nil {
 		log.Warnf("get user info err: %v", err)
 		api.SendResponse(c, errno.ErrUserNotFound, nil)
@@ -95,7 +95,7 @@ func GetList(c *gin.Context) {
 		limitInt, _ = strconv.Atoi(limit)
 	}
 
-	u, _ := service.Svc.UserSvc().GetUserPageable(
+	u, _ := service.Svc.UserSvc.GetUserPageable(
 		context.TODO(),
 		pageInt, limitInt,
 	)

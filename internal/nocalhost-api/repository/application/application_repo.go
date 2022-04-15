@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package application
 
@@ -14,29 +14,17 @@ import (
 	"github.com/pkg/errors"
 )
 
-type ApplicationRepo interface {
-	Create(ctx context.Context, application model.ApplicationModel) (model.ApplicationModel, error)
-	Get(ctx context.Context, id uint64) (model.ApplicationModel, error)
-	GetByName(ctx context.Context, name string) (model.ApplicationModel, error)
-	GetList(ctx context.Context, userId *uint64) ([]*model.ApplicationModel, error)
-	PluginGetList(ctx context.Context, userId uint64) ([]*model.PluginApplicationModel, error)
-	Delete(ctx context.Context, id uint64) error
-	Update(ctx context.Context, applicationModel *model.ApplicationModel) (*model.ApplicationModel, error)
-	PublicSwitch(ctx context.Context, applicationId uint64, public uint8) error
-	Close()
-}
-
-type applicationRepo struct {
+type ApplicationRepo struct {
 	db *gorm.DB
 }
 
-func NewClusterRepo(db *gorm.DB) ApplicationRepo {
-	return &applicationRepo{
+func NewClusterRepo(db *gorm.DB) *ApplicationRepo {
+	return &ApplicationRepo{
 		db: db,
 	}
 }
 
-func (repo *applicationRepo) PublicSwitch(ctx context.Context, applicationId uint64, public uint8) error {
+func (repo *ApplicationRepo) PublicSwitch(ctx context.Context, applicationId uint64, public uint8) error {
 	if err := repo.db.Exec(
 		"UPDATE applications SET public = ? "+
 			"WHERE id = ?", public, applicationId,
@@ -47,7 +35,7 @@ func (repo *applicationRepo) PublicSwitch(ctx context.Context, applicationId uin
 	return nil
 }
 
-func (repo *applicationRepo) GetByName(ctx context.Context, name string) (model.ApplicationModel, error) {
+func (repo *ApplicationRepo) GetByName(ctx context.Context, name string) (model.ApplicationModel, error) {
 	var record model.ApplicationModel
 	result := repo.db.Where("JSON_CONTAINS(context,JSON_OBJECT('application_name', ?))", name).
 		First(&record)
@@ -57,7 +45,7 @@ func (repo *applicationRepo) GetByName(ctx context.Context, name string) (model.
 	return record, nil
 }
 
-func (repo *applicationRepo) PluginGetList(ctx context.Context, userId uint64) (
+func (repo *ApplicationRepo) PluginGetList(ctx context.Context, userId uint64) (
 	[]*model.PluginApplicationModel, error,
 ) {
 	var result []*model.PluginApplicationModel
@@ -75,7 +63,7 @@ func (repo *applicationRepo) PluginGetList(ctx context.Context, userId uint64) (
 	return result, nil
 }
 
-func (repo *applicationRepo) Create(ctx context.Context, application model.ApplicationModel) (
+func (repo *ApplicationRepo) Create(ctx context.Context, application model.ApplicationModel) (
 	model.ApplicationModel, error,
 ) {
 	err := repo.db.Create(&application).Error
@@ -86,7 +74,7 @@ func (repo *applicationRepo) Create(ctx context.Context, application model.Appli
 	return application, nil
 }
 
-func (repo *applicationRepo) Get(ctx context.Context, id uint64) (model.ApplicationModel, error) {
+func (repo *ApplicationRepo) Get(ctx context.Context, id uint64) (model.ApplicationModel, error) {
 	// Here is the Struct type, and Error will be thrown when the data is not available
 	// If the input is of the make([]*model.ApplicationModel,0)
 	// Slice type, then Error will never be thrown if no data is available
@@ -99,7 +87,7 @@ func (repo *applicationRepo) Get(ctx context.Context, id uint64) (model.Applicat
 	return application, nil
 }
 
-func (repo *applicationRepo) GetList(ctx context.Context, userId *uint64) ([]*model.ApplicationModel, error) {
+func (repo *ApplicationRepo) GetList(ctx context.Context, userId *uint64) ([]*model.ApplicationModel, error) {
 	applicationList := make([]*model.ApplicationModel, 0)
 
 	query := repo.db.Where("status = 1")
@@ -118,7 +106,7 @@ func (repo *applicationRepo) GetList(ctx context.Context, userId *uint64) ([]*mo
 	return applicationList, nil
 }
 
-func (repo *applicationRepo) Delete(ctx context.Context, id uint64) error {
+func (repo *ApplicationRepo) Delete(ctx context.Context, id uint64) error {
 	application := model.ApplicationModel{
 		ID: id,
 	}
@@ -128,7 +116,7 @@ func (repo *applicationRepo) Delete(ctx context.Context, id uint64) error {
 	return errors.New("application delete denied")
 }
 
-func (repo *applicationRepo) Update(
+func (repo *ApplicationRepo) Update(
 	ctx context.Context, applicationModel *model.ApplicationModel,
 ) (*model.ApplicationModel, error) {
 	application, err := repo.Get(ctx, applicationModel.ID)
@@ -152,6 +140,6 @@ func (repo *applicationRepo) Update(
 }
 
 // Close close db
-func (repo *applicationRepo) Close() {
+func (repo *ApplicationRepo) Close() {
 	repo.db.Close()
 }

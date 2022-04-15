@@ -681,15 +681,11 @@ func patchDevContainerToPodSpec(podSpec *corev1.PodSpec, containerName string, d
 	}
 	podSpec.Volumes = append(podSpec.Volumes, devModeVolumes...)
 
-	// delete user's SecurityContext
-	podSpec.SecurityContext = &corev1.PodSecurityContext{}
-
 	// disable readiness probes
 	for i := 0; i < len(podSpec.Containers); i++ {
 		podSpec.Containers[i].LivenessProbe = nil
 		podSpec.Containers[i].ReadinessProbe = nil
 		podSpec.Containers[i].StartupProbe = nil
-		podSpec.Containers[i].SecurityContext = nil
 	}
 
 	podSpec.Containers = append(podSpec.Containers, *sidecarContainer)

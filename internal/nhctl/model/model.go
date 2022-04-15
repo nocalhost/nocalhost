@@ -15,9 +15,9 @@ type NocalHostResource struct {
 }
 
 type DevStartOptions struct {
-	SideCarImage     string
-	DevImage         string
-	Container        string
+	SideCarImage string
+	DevImage     string
+	Container    string
 
 	// for debug
 	SyncthingVersion string
@@ -31,4 +31,5 @@ type DevStartOptions struct {
 	NoSyncthing bool
 
 	DevModeType string
+	MeshHeader  map[string]string
 }

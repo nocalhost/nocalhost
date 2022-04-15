@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package cluster
 
@@ -70,7 +70,7 @@ func Create(c *gin.Context) {
 	}
 	where := make(map[string]interface{}, 0)
 	where["server"] = t.Clusters[0].Cluster.Server
-	_, err = service.Svc.ClusterSvc().GetAny(c, where)
+	_, err = service.Svc.ClusterSvc.GetAny(c, where)
 	if err == nil {
 		api.SendResponse(c, errno.ErrClusterExistCreate, nil)
 		return
@@ -90,14 +90,14 @@ func Create(c *gin.Context) {
 	}
 
 	// Pre pull images DaemonSet
-	prePullImages, _ := service.Svc.PrePull().GetAll(c)
+	prePullImages, _ := service.Svc.PrePullSvc.GetAll(c)
 	_, err = goClient.DeployPrePullImages(prePullImages, "")
 	if err != nil {
 		log.Warnf("deploy pre pull images err: %v", err)
 	}
 
 	userId, _ := c.Get("userId")
-	cluster, err := service.Svc.ClusterSvc().Create(
+	cluster, err := service.Svc.ClusterSvc.Create(
 		c, req.Name, string(DecKubeconfig), req.StorageClass,
 		t.Clusters[0].Cluster.Server, clusterInfo, userId.(uint64),
 	)

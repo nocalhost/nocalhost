@@ -63,7 +63,7 @@ func (cu *ClusterUserCreateRequest) Validate() (bool, error) {
 
 	// Validate Istio CRD
 	if cu.IsBaseSpace {
-		cluster, err := service.Svc.ClusterSvc().Get(context.TODO(), cast.ToUint64(cu.ClusterId))
+		cluster, err := service.Svc.ClusterSvc.Get(context.TODO(), cast.ToUint64(cu.ClusterId))
 		if err != nil {
 			return false, errno.ErrClusterNotFound
 		}

@@ -14,28 +14,17 @@ import (
 	"github.com/pkg/errors"
 )
 
-type ClusterRepo interface {
-	Create(ctx context.Context, user model.ClusterModel) (model.ClusterModel, error)
-	Get(ctx context.Context, clusterId uint64) (model.ClusterModel, error)
-	Delete(ctx context.Context, clusterId uint64) error
-	DeleteByCreator(ctx context.Context, clusterId uint64) error
-	GetAny(ctx context.Context, where map[string]interface{}) ([]*model.ClusterModel, error)
-	Update(ctx context.Context, update map[string]interface{}, clusterId uint64) (*model.ClusterModel, error)
-	GetList(ctx context.Context) ([]*model.ClusterList, error)
-	Close()
-}
-
-type clusterBaseRepo struct {
+type ClusterBaseRepo struct {
 	db *gorm.DB
 }
 
-func NewClusterRepo(db *gorm.DB) ClusterRepo {
-	return &clusterBaseRepo{
+func NewClusterRepo(db *gorm.DB) *ClusterBaseRepo {
+	return &ClusterBaseRepo{
 		db: db,
 	}
 }
 
-func (repo *clusterBaseRepo) Update(
+func (repo *ClusterBaseRepo) Update(
 	ctx context.Context, update map[string]interface{}, clusterId uint64,
 ) (*model.ClusterModel, error) {
 	clusterModel := model.ClusterModel{}
@@ -50,7 +39,7 @@ func (repo *clusterBaseRepo) Update(
 	return &clusterModel, result.Error
 }
 
-func (repo *clusterBaseRepo) Delete(ctx context.Context, clusterId uint64) error {
+func (repo *ClusterBaseRepo) Delete(ctx context.Context, clusterId uint64) error {
 	result := repo.db.Unscoped().Delete(&model.ClusterModel{}, clusterId)
 	if result.RowsAffected > 0 {
 		return nil
@@ -58,7 +47,7 @@ func (repo *clusterBaseRepo) Delete(ctx context.Context, clusterId uint64) error
 	return result.Error
 }
 
-func (repo *clusterBaseRepo) DeleteByCreator(ctx context.Context, userId uint64) error {
+func (repo *ClusterBaseRepo) DeleteByCreator(ctx context.Context, userId uint64) error {
 	result := repo.db.Exec("delete from clusters where user_id = ? and deleted_at is null", userId)
 	if result.RowsAffected > 0 {
 		return nil
@@ -66,7 +55,7 @@ func (repo *clusterBaseRepo) DeleteByCreator(ctx context.Context, userId uint64)
 	return result.Error
 }
 
-func (repo *clusterBaseRepo) GetAny(ctx context.Context, where map[string]interface{}) ([]*model.ClusterModel, error) {
+func (repo *ClusterBaseRepo) GetAny(ctx context.Context, where map[string]interface{}) ([]*model.ClusterModel, error) {
 	cluster := make([]*model.ClusterModel, 0)
 	result := repo.db.Where(where).Find(&cluster)
 	if result.Error != nil {
@@ -78,7 +67,7 @@ func (repo *clusterBaseRepo) GetAny(ctx context.Context, where map[string]interf
 	return cluster, nil
 }
 
-func (repo *clusterBaseRepo) GetList(ctx context.Context) ([]*model.ClusterList, error) {
+func (repo *ClusterBaseRepo) GetList(ctx context.Context) ([]*model.ClusterList, error) {
 	var result []*model.ClusterList
 	repo.db.Raw(
 		"select c.id,c.kubeconfig,c.name,c.server,c.storage_class,c.info,c.user_id,c.created_at,count" +
@@ -89,7 +78,7 @@ func (repo *clusterBaseRepo) GetList(ctx context.Context) ([]*model.ClusterList,
 	return result, nil
 }
 
-func (repo *clusterBaseRepo) Create(ctx context.Context, cluster model.ClusterModel) (model.ClusterModel, error) {
+func (repo *ClusterBaseRepo) Create(ctx context.Context, cluster model.ClusterModel) (model.ClusterModel, error) {
 	err := repo.db.Create(&cluster).Error
 	if err != nil {
 		return cluster, errors.Wrap(err, "[cluster_repo] create user err")
@@ -98,7 +87,7 @@ func (repo *clusterBaseRepo) Create(ctx context.Context, cluster model.ClusterMo
 	return cluster, nil
 }
 
-func (repo *clusterBaseRepo) Get(ctx context.Context, clusterId uint64) (model.ClusterModel, error) {
+func (repo *ClusterBaseRepo) Get(ctx context.Context, clusterId uint64) (model.ClusterModel, error) {
 	cluster := model.ClusterModel{}
 	if result := repo.db.Where("id=?", clusterId).First(&cluster); result.Error != nil {
 		log.Warnf("[cluster_repo] get cluster for id: %v error", clusterId)
@@ -108,6 +97,6 @@ func (repo *clusterBaseRepo) Get(ctx context.Context, clusterId uint64) (model.C
 }
 
 // Close close db
-func (repo *clusterBaseRepo) Close() {
+func (repo *ClusterBaseRepo) Close() {
 	repo.db.Close()
 }

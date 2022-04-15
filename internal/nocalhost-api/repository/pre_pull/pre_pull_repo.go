@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package pre_pull
 
@@ -12,22 +12,17 @@ import (
 	"nocalhost/internal/nocalhost-api/model"
 )
 
-type PrePullRepo interface {
-	GetAll(ctx context.Context) ([]model.PrePullModel, error)
-	Close()
-}
-
-type prePullRepoRepo struct {
+type PrePullRepoRepoBase struct {
 	db *gorm.DB
 }
 
-func NewPrePullRepoRepo(db *gorm.DB) PrePullRepo {
-	return &prePullRepoRepo{
+func NewPrePullRepoRepo(db *gorm.DB) *PrePullRepoRepoBase {
+	return &PrePullRepoRepoBase{
 		db: db,
 	}
 }
 
-func (repo *prePullRepoRepo) GetAll(ctx context.Context) ([]model.PrePullModel, error) {
+func (repo *PrePullRepoRepoBase) GetAll(ctx context.Context) ([]model.PrePullModel, error) {
 	var images []model.PrePullModel
 	result := repo.db.Find(&images)
 	if result.RowsAffected > 0 {
@@ -36,6 +31,6 @@ func (repo *prePullRepoRepo) GetAll(ctx context.Context) ([]model.PrePullModel, 
 	return nil, errors.New("record not found")
 }
 
-func (repo *prePullRepoRepo) Close() {
+func (repo *PrePullRepoRepoBase) Close() {
 	repo.db.Close()
 }

@@ -11,39 +11,18 @@ import (
 	"nocalhost/internal/nocalhost-api/model"
 )
 
-type ClusterUserRepo interface {
-	Create(model model.ClusterUserModel) (model.ClusterUserModel, error)
-	Delete(id uint64) error
-	DeleteByWhere(models model.ClusterUserModel) error
-	BatchDelete(id []uint64) error
-	GetFirst(models model.ClusterUserModel) (*model.ClusterUserModel, error)
-	GetJoinCluster(condition model.ClusterUserJoinCluster) ([]*model.ClusterUserJoinCluster, error)
-	GetList(models model.ClusterUserModel) ([]*model.ClusterUserModel, error)
-	ListWithFuzzySpaceName(models model.ClusterUserModel) ([]*model.ClusterUserModel, error)
-	Update(models *model.ClusterUserModel) (*model.ClusterUserModel, error)
-	UpdateKubeConfig(models *model.ClusterUserModel) (*model.ClusterUserModel, error)
-	GetJoinClusterAndAppAndUser(
-		condition model.ClusterUserJoinClusterAndAppAndUser,
-	) ([]*model.ClusterUserJoinClusterAndAppAndUser, error)
-	GetJoinClusterAndAppAndUserDetail(
-		condition model.ClusterUserJoinClusterAndAppAndUser,
-	) (*model.ClusterUserJoinClusterAndAppAndUser, error)
-	ListByUser(userId uint64) ([]*model.ClusterUserPluginModel, error)
-	Close()
-}
-
-type clusterUserRepo struct {
+type ClusterUserRepoBase struct {
 	db *gorm.DB
 }
 
-func NewApplicationClusterRepo(db *gorm.DB) ClusterUserRepo {
-	return &clusterUserRepo{
+func NewApplicationClusterRepo(db *gorm.DB) *ClusterUserRepoBase {
+	return &ClusterUserRepoBase{
 		db: db,
 	}
 }
 
 // UpdateKubeConfig Deprecated
-func (repo *clusterUserRepo) UpdateKubeConfig(
+func (repo *ClusterUserRepoBase) UpdateKubeConfig(
 	models *model.ClusterUserModel,
 ) (*model.ClusterUserModel, error) {
 	affect := repo.db.Model(&model.ClusterUserModel{}).Where("id=?", models.ID).Update(
@@ -56,7 +35,7 @@ func (repo *clusterUserRepo) UpdateKubeConfig(
 }
 
 // GetJoinCluster Get cluster user join users
-func (repo *clusterUserRepo) GetJoinCluster(
+func (repo *ClusterUserRepoBase) GetJoinCluster(
 	condition model.ClusterUserJoinCluster,
 ) ([]*model.ClusterUserJoinCluster, error) {
 	var cluserUserJoinCluster []*model.ClusterUserJoinCluster
@@ -76,13 +55,13 @@ func (repo *clusterUserRepo) GetJoinCluster(
 }
 
 // DeleteByWhere
-func (repo *clusterUserRepo) DeleteByWhere(models model.ClusterUserModel) error {
+func (repo *ClusterUserRepoBase) DeleteByWhere(models model.ClusterUserModel) error {
 	result := repo.db.Unscoped().Delete(models)
 	return result.Error
 }
 
 // BatchDelete
-func (repo *clusterUserRepo) BatchDelete(ids []uint64) error {
+func (repo *ClusterUserRepoBase) BatchDelete(ids []uint64) error {
 	result := repo.db.Unscoped().Delete(model.ClusterUserModel{}, ids)
 	if result.RowsAffected > 0 {
 		return nil
@@ -91,7 +70,7 @@ func (repo *clusterUserRepo) BatchDelete(ids []uint64) error {
 }
 
 // Delete
-func (repo *clusterUserRepo) Delete(id uint64) error {
+func (repo *ClusterUserRepoBase) Delete(id uint64) error {
 	result := repo.db.Unscoped().Delete(model.ClusterUserModel{}, id)
 	if result.RowsAffected > 0 {
 		return nil
@@ -100,7 +79,7 @@ func (repo *clusterUserRepo) Delete(id uint64) error {
 }
 
 // Update
-func (repo *clusterUserRepo) Update(models *model.ClusterUserModel) (
+func (repo *ClusterUserRepoBase) Update(models *model.ClusterUserModel) (
 	*model.ClusterUserModel, error,
 ) {
 	where := model.ClusterUserModel{
@@ -120,7 +99,7 @@ func (repo *clusterUserRepo) Update(models *model.ClusterUserModel) (
 }
 
 // GetList
-func (repo *clusterUserRepo) GetList(models model.ClusterUserModel) (
+func (repo *ClusterUserRepoBase) GetList(models model.ClusterUserModel) (
 	[]*model.ClusterUserModel, error,
 ) {
 	result := make([]*model.ClusterUserModel, 0)
@@ -132,7 +111,7 @@ func (repo *clusterUserRepo) GetList(models model.ClusterUserModel) (
 }
 
 // ListWithFuzzySpaceName
-func (repo *clusterUserRepo) ListWithFuzzySpaceName(models model.ClusterUserModel) (
+func (repo *ClusterUserRepoBase) ListWithFuzzySpaceName(models model.ClusterUserModel) (
 	[]*model.ClusterUserModel, error,
 ) {
 	condition := repo.db.Where(&models)
@@ -150,7 +129,7 @@ func (repo *clusterUserRepo) ListWithFuzzySpaceName(models model.ClusterUserMode
 }
 
 // ListByUser
-func (repo *clusterUserRepo) ListByUser(userId uint64) ([]*model.ClusterUserPluginModel, error) {
+func (repo *ClusterUserRepoBase) ListByUser(userId uint64) ([]*model.ClusterUserPluginModel, error) {
 	result := make([]*model.ClusterUserPluginModel, 0)
 
 	repo.db.Raw("SELECT * FROM clusters_users WHERE user_id = ? ORDER BY user_id, id", userId).Scan(&result)
@@ -161,7 +140,7 @@ func (repo *clusterUserRepo) ListByUser(userId uint64) ([]*model.ClusterUserPlug
 }
 
 // GetFirst
-func (repo *clusterUserRepo) GetFirst(models model.ClusterUserModel) (
+func (repo *ClusterUserRepoBase) GetFirst(models model.ClusterUserModel) (
 	*model.ClusterUserModel, error,
 ) {
 	cluster := model.ClusterUserModel{}
@@ -173,7 +152,7 @@ func (repo *clusterUserRepo) GetFirst(models model.ClusterUserModel) (
 }
 
 // Create
-func (repo *clusterUserRepo) Create(model model.ClusterUserModel) (model.ClusterUserModel, error) {
+func (repo *ClusterUserRepoBase) Create(model model.ClusterUserModel) (model.ClusterUserModel, error) {
 	err := repo.db.Create(&model).Error
 	if err != nil {
 		return model, errors.Wrap(err, "[application_cluster_repo] create application_cluster error")
@@ -183,7 +162,7 @@ func (repo *clusterUserRepo) Create(model model.ClusterUserModel) (model.Cluster
 }
 
 // GetJoinClusterAndAppAndUser
-func (repo *clusterUserRepo) GetJoinClusterAndAppAndUser(
+func (repo *ClusterUserRepoBase) GetJoinClusterAndAppAndUser(
 	condition model.ClusterUserJoinClusterAndAppAndUser,
 ) ([]*model.ClusterUserJoinClusterAndAppAndUser, error) {
 	var result []*model.ClusterUserJoinClusterAndAppAndUser
@@ -211,7 +190,7 @@ func (repo *clusterUserRepo) GetJoinClusterAndAppAndUser(
 }
 
 // GetJoinClusterAndAppAndUserDetail
-func (repo *clusterUserRepo) GetJoinClusterAndAppAndUserDetail(
+func (repo *ClusterUserRepoBase) GetJoinClusterAndAppAndUserDetail(
 	condition model.ClusterUserJoinClusterAndAppAndUser,
 ) (*model.ClusterUserJoinClusterAndAppAndUser, error) {
 	result := model.ClusterUserJoinClusterAndAppAndUser{}
@@ -244,6 +223,6 @@ func (repo *clusterUserRepo) GetJoinClusterAndAppAndUserDetail(
 }
 
 // Close close db
-func (repo *clusterUserRepo) Close() {
+func (repo *ClusterUserRepoBase) Close() {
 	repo.db.Close()
 }

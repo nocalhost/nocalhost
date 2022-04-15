@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package application_cluster
 
@@ -13,25 +13,17 @@ import (
 	"github.com/pkg/errors"
 )
 
-type ApplicationClusterRepo interface {
-	Create(ctx context.Context, model model.ApplicationClusterModel) (model.ApplicationClusterModel, error)
-	GetFirst(ctx context.Context, id uint64) (model.ApplicationClusterModel, error)
-	GetList(ctx context.Context, id uint64) ([]*model.ApplicationClusterModel, error)
-	GetJoinCluster(ctx context.Context, id uint64) ([]*model.ApplicationClusterJoinModel, error)
-	Close()
-}
-
-type applicationClusterRepo struct {
+type ApplicationClusterRepoBase struct {
 	db *gorm.DB
 }
 
-func NewApplicationClusterRepo(db *gorm.DB) ApplicationClusterRepo {
-	return &applicationClusterRepo{
+func NewApplicationClusterRepo(db *gorm.DB) *ApplicationClusterRepoBase {
+	return &ApplicationClusterRepoBase{
 		db: db,
 	}
 }
 
-func (repo *applicationClusterRepo) GetJoinCluster(
+func (repo *ApplicationClusterRepoBase) GetJoinCluster(
 	ctx context.Context, id uint64,
 ) ([]*model.ApplicationClusterJoinModel, error) {
 	// TODO group by in mysql 5.7 require full select cols
@@ -46,7 +38,7 @@ func (repo *applicationClusterRepo) GetJoinCluster(
 		).Joins("left join clusters as c on c.id=ac.cluster_id").Joins(
 		"left join clusters_users as cu "+
 			"on cu.application_id=ac.application_id"+
-				" and cu.cluster_id=ac.cluster_id",
+			" and cu.cluster_id=ac.cluster_id",
 	).Where(
 		"ac.application_id=?", id,
 	).Group("ac.cluster_id,ac.application_id,cluster_name,cluster_info,cluster_status").Scan(&result)
@@ -56,7 +48,7 @@ func (repo *applicationClusterRepo) GetJoinCluster(
 	return result, nil
 }
 
-func (repo *applicationClusterRepo) GetList(ctx context.Context, id uint64) ([]*model.ApplicationClusterModel, error) {
+func (repo *ApplicationClusterRepoBase) GetList(ctx context.Context, id uint64) ([]*model.ApplicationClusterModel, error) {
 	var result []*model.ApplicationClusterModel
 	err := repo.db.Where("application_id=?", id).Find(&result)
 	if err.Error != nil {
@@ -65,7 +57,7 @@ func (repo *applicationClusterRepo) GetList(ctx context.Context, id uint64) ([]*
 	return result, nil
 }
 
-func (repo *applicationClusterRepo) GetFirst(ctx context.Context, id uint64) (model.ApplicationClusterModel, error) {
+func (repo *ApplicationClusterRepoBase) GetFirst(ctx context.Context, id uint64) (model.ApplicationClusterModel, error) {
 	result := model.ApplicationClusterModel{}
 	err := repo.db.First("applciation_id=?", id)
 	if err.Error != nil {
@@ -74,7 +66,7 @@ func (repo *applicationClusterRepo) GetFirst(ctx context.Context, id uint64) (mo
 	return result, nil
 }
 
-func (repo *applicationClusterRepo) Create(
+func (repo *ApplicationClusterRepoBase) Create(
 	ctx context.Context, clusterModel model.ApplicationClusterModel,
 ) (model.ApplicationClusterModel, error) {
 	err := repo.db.Create(&clusterModel).Error
@@ -86,6 +78,6 @@ func (repo *applicationClusterRepo) Create(
 }
 
 // Close close db
-func (repo *applicationClusterRepo) Close() {
+func (repo *ApplicationClusterRepoBase) Close() {
 	repo.db.Close()
 }

@@ -19,7 +19,7 @@ import (
 )
 
 func GetConfiguration(c *gin.Context) {
-	if configuration, err := service.Svc.LdapSvc().Get(); err != nil {
+	if configuration, err := service.Svc.LdapSvc.Get(); err != nil {
 		if gorm.IsRecordNotFoundError(err) {
 
 			api.SendResponse(c, nil, &model.LdapModel{})
@@ -49,7 +49,7 @@ func Configuration(c *gin.Context) {
 		return
 	}
 
-	if err := service.Svc.LdapSvc().Configuration(
+	if err := service.Svc.LdapSvc.Configuration(
 		params.Server,
 		params.Tls,
 		params.Md5,
@@ -72,7 +72,7 @@ func Configuration(c *gin.Context) {
 }
 
 func DeleteConfiguration(c *gin.Context) {
-	if err := service.Svc.LdapSvc().Configuration(
+	if err := service.Svc.LdapSvc.Configuration(
 		"",
 		nil,
 		nil,

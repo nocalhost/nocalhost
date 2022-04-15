@@ -3,6 +3,7 @@ package watcher
 import (
 	"fmt"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	kblabels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -26,7 +27,9 @@ func TestSimpleWatcher(t *testing.T) {
 	c := NewSimpleWatcher(
 		utils,
 		"pod",
-		kblabels.Set{"app": "authors"}.AsSelector().String(),
+		metav1.ListOptions{
+			LabelSelector: kblabels.Set{"app": "authors"}.AsSelector().String(),
+		},
 		func(key string, object interface{}, quitChan chan struct{}) {
 			if us, ok := object.(*unstructured.Unstructured); ok {
 				containerStatusForDevPod(
@@ -51,7 +54,7 @@ func TestEventWatcher(t *testing.T) {
 	c := NewSimpleWatcher(
 		utils,
 		"event",
-		"",
+		metav1.ListOptions{},
 		func(key string, object interface{}, quitChan chan struct{}) {
 			if us, ok := object.(*unstructured.Unstructured); ok {
 				var event corev1.Event

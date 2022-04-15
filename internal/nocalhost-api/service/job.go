@@ -72,12 +72,12 @@ func cronJobTrigger() {
 
 	log.Info("CronJob for LDAP is triggered")
 
-	ldapModel, err = Svc.LdapSvc().Get()
+	ldapModel, err = Svc.LdapSvc.Get()
 	if err == nil {
 		newProtectedTs := time.Now().Add(time.Minute * 10).UnixNano()
 		if _const.Uint64PointerToBool(ldapModel.Enable) ||
 			ldapModel.SyncProtectionTs < time.Now().UnixNano() &&
-				Svc.LdapSvc().TryGetLock(
+				Svc.LdapSvc.TryGetLock(
 					ldapModel.ID, newProtectedTs, ldapModel.SyncProtectionTs,
 				) {
 
@@ -88,12 +88,12 @@ func cronJobTrigger() {
 			// as unavailable
 			if err != nil {
 
-				_ = Svc.LdapSvc().MarkErrorOccur(ldapModel.ID, ldapModel.SyncGen, err.Error())
+				_ = Svc.LdapSvc.MarkErrorOccur(ldapModel.ID, ldapModel.SyncGen, err.Error())
 			} else {
 
 				report.ActivateSync(ldapModel.Deletes, ldapModel.Inserts, ldapModel.Updates)
 
-				if err := Svc.LdapSvc().UpdateGen(
+				if err := Svc.LdapSvc.UpdateGen(
 					ldapModel.ID, newGen,
 					report.Entries, report.Inserts, report.Updates, report.Deletes, report.Fails, report.Costs,
 				); err != nil {
@@ -103,14 +103,14 @@ func cronJobTrigger() {
 				}
 			}
 
-			Svc.LdapSvc().TryUnLock(ldapModel.ID, newProtectedTs)
+			Svc.LdapSvc.TryUnLock(ldapModel.ID, newProtectedTs)
 		}
 	} else {
 		if gorm.IsRecordNotFoundError(err) {
 			return
 		}
 
-		_ = Svc.LdapSvc().MarkErrorOccur(ldapModel.ID, ldapModel.SyncGen, err.Error())
+		_ = Svc.LdapSvc.MarkErrorOccur(ldapModel.ID, ldapModel.SyncGen, err.Error())
 	}
 }
 
@@ -189,7 +189,7 @@ func DoSyncFromLDAP(ctx context.Context, ldapServer string, tls, md5 bool, ldapG
 			// delete those sync gen from elder version
 			//
 			for {
-				list, err := Svc.UserSvc().BatchListByUserId(context.TODO(), nowUser)
+				list, err := Svc.UserSvc.BatchListByUserId(context.TODO(), nowUser)
 				if err != nil {
 					log.Error("Error when list user under ldap sync")
 					break
@@ -206,7 +206,7 @@ func DoSyncFromLDAP(ctx context.Context, ldapServer string, tls, md5 bool, ldapG
 						usrName := entry.GetAttributeValue(userNameAttr)
 
 						if user.NeedToUpdateProfileInLdap(usrName, entry.DN, isAdmin) {
-							if _, err := Svc.UserSvc().UpdateUserByModelWithLdap(
+							if _, err := Svc.UserSvc.UpdateUserByModelWithLdap(
 								ctx, user, usrName, entry.DN, ldapGen, isAdmin,
 							); err != nil {
 								log.Error(
@@ -229,7 +229,7 @@ func DoSyncFromLDAP(ctx context.Context, ldapServer string, tls, md5 bool, ldapG
 					}
 				}
 
-				if Svc.UserSvc().UpdateUsersLdapGen(tempList, ldapGen) {
+				if Svc.UserSvc.UpdateUsersLdapGen(tempList, ldapGen) {
 					success += len(tempList)
 				}
 				tempList = make([]*model.UserBaseModel, 0)
@@ -278,7 +278,7 @@ func DoSyncFromLDAP(ctx context.Context, ldapServer string, tls, md5 bool, ldapG
 			inserts += count
 			success += count
 
-			if deletes, err := Svc.UserSvc().DeleteOutOfSyncLdapUser(ldapGen); err != nil {
+			if deletes, err := Svc.UserSvc.DeleteOutOfSyncLdapUser(ldapGen); err != nil {
 				return errors.Wrap(err, "Error while set out date user status as 0 after ldap sync")
 			} else {
 
@@ -322,7 +322,7 @@ func ToMailMapping(es []*ldap.Entry, emailAttr string) map[string]*ldap.Entry {
 }
 
 func CreateUsers(ctx context.Context, list []*model.UserBaseModel) int {
-	if Svc.UserSvc().Creates(ctx, list) != nil {
+	if Svc.UserSvc.Creates(ctx, list) != nil {
 
 		var dns []string
 		for _, user := range list {

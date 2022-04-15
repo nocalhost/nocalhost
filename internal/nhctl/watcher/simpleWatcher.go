@@ -24,26 +24,25 @@ type SimpleWatcher struct {
 //
 // the quitChan in createOrUpdateFunc, deleteFunc and returns is the same
 func NewSimpleWatcher(
-	cgu *clientgoutils.ClientGoUtils, resource, labelSelector string,
-	createOrUpdateFun func(key string, object interface{}, quitChan chan struct{}),
-	deleteFun func(key string, quitChan chan struct{}),
-) chan struct{} {
+	cgu *clientgoutils.ClientGoUtils, resource string, listOptions metav1.ListOptions, stopChan <-chan struct{},
+	createOrUpdateFun func(key string, object interface{}, quitChan <-chan struct{}),
+	deleteFun func(key string, quitChan <-chan struct{}),
+) {
 	gvr := cgu.ResourceFor(resource, false)
-	var lofun dynamicinformer.TweakListOptionsFunc = nil
-	if labelSelector != "" {
-		lofun = func(options *metav1.ListOptions) {
-			options.LabelSelector = labelSelector
-		}
-	}
 
 	dynamicInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(
 		cgu.GetDynamicClient(),
 		time.Second*2,
 		cgu.GetNameSpace(),
-		lofun,
+		func(options *metav1.ListOptions) {
+			options.LabelSelector = listOptions.LabelSelector
+			options.FieldSelector = listOptions.FieldSelector
+		},
 	)
 
-	stopCh := make(chan struct{})
+	if stopChan == nil {
+		stopChan = make(<-chan struct{})
+	}
 
 	informer := dynamicInformerFactory.ForResource(gvr)
 	lock := sync.Mutex{}
@@ -54,11 +53,11 @@ func NewSimpleWatcher(
 		if obj, exists, err := informer.Informer().GetIndexer().GetByKey(key); err == nil {
 			if exists {
 				if createOrUpdateFun != nil {
-					createOrUpdateFun(key, obj, stopCh)
+					createOrUpdateFun(key, obj, stopChan)
 				}
 			} else {
 				if deleteFun != nil {
-					deleteFun(key, stopCh)
+					deleteFun(key, stopChan)
 				}
 			}
 		}
@@ -84,6 +83,5 @@ func NewSimpleWatcher(
 		},
 	)
 
-	go informer.Informer().Run(stopCh)
-	return stopCh
+	go informer.Informer().Run(stopChan)
 }
