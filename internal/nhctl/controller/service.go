@@ -439,12 +439,17 @@ func (c *Controller) waitDevPodToBeReady() {
 	var currentPod atomic.Value
 
 	readyChan := make(chan struct{}, 0)
+	stopChan := make(chan struct{}, 0)
+	defer close(stopChan)
 
-	quitChan := watcher.NewSimpleWatcher(
+	watcher.NewSimpleWatcher(
 		c.Client,
 		"pod",
-		c.devModePodLabels.AsSelector().String(),
-		func(key string, object interface{}, quitChan chan struct{}) {
+		metav1.ListOptions{
+			LabelSelector: c.devModePodLabels.AsSelector().String(),
+		},
+		stopChan,
+		func(key string, object interface{}, quitChan <-chan struct{}) {
 			if us, ok := object.(*unstructured.Unstructured); ok {
 
 				var pod v1.Pod
@@ -472,11 +477,14 @@ func (c *Controller) waitDevPodToBeReady() {
 	if gvkErr == nil && !gvk.Empty() {
 		apiVersion, kind := gvk.ToAPIVersionAndKind()
 
-		c := watcher.NewSimpleWatcher(
+		temp := make(chan struct{})
+		defer close(temp)
+		watcher.NewSimpleWatcher(
 			c.Client,
 			"event",
-			"",
-			func(key string, object interface{}, quitChan chan struct{}) {
+			metav1.ListOptions{},
+			temp,
+			func(key string, object interface{}, quitChan <-chan struct{}) {
 				if us, ok := object.(*unstructured.Unstructured); ok {
 
 					var event v1.Event
@@ -504,11 +512,10 @@ func (c *Controller) waitDevPodToBeReady() {
 			},
 			nil,
 		)
-		defer close(c)
 	}
 
 	select {
-	case _, _ = <-quitChan:
+	case _, _ = <-stopChan:
 	case <-readyChan:
 	}
 }
