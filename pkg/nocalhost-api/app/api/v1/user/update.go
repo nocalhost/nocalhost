@@ -235,6 +235,9 @@ func importUsers(ctx *gin.Context, data [][]string, uuid string, loginUserId uin
 		if err != nil {
 			itss.Process = (float32(i) + 1.0) / float32(len(data))
 			is.ErrInfo = err.Error()
+			if strings.Contains(err.Error(), "record not found") {
+				is.ErrInfo = fmt.Sprintf("User %s import failed: %s", is.Username, err.Error())
+			}
 			itss.Items = append(itss.Items, is)
 			continue
 		}
