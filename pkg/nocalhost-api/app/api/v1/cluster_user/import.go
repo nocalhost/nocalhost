@@ -159,6 +159,7 @@ func importNsToDevSpace(ctx *gin.Context, devSpace []*BatchImportItem, uuid stri
 				var uu *model.UserBaseModel
 				uu, err = service.Svc.UserSvc.GetUserByEmail(context.TODO(), s)
 				if err != nil {
+					err = errors.New(fmt.Sprintf("Get user %s failed: %s", s, err.Error()))
 					break
 				}
 				cs = append(cs, uu.ID)
