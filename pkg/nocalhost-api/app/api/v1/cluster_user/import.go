@@ -78,8 +78,7 @@ func GetNsInfo(c *gin.Context) {
 
 	nsList := make([]*NamespaceInfo, 0)
 	for _, list := range allClusters {
-		var KubeConfig = []byte(list.KubeConfig)
-		goClient, err := clientgo.NewAdminGoClient(KubeConfig)
+		goClient, err := clientgo.NewAdminGoClient([]byte(list.KubeConfig))
 		if err != nil {
 			log.Error(err.Error())
 			continue
@@ -179,9 +178,9 @@ func importNsToDevSpace(ctx *gin.Context, devSpace []*BatchImportItem, uuid stri
 
 		if err != nil {
 			nisi.ErrInfo = err.Error()
-			if strings.Contains(err.Error(), "record not found") {
-				nisi.ErrInfo = fmt.Sprintf("importing %s(owner:%s) failed: %s", item.Namespace, item.Owner, err.Error())
-			}
+			//if strings.Contains(err.Error(), "record not found") {
+			//	nisi.ErrInfo = fmt.Sprintf("importing %s(owner:%s) failed: %s", item.Namespace, item.Owner, err.Error())
+			//}
 		} else {
 			nisi.Success = true
 		}
@@ -219,6 +218,25 @@ func importNs(c1 *gin.Context, req *NsImportItem) error {
 		return errors.New("owner can not be nil")
 	}
 
+	goClient, err := clientgo.NewAdminGoClient([]byte(cluster.KubeConfig))
+	if err != nil {
+		return err
+	}
+	nss, err := goClient.GetClientSet().CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	var nsExist bool
+	for _, item := range nss.Items {
+		if item.Name == req.Namespace {
+			nsExist = true
+			break
+		}
+	}
+	if !nsExist {
+		return errors.New(fmt.Sprintf("Namespace %s not found in %s", req.Namespace, cluster.ClusterName))
+	}
+
 	applicationId := uint64(0)
 	cucr.ApplicationId = &applicationId
 	cucr.NameSpace = req.Namespace
@@ -246,10 +264,6 @@ func importNs(c1 *gin.Context, req *NsImportItem) error {
 
 	// resource limit
 	var srl *SpaceResourceLimit
-	goClient, err := clientgo.NewAdminGoClient([]byte(cluster.KubeConfig))
-	if err != nil {
-		return err
-	}
 	rqs, err := goClient.GetClientSet().CoreV1().ResourceQuotas(req.Namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
