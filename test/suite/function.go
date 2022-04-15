@@ -148,7 +148,7 @@ func PortForward(client runner.Client, module, moduleType string) {
 	)
 	funcs := []func() error{
 		func() error { return testcase.PortForwardCheck(port) },
-		func() error { return testcase.StatusCheckPortForward(client, module, moduleType, port) },
+		//func() error { return testcase.StatusCheckPortForward(client, module, moduleType, port) },
 		func() error { return testcase.PortForwardEndT(client, module, moduleType, port) },
 	}
 	util.Retry(fmt.Sprintf("PortForward-%s-%s", moduleType, module), funcs)
