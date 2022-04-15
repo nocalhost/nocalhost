@@ -178,6 +178,9 @@ func importNsToDevSpace(ctx *gin.Context, devSpace []*BatchImportItem, uuid stri
 
 		if err != nil {
 			nisi.ErrInfo = err.Error()
+			if strings.Contains(err.Error(), "record not found") {
+				nisi.ErrInfo = fmt.Sprintf("importing %s(owner:%s) failed: %s", item.Namespace, item.Owner, err.Error())
+			}
 		} else {
 			nisi.Success = true
 		}
