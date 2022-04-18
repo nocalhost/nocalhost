@@ -412,7 +412,8 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 				nil,
 				func(key string, quitChan <-chan struct{}) {
 					defer utils.RecoverFromPanic()
-					close(stopCh)
+					errCh <- k8serrors.NewNotFound(schema.GroupResource{Resource: "pods"}, startCmd.PodName)
+					close(errCh)
 				},
 			)
 
