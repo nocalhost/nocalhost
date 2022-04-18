@@ -412,7 +412,11 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 				nil,
 				func(key string, quitChan <-chan struct{}) {
 					defer utils.RecoverFromPanic()
-					close(stopCh)
+					select {
+					case errCh <- k8serrors.NewNotFound(schema.GroupResource{Resource: "pods"}, startCmd.PodName):
+						close(errCh)
+					default:
+					}
 				},
 			)
 
@@ -440,14 +444,8 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 			select {
 			case errs := <-errCh:
 
-				// close readyCh
-				select {
-				case _, o := <-readyCh:
-					if o {
-						close(readyCh)
-					}
-				default:
-				}
+				closeChanGracefully(stopCh)
+				closeChanGracefully(readyCh)
 
 				reconnectMsg := fmt.Sprintf("Reconnecting after %s seconds...", sleepBackOff.String())
 
@@ -486,7 +484,6 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 						log.LogE(err)
 					}
 					delete(p.pfList, key)
-					close(stopCh)
 					return
 				} else {
 
@@ -510,18 +507,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 			case <-ctx.Done():
 				log.Logf("Port-forward %d:%d done", localPort, remotePort)
 				log.Log("Stopping pf routine")
-				select {
-				case _, ok := <-stopCh:
-					if ok {
-						log.Logf("Stopping port-forward %d-%d by stopCH", localPort, remotePort)
-						close(stopCh)
-					} else {
-						log.Logf("Port-forward %d-%d has already been stopped", localPort, remotePort)
-					}
-				default:
-					log.Logf("Stopping port-forward %d-%d", localPort, remotePort)
-					close(stopCh)
-				}
+				closeChanGracefully(stopCh)
 				//delete(p.pfList, key)
 				log.Logf("Delete port-forward %d:%d record", localPort, remotePort)
 				err = nhController.DeletePortForwardFromDB(localPort, remotePort)
@@ -543,6 +529,17 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 		}
 	}()
 	return nil
+}
+
+func closeChanGracefully(stopCh chan struct{}) {
+	select {
+	case _, ok := <-stopCh:
+		if ok {
+			close(stopCh)
+		}
+	default:
+		close(stopCh)
+	}
 }
 
 func ParseErrToForwardPort(errStr string) (*clientgoutils.ForwardPort, error) {

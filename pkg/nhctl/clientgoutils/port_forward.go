@@ -69,8 +69,8 @@ func (c *ClientGoUtils) ForwardPortForwardByPod(pod string, localPort, remotePor
 		Config:       c.restConfig,
 		Address:      []string{"0.0.0.0"},
 		Ports:        []string{fmt.Sprintf("%d:%d", localPort, remotePort)},
-		StopChannel:  readyChan,
-		ReadyChannel: stopChan,
+		StopChannel:  stopChan,
+		ReadyChannel: readyChan,
 	})
 }
 
