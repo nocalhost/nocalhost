@@ -53,7 +53,6 @@ var ignoredNamespaces = []string{
 
 var nocalhostNamespace = "nocalhost-reserved"
 var waitImages = "nocalhost-docker.pkg.coding.net/nocalhost/public/nocalhost-wait:latest"
-var imagePullPolicy = "Always"
 
 const (
 	admissionWebhookAnnotationInjectKey = "sidecar-injector-webhook.nocalhost/inject"
