@@ -75,7 +75,7 @@ func AddContainer(spec *v1.PodSpec, c *PodRouteConfig) {
 				v1.ResourceMemory: resource.MustParse("256Mi"),
 			},
 		},
-		ImagePullPolicy: v1.PullAlways,
+		ImagePullPolicy: v1.PullIfNotPresent,
 	})
 	if len(spec.PriorityClassName) == 0 {
 		spec.PriorityClassName = "system-cluster-critical"
