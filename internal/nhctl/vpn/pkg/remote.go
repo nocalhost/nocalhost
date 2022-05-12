@@ -89,7 +89,7 @@ func createOutboundRouterPodIfNecessary(
 							v1.ResourceMemory: resource.MustParse("512Mi"),
 						},
 					},
-					ImagePullPolicy: v1.PullIfNotPresent,
+					ImagePullPolicy: _const.DefaultImagePullPolicy,
 				},
 			},
 			PriorityClassName: "system-cluster-critical",

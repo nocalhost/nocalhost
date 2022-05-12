@@ -307,7 +307,7 @@ func AddEnvoySidecarForMesh(spec *v1.PodTemplateSpec) (exist bool) {
 				Name:  "NOCALHOST_PORT",
 				Value: strings.Join(port.List(), ","),
 			}},
-		ImagePullPolicy: v1.PullIfNotPresent,
+		ImagePullPolicy: _const.DefaultImagePullPolicy,
 		SecurityContext: &v1.SecurityContext{
 			Privileged: &t,
 		},
@@ -403,7 +403,7 @@ func createMeshManagerIfNotExist(ctx context.Context, clientset kubernetes.Inter
 								},
 							},
 						}},
-						ImagePullPolicy: v1.PullIfNotPresent,
+						ImagePullPolicy: _const.DefaultImagePullPolicy,
 					}},
 					ServiceAccountName: MeshManager,
 				},

@@ -15,6 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/profile"
 	"strconv"
 	"strings"
@@ -231,7 +232,7 @@ func nocalhostDepConfigmapCustom(
 		initContainer := corev1.Container{
 			Name:            "nocalhost-dependency-waiting-job",
 			Image:           waitImages,
-			ImagePullPolicy: corev1.PullPolicy("Always"),
+			ImagePullPolicy: _const.DefaultImagePullPolicy,
 			Command:         cmd,
 		}
 		initContainers = append(initContainers, initContainer)
@@ -363,7 +364,7 @@ func nocalhostDepConfigmap(
 				initContainer := corev1.Container{
 					Name:            "nocalhost-dependency-waiting-job",
 					Image:           waitImages,
-					ImagePullPolicy: corev1.PullPolicy("Always"),
+					ImagePullPolicy: _const.DefaultImagePullPolicy,
 					Command:         cmd,
 				}
 				initContainers = append(initContainers, initContainer)
