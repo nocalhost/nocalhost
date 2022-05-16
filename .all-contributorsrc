@@ -1,0 +1,24 @@
+{
+  "files": [
+    "README.md"
+  ],
+  "imageSize": 100,
+  "commit": false,
+  "contributors": [
+    {
+      "login": "anurnomeru",
+      "name": "Anur",
+      "avatar_url": "https://avatars.githubusercontent.com/u/24870621?v=4",
+      "profile": "https://github.com/anurnomeru",
+      "contributions": [
+        "maintenance"
+      ]
+    }
+  ],
+  "contributorsPerLine": 7,
+  "projectName": "nocalhost",
+  "projectOwner": "nocalhost",
+  "repoType": "github",
+  "repoHost": "https://github.com",
+  "skipCi": true
+}
