@@ -158,6 +158,11 @@ func GenKubeconfig(
 		log.Warnf("convert host kubeconfig error: %v", err)
 		return
 	}
+	// add extra api server address
+	extraApiServer := cp.GetExtraApiServer()
+	if extraApiServer != "" {
+		v1Cluster.Server = extraApiServer
+	}
 	kubeConfigStruct.Clusters[0].Cluster = *v1Cluster
 	kubeConfigStruct.Clusters[0].Name = cp.GetClusterName()
 	kubeConfigStruct.Contexts[0].Context.Cluster = cp.GetClusterName()
