@@ -16,6 +16,7 @@ import (
 	clientcmdapiv1 "k8s.io/client-go/tools/clientcmd/api/v1"
 
 	_const "nocalhost/internal/nhctl/const"
+	"nocalhost/internal/nocalhost-api/global"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/internal/nocalhost-api/service/cooperator/cluster_scope"
@@ -126,11 +127,11 @@ func GenKubeconfig(
 	// nocalhost provide every user a service account each cluster
 	// first check if config valid
 	var reader setupcluster.DevKubeConfigReader
-	if reader = getServiceAccountKubeConfigReader(
+	if reader, err = getServiceAccountKubeConfigReader(
 		clientGo, saName,
 		_const.NocalhostDefaultSaNs, cp.GetClusterServer(),
-	); reader == nil {
-		return
+	); err != nil || reader == nil {
+		log.Error(err, "failed to get service account kubeconfig reader")
 	}
 
 	var kubeConfig string
@@ -289,22 +290,30 @@ func GenKubeconfig(
 func getServiceAccountKubeConfigReader(
 	clientGo *clientgo.GoClient,
 	saName, saNs, serverAddr string,
-) setupcluster.DevKubeConfigReader {
+) (setupcluster.DevKubeConfigReader, error) {
 	sa, err := clientGo.GetServiceAccount(saName, saNs)
-	if err != nil || len(sa.Secrets) == 0 {
-		return nil
+	if err != nil {
+		return nil, err
 	}
 
-	secret, err := clientGo.GetSecret(_const.NocalhostDefaultSaNs, sa.Secrets[0].Name)
+	// https://github.com/nocalhost/nocalhost/issues/1327
+	secretName := ""
+	if len(sa.Secrets) == 0 {
+		secretName = sa.Name + global.NocalhostSaTokenSuffix
+	} else {
+		secretName = sa.Secrets[0].Name
+	}
+
+	secret, err := clientGo.GetSecret(_const.NocalhostDefaultSaNs, secretName)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	cr := setupcluster.NewDevKubeConfigReader(
 		secret, serverAddr, saNs,
 	)
 
 	cr.GetCA().GetToken().AssembleDevKubeConfig()
-	return cr
+	return cr, nil
 }
 
 type ServiceAccountModel struct {
