@@ -13,6 +13,15 @@
       "contributions": [
         "maintenance"
       ]
+    },
+    {
+      "login": "zzzhangqi",
+      "name": "Qi Zhang",
+      "avatar_url": "https://avatars.githubusercontent.com/u/39754275?v=4",
+      "profile": "https://www.smallq.cn",
+      "contributions": [
+        "blog"
+      ]
     }
   ],
   "contributorsPerLine": 7,
