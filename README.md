@@ -56,6 +56,7 @@ Full documentation is available on the [Nocalhost](https://nocalhost.dev/)
 
 ## Community
 
+* Meeting: [Google Doc](https://docs.google.com/document/d/19xrULkXK51tO0yupZnHXccC2EpJUlPI4y1eCI2HnjBM)
 * Slack(English): [CNCF Slack](https://slack.cncf.io/) #nocalhost channel
 * WeChat(Chinese): Scan the QR Code to add CODING assistance with note "Nocalhost", assistance will add you into our WeChat group
 
