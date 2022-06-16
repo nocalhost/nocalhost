@@ -122,7 +122,7 @@ func (d *DHCPManager) RentIP(random bool) (*net.IPNet, error) {
 	if random {
 		var ok bool
 		if ip, ok = ps.PopAny(); !ok {
-			log.Errorf("cat not get ip from dhcp, no availble ip")
+			log.Errorf("cat not get ip from dhcp, no available ip")
 		}
 	} else {
 		ip = getIP(GetAvailableIPs(used))
