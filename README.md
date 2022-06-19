@@ -1,6 +1,6 @@
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/5381/badge)](https://bestpractices.coreinfrastructure.org/projects/5381)
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-2-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-3-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 ![api-docker](https://github.com/nocalhost/nocalhost/workflows/api-docker/badge.svg?branch=main)
 ![nhctl](https://github.com/nocalhost/nocalhost/workflows/nhctl/badge.svg?branch=main)
@@ -99,6 +99,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
   <tr>
     <td align="center"><a href="https://github.com/anurnomeru"><img src="https://avatars.githubusercontent.com/u/24870621?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Anur</b></sub></a><br /><a href="#maintenance-anurnomeru" title="Maintenance">🚧</a></td>
     <td align="center"><a href="https://www.smallq.cn"><img src="https://avatars.githubusercontent.com/u/39754275?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Qi Zhang</b></sub></a><br /><a href="#blog-zzzhangqi" title="Blogposts">📝</a></td>
+    <td align="center"><a href="https://github.com/mouuii"><img src="https://avatars.githubusercontent.com/u/49775493?v=4?s=100" width="100px;" alt=""/><br /><sub><b>mouuii</b></sub></a><br /><a href="#plugin-mouuii" title="Plugin/utility libraries">🔌</a> <a href="#ideas-mouuii" title="Ideas, Planning, & Feedback">🤔</a></td>
   </tr>
 </table>
 
