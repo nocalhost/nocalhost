@@ -84,6 +84,9 @@ Nocalhost adopts [CNCF Code of Conduct](https://github.com/cncf/foundation/blob/
 
 Nocalhost is [Apache 2.0 licensed](./LICENSE)
 
+
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fnocalhost%2Fnocalhost.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fnocalhost%2Fnocalhost?ref=badge_large)
+
 ## Roadmap
 
 See [ROADMAP](./ROADMAP.md)
