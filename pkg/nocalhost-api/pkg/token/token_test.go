@@ -1,7 +1,7 @@
 package token
 
 import (
-	"github.com/dgrijalva/jwt-go/v4"
+	"github.com/golang-jwt/jwt/v4"
 	"testing"
 	"time"
 )

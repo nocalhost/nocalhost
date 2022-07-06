@@ -8,9 +8,8 @@ package cluster_user
 import (
 	"context"
 	"encoding/json"
-	"sort"
-
 	"github.com/gin-gonic/gin"
+	"sort"
 
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
@@ -53,7 +52,7 @@ func GetV2(c *gin.Context) {
 	// set base space name
 	for i := range result {
 		if result[i].BaseDevSpaceId > 0 {
-			cu, err := service.Svc.ClusterUser().GetFirst(c, model.ClusterUserModel{ID: result[i].BaseDevSpaceId})
+			cu, err := service.Svc.ClusterUserSvc.GetFirst(c, model.ClusterUserModel{ID: result[i].BaseDevSpaceId})
 			if err != nil {
 				api.SendResponse(c, errno.ErrMeshClusterUserNotFound, nil)
 				return
@@ -114,7 +113,7 @@ func ListV2(c *gin.Context) {
 func DoList(params *model.ClusterUserModel, userId uint64, isAdmin, isCanBeUsedAsBaseSpace bool) (
 	[]*model.ClusterUserV2, error) {
 
-	clusterUsers, err := service.Svc.ClusterUser().ListV2(*params)
+	clusterUsers, err := service.Svc.ClusterUserSvc.ListV2(*params)
 	if err != nil {
 		log.Error(err)
 		return nil, errno.ErrClusterNotFound
@@ -155,7 +154,7 @@ func relatedToSomebody(userId uint64) func(*model.ClusterUserV2) bool {
 			}
 		}
 
-		clusterCache, err := service.Svc.ClusterSvc().GetCache(cu.ClusterId)
+		clusterCache, err := service.Svc.ClusterSvc.GetCache(cu.ClusterId)
 		if err != nil {
 			return false
 		}
@@ -233,7 +232,7 @@ func doSort(clusterUsers []*model.ClusterUserV2) {
 }
 
 func fillExtByUser(src map[uint64][]*model.ClusterUserV2, currentUser uint64, isAdmin bool) error {
-	list, err := service.Svc.ClusterSvc().GetList(context.TODO())
+	list, err := service.Svc.ClusterSvc.GetList(context.TODO())
 	if err != nil {
 		log.Errorf("Error while list cluster: %+v", err)
 		return errno.ErrClusterNotFound
@@ -337,7 +336,7 @@ func fillViewer(cu *model.ClusterUserV2, clusterId uint64) {
 	viewerSa := ns_scope.ViewerSas(clusterId, cu.Namespace)
 	cu.ViewerUser = make([]*model.UserSimple, 0)
 	for _, sa := range viewerSa {
-		usr, err := service.Svc.UserSvc().GetCacheBySa(sa)
+		usr, err := service.Svc.UserSvc.GetCacheBySa(sa)
 		if err != nil {
 			log.Error("Error while Get user cache by sa %s", sa)
 			continue
@@ -350,7 +349,7 @@ func fillClusterViewer(cu *model.ClusterUserV2, clusterId uint64) {
 	cooperSa := cluster_scope.ViewSas(clusterId, cu.UserId)
 	cu.ViewerUser = make([]*model.UserSimple, 0)
 	for _, sa := range cooperSa {
-		usr, err := service.Svc.UserSvc().GetCacheBySa(sa)
+		usr, err := service.Svc.UserSvc.GetCacheBySa(sa)
 		if err != nil {
 			log.Error("Error while Get user cache by sa %s", sa)
 			continue
@@ -363,7 +362,7 @@ func fillCooperator(cu *model.ClusterUserV2, clusterId uint64) {
 	cooperSa := ns_scope.CoopSas(clusterId, cu.Namespace)
 	cu.CooperUser = make([]*model.UserSimple, 0)
 	for _, sa := range cooperSa {
-		usr, err := service.Svc.UserSvc().GetCacheBySa(sa)
+		usr, err := service.Svc.UserSvc.GetCacheBySa(sa)
 		if err != nil {
 			log.Error("Error while Get user cache by sa %s", sa)
 			continue
@@ -376,7 +375,7 @@ func fillClusterCooperator(cu *model.ClusterUserV2, clusterId uint64) {
 	cooperSa := cluster_scope.CoopSas(clusterId, cu.UserId)
 	cu.CooperUser = make([]*model.UserSimple, 0)
 	for _, sa := range cooperSa {
-		usr, err := service.Svc.UserSvc().GetCacheBySa(sa)
+		usr, err := service.Svc.UserSvc.GetCacheBySa(sa)
 		if err != nil {
 			log.Error("Error while Get user cache by sa %s", sa)
 			continue
@@ -386,7 +385,7 @@ func fillClusterCooperator(cu *model.ClusterUserV2, clusterId uint64) {
 }
 
 func fillOwner(cu *model.ClusterUserV2) {
-	usr, err := service.Svc.UserSvc().GetCache(cu.UserId)
+	usr, err := service.Svc.UserSvc.GetCache(cu.UserId)
 	if err != nil {
 		log.Error("Error while Get user cache by id %s", cu.UserId)
 		return

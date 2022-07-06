@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"math/rand"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
@@ -60,7 +61,7 @@ func (d *DevSpace) Delete() error {
 	_, _ = goClient.DeleteNS(d.DevSpaceParams.NameSpace)
 
 	// delete database cluster-user dev space
-	dErr := service.Svc.ClusterUser().Delete(d.c, *d.DevSpaceParams.ID)
+	dErr := service.Svc.ClusterUserSvc.Delete(d.c, *d.DevSpaceParams.ID)
 	if dErr != nil {
 		return errno.ErrDeletedClusterButDatabaseFail
 	}
@@ -72,13 +73,13 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 	clusterId := cast.ToUint64(d.DevSpaceParams.ClusterId)
 
 	// get user
-	usersRecord, err := service.Svc.UserSvc().GetUserByID(d.c, userId)
+	usersRecord, err := service.Svc.UserSvc.GetUserByID(d.c, userId)
 	if err != nil {
 		return nil, errno.ErrUserNotFound
 	}
 
 	// check cluster
-	clusterRecord, err := service.Svc.ClusterSvc().Get(context.TODO(), clusterId)
+	clusterRecord, err := service.Svc.ClusterSvc.Get(context.TODO(), clusterId)
 	if err != nil {
 		return nil, errno.ErrClusterNotFound
 	}
@@ -93,7 +94,7 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 		}
 	} else {
 		// check if space name exist
-		if _, err := service.Svc.ClusterUser().GetFirst(
+		if _, err := service.Svc.ClusterUserSvc.GetFirst(
 			d.c, model.ClusterUserModel{
 				SpaceName: d.DevSpaceParams.SpaceName,
 			},
@@ -106,7 +107,7 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 	baseClusterUser := &model.ClusterUserModel{}
 	if d.DevSpaceParams.BaseDevSpaceId > 0 {
 		var err error
-		baseClusterUser, err = service.Svc.ClusterUser().GetFirst(
+		baseClusterUser, err = service.Svc.ClusterUserSvc.GetFirst(
 			d.c, model.ClusterUserModel{
 				ID: d.DevSpaceParams.BaseDevSpaceId,
 			},
@@ -141,6 +142,13 @@ func (d *DevSpace) Create() (*model.ClusterUserModel, error) {
 	if d.DevSpaceParams.BaseDevSpaceId > 0 {
 		if clusterUserModel, err = d.initMeshDevSpace(&clusterRecord, clusterUserModel, baseClusterUser); err != nil {
 			log.Error(err)
+			// rollback
+			log.Debugf("rollback dev space %s", clusterUserModel.SpaceName)
+			d.KubeConfig = []byte(clusterRecord.GetKubeConfig())
+			d.DevSpaceParams.NameSpace = clusterUserModel.Namespace
+			d.DevSpaceParams.SpaceName = clusterUserModel.SpaceName
+			d.DevSpaceParams.ID = &clusterUserModel.ID
+			_ = d.Delete()
 			return nil, errno.ErrInitMeshSpaceFailed
 		}
 	}
@@ -155,7 +163,7 @@ func getUnDuplicateName(times int, name string) (string, error) {
 	}
 
 	// check if space name exist
-	if _, err := service.Svc.ClusterUser().GetFirst(
+	if _, err := service.Svc.ClusterUserSvc.GetFirst(
 		context.TODO(), model.ClusterUserModel{
 			SpaceName: spaceName,
 		},
@@ -184,10 +192,10 @@ func (d *DevSpace) createClusterDevSpace(
 	clusterRecord model.ClusterModel, usersRecord *model.UserBaseModel,
 ) (*model.ClusterUserModel, error) {
 	trueFlag := uint64(1)
-	list, err := service.Svc.ClusterUser().GetList(
+	list, err := service.Svc.ClusterUserSvc.GetList(
 		context.TODO(), model.ClusterUserModel{
-			ClusterId: clusterRecord.ID,
-			UserId: usersRecord.ID,
+			ClusterId:    clusterRecord.ID,
+			UserId:       usersRecord.ID,
 			ClusterAdmin: &trueFlag,
 		},
 	)
@@ -195,7 +203,7 @@ func (d *DevSpace) createClusterDevSpace(
 		return nil, errno.ErrAlreadyExist
 	}
 
-	result, err := service.Svc.ClusterUser().CreateClusterAdminSpace(
+	result, err := service.Svc.ClusterUserSvc.CreateClusterAdminSpace(
 		context.TODO(), clusterRecord.ID, usersRecord.ID, d.DevSpaceParams.SpaceName,
 	)
 	if err != nil {
@@ -209,6 +217,9 @@ func (d *DevSpace) createClusterDevSpace(
 	return &result, nil
 }
 
+// createDevSpace
+// create a devSpace, if already exist, return the
+// devSpace created before
 func (d *DevSpace) createDevSpace(
 	clusterRecord model.ClusterModel, usersRecord *model.UserBaseModel,
 ) (*model.ClusterUserModel, error) {
@@ -228,10 +239,27 @@ func (d *DevSpace) createDevSpace(
 			return nil, errno.ErrClusterKubeErr
 		}
 	}
-	// create cluster devs
+
+	// (1) if namespace is specified, no need to create this namespace
+	// but we should initial the namespace
+	needCreateNamespace := true
 	devNamespace := goClient.GenerateNsName(usersRecord.ID)
+
+	if d.DevSpaceParams.NameSpace != "" {
+		devNamespace = d.DevSpaceParams.NameSpace
+
+		_, err := goClient.GetNamespace(devNamespace)
+		if err != nil && !k8serrors.IsNotFound(err) {
+			return nil, err
+		} else {
+			needCreateNamespace = false
+		}
+	}
+
+	// create cluster devs
 	clusterDevsSetUp := setupcluster.NewClusterDevsSetUp(goClient)
 
+	// (2) process for mesh space
 	// set labels for istio proxy sidecar injection
 	labels := make(map[string]string)
 	if d.DevSpaceParams.BaseDevSpaceId > 0 {
@@ -259,11 +287,16 @@ func (d *DevSpace) createDevSpace(
 		labels["nocalhost.dev/devspace"] = "base"
 	}
 
-	// create namespace
-	_, err = goClient.CreateNS(devNamespace, labels)
-	if err != nil {
-		return nil, errno.ErrNameSpaceCreate
+	// (3) create the devspace
+	if needCreateNamespace {
+		// create namespace
+		_, err = goClient.CreateNS(devNamespace, labels)
+		if err != nil {
+			return nil, errno.ErrNameSpaceCreate
+		}
 	}
+
+	// (4) initial the devspace
 	// create namespace ResourceQuota and container limitRange
 	res := d.DevSpaceParams.SpaceResourceLimit
 	if res == nil {
@@ -280,17 +313,28 @@ func (d *DevSpace) createDevSpace(
 		res.ContainerEphemeralStorage,
 	)
 
-	resString, err := json.Marshal(res)
-	result, err := service.Svc.ClusterUser().Create(
-		d.c, *d.DevSpaceParams.ClusterId, usersRecord.ID, *d.DevSpaceParams.Memory, *d.DevSpaceParams.Cpu,
-		"", devNamespace, d.DevSpaceParams.SpaceName, string(resString), d.DevSpaceParams.IsBaseSpace,
-	)
-	if err != nil {
-		return nil, errno.ErrBindApplicationClsuter
+	var result model.ClusterUserModel
+
+	if any, _ := service.Svc.ClusterUserSvc.GetFirst(
+		context.TODO(), model.ClusterUserModel{
+			Namespace: devNamespace,
+		},
+	); any != nil {
+		result = *any
+	} else {
+		resString, err := json.Marshal(res)
+		result, err = service.Svc.ClusterUserSvc.Create(
+			d.c, *d.DevSpaceParams.ClusterId, usersRecord.ID, *d.DevSpaceParams.Memory, *d.DevSpaceParams.Cpu,
+			"", devNamespace, d.DevSpaceParams.SpaceName, string(resString), d.DevSpaceParams.IsBaseSpace,
+			d.DevSpaceParams.Protected,
+		)
+		if err != nil {
+			return nil, errno.ErrBindApplicationClsuter
+		}
 	}
 
 	// auth application to user
-	_ = service.Svc.ApplicationUser().BatchInsert(d.c, applicationId, []uint64{usersRecord.ID})
+	_ = service.Svc.ApplicationUserSvc.BatchInsert(d.c, applicationId, []uint64{usersRecord.ID})
 
 	// authorize namespace to user
 	if err := service.Svc.AuthorizeNsToUser(clusterRecord.ID, usersRecord.ID, result.Namespace); err != nil {
@@ -315,17 +359,17 @@ func (d *DevSpace) initMeshDevSpace(
 
 	meshManager, err := setupcluster.GetSharedMeshManagerFactory().Manager(clusterRecord.KubeConfig)
 	if err != nil {
-		return nil, err
+		return clusterUser, err
 	}
 
 	if err := meshManager.InitMeshDevSpace(meshDevInfo); err != nil {
 		_ = meshManager.Rollback(meshDevInfo)
-		return nil, err
+		return clusterUser, err
 	}
 
 	clusterUser.TraceHeader = d.DevSpaceParams.MeshDevInfo.Header
 	clusterUser.BaseDevSpaceId = d.DevSpaceParams.BaseDevSpaceId
-	return service.Svc.ClusterUser().Update(d.c, clusterUser)
+	return service.Svc.ClusterUserSvc.Update(d.c, clusterUser)
 }
 
 func (d *DevSpace) deleteTracingHeader() error {
@@ -334,7 +378,7 @@ func (d *DevSpace) deleteTracingHeader() error {
 	}
 
 	// check base dev space
-	baseDevspace, err := service.Svc.ClusterUser().GetFirst(
+	baseDevspace, err := service.Svc.ClusterUserSvc.GetFirst(
 		d.c, model.ClusterUserModel{
 			ID: d.DevSpaceParams.BaseDevSpaceId,
 		},

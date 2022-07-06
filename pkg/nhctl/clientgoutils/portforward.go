@@ -37,6 +37,9 @@ type PortForwarder struct {
 	ports         []ForwardedPort
 	stopChan      <-chan struct{}
 	innerStopChan chan struct{}
+	// if failed to find socat, send error
+	// if pod is not found, send error
+	errChan chan error
 
 	dialer        httpstream.Dialer
 	streamConn    httpstream.Connection
@@ -172,6 +175,7 @@ func NewOnAddresses(dialer httpstream.Dialer, addresses []string, ports []string
 		ports:         parsedPorts,
 		stopChan:      stopChan,
 		innerStopChan: make(chan struct{}, 1),
+		errChan:       make(chan error, 1),
 		Ready:         readyChan,
 		out:           out,
 		errOut:        errOut,
@@ -227,8 +231,15 @@ func (pf *PortForwarder) forward() error {
 	case <-pf.innerStopChan:
 		runtime.HandleError(errors.New("lost connection to pod"))
 	}
-
-	return nil
+	select {
+	case errs, ok := <-pf.errChan:
+		if ok {
+			return errs
+		}
+		return nil
+	default:
+		return nil
+	}
 }
 
 // listenOnPort delegates listener creation and waits for connections on requested bind addresses.
@@ -399,6 +410,13 @@ firstCreateStream:
 	// always expect something on errorChan (it may be nil)
 	err = <-errorChan
 	if err != nil {
+		if strings.Contains(err.Error(), "failed to find socat") {
+			select {
+			case pf.errChan <- err:
+			default:
+			}
+			close(pf.innerStopChan)
+		}
 		runtime.HandleError(err)
 	}
 }
@@ -458,6 +476,10 @@ func (pf *PortForwarder) tryToCreateStream(header *http.Header) (httpstream.Stre
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			runtime.HandleError(fmt.Errorf("pod not found: %s", err))
+			select {
+			case pf.errChan <- err:
+			default:
+			}
 			close(pf.innerStopChan)
 		} else {
 			runtime.HandleError(fmt.Errorf("error upgrading connection: %s", err))

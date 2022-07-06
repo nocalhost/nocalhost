@@ -19,7 +19,7 @@ var (
 )
 
 func IsCooperOfCluster(clusterId uint64, saName string) bool {
-	cc, err := service.Svc.ClusterSvc().GetCache(clusterId)
+	cc, err := service.Svc.ClusterSvc.GetCache(clusterId)
 	if err != nil {
 		return false
 	}
@@ -42,7 +42,7 @@ func IsCooperOfCluster(clusterId uint64, saName string) bool {
 }
 
 func IsViewerOfCluster(clusterId uint64, saName string) bool {
-	cc, err := service.Svc.ClusterSvc().GetCache(clusterId)
+	cc, err := service.Svc.ClusterSvc.GetCache(clusterId)
 	if err != nil {
 		return false
 	}
@@ -65,7 +65,7 @@ func IsViewerOfCluster(clusterId uint64, saName string) bool {
 }
 
 func IsOwnerOfCluster(clusterId uint64, saName string) bool {
-	cc, err := service.Svc.ClusterSvc().GetCache(clusterId)
+	cc, err := service.Svc.ClusterSvc.GetCache(clusterId)
 	if err != nil {
 		return false
 	}
@@ -89,7 +89,7 @@ func IsValidOwner(clusterId, fromUserId uint64) bool {
 }
 
 func IsCooperAs(clusterId, fromUserId, shareUserId uint64) bool {
-	uc, err := service.Svc.UserSvc().GetCache(shareUserId)
+	uc, err := service.Svc.UserSvc.GetCache(shareUserId)
 	if err != nil || uc.SaName == "" {
 		return false
 	}
@@ -103,7 +103,7 @@ func IsCooperAs(clusterId, fromUserId, shareUserId uint64) bool {
 }
 
 func IsViewerAs(clusterId, fromUserId, shareUserId uint64) bool {
-	uc, err := service.Svc.UserSvc().GetCache(shareUserId)
+	uc, err := service.Svc.UserSvc.GetCache(shareUserId)
 	if err != nil || uc.SaName == "" {
 		return false
 	}
@@ -152,12 +152,12 @@ func getShareContainer(clusterId, fromUserId uint64) *saShareContainer {
 
 func GetFromCache(clusterId, fromUserId uint64) (
 	*model.ClusterModel, *model.UserBaseModel, error) {
-	cc, err := service.Svc.ClusterSvc().GetCache(clusterId)
+	cc, err := service.Svc.ClusterSvc.GetCache(clusterId)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	uc, err := service.Svc.UserSvc().GetCache(fromUserId)
+	uc, err := service.Svc.UserSvc.GetCache(fromUserId)
 	if err != nil {
 		return nil, nil, err
 	}

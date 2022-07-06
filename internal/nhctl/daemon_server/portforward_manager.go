@@ -10,7 +10,11 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"io/ioutil"
+	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"net"
 	"nocalhost/internal/nhctl/app"
@@ -22,6 +26,8 @@ import (
 	"nocalhost/internal/nhctl/nocalhost/db"
 	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/internal/nhctl/profile"
+	"nocalhost/internal/nhctl/utils"
+	"nocalhost/internal/nhctl/watcher"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"os"
@@ -46,7 +52,11 @@ func (p *PortForwardManager) StopPortForwardGoRoutine(cmd *command.PortForwardCo
 	pfProfile, ok := p.pfList[key]
 	if ok {
 		pfProfile.Cancel()
-		err := <-pfProfile.StopCh
+		var err error
+		select {
+		case err = <-pfProfile.StopCh:
+		default:
+		}
 		delete(p.pfList, key)
 		return err
 	}
@@ -88,9 +98,6 @@ func (p *PortForwardManager) RecoverPortForwardForApplication(ns, appName, nid s
 		}
 		return err
 	}
-	//if profile == nil {
-	//	return errors.New(fmt.Sprintf("Profile not found %s-%s", ns, appName))
-	//}
 
 	var found bool
 	for _, svcProfile := range profile.SvcProfile {
@@ -106,6 +113,7 @@ func (p *PortForwardManager) RecoverPortForwardForApplication(ns, appName, nid s
 				if svcType == "" {
 					svcType = "deployment"
 				}
+
 				err = p.StartPortForwardGoRoutine(
 					&command.PortForwardCommand{
 						CommandType: command.StartPortForward,
@@ -113,11 +121,16 @@ func (p *PortForwardManager) RecoverPortForwardForApplication(ns, appName, nid s
 						AppName:     appName,
 						Service:     svcProfile.GetName(),
 						ServiceType: svcType,
-						PodName:     pf.PodName,
 						LocalPort:   pf.LocalPort,
 						RemotePort:  pf.RemotePort,
 						Role:        pf.Role,
 						Nid:         nid,
+
+						PodName:         pf.PodName,
+						OwnerName:       pf.OwnerName,
+						OwnerKind:       pf.OwnerKind,
+						OwnerApiVersion: pf.OwnerApiVersion,
+						Labels:          pf.Labels,
 					}, false,
 				)
 				if err != nil {
@@ -135,7 +148,7 @@ func (p *PortForwardManager) RecoverPortForwardForApplication(ns, appName, nid s
 }
 
 func (p *PortForwardManager) RecoverAllPortForward() {
-	defer recoverDaemonFromPanic()
+	defer utils.RecoverFromPanic()
 
 	log.Info("Recovering all port-forward")
 	var scanned bool
@@ -150,7 +163,7 @@ func (p *PortForwardManager) RecoverAllPortForward() {
 	}
 
 	// Find all app
-	appMap, err := nocalhost.GetNsAndApplicationInfo(scanned)
+	appMap, err := nocalhost.GetNsAndApplicationInfo(scanned, true)
 	if err != nil {
 		log.LogE(err)
 		return
@@ -184,6 +197,33 @@ func (p *PortForwardManager) recordPortForward(ns, nid, app string, isPortForwar
 		return ioutil.WriteFile(path, nil, 0644)
 	} else {
 		return os.Remove(path)
+	}
+}
+
+func GetTopController(refs []v1.OwnerReference, client *clientgoutils.ClientGoUtils) *v1.OwnerReference {
+	controller := clientgoutils.GetControllerOfNoCopy(refs)
+	if controller == nil {
+		return nil
+	}
+
+	if gv, err := schema.ParseGroupVersion(controller.APIVersion); err != nil {
+		return controller
+	} else {
+		gvr, nsScope, e := client.ResourceForGVK(gv.WithKind(controller.Kind))
+		if e != nil || !nsScope {
+			return controller
+		}
+
+		unstructured, e := client.GetUnstructured(gvr.Resource, controller.Name)
+		if e != nil {
+			return controller
+		}
+
+		ownerRef := GetTopController(unstructured.GetOwnerReferences(), client)
+		if ownerRef == nil {
+			return controller
+		}
+		return ownerRef
 	}
 }
 
@@ -221,26 +261,72 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 		return err
 	}
 
-	p.recordPortForward(startCmd.NameSpace, startCmd.Nid, startCmd.AppName, func() bool { return true })
+	_ = p.recordPortForward(startCmd.NameSpace, startCmd.Nid, startCmd.AppName, func() bool { return true })
 
+	howToGetCurrentPod := func() (*corev1.Pod, error) {
+		// first find the pod should be port-forward
+		var currentPod *corev1.Pod
+
+		if currentPod, err = nhController.Client.GetPod(startCmd.PodName); err != nil && len(startCmd.Labels) > 0 {
+			if pods, _ := nhController.Client.Labels(startCmd.Labels).ListPods(); len(pods) > 0 {
+				for _, pod := range pods {
+
+					if startCmd.OwnerName != "" {
+						controller := GetTopController(pod.GetOwnerReferences(), nhController.Client)
+						if controller == nil {
+							continue
+						}
+
+						if controller.Name == startCmd.OwnerName && controller.APIVersion == startCmd.OwnerApiVersion &&
+							controller.Kind == startCmd.OwnerKind {
+
+							err = nil
+							currentPod = &pod
+							break
+						}
+					} else {
+						err = nil
+						currentPod = &pod
+						break
+					}
+				}
+			}
+		}
+
+		return currentPod, err
+	}
+
+	var currentPod *corev1.Pod
 	if saveToDB {
 		// Check if port forward already exists
 		if existed, _ := nhController.CheckIfPortForwardExists(localPort, remotePort); existed {
 			return errors.New(fmt.Sprintf("Port forward %d:%d already exists", localPort, remotePort))
 		}
+
 		pf := &profile.DevPortForward{
-			LocalPort:  localPort,
-			RemotePort: remotePort,
-			Role:       startCmd.Role,
-			Status:     "New",
-			Reason:     "Add",
-			PodName:    startCmd.PodName,
-			Updated:    time.Now().Format("2006-01-02 15:04:05"),
-			//Pid:        0,
-			//RunByDaemonServer: true,
+			LocalPort:       localPort,
+			RemotePort:      remotePort,
+			Role:            startCmd.Role,
+			Status:          "New",
+			Reason:          "Add",
+			PodName:         startCmd.PodName,
+			Updated:         time.Now().Format("2006-01-02 15:04:05"),
 			Sudo:            isSudo,
 			DaemonServerPid: os.Getpid(),
 			ServiceType:     startCmd.ServiceType,
+		}
+
+		if currentPod, err = howToGetCurrentPod(); err != nil {
+			return err
+		} else {
+			pf.Labels = currentPod.Labels
+			controller := GetTopController(currentPod.GetOwnerReferences(), nhController.Client)
+
+			if controller != nil {
+				pf.OwnerName = controller.Name
+				pf.OwnerApiVersion = controller.APIVersion
+				pf.OwnerKind = controller.Kind
+			}
 		}
 
 		log.Logf("Saving port-forward %d:%d to db", pf.LocalPort, pf.RemotePort)
@@ -250,7 +336,13 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 		if err != nil {
 			return err
 		}
+	} else {
+		if currentPod, err = howToGetCurrentPod(); err != nil {
+			return err
+		}
 	}
+
+	startCmd.PodName = currentPod.Name
 
 	ctx, cancel := context.WithCancel(context.TODO())
 	p.pfList[key] = &daemon_common.PortForwardProfile{
@@ -265,7 +357,7 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 		RemotePort: startCmd.RemotePort,
 	}
 	go func() {
-		defer recoverDaemonFromPanic()
+		defer utils.RecoverFromPanic()
 
 		log.Logf("Forwarding %d:%d", localPort, remotePort)
 
@@ -291,6 +383,8 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 			log.LogE(err)
 		}
 
+		sleepBackOff := 15 * time.Second
+
 		for {
 			// stopCh control the port forwarding lifecycle. When it gets closed the
 			// port forward will terminate
@@ -309,66 +403,111 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 				ErrOut: stdout,
 			}
 
+			// if pods is deleted, try to close port-forward
+			watcher.NewSimpleWatcher(
+				nhController.Client,
+				"pods",
+				v1.ListOptions{FieldSelector: fields.OneTermEqualSelector("metadata.name", startCmd.PodName).String()},
+				stopCh,
+				nil,
+				func(key string, quitChan <-chan struct{}) {
+					defer utils.RecoverFromPanic()
+					select {
+					case errCh <- k8serrors.NewNotFound(schema.GroupResource{Resource: "pods"}, startCmd.PodName):
+						close(errCh)
+					default:
+					}
+				},
+			)
+
 			go func() {
-				defer recoverDaemonFromPanic()
-				<-readyCh
-				log.Infof("Port forward %d:%d is ready", localPort, remotePort)
-				p.lock.Lock()
-				_ = nhController.UpdatePortForwardStatus(localPort, remotePort, "LISTEN", "listen")
-				p.lock.Unlock()
+				defer utils.RecoverFromPanic()
+				select {
+				case <-readyCh:
+					log.Infof("Port forward %d:%d is ready", localPort, remotePort)
+					p.lock.Lock()
+					_ = nhController.UpdatePortForwardStatus(localPort, remotePort, "LISTEN", "listen")
+					p.lock.Unlock()
+				case <-time.After(60 * time.Second):
+					log.Infof("Waiting Port forward %d:%d timeout", localPort, remotePort)
+				}
 			}()
 
 			go func() {
-				defer recoverDaemonFromPanic()
+				defer utils.RecoverFromPanic()
 				errCh <- nocalhostApp.PortForward(startCmd.PodName, localPort, remotePort, readyCh, stopCh, stream)
 				log.Logf("Port-forward %d:%d occurs errors", localPort, remotePort)
 			}()
 
+			var block = true
+
 			select {
 			case errs := <-errCh:
+
+				closeChanGracefully(stopCh)
+				closeChanGracefully(readyCh)
+
+				reconnectMsg := fmt.Sprintf("Reconnecting after %s seconds...", sleepBackOff.String())
+
 				if errs != nil && k8serrors.IsNotFound(errs) {
-					log.Logf("Pod: %s not found, remove port-forward for this pod", startCmd.PodName)
+
+					// if pod not found, try to get pod by labels
+					if pod, err := howToGetCurrentPod(); err != nil {
+						p.lock.Lock()
+						err = nhController.UpdatePortForwardStatus(
+							localPort, remotePort, "RECONNECTING",
+							reconnectMsg,
+						)
+						p.lock.Unlock()
+
+						// Avoid overloading the api with multiple requests
+						sleepBackOff += 15 * time.Second
+						if sleepBackOff.Seconds() > 60 {
+							sleepBackOff = 60 * time.Second
+						}
+					} else {
+
+						log.Logf("New pod %s for port-forward found", pod.Name)
+						startCmd.PodName = pod.Name
+						block = false
+					}
+
+				} else if errs != nil && strings.Contains(errs.Error(), "failed to find socat") {
+
+					log.Logf("failed to find socat, err: %v", errs)
 					p.lock.Lock()
-					err2 := nhController.UpdatePortForwardStatus(
-						localPort, remotePort, "DISCONNECTED",
-						fmt.Sprintf("Unable to found pod %s", startCmd.PodName),
+					err = nhController.UpdatePortForwardStatus(
+						localPort, remotePort, "Socat not found", "failed to find socat",
 					)
 					p.lock.Unlock()
-					if err2 != nil {
-						log.LogE(err2)
+					if err != nil {
+						log.LogE(err)
 					}
 					delete(p.pfList, key)
-					close(stopCh)
 					return
 				} else {
-					log.Warn("Reconnecting after 15 seconds...")
+
+					log.Warn(reconnectMsg)
 					p.lock.Lock()
 					err = nhController.UpdatePortForwardStatus(
 						localPort, remotePort, "RECONNECTING",
-						"Reconnecting after 15 seconds...",
+						reconnectMsg,
 					)
 					p.lock.Unlock()
 					if err != nil {
 						log.LogE(err)
 					}
 				}
-				<-time.After(15 * time.Second)
-				log.Info("Reconnecting...")
+
+				if block {
+					<-time.After(sleepBackOff)
+					log.Infof("Reconnecting %d:%d...", localPort, remotePort)
+				}
+
 			case <-ctx.Done():
 				log.Logf("Port-forward %d:%d done", localPort, remotePort)
 				log.Log("Stopping pf routine")
-				select {
-				case _, ok := <-stopCh:
-					if ok {
-						log.Logf("Stopping port-forward %d-%d by stopCH", localPort, remotePort)
-						close(stopCh)
-					} else {
-						log.Logf("Port-forward %d-%d has already been stopped", localPort, remotePort)
-					}
-				default:
-					log.Logf("Stopping port-forward %d-%d", localPort, remotePort)
-					close(stopCh)
-				}
+				closeChanGracefully(stopCh)
 				//delete(p.pfList, key)
 				log.Logf("Delete port-forward %d:%d record", localPort, remotePort)
 				err = nhController.DeletePortForwardFromDB(localPort, remotePort)
@@ -390,6 +529,17 @@ func (p *PortForwardManager) StartPortForwardGoRoutine(startCmd *command.PortFor
 		}
 	}()
 	return nil
+}
+
+func closeChanGracefully(stopCh chan struct{}) {
+	select {
+	case _, ok := <-stopCh:
+		if ok {
+			close(stopCh)
+		}
+	default:
+		close(stopCh)
+	}
 }
 
 func ParseErrToForwardPort(errStr string) (*clientgoutils.ForwardPort, error) {

@@ -11,6 +11,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/kubectl/pkg/cmd/exec"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"time"
 )
@@ -23,7 +24,7 @@ var cmdExec = &cobra.Command{
 	Long:    `Execute a command in a container`,
 	Short:   `Execute a command in a container`,
 	Run: func(cmd *cobra.Command, args []string) {
-		clientGoUtils, err := clientgoutils.NewClientGoUtils(kubeConfig, nameSpace)
+		clientGoUtils, err := clientgoutils.NewClientGoUtils(common.KubeConfig, common.NameSpace)
 		must(err)
 		cmdutil.AddPodRunningTimeoutFlag(cmd, 60*time.Second)
 		cmdutil.AddJsonFilenameFlag(cmd.Flags(), &options.FilenameOptions.Filenames, "to use to exec into the resource")

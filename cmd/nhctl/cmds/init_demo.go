@@ -7,6 +7,7 @@ package cmds
 
 import (
 	"fmt"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/coloredoutput"
 	"nocalhost/internal/nhctl/request"
@@ -106,7 +107,7 @@ var InitCommand = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		kubectl, err := tools.CheckThirdPartyCLI()
 		mustI(err, "you should install them first(helm3 and kubectl)")
-		must(Prepare())
+		must(common.Prepare())
 
 		// init api and web
 		// nhctl install nocalhost -u https://e.coding.net/nocalhost/nocalhost/nocalhost.git
@@ -122,7 +123,7 @@ var InitCommand = &cobra.Command{
 			"-u",
 			nocalhostHelmSource,
 			"--kubeconfig",
-			kubeConfig,
+			common.KubeConfig,
 			"-n",
 			inits.NameSpace,
 			"--type",
@@ -151,8 +152,8 @@ var InitCommand = &cobra.Command{
 				params = append(params, "--set", set)
 			}
 		}
-		client, err := clientgoutils.NewClientGoUtils(kubeConfig, inits.NameSpace)
-		log.Debugf("kubeconfig %s \n", kubeConfig)
+		client, err := clientgoutils.NewClientGoUtils(common.KubeConfig, inits.NameSpace)
+		log.Debugf("kubeconfig %s \n", common.KubeConfig)
 		if err != nil || client == nil {
 			log.Fatalf("new go client fail, err %s, or check you kubeconfig\n", err)
 			return
@@ -200,9 +201,7 @@ var InitCommand = &cobra.Command{
 			customLabels := map[string]string{
 				"env": app.DefaultInitCreateNameSpaceLabels,
 			}
-			client.Labels(customLabels)
-			mustI(client.CreateNameSpace(inits.NameSpace), "create namespace fail")
-			client.Labels(nil)
+			mustI(client.Labels(customLabels).CreateNameSpace(inits.NameSpace), "create namespace fail")
 		}
 		spinner := utils.NewSpinner(" waiting for get Nocalhost manifest...")
 		spinner.Start()
@@ -256,7 +255,7 @@ var InitCommand = &cobra.Command{
 		log.Debugf("try login and init nocalhost web(User、DevSpace and demo applications)")
 		// set default cluster, application, users
 		req := request.NewReq(
-			fmt.Sprintf("http://%s", endpoint), kubeConfig, kubectl, inits.NameSpace, inits.Port,
+			fmt.Sprintf("http://%s", endpoint), common.KubeConfig, kubectl, inits.NameSpace, inits.Port,
 		).Login(
 			app.DefaultInitAdminUserName, app.DefaultInitAdminPassWord,
 		).GetKubeConfig().AddBookInfoApplicationForThree().AddCluster().AddUser(
@@ -282,7 +281,7 @@ var InitCommand = &cobra.Command{
 		)
 
 		// change dep images tag
-		setDepComponentDockerImage(kubectl, kubeConfig)
+		setDepComponentDockerImage(kubectl, common.KubeConfig)
 
 		spinner.Stop()
 

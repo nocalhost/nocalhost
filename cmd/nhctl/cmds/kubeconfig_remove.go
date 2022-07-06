@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	"io/ioutil"
 	"k8s.io/client-go/tools/clientcmd"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/utils"
@@ -29,15 +30,15 @@ var kubeconfigRemoveCmd = &cobra.Command{
 		if err != nil {
 			log.FatalE(err, "")
 		}
-		// can set kubeConfig default value, but effect too much
-		if len(kubeConfig) == 0 {
-			kubeConfig = clientcmd.RecommendedHomeFile
+		// can set common.KubeConfig default value, but effect too much
+		if len(common.KubeConfig) == 0 {
+			common.KubeConfig = clientcmd.RecommendedHomeFile
 		}
-		if err := Prepare(); err != nil {
+		if err := common.Prepare(); err != nil {
 			return
 		}
-		if bytes, err := ioutil.ReadFile(kubeConfig); err == nil {
-			if err = daemonClient.SendKubeconfigOperationCommand(bytes, nameSpace, command.OperationRemove); err != nil {
+		if bytes, err := ioutil.ReadFile(common.KubeConfig); err == nil {
+			if err = daemonClient.SendKubeconfigOperationCommand(bytes, common.NameSpace, command.OperationRemove); err != nil {
 				log.Info(err)
 			}
 		}

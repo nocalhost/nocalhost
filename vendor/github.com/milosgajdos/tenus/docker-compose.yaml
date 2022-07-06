@@ -1,0 +1,13 @@
+version: '3'
+
+services:
+  test:
+    image: golang
+    cap_add:
+      - CAP_NET_ADMIN
+    volumes:
+      - ${PWD}:/src
+      - ${HOME}/.cache/go-build:/go/pkg/mod
+    working_dir: /src
+    environment:
+      - GOCACHE=/go/pkg/mod

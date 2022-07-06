@@ -18,6 +18,7 @@ import (
 	"nocalhost/internal/nocalhost-api/service/application_user"
 	"nocalhost/internal/nocalhost-api/service/cluster"
 	"nocalhost/internal/nocalhost-api/service/cluster_user"
+	"nocalhost/internal/nocalhost-api/service/ldap"
 	"nocalhost/internal/nocalhost-api/service/pre_pull"
 	"nocalhost/internal/nocalhost-api/service/user"
 	"nocalhost/pkg/nocalhost-api/pkg/clientgo"
@@ -35,25 +36,31 @@ var (
 
 // Service struct
 type Service struct {
-	userSvc               user.UserService
-	clusterSvc            cluster.ClusterService
-	applicationSvc        application.ApplicationService
-	applicationClusterSvc application_cluster.ApplicationClusterService
-	clusterUserSvc        cluster_user.ClusterUserService
-	prePullSvc            pre_pull.PrePullService
-	applicationUserSvc    application_user.ApplicationUserService
+	UserSvc               *user.User
+	ClusterSvc            *cluster.Cluster
+	ApplicationSvc        *application.Application
+	ApplicationClusterSvc *application_cluster.ApplicationCluster
+	ClusterUserSvc        *cluster_user.ClusterUser
+	PrePullSvc            *pre_pull.PrePull
+	ApplicationUserSvc    *application_user.ApplicationUser
+	LdapSvc               *ldap.Ldap
+}
+
+func Init() {
+	Svc = New()
 }
 
 // New init service
 func New() (s *Service) {
 	s = &Service{
-		userSvc:               user.NewUserService(),
-		clusterSvc:            cluster.NewClusterService(),
-		applicationSvc:        application.NewApplicationService(),
-		applicationClusterSvc: application_cluster.NewApplicationClusterService(),
-		clusterUserSvc:        cluster_user.NewClusterUserService(),
-		prePullSvc:            pre_pull.NewPrePullService(),
-		applicationUserSvc:    application_user.NewApplicationUserService(),
+		UserSvc:               user.NewUserService(),
+		ClusterSvc:            cluster.NewClusterService(),
+		ApplicationSvc:        application.NewApplicationService(),
+		ApplicationClusterSvc: application_cluster.NewApplicationClusterService(),
+		ClusterUserSvc:        cluster_user.NewClusterUserService(),
+		PrePullSvc:            pre_pull.NewPrePullService(),
+		ApplicationUserSvc:    application_user.NewApplicationUserService(),
+		LdapSvc:               ldap.NewLdapService(),
 	}
 
 	if global.ServiceInitial == "true" {
@@ -66,35 +73,6 @@ func New() (s *Service) {
 	return s
 }
 
-// UserSvc return user service
-func (s *Service) UserSvc() user.UserService {
-	return s.userSvc
-}
-
-func (s *Service) ClusterSvc() cluster.ClusterService {
-	return s.clusterSvc
-}
-
-func (s *Service) ApplicationSvc() application.ApplicationService {
-	return s.applicationSvc
-}
-
-func (s *Service) ApplicationClusterSvc() application_cluster.ApplicationClusterService {
-	return s.applicationClusterSvc
-}
-
-func (s *Service) ClusterUser() cluster_user.ClusterUserService {
-	return s.clusterUserSvc
-}
-
-func (s *Service) PrePull() pre_pull.PrePullService {
-	return s.prePullSvc
-}
-
-func (s *Service) ApplicationUser() application_user.ApplicationUserService {
-	return s.applicationUserSvc
-}
-
 // Ping service
 func (s *Service) Ping() error {
 	return nil
@@ -102,7 +80,7 @@ func (s *Service) Ping() error {
 
 // Close service
 func (s *Service) Close() {
-	s.userSvc.Close()
+	s.UserSvc.Close()
 }
 
 func (s *Service) dataMigrate() {
@@ -119,7 +97,7 @@ func (s *Service) dataMigrate() {
 }
 
 func (s *Service) generateServiceAccountNameForUser() {
-	list, err := s.userSvc.GetUserList(context.TODO())
+	list, err := s.UserSvc.GetUserHasNotSa(context.TODO())
 	if err != nil {
 		log.Infof("Error while generate user sa: %+v", err)
 	}
@@ -128,7 +106,7 @@ func (s *Service) generateServiceAccountNameForUser() {
 		u := u
 		go func() {
 			if u.SaName == "" {
-				if err := s.userSvc.UpdateServiceAccountName(context.TODO(), u.ID, model.GenerateSaName()); err != nil {
+				if err := s.UserSvc.UpdateServiceAccountName(context.TODO(), u.ID, model.GenerateSaName()); err != nil {
 					log.Infof("Error while generate user %d's sa: %+v", u.ID, err)
 				}
 			}
@@ -137,7 +115,7 @@ func (s *Service) generateServiceAccountNameForUser() {
 }
 
 func (s *Service) migrateClusterUseToRoleBinding() {
-	list, err := s.clusterUserSvc.GetList(context.TODO(), model.ClusterUserModel{})
+	list, err := s.ClusterUserSvc.GetList(context.TODO(), model.ClusterUserModel{})
 	if err != nil {
 		log.Infof("Error while migrate data: %+v", err)
 	}
@@ -151,7 +129,7 @@ func (s *Service) migrateClusterUseToRoleBinding() {
 }
 
 func (s *Service) migrateClusterUseToApplicationUser() {
-	list, err := s.clusterUserSvc.GetList(context.TODO(), model.ClusterUserModel{})
+	list, err := s.ClusterUserSvc.GetList(context.TODO(), model.ClusterUserModel{})
 	if err != nil {
 		log.Infof("Error while migrate data: %+v", err)
 	}
@@ -168,9 +146,9 @@ func (s *Service) migrateClusterUseToApplicationUser() {
 			continue
 		}
 
-		_, err := s.applicationUserSvc.GetByApplicationIdAndUserId(context.TODO(), applicationId, userId)
+		_, err := s.ApplicationUserSvc.GetByApplicationIdAndUserId(context.TODO(), applicationId, userId)
 		if err != nil && strings.Contains(err.Error(), "record not found") {
-			err := s.ApplicationUser().BatchInsert(context.TODO(), applicationId, []uint64{userId})
+			err := s.ApplicationUserSvc.BatchInsert(context.TODO(), applicationId, []uint64{userId})
 			if err != nil {
 				log.Infof("Error while migrate data[BatchInsert]: %+v", err)
 			}
@@ -197,11 +175,12 @@ func (s *Service) init() {
 	if err := s.updateAllRoleBinding(); err != nil {
 		log.Errorf("Error while updating role binding: %s", err)
 	}
+
 }
 
 // Upgrade all cluster's versions of nocalhost-dep according to nocalhost-api's versions.
 func (s *Service) upgradeAllClusters() error {
-	result, _ := s.ClusterSvc().GetList(context.TODO())
+	result, _ := s.ClusterSvc.GetList(context.TODO())
 
 	wg := sync.WaitGroup{}
 	wg.Add(len(result))
@@ -241,7 +220,7 @@ func (s *Service) upgradeAllClusters() error {
 // elder version of nocalhost may not has nocalhost label
 func (s *Service) updateAllRoleBinding() error {
 	var results []*model.ClusterUserModel
-	results, err := s.ClusterUser().GetList(context.TODO(), model.ClusterUserModel{})
+	results, err := s.ClusterUserSvc.GetList(context.TODO(), model.ClusterUserModel{})
 
 	log.Info("1")
 	if err != nil {
@@ -262,7 +241,7 @@ func (s *Service) updateAllRoleBinding() error {
 	go func() {
 		for clusterId, cus := range group {
 
-			clusterModel, err := s.ClusterSvc().GetCache(clusterId)
+			clusterModel, err := s.ClusterSvc.GetCache(clusterId)
 			if err != nil {
 				log.Error(err)
 				return
@@ -296,7 +275,7 @@ func (s *Service) updateAllRoleBinding() error {
 
 func (s *Service) updateAllRole() error {
 	var results []*model.ClusterUserModel
-	results, err := s.ClusterUser().GetList(context.TODO(), model.ClusterUserModel{})
+	results, err := s.ClusterUserSvc.GetList(context.TODO(), model.ClusterUserModel{})
 
 	if err != nil {
 		return err
@@ -307,7 +286,7 @@ func (s *Service) updateAllRole() error {
 		result := result
 		go func() {
 
-			clusterModel, err := s.ClusterSvc().GetCache(result.ClusterId)
+			clusterModel, err := s.ClusterSvc.GetCache(result.ClusterId)
 			if err != nil {
 				return
 			}
@@ -338,7 +317,7 @@ func (s *Service) updateAllRole() error {
 func (s *Service) PrepareServiceAccountAndClientGo(clusterId, userId uint64) (
 	clientGo *clientgo.GoClient, saName string, err error,
 ) {
-	cl, err := s.ClusterSvc().GetCache(clusterId)
+	cl, err := s.ClusterSvc.GetCache(clusterId)
 	if err != nil {
 		log.Error(err)
 		err = errno.ErrClusterNotFound
@@ -353,7 +332,7 @@ func (s *Service) PrepareServiceAccountAndClientGo(clusterId, userId uint64) (
 		return
 	}
 
-	u, err := s.UserSvc().GetCache(userId)
+	u, err := s.UserSvc.GetCache(userId)
 	if err != nil {
 		log.Error(err)
 		err = errno.ErrUserNotFound

@@ -1,14 +1,17 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package controller
 
 import (
 	"encoding/json"
 	"fmt"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"nocalhost/internal/nhctl/profile"
+	"nocalhost/pkg/nhctl/clientgoutils"
 	"testing"
 )
 
@@ -28,4 +31,25 @@ func TestIsResourcesLimitToLow(t *testing.T) {
 	r.Limits = nil
 	rq, _ = convertResourceQuota(r)
 	fmt.Println(IsResourcesLimitTooLow(rq))
+}
+
+func TestDeploymentController_ReplaceImage(t *testing.T) {
+	client, err := clientgoutils.NewClientGoUtils("", "nocalhost-test")
+	objs, err := client.Get("deployment", "reviews")
+	if err != nil {
+		panic(err)
+	}
+
+	obj := &unstructured.Unstructured{}
+	obj.Object, err = runtime.DefaultUnstructuredConverter.ToUnstructured(objs)
+	if err != nil {
+		panic(err)
+	}
+
+	podSpec, err := GetPodTemplateFromSpecPath("/spec/template/spec", obj.Object)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("%v\n", podSpec)
 }

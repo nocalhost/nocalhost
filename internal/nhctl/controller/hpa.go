@@ -7,7 +7,6 @@ package controller
 
 import (
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
-	"k8s.io/apimachinery/pkg/fields"
 )
 
 func (c *Controller) ListHPA() ([]autoscalingv1.HorizontalPodAutoscaler, error) {
@@ -16,11 +15,16 @@ func (c *Controller) ListHPA() ([]autoscalingv1.HorizontalPodAutoscaler, error) 
 		return nil, err
 	}
 
-	return c.Client.FieldSelector(
-		fields.AndSelectors(
-			fields.OneTermEqualSelector("spec.scaleTargetRef.apiVersion", typeMeta.APIVersion),
-			fields.OneTermEqualSelector("spec.scaleTargetRef.kind", typeMeta.Kind),
-			fields.OneTermEqualSelector("spec.scaleTargetRef.name", c.Name),
-		).String(),
-	).ListHPA()
+	hpaList, err := c.Client.ListHPA()
+	if err != nil {
+		return nil, err
+	}
+	result := make([]autoscalingv1.HorizontalPodAutoscaler, 0)
+	for _, hpa := range hpaList {
+		hpaRef := hpa.Spec.ScaleTargetRef
+		if hpaRef.APIVersion == typeMeta.APIVersion && hpaRef.Kind == typeMeta.Kind && hpaRef.Name == c.Name {
+			result = append(result, hpa)
+		}
+	}
+	return result, nil
 }

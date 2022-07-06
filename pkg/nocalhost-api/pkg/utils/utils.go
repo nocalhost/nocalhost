@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package utils
 
@@ -10,10 +10,13 @@ import (
 	"crypto/md5"
 	"encoding/gob"
 	"fmt"
+	"github.com/qiniu/api.v7/storage"
+	"github.com/spf13/viper"
 	"io"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"math/rand"
 	"net"
+	"nocalhost/pkg/nocalhost-api/pkg/constvar"
 	"regexp"
 	"strings"
 	"sync"
@@ -24,6 +27,40 @@ import (
 	"github.com/teris-io/shortid"
 	tnet "github.com/toolkits/net"
 )
+
+var emailReg = "(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|\"(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21\\x23-\\x5b\\x5d-\\x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])*\")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\\[(?:(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9]))\\.){3}(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])|[a-z0-9-]*[a-z0-9]:(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21-\\x5a\\x53-\\x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])+)\\])"
+
+// GetDefaultAvatarURL
+func GetDefaultAvatarURL() string {
+	return GetQiNiuPublicAccessURL(constvar.DefaultAvatar)
+}
+
+// GetAvatarURL user's avatar, if empty, use default avatar
+func GetAvatarURL(key string) string {
+	if key == "" {
+		return GetDefaultAvatarURL()
+	}
+	if strings.HasPrefix(key, "https://") {
+		return key
+	}
+	return GetQiNiuPublicAccessURL(key)
+}
+
+// GetQiNiuPublicAccessURL
+func GetQiNiuPublicAccessURL(path string) string {
+	domain := viper.GetString("qiniu.cdn_url")
+	key := strings.TrimPrefix(path, "/")
+
+	publicAccessURL := storage.MakePublicURL(domain, key)
+
+	return publicAccessURL
+}
+
+func IsEmail(email string) bool {
+
+	match, err := regexp.Match(emailReg, []byte(strings.ToLower(email)))
+	return err == nil && match
+}
 
 // GenShortID
 func GenShortID() (string, error) {
@@ -58,14 +95,16 @@ var (
 
 // GetLocalIP
 func GetLocalIP() string {
-	once.Do(func() {
-		ips, _ := tnet.IntranetIP()
-		if len(ips) > 0 {
-			clientIP = ips[0]
-		} else {
-			clientIP = "127.0.0.1"
-		}
-	})
+	once.Do(
+		func() {
+			ips, _ := tnet.IntranetIP()
+			if len(ips) > 0 {
+				clientIP = ips[0]
+			} else {
+				clientIP = "127.0.0.1"
+			}
+		},
+	)
 	return clientIP
 }
 

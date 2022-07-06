@@ -11,8 +11,8 @@ import (
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
+	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/appmeta_manager"
-	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/daemon_server/command"
@@ -32,7 +32,7 @@ import (
 
 func recoverSyncthing() {
 	log.Log("Recovering syncthing")
-	appMap, err := nocalhost.GetNsAndApplicationInfo(true)
+	appMap, err := nocalhost.GetNsAndApplicationInfo(true, true)
 	if err != nil {
 		return
 	}
@@ -94,10 +94,29 @@ func reconnectSyncthingIfNeededWithPeriod(duration time.Duration) {
 	}
 }
 
+// namespace-nid-appName-serviceType-serviceName
+var maps sync.Map
+
+func toKey(controller2 *controller.Controller) string {
+	return fmt.Sprintf("%s-%s-%s-%s-%s",
+		controller2.NameSpace,
+		controller2.AppMeta.NamespaceId,
+		controller2.AppName,
+		controller2.Type,
+		controller2.Name,
+	)
+}
+
+type backoff struct {
+	times    int
+	lastTime time.Time
+	nextTime time.Time
+}
+
 // reconnectedSyncthingIfNeeded will reconnect syncthing immediately if syncthing service is not available
 func reconnectedSyncthingIfNeeded() {
 
-	defer recoverDaemonFromPanic()
+	defer utils.RecoverFromPanic()
 	clone := appmeta_manager.GetAllApplicationMetas()
 
 	if clone == nil {
@@ -113,7 +132,10 @@ func reconnectedSyncthingIfNeeded() {
 			continue
 		}
 		for _, svcProfile := range appProfile.SvcProfile {
-			svcType, err1 := base.SvcTypeOfMutate(svcProfile.GetType())
+			if svcProfile == nil || appmeta.HasDevStartingSuffix(svcProfile.Name) {
+				continue
+			}
+			svcType, err1 := nocalhost.SvcTypeOfMutate(svcProfile.GetType())
 			if err1 != nil {
 				continue
 			}
@@ -135,7 +157,8 @@ func reconnectedSyncthingIfNeeded() {
 			//   detect syncthing service is available or not, if it's still not available
 			// the second time: redo port-forward, and create a new syncthing process
 			go func(svc *controller.Controller) {
-				defer recoverDaemonFromPanic()
+				defer utils.RecoverFromPanic()
+				var err error
 				for i := 0; i < 2; i++ {
 					if err = retry.OnError(wait.Backoff{
 						Steps:    3,
@@ -150,8 +173,21 @@ func reconnectedSyncthingIfNeeded() {
 						}
 						return errors.New("needs to reconnect")
 					}); err == nil {
-						break
+						maps.Delete(toKey(svc))
+						return
 					}
+					v, _ := maps.LoadOrStore(toKey(svc), &backoff{times: 0, lastTime: time.Now(), nextTime: time.Now()})
+					if v.(*backoff).nextTime.Sub(time.Now()).Seconds() > 0 {
+						return
+					}
+					v.(*backoff).times++
+					// if last 5 min failed 5 times, will delay 3 min to retry
+					if time.Now().Sub(v.(*backoff).lastTime).Minutes() >= 5 && v.(*backoff).times >= 5 {
+						v.(*backoff).nextTime = time.Now().Add(time.Minute * 3)
+					} else {
+						v.(*backoff).lastTime = time.Now()
+					}
+
 					log.LogDebugf("prepare to restore syncthing, name: %s", svc.Name)
 					// TODO using developing container, otherwise will using default containerDevConfig
 					if err = doReconnectSyncthing(svc, "", appProfile.Kubeconfig, i == 1); err != nil {
@@ -186,7 +222,7 @@ func doReconnectSyncthing(svc *controller.Controller, container string, kubeconf
 	// stop syncthing process with pid
 	_ = svc.FindOutSyncthingProcess(func(pid int) error { return syncthing.Stop(pid, true) })
 	// stop syncthing process with keywords
-	str := strings.ReplaceAll(svc.GetApplicationSyncDir(), nocalhost_path.GetNhctlHomeDir(), "")
+	str := strings.ReplaceAll(svc.GetSyncDir(), nocalhost_path.GetNhctlHomeDir(), "")
 	utils2.KillSyncthingProcess(str)
 	flag := false
 	config := svc.Config()
@@ -228,7 +264,7 @@ func doPortForward(svc *controller.Controller, svcProfile *profile.SvcProfileV2,
 	if svc.Client, err = clientgoutils.NewClientGoUtils(kubeconfigPath, svc.NameSpace); err != nil {
 		return err
 	}
-	if p.PodName, err = svc.BuildPodController().GetNocalhostDevContainerPod(); err != nil {
+	if p.PodName, err = svc.GetDevModePodName(); err != nil {
 		return err
 	}
 	if err = pfManager.StartPortForwardGoRoutine(p, true); err != nil {

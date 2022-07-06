@@ -147,7 +147,7 @@ func (c *Controller) PortForwardAfterDevStart(podName, containerName string) err
 	}
 
 	for _, pf := range cc.PortForward {
-		lPort, rPort, err := profile.GetPortForwardForString(pf)
+		lPort, rPort, err := utils.GetPortForwardForString(pf)
 		if err != nil {
 			log.WarnE(err, "")
 			continue
@@ -177,7 +177,6 @@ func (c *Controller) PortForward(podName string, localPort, remotePort int, role
 	if err = client.SendStartPortForwardCommand(nhResource, localPort, remotePort, role, c.AppMeta.NamespaceId); err != nil {
 		return err
 	} else {
-		log.Infof("Port-forward %d:%d has been started", localPort, remotePort)
 		return c.SetPortForwardedStatus(true) //  todo: move port-forward start
 	}
 }

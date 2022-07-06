@@ -8,6 +8,7 @@ package user
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nocalhost-api/model"
 	"nocalhost/internal/nocalhost-api/service"
 	"nocalhost/pkg/nocalhost-api/app/api"
@@ -38,7 +39,7 @@ func Delete(c *gin.Context) {
 		UserId: userId,
 	}
 	var clusterUserIds []uint64
-	clusterUserList, err := service.Svc.ClusterUser().GetJoinCluster(c, condition)
+	clusterUserList, err := service.Svc.ClusterUserSvc.GetJoinCluster(c, condition)
 	if len(clusterUserList) > 0 {
 		for _, clusterUser := range clusterUserList {
 			goClient, err := clientgo.NewAdminGoClient([]byte(clusterUser.AdminClusterKubeConfig))
@@ -48,28 +49,65 @@ func Delete(c *gin.Context) {
 			}
 			_, err = goClient.DeleteNS(clusterUser.Namespace)
 			if err != nil {
-				log.Warnf("try to delete userid %d cluster namesapce %d fail", clusterUser.UserId, clusterUser.Namespace)
+				log.Warnf(
+					"try to delete userid %d cluster namesapce %d fail", clusterUser.UserId, clusterUser.Namespace,
+				)
 			}
 			log.Infof("deleted user cluster dev space %s", clusterUser.Namespace)
 			clusterUserIds = append(clusterUserIds, clusterUser.ID)
 		}
 	}
 
+	user, err := service.Svc.UserSvc.GetCache(userId)
+	if err != nil {
+		log.Warnf("user delete error: %v", err)
+		api.SendResponse(c, errno.ErrUserNotFound, nil)
+		return
+	}
+
+	clusterList, err := service.Svc.ClusterSvc.GetList(c)
+	if err != nil {
+		log.Warnf("user delete error: %v", err)
+		api.SendResponse(c, errno.ErrClusterNotFound, nil)
+		return
+	}
+
+	for _, clusterItem := range clusterList {
+		cl, err := service.Svc.ClusterSvc.GetCache(clusterItem.ID)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+
+		// new client go
+		clientGo, err := clientgo.NewAdminGoClient([]byte(cl.KubeConfig))
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+
+		if err := clientGo.DeleteServiceAccount(user.SaName, _const.NocalhostDefaultSaNs); err != nil {
+			log.Error(err)
+			continue
+		}
+	}
+
 	// delete cluster user database record
-	err = service.Svc.ClusterUser().BatchDelete(c, clusterUserIds)
+	err = service.Svc.ClusterUserSvc.BatchDelete(c, clusterUserIds)
 	if err != nil {
 		log.Warnf("try to delete dev spaceId %s fail", clusterUserIds)
 	}
-	user, err := service.Svc.UserSvc().GetCache(userId)
-	err = service.Svc.UserSvc().Delete(c, userId)
+
+	err = service.Svc.UserSvc.Delete(c, userId)
 	if err != nil {
 		log.Warnf("user delete error: %v", err)
 		api.SendResponse(c, errno.ErrDeleteUser, nil)
 		return
 	}
+
 	// if delete normal user, needs to delete cluster which added by this user
 	if user.IsAdmin != nil && *user.IsAdmin != 1 {
-		err = service.Svc.ClusterSvc().DeleteByCreator(c, userId)
+		err = service.Svc.ClusterSvc.DeleteByCreator(c, userId)
 		if err != nil {
 			log.Warnf("delete cluster which created by this user error: %v", err)
 			api.SendResponse(c, errno.ErrDeleteUser, nil)

@@ -126,26 +126,26 @@ func tryNewAppFromHelmRelease(releaseStr, ns string, configBytes []byte) error {
 			configBytes,
 			func() error {
 
-				if err := meta.Initial(); err != nil {
+				if err := meta.OneTimesInitial(
+					func(meta *appmeta.ApplicationMeta) {
+						meta.ApplicationType = appmeta.HelmLocal
+						meta.HelmReleaseName = release.Name
+						meta.Application = release.Name
+						meta.Config = &profile2.NocalHostAppConfigV2{
+							Migrated:          true,
+							ApplicationConfig: profile2.ApplicationConfig{},
+							ConfigProperties:  profile2.ConfigProperties{},
+						}
+					}, true,
+				); err != nil {
+					log.TLogf(
+						"Watcher", "Initial application '%s' by managed helm fail, Error: %s",
+						release.Name, err,
+					)
 					return err
 				}
 
-				meta.ApplicationType = appmeta.HelmLocal
-				meta.ApplicationState = appmeta.INSTALLED
-				meta.HelmReleaseName = release.Name
-				meta.Application = release.Name
-				meta.Config = &profile2.NocalHostAppConfigV2{
-					Migrated:          true,
-					ApplicationConfig: profile2.ApplicationConfig{},
-					ConfigProperties:  profile2.ConfigProperties{},
-				}
-
-				if err := meta.Update(); err != nil {
-					return err
-				} else {
-					log.TLogf("Watcher", "Initial application '%s' by managed helm", release.Name)
-					return nil
-				}
+				return nil
 			},
 		),
 		"Error while new application for helm release",

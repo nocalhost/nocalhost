@@ -73,6 +73,11 @@ func serviceModifier(rs *unstructured.Unstructured) error {
 	svc.Status.Reset()
 	svc.Spec.ClusterIP = ""
 	svc.Spec.ClusterIPs = make([]string, 0)
+	ports := svc.Spec.Ports
+	for i := range ports {
+		ports[i].NodePort = 0
+	}
+	svc.Spec.Ports = ports
 
 	var err error
 	if rs.Object, err = runtime.DefaultUnstructuredConverter.ToUnstructured(svc); err != nil {

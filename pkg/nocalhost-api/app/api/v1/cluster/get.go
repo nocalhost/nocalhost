@@ -45,7 +45,7 @@ type ClusterSafeList struct {
 // @Success 200 {object} model.ClusterListVo "{"code":0,"message":"OK","data":model.ClusterListVo}"
 // @Router /v1/cluster [get]
 func GetList(c *gin.Context) {
-	result, _ := service.Svc.ClusterSvc().GetList(c)
+	result, _ := service.Svc.ClusterSvc.GetList(c)
 	tempResult := make([]*model.ClusterList, 0, 0)
 	userId := c.GetUint64("userId")
 	// normal user can only see clusters they created, or devSpace's cluster
@@ -81,9 +81,15 @@ func GetList(c *gin.Context) {
 			continue
 		}
 		Add(result[i].GetKubeConfig())
+
+		var userName = ""
+		if cache, err := service.Svc.UserSvc.GetCache(cluster.UserId); err == nil {
+			userName = cache.Name
+		}
 		vos[i] = model.ClusterListVo{
 			ClusterList: *result[i],
 			Resources:   GetFromCache(result[i].GetKubeConfig()),
+			UserName:    userName,
 		}
 	}
 	api.SendResponse(c, errno.OK, vos)
@@ -99,7 +105,7 @@ func GetList(c *gin.Context) {
 // @Success 200 {object} model.ClusterList "{"code":0,"message":"OK","data":model.ClusterList}"
 // @Router /v2/dev_space/cluster [get]
 func GetDevSpaceClusterList(c *gin.Context) {
-	result, _ := service.Svc.ClusterSvc().GetList(c)
+	result, _ := service.Svc.ClusterSvc.GetList(c)
 	tempResult := make([]*model.ClusterList, 0, 0)
 	userId := c.GetUint64("userId")
 	// normal user can only see clusters they created, or devSpace's cluster
@@ -119,7 +125,7 @@ func GetDevSpaceClusterList(c *gin.Context) {
 // distinct by cluster id
 func ListByUser(c *gin.Context) {
 	user := cast.ToUint64(c.Param("id"))
-	result, _ := service.Svc.ClusterSvc().GetList(c)
+	result, _ := service.Svc.ClusterSvc.GetList(c)
 
 	// user but admin can only access his own clusters
 	if ginbase.IsAdmin(c) || ginbase.IsCurrentUser(c, user) {
@@ -127,7 +133,7 @@ func ListByUser(c *gin.Context) {
 			UserId: user,
 		}
 
-		list, err := service.Svc.ClusterUser().GetList(c, userModel)
+		list, err := service.Svc.ClusterUserSvc.GetList(c, userModel)
 		if err != nil {
 			api.SendResponse(c, errno.ErrClusterUserNotFound, nil)
 		}
@@ -165,7 +171,7 @@ func GetSpaceList(c *gin.Context) {
 	where := model.ClusterUserModel{
 		ClusterId: clusterId,
 	}
-	result, err := service.Svc.ClusterUser().GetList(c, where)
+	result, err := service.Svc.ClusterUserSvc.GetList(c, where)
 	if err != nil {
 		api.SendResponse(c, nil, make([]interface{}, 0))
 		return
@@ -185,7 +191,7 @@ func GetSpaceList(c *gin.Context) {
 func GetDetail(c *gin.Context) {
 	// userId, _ := c.Get("userId")
 	clusterId := cast.ToUint64(c.Param("id"))
-	result, err := service.Svc.ClusterSvc().Get(c, clusterId)
+	result, err := service.Svc.ClusterSvc.Get(c, clusterId)
 
 	if err != nil {
 		api.SendResponse(c, nil, make([]interface{}, 0))
@@ -262,7 +268,7 @@ func GetSpaceDetail(c *gin.Context) {
 		ID:        devSpaceId,
 		ClusterId: clusterId,
 	}
-	result, err := service.Svc.ClusterUser().GetFirst(c, where)
+	result, err := service.Svc.ClusterUserSvc.GetFirst(c, where)
 	if err != nil {
 		api.SendResponse(c, nil, nil)
 		return
@@ -302,7 +308,7 @@ func GetStorageClass(c *gin.Context) {
 			}
 		}
 	} else {
-		cluster, err := service.Svc.ClusterSvc().Get(c, cast.ToUint64(clusterKey))
+		cluster, err := service.Svc.ClusterSvc.Get(c, cast.ToUint64(clusterKey))
 		if err != nil {
 			api.SendResponse(c, errno.ErrClusterNotFound, nil)
 			return
@@ -354,7 +360,7 @@ func GetStorageClassByKubeConfig(c *gin.Context) {
 
 // in case of resource leak
 func Init() {
-	result, _ := service.Svc.ClusterSvc().GetList(context.TODO())
+	result, _ := service.Svc.ClusterSvc.GetList(context.TODO())
 	for _, list := range result {
 		Add(list.GetKubeConfig())
 	}
@@ -367,7 +373,7 @@ func Init() {
 			case <-tick.C:
 				c <- struct{}{}
 			case <-c:
-				result, _ = service.Svc.ClusterSvc().GetList(context.TODO())
+				result, _ = service.Svc.ClusterSvc.GetList(context.TODO())
 				kubeconfigMap := make(map[string]string)
 				for _, list := range result {
 					kubeconfigMap[list.GetKubeConfig()] = list.GetKubeConfig()
@@ -397,7 +403,7 @@ func GenNamespace(c *gin.Context) {
 	if err != nil || userId == 0 {
 		api.SendResponse(c, errno.ErrUserIdFormat, nil)
 	}
-	cluster, err := service.Svc.ClusterSvc().Get(c, cast.ToUint64(c.Param("id")))
+	cluster, err := service.Svc.ClusterSvc.Get(c, cast.ToUint64(c.Param("id")))
 	if err != nil {
 		api.SendResponse(c, errno.ErrClusterNotFound, nil)
 		return

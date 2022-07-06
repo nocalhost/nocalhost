@@ -11,6 +11,7 @@ import (
 	"nocalhost/pkg/nocalhost-api/app/api/v1/applications"
 	"nocalhost/pkg/nocalhost-api/app/api/v1/cluster"
 	"nocalhost/pkg/nocalhost-api/app/api/v1/cluster_user"
+	"nocalhost/pkg/nocalhost-api/app/api/v1/ldap"
 	"nocalhost/pkg/nocalhost-api/app/api/v1/service_account"
 	"nocalhost/pkg/nocalhost-api/app/api/v1/version"
 	"nocalhost/pkg/nocalhost-api/napp"
@@ -77,6 +78,8 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		u.GET("", user.GetList)
 		u.POST("", user.Create)
 		u.PUT("/:id", user.Update)
+		u.POST("/import", user.Import)
+		u.GET("/import_status/:id", user.ImportStatus)
 		u.DELETE("/:id", user.Delete)
 		u.GET("/:id/dev_space_list", cluster_user.GetJoinClusterAndAppAndUser)
 		u.GET("/:id/applications", applications.ListPermitted)
@@ -104,6 +107,7 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		c.POST("/:id/storage_class", cluster.GetStorageClassByKubeConfig)
 		c.PUT("/:id", cluster.Update)
 		c.GET("/:id/gen_namespace", cluster.GenNamespace)
+		c.PUT("/:id/migrate", cluster.Migrate)
 	}
 
 	// Applications
@@ -142,6 +146,10 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		dv2.GET("", cluster_user.ListV2)
 		dv2.GET("/cluster", cluster.GetDevSpaceClusterList)
 		dv2.GET("/detail", cluster_user.GetV2)
+		dv2.GET("/ns_list", cluster_user.GetNsInfo)
+		dv2.POST("/ns_import", cluster_user.NsImport)
+		dv2.POST("/ns_batch_import", cluster_user.NsBatchImport)
+		dv2.GET("/ns_import_status/:id", cluster_user.ImportStatus)
 		dv2.POST("/share", cluster_user.Share)
 		dv2.POST("/unshare", cluster_user.UnShare)
 	}
@@ -159,6 +167,17 @@ func Load(g *gin.Engine, mw ...gin.HandlerFunc) *gin.Engine {
 		dv.PUT("/:id/update_resource_limit", cluster_user.UpdateResourceLimit)
 		dv.PUT("/:id/update_mesh_dev_space_info", cluster_user.UpdateMeshDevSpaceInfo)
 		dv.GET("/:id/mesh_apps_info", cluster_user.GetAppsInfo)
+	}
+
+	l := g.Group("/v1/ldap")
+	l.Use(middleware.AuthMiddleware(), middleware.PermissionMiddleware())
+	{
+		l.GET("/config", ldap.GetConfiguration)
+		l.PUT("/config/set", ldap.Configuration)
+		l.PUT("/config/disable", ldap.DeleteConfiguration)
+		l.PUT("/bind", ldap.TestBind)
+		l.PUT("/search", ldap.TestSearch)
+		l.POST("/trigger", ldap.Trigger)
 	}
 
 	// Plug-in

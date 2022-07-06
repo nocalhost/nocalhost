@@ -13,7 +13,6 @@ import (
 	"nocalhost/internal/nhctl/appmeta"
 	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/daemon_client"
-	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/pkg/nhctl/log"
 	"os"
@@ -79,20 +78,6 @@ func GetSyncThingBinDir() string {
 
 func GetLogDir() string {
 	return filepath.Join(nocalhost_path.GetNhctlHomeDir(), _const.DefaultLogDirName)
-}
-
-// gen or get kubeconfig from local path by kubeconfig content
-// we would gen or get kubeconfig file named by hash
-func GetOrGenKubeConfigPath(kubeconfigContent string) string {
-	dir := nocalhost_path.GetNhctlKubeconfigDir(utils.Sha1ToString(kubeconfigContent))
-	path := fp.NewFilePath(dir)
-	if path.ReadFile() != "" {
-		return dir
-	} else {
-		_ = path.RelOrAbs("../").Mkdir()
-		_ = path.WriteFile(kubeconfigContent)
-		return dir
-	}
 }
 
 type AppInfo struct {
@@ -196,10 +181,13 @@ func MigrateNsDirToSupportNidIfNeeded(app, ns, nid string) error {
 	return nil
 }
 
-func GetNsAndApplicationInfo(portForwardFilter bool) ([]AppInfo, error) {
-	if err := MoveAppFromNsToNid(); err != nil {
-		log.LogE(err)
+func GetNsAndApplicationInfo(portForwardFilter, nidMigrate bool) ([]AppInfo, error) {
+	if nidMigrate {
+		if err := MoveAppFromNsToNid(); err != nil {
+			log.LogE(err)
+		}
 	}
+
 	result := make([]AppInfo, 0)
 	nsDir := nocalhost_path.GetNhctlNameSpaceBaseDir()
 	nsList, err := ioutil.ReadDir(nsDir)

@@ -14,10 +14,15 @@ import (
 	_ "net/http/pprof"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/common/base"
+	"nocalhost/internal/nhctl/config_validate"
 	"nocalhost/internal/nhctl/controller"
+	"nocalhost/internal/nhctl/daemon_common"
+	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
+	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"runtime/debug"
+	"strconv"
 	"strings"
 )
 
@@ -50,7 +55,7 @@ func startHttpServer() {
 	http.HandleFunc("/config-save", handlingConfigSave)
 	http.HandleFunc("/config-get", handlingConfigGet)
 
-	err := http.ListenAndServe("127.0.0.1:30125", nil)
+	err := http.ListenAndServe("127.0.0.1:"+strconv.Itoa(daemon_common.DaemonHttpPort), nil)
 	if err != nil {
 		log.ErrorE(err, "Http Server occur errors")
 	}
@@ -141,6 +146,32 @@ func handlingConfigSave(w http.ResponseWriter, r *http.Request) {
 	svcConfig.Name = csp.Name
 	svcConfig.Type = csp.Type
 
+	client, err := clientgoutils.NewClientGoUtils(csp.Kubeconfig, csp.Namespace)
+	if err != nil {
+		fail(w, err.Error())
+		return
+	}
+	// todo: by hxx
+	devAction, _ := nocalhost.GetDevModeActionBySvcType(base.SvcType(csp.Type))
+	containers, err := controller.GetOriginalContainers(client, base.SvcType(csp.Type), csp.Name, devAction.PodTemplatePath)
+	if err != nil {
+		fail(w, err.Error())
+		return
+	}
+
+	config_validate.PrepareForConfigurationValidate(client, containers)
+	if err := config_validate.Validate(svcConfig); err != nil {
+		fail(w, err.Error())
+		return
+	}
+
+	ot := svcConfig.Type
+	svcConfig.Type = strings.ToLower(svcConfig.Type)
+	if !nocalhost.CheckIfResourceTypeIsSupported(base.SvcType(svcConfig.Type)) {
+		fail(w, fmt.Sprintf("Service Type %s is unsupported", ot))
+		return
+	}
+
 	err = controller.UpdateSvcConfig(csp.Namespace, csp.Application, csp.Kubeconfig, svcConfig)
 	if err != nil {
 		fail(w, err.Error())
@@ -217,7 +248,7 @@ func handlingConfigGet(w http.ResponseWriter, r *http.Request) {
 
 	_ = nhSvc.LoadConfigFromHub()
 	// need to load latest config
-	_ = nhApp.ReloadSvcCfg(csp.Name, base.SvcTypeOf(csp.Type), false, true)
+	_ = nhApp.ReloadSvcCfg(csp.Name, base.SvcType(csp.Type), false, true)
 	nhSvc.ReloadConfig()
 
 	c := nhSvc.Config()

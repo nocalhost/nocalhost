@@ -5,32 +5,42 @@
 
 package _const
 
+import "github.com/fatih/color"
+
 const (
-	DefaultNewFilePermission        = 0700
-	DefaultApplicationDirName       = "application"
-	DefaultBinDirName               = "bin"
-	DefaultBinSyncThingDirName      = "syncthing"
-	DefaultLogDirName               = "logs"
-	DefaultLogFileName              = "nhctl.log"
-	DefaultApplicationProfilePath   = ".profile.yaml" // runtime config
-	DefaultApplicationProfileV2Path = ".profile_v2.yaml"
+	UintEnable  = uint64(1)
+	UintDisable = uint64(0)
 
-	NocalhostApplicationName      = "dev.nocalhost/application-name"
-	NocalhostApplicationNamespace = "dev.nocalhost/application-namespace"
-	AppManagedByLabel             = "app.kubernetes.io/managed-by"
-	AppManagedByNocalhost         = "nocalhost"
-	DefaultNocalhostSideCarName   = "nocalhost-sidecar"
-	DefaultSidecarImagePullPolicy = "Always"
+	DefaultEmailSuffix = "@nocalhost.dev"
 
-	DevImageRevisionAnnotationKey            = "nhctl.dev.image.revision"
-	DevImageOriginalPodReplicasAnnotationKey = "nhctl.dev.image.original.pod.replicas"
-	DevImageRevisionAnnotationValue          = "first"
+	DefaultNewFilePermission   = 0700
+	DefaultBinDirName          = "bin"
+	DefaultBinSyncThingDirName = "syncthing"
+	DefaultLogDirName          = "logs"
+	DefaultLogFileName         = "nhctl.log"
+
+	NocalhostApplicationName         = "dev.nocalhost/application-name"
+	NocalhostApplicationNamespace    = "dev.nocalhost/application-namespace"
+	NocalhostDevContainerAnnotations = "dev.nocalhost/nocalhost-dev"
+
+	NocalhostDefaultDevContainerName = "nocalhost-dev"
+	NocalhostDefaultDevSidecarName   = "nocalhost-sidecar"
+
+	OriginWorkloadDefinition    = "dev.nocalhost/origin-workload-definition"
+	OriginProbeDefinition       = "dev.nocalhost/origin-probe-definition"
+	DevModeCount                = "dev.nocalhost/dev-mode-count"
+	AppManagedByLabel           = "app.kubernetes.io/managed-by"
+	AppManagedByNocalhost       = "nocalhost"
+	DefaultNocalhostSideCarName = "nocalhost-sidecar"
+	DefaultImagePullPolicy      = "IfNotPresent"
 
 	PersistentVolumeDirLabel = "nocalhost.dev/dir"
 	ServiceLabel             = "nocalhost.dev/service"
+	ServiceTypeLabel         = "nocalhost.dev/service-type"
 	AppLabel                 = "nocalhost.dev/app"
 
 	DefaultSideCarImage = "nocalhost-docker.pkg.coding.net/nocalhost/public/nocalhost-sidecar:sshversion"
+	DefaultVPNImage     = "nocalhost-docker.pkg.coding.net/nocalhost/public/nocalhost-vpn:v1"
 
 	DefaultApplicationSyncPidFile = "syncthing.pid"
 
@@ -76,4 +86,29 @@ const (
 	// sync mode
 	GitIgnoreMode = "gitIgnore"
 	PatternMode   = "pattern"
+
+	banner = `
+****************************************
+*      Nocalhost DevMode Terminal      *
+****************************************
+`
+)
+
+func BoolToUint64Pointer(bool bool) *uint64 {
+	var result uint64
+	if bool {
+		result = UintEnable
+	} else {
+		result = UintDisable
+	}
+	return &result
+}
+
+func Uint64PointerToBool(value *uint64) bool {
+	return value != nil && *value != UintDisable
+}
+
+var (
+	IsDaemon              = false
+	DevModeTerminalBanner = color.New(color.BgGreen).Add(color.FgBlack).Add(color.Bold).Sprint(banner)
 )

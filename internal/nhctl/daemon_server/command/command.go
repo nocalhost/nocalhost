@@ -15,7 +15,6 @@ type DaemonCommandType string
 
 const (
 	StartPortForward      DaemonCommandType = "StartPortForward"
-	RestartPortForward    DaemonCommandType = "RestartPortForward"
 	StopPortForward       DaemonCommandType = "StopPortForward"
 	StopDaemonServer      DaemonCommandType = "StopDaemonServer"
 	RestartDaemonServer   DaemonCommandType = "RestartDaemonServer"
@@ -28,6 +27,11 @@ const (
 	KubeconfigOperation   DaemonCommandType = "KubeconfigOperationCommand"
 	CheckClusterStatus    DaemonCommandType = "CheckClusterStatus"
 	FlushDirMappingCache  DaemonCommandType = "FlushDirMappingCache"
+	VPNOperate            DaemonCommandType = "VPNOperate"
+	SudoVPNOperate        DaemonCommandType = "SudoVPNOperate"
+	VPNStatus             DaemonCommandType = "VPNStatus"
+	SudoVPNStatus         DaemonCommandType = "SudoVPNStatus"
+	AuthCheck             DaemonCommandType = "AuthCheck"
 
 	PREVIEW_VERSION = 0
 	SUCCESS         = 200
@@ -52,15 +56,19 @@ type PortForwardCommand struct {
 	CommandType DaemonCommandType
 	ClientStack string
 
-	NameSpace   string `json:"nameSpace"`
-	AppName     string `json:"appName"`
-	Service     string `json:"service"`
-	ServiceType string `json:"serviceType"`
-	PodName     string `json:"podName"`
-	LocalPort   int    `json:"localPort"`
-	RemotePort  int    `json:"remotePort"`
-	Role        string `json:"role"`
-	Nid         string `json:"nid"`
+	NameSpace       string            `json:"nameSpace"`
+	AppName         string            `json:"appName"`
+	Service         string            `json:"service"`
+	ServiceType     string            `json:"serviceType"`
+	PodName         string            `json:"podName"`
+	LocalPort       int               `json:"localPort"`
+	RemotePort      int               `json:"remotePort"`
+	Role            string            `json:"role"`
+	Nid             string            `json:"nid"`
+	Labels          map[string]string `json:"labels"`
+	OwnerKind       string            `json:"ownerKind"`
+	OwnerApiVersion string            `json:"ownerApiVersion"`
+	OwnerName       string            `json:"ownerName"`
 }
 
 type GetApplicationMetaCommand struct {
@@ -77,6 +85,15 @@ type CheckClusterStatusCommand struct {
 	ClientStack string
 
 	KubeConfigContent string `json:"kubeConfig"`
+}
+
+type InvalidCacheCommand struct {
+	CommandType DaemonCommandType
+	ClientStack string
+
+	Namespace string `json:"namespace"`
+	Nid       string `json:"nid"`
+	AppName   string `json:"appName"`
 }
 
 type GetApplicationMetasCommand struct {
@@ -97,6 +114,16 @@ type GetResourceInfoCommand struct {
 	Resource     string            `json:"resource" yaml:"resource"`
 	ResourceName string            `json:"resourceName" yaml:"resourceName"`
 	Label        map[string]string `json:"label" yaml:"label"`
+	ShowHidden   bool              `json:"showHidden" yaml:"showHidden"`
+}
+
+type AuthCheckCommand struct {
+	CommandType DaemonCommandType
+	ClientStack string
+
+	KubeConfigContent string   `json:"kubeConfig" yaml:"kubeConfig"`
+	NameSpace         string   `json:"namespace" yaml:"namespace"`
+	NeedChecks        []string `json:"needChecks" yaml:"needChecks"`
 }
 
 type UpdateApplicationMetaCommand struct {
@@ -117,6 +144,25 @@ type KubeconfigOperationCommand struct {
 	Namespace       string    `json:"namespace" yaml:"namespace"`
 	Operation       Operation `json:"operation" yaml:"operation"`
 }
+
+type VPNOperateCommand struct {
+	CommandType DaemonCommandType
+	ClientStack string
+
+	KubeConfig string       `json:"kubeConfig" yaml:"kubeConfig"`
+	Namespace  string       `json:"namespace" yaml:"namespace"`
+	Resource   string       `json:"resource" yaml:"resource"`
+	Action     VPNOperation `json:"operation" yaml:"operation"`
+}
+
+type VPNOperation string
+
+const (
+	Connect    VPNOperation = "connect"
+	DisConnect VPNOperation = "disConnect"
+	Reconnect  VPNOperation = "reconnect"
+	Status     VPNOperation = "status"
+)
 
 type Operation string
 

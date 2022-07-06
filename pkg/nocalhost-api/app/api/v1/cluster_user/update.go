@@ -56,7 +56,7 @@ func Update(c *gin.Context) {
 		KubeConfig: string(sDec),
 		SpaceName:  req.SpaceName,
 	}
-	result, err := service.Svc.ClusterUser().Update(c, &cu)
+	result, err := service.Svc.ClusterUserSvc.Update(c, &cu)
 	if err != nil {
 		api.SendResponse(c, nil, nil)
 		return
@@ -86,7 +86,7 @@ func UpdateResourceLimit(c *gin.Context) {
 
 	devSpaceId := cast.ToUint64(c.Param("id"))
 
-	_, errn := HasHighPermissionToSomeDevSpace(c, devSpaceId)
+	_, errn := HasPrivilegeToSomeDevSpace(c, devSpaceId)
 	if errn != nil {
 		api.SendResponse(c, errn, nil)
 		return
@@ -105,7 +105,7 @@ func UpdateResourceLimit(c *gin.Context) {
 	condition := model.ClusterUserModel{
 		ID: devSpaceId,
 	}
-	devspace, err := service.Svc.ClusterUser().GetFirst(c, condition)
+	devspace, err := service.Svc.ClusterUserSvc.GetFirst(c, condition)
 	if err != nil || devspace == nil {
 		log.Errorf("Dev space has not found")
 		api.SendResponse(c, errno.ErrClusterUserNotFound, nil)
@@ -113,7 +113,7 @@ func UpdateResourceLimit(c *gin.Context) {
 	}
 
 	// Build goclient with administrator kubeconfig
-	clusterData, err := service.Svc.ClusterSvc().Get(c, devspace.ClusterId)
+	clusterData, err := service.Svc.ClusterSvc.Get(c, devspace.ClusterId)
 	if err != nil {
 		log.Errorf("Getting cluster information failed, cluster id = [ %v ] ", devspace.ClusterId)
 		api.SendResponse(c, errno.ErrPermissionCluster, nil)
@@ -158,7 +158,7 @@ func UpdateResourceLimit(c *gin.Context) {
 	// Update database clustUser's spaceResourceLimit
 	resSting, _ := json.Marshal(req)
 	devspace.SpaceResourceLimit = string(resSting)
-	result, err := service.Svc.ClusterUser().Update(c, devspace)
+	result, err := service.Svc.ClusterUserSvc.Update(c, devspace)
 	if err != nil {
 		api.SendResponse(c, nil, nil)
 		return
@@ -190,7 +190,7 @@ func UpdateMeshDevSpaceInfo(c *gin.Context) {
 	condition := model.ClusterUserModel{
 		ID: devSpaceId,
 	}
-	devspace, err := service.Svc.ClusterUser().GetFirst(c, condition)
+	devspace, err := service.Svc.ClusterUserSvc.GetFirst(c, condition)
 	if err != nil || devspace == nil {
 		log.Errorf("Dev space has not found")
 		api.SendResponse(c, errno.ErrClusterUserNotFound, nil)
@@ -207,7 +207,7 @@ func UpdateMeshDevSpaceInfo(c *gin.Context) {
 	baseCondition := model.ClusterUserModel{
 		ID: devspace.BaseDevSpaceId,
 	}
-	basespace, err := service.Svc.ClusterUser().GetFirst(c, baseCondition)
+	basespace, err := service.Svc.ClusterUserSvc.GetFirst(c, baseCondition)
 	if err != nil || basespace == nil {
 		log.Errorf("Base space has not found")
 		api.SendResponse(c, errno.ErrMeshClusterUserNotFound, nil)
@@ -215,7 +215,7 @@ func UpdateMeshDevSpaceInfo(c *gin.Context) {
 	}
 
 	// Build goclient with administrator kubeconfig
-	clusterData, err := service.Svc.ClusterSvc().Get(c, devspace.ClusterId)
+	clusterData, err := service.Svc.ClusterSvc.Get(c, devspace.ClusterId)
 	if err != nil {
 		log.Errorf("Getting cluster information failed, cluster id = [ %v ] ", devspace.ClusterId)
 		api.SendResponse(c, errno.ErrPermissionCluster, nil)
@@ -244,7 +244,7 @@ func UpdateMeshDevSpaceInfo(c *gin.Context) {
 	}
 
 	devspace.TraceHeader = info.Header
-	result, err := service.Svc.ClusterUser().Update(c, devspace)
+	result, err := service.Svc.ClusterUserSvc.Update(c, devspace)
 	if err != nil {
 		log.Error(err)
 		api.SendResponse(c, errno.ErrUpdateMeshSpaceFailed, nil)

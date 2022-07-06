@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package user
 
@@ -45,7 +45,7 @@ func Register(c *gin.Context) {
 		return
 	}
 
-	err := service.Svc.UserSvc().Register(c, req.Email, req.Password)
+	err := service.Svc.UserSvc.Register(c, req.Email, req.Password)
 	if err != nil {
 		log.Warnf("register err: %v", err)
 		api.SendResponse(c, errno.ErrRegisterFailed, nil)

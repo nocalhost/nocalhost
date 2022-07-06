@@ -77,8 +77,8 @@ func (r *CmdRunner) RunWithRollingOutWithChecker(suitName string, cmd *exec.Cmd,
 	logger := log.TestLogger(suitName)
 	logger.Infof("Running command: %s", cmd.Args)
 
-	stdoutBuf := bytes.NewBuffer(make([]byte, 1024))
-	stderrBuf := bytes.NewBuffer(make([]byte, 1024))
+	stdoutBuf := bytes.NewBuffer(make([]byte, 0))
+	stderrBuf := bytes.NewBuffer(make([]byte, 0))
 
 	stdoutPipe, _ := cmd.StdoutPipe()
 	stderrPipe, _ := cmd.StderrPipe()
@@ -109,13 +109,13 @@ func (r *CmdRunner) RunWithRollingOutWithChecker(suitName string, cmd *exec.Cmd,
 		err = errors.New("exit code is not 0")
 	}
 
-	stdoutStr := stdoutBuf.String()
-	stderrStr := stderrBuf.String()
+	stdoutStr := strings.TrimSpace(stdoutBuf.String())
+	stderrStr := strings.TrimSpace(stderrBuf.String())
 
-	if strings.TrimSpace(stderrStr) == "" {
+	if stderrStr == "" {
 		logger.Infof("Command %s \n[INFO]stdout:\n%s", cmd.Args, stdoutStr)
 	} else {
-		logger.Infof("Command %s \n[INFO]stdout:\n%s[INFO]stderr:%s", cmd.Args, stdoutStr, stderrStr)
+		logger.Infof("Command %s \n[INFO]stdout:\n%s\n[INFO]stderr:%s", cmd.Args, stdoutStr, stderrStr)
 	}
 
 	return stdoutStr, stderrStr, err

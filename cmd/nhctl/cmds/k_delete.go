@@ -6,11 +6,10 @@
 package cmds
 
 import (
-	dockerterm "github.com/moby/term"
 	"github.com/spf13/cobra"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/kubectl/pkg/cmd/delete"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/pkg/nhctl/clientgoutils"
 )
 
@@ -22,14 +21,14 @@ var cmdDelete = &cobra.Command{
 	Long:    `nhctl k delete [podName] --namespace nocalhost-reserved --kubeconfig=[path]`,
 	Short:   `Delete resources by filenames, stdin, resources and names, or by resources and label selector.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		must(Prepare())
-		clientGoUtils, err := clientgoutils.NewClientGoUtils(kubeConfig, nameSpace)
+		must(common.Prepare())
+		clientGoUtils, err := clientgoutils.NewClientGoUtils(common.KubeConfig, common.NameSpace)
 		must(err)
 		factory := clientGoUtils.NewFactory()
-		stdIn, stdOut, stderr := dockerterm.StdStreams()
+		//stdIn, stdOut, stderr := dockerterm.StdStreams()
 		deleteOptions, err := deleteFlags.ToOptions(
 			clientGoUtils.GetDynamicClient(),
-			genericclioptions.IOStreams{In: stdIn, Out: stdOut, ErrOut: stderr},
+			*clientgoutils.IoStreams,
 		)
 		cmdutil.CheckErr(err)
 		cmdutil.CheckErr(deleteOptions.Complete(factory, args, cmd))

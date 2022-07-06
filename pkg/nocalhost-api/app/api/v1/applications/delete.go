@@ -28,7 +28,7 @@ func Delete(c *gin.Context) {
 	// userId, _ := c.Get("userId")
 	applicationId := cast.ToUint64(c.Param("id"))
 
-	get, err := service.Svc.ApplicationSvc().Get(c, applicationId)
+	get, err := service.Svc.ApplicationSvc.Get(c, applicationId)
 	if err != nil {
 		api.SendResponse(c, errno.ErrApplicationDelete, nil)
 		return
@@ -39,7 +39,7 @@ func Delete(c *gin.Context) {
 	}
 
 	// delete application database record
-	err = service.Svc.ApplicationSvc().Delete(c, applicationId)
+	err = service.Svc.ApplicationSvc.Delete(c, applicationId)
 	if err != nil {
 		api.SendResponse(c, errno.ErrApplicationDelete, nil)
 		return

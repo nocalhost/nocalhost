@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package pre_pull
 
@@ -11,21 +11,16 @@ import (
 	"nocalhost/internal/nocalhost-api/repository/pre_pull"
 )
 
-type PrePullService interface {
-	GetAll(ctx context.Context) ([]string, error)
-	Close()
+type PrePull struct {
+	prePullRepo *pre_pull.PrePullRepoRepoBase
 }
 
-type prePullService struct {
-	prePullRepo pre_pull.PrePullRepo
-}
-
-func NewPrePullService() PrePullService {
+func NewPrePullService() *PrePull {
 	db := model.GetDB()
-	return &prePullService{prePullRepo: pre_pull.NewPrePullRepoRepo(db)}
+	return &PrePull{prePullRepo: pre_pull.NewPrePullRepoRepo(db)}
 }
 
-func (srv *prePullService) GetAll(ctx context.Context) ([]string, error) {
+func (srv *PrePull) GetAll(ctx context.Context) ([]string, error) {
 	result, err := srv.prePullRepo.GetAll(ctx)
 	if err != nil {
 		return []string{}, nil
@@ -37,6 +32,6 @@ func (srv *prePullService) GetAll(ctx context.Context) ([]string, error) {
 	return images, nil
 }
 
-func (srv *prePullService) Close() {
+func (srv *PrePull) Close() {
 	srv.prePullRepo.Close()
 }

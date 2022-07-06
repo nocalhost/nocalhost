@@ -28,12 +28,11 @@ func (c *ClientGoUtils) ListPodsByDeployment(name string) (*corev1.PodList, erro
 	return pods, nil
 }
 
-// ListPods Do not list pods which has been deleted
 func (c *ClientGoUtils) ListPods() ([]corev1.Pod, error) {
 	ops := c.getListOptions()
 	pods, err := c.ClientSet.CoreV1().Pods(c.namespace).List(c.ctx, ops)
 	if err != nil {
-		return nil, errors.Wrap(err, "")
+		return nil, errors.WithStack(err)
 	}
 	result := make([]corev1.Pod, 0)
 	if !c.includeDeletedResources {

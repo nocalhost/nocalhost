@@ -10,16 +10,17 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"k8s.io/client-go/util/homedir"
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/syncthing/ports"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	utils2 "nocalhost/pkg/nhctl/utils"
+	"nocalhost/test/cluster"
 	"nocalhost/test/runner"
 	"nocalhost/test/testcase"
 	"nocalhost/test/testdata"
-	"nocalhost/test/tke"
 	"nocalhost/test/util"
 	"strings"
 	"time"
@@ -33,7 +34,7 @@ func Hook(client runner.Client) {
 					time.Minute*2, func() error {
 						return testcase.InstallBookInfoHelmForTestHook(client)
 					}, func() error {
-						return testcase.UninstallBookInfoWithNativeHelm(client)
+						return testcase.UninstallBookInfoWithNativeHelm(client, "HelmHook")
 					},
 				)
 			},
@@ -49,16 +50,16 @@ func HelmAdaption(client runner.Client) {
 			func() error {
 				return util.TimeoutFunc(
 					time.Minute*2, func() error {
-						return testcase.InstallBookInfoUseHelmVals(client, "test-case")
+						return testcase.InstallBookInfoUseHelmVals(client, "test-case", "bookinfohelm")
 					}, func() error {
-						return testcase.UninstallBookInfoWithNativeHelm(client)
+						return testcase.UninstallBookInfoWithNativeHelm(client, "bookinfohelm")
 					},
 				)
 			},
 			func() error {
 				return util.TimeoutFunc(
 					time.Minute*2, func() error {
-						return testcase.UninstallBookInfoWithNativeHelm(client)
+						return testcase.UninstallBookInfoWithNativeHelm(client, "bookinfohelm")
 					}, nil,
 				)
 			},
@@ -66,16 +67,16 @@ func HelmAdaption(client runner.Client) {
 			func() error {
 				return util.TimeoutFunc(
 					time.Minute*2, func() error {
-						return testcase.InstallBookInfoWithNativeHelm(client)
+						return testcase.InstallBookInfoWithNativeHelm(client, "bookinfohelmnative")
 					}, func() error {
-						return testcase.UninstallBookInfoWithNativeHelm(client)
+						return testcase.UninstallBookInfoWithNativeHelm(client, "bookinfohelmnative")
 					},
 				)
 			},
 			func() error {
 				return util.TimeoutFunc(
 					time.Minute*2, func() error {
-						return testcase.UninstallBookInfoWithNativeHelm(client)
+						return testcase.UninstallBookInfoWithNativeHelm(client, "bookinfohelmnative")
 					}, nil,
 				)
 			},
@@ -83,16 +84,16 @@ func HelmAdaption(client runner.Client) {
 			func() error {
 				return util.TimeoutFunc(
 					time.Minute*2, func() error {
-						return testcase.InstallBookInfoWithNhctl(client)
+						return testcase.InstallBookInfoWithNhctl(client, "bookinfohelmnhctl")
 					}, func() error {
-						return testcase.UninstallBookInfoWithNhctl(client)
+						return testcase.UninstallBookInfoWithNhctl(client, "bookinfohelmnhctl")
 					},
 				)
 			},
 			func() error {
 				return util.TimeoutFunc(
 					time.Minute*2, func() error {
-						return testcase.UninstallBookInfoWithNhctl(client)
+						return testcase.UninstallBookInfoWithNhctl(client, "bookinfohelmnhctl")
 					}, nil,
 				)
 			},
@@ -100,16 +101,16 @@ func HelmAdaption(client runner.Client) {
 			func() error {
 				return util.TimeoutFunc(
 					time.Minute*2, func() error {
-						return testcase.InstallBookInfoWithNativeHelm(client)
+						return testcase.InstallBookInfoWithNativeHelm(client, "bookinfohelmnativeother")
 					}, func() error {
-						return testcase.UninstallBookInfoWithNhctl(client)
+						return testcase.UninstallBookInfoWithNhctl(client, "bookinfohelmnativeother")
 					},
 				)
 			},
 			func() error {
 				return util.TimeoutFunc(
 					time.Minute*2, func() error {
-						return testcase.UninstallBookInfoWithNhctl(client)
+						return testcase.UninstallBookInfoWithNhctl(client, "bookinfohelmnativeother")
 					}, nil,
 				)
 			},
@@ -117,16 +118,16 @@ func HelmAdaption(client runner.Client) {
 			func() error {
 				return util.TimeoutFunc(
 					time.Minute*2, func() error {
-						return testcase.InstallBookInfoWithNhctl(client)
+						return testcase.InstallBookInfoWithNhctl(client, "bookinfohelmnativenhctlother")
 					}, func() error {
-						return testcase.UninstallBookInfoWithNativeHelm(client)
+						return testcase.UninstallBookInfoWithNativeHelm(client, "bookinfohelmnativenhctlother")
 					},
 				)
 			},
 			func() error {
 				return util.TimeoutFunc(
 					time.Minute*2, func() error {
-						return testcase.UninstallBookInfoWithNativeHelm(client)
+						return testcase.UninstallBookInfoWithNativeHelm(client, "bookinfohelmnativenhctlother")
 					}, nil,
 				)
 			},
@@ -140,9 +141,11 @@ func PortForward(client runner.Client, module, moduleType string) {
 		port = 49088
 	}
 
-	util.Retry(fmt.Sprintf("PortForward-%s-%s", moduleType, module), []func() error{
-		func() error { return testcase.PortForwardStartT(client, module, moduleType, port) },
-	})
+	util.Retry(
+		fmt.Sprintf("PortForward-%s-%s", moduleType, module), []func() error{
+			func() error { return testcase.PortForwardStartT(client, module, moduleType, port) },
+		},
+	)
 	funcs := []func() error{
 		func() error { return testcase.PortForwardCheck(port) },
 		func() error { return testcase.StatusCheckPortForward(client, module, moduleType, port) },
@@ -151,12 +154,12 @@ func PortForward(client runner.Client, module, moduleType string) {
 	util.Retry(fmt.Sprintf("PortForward-%s-%s", moduleType, module), funcs)
 }
 
-func PortForwardService(client runner.Client) {
+func PortForwardService(client runner.Client) error {
 	module := "productpage"
 	remotePort := 9080
 	localPort, err := ports.GetAvailablePort()
 	if err != nil {
-		panic(errors.Errorf("fail to get available port, err: %s", err))
+		return errors.Errorf("fail to get available port, err: %s", err)
 	}
 	cmd := client.GetKubectl().Command(
 		context.Background(),
@@ -164,18 +167,21 @@ func PortForwardService(client runner.Client) {
 		"service/"+module,
 		fmt.Sprintf("%d:%d", localPort, remotePort),
 	)
+	cmd.Stdout = log.TestLogger(client.SuiteName())
+	cmd.Stderr = log.TestLogger(client.SuiteName())
 	log.Infof("Running command: %v", cmd.Args)
 	if err = cmd.Start(); err != nil {
-		panic(errors.Errorf("fail to port-forward expose service-%s, err: %s", module, err))
+		return errors.Errorf("fail to port-forward expose service-%s, err: %s", module, err)
 	}
-	clientgoutils.Must(testcase.PortForwardCheck(localPort))
-	_ = cmd.Process.Kill()
+	defer cmd.Process.Kill()
+	err = testcase.PortForwardCheck(localPort)
+	return err
 }
 
 func test(cli runner.Client, moduleName, moduleType string, modeType profile.DevModeType) {
 	PortForward(cli, moduleName, moduleType)
-	PortForwardService(cli)
 	funcs := []func() error{
+		func() error { return PortForwardService(cli) },
 		func() error {
 			if err := testcase.DevStartT(cli, moduleName, moduleType, modeType); err != nil {
 				_ = testcase.DevEndT(cli, moduleName, moduleType)
@@ -264,14 +270,12 @@ func Compatible(cli runner.Client) {
 		func() error { return testcase.List(cli) },
 		//func() error { return testcase.Db(cli) },
 		func() error { return testcase.Pvc(cli) },
-		func() error { return testcase.Reset(cli) },
 		func() error { return testcase.InstallBookInfoDifferentType(cli) },
 	}
 	util.Retry(suiteName, funcs)
 }
 
 func Reset(cli runner.Client) {
-	clientgoutils.Must(testcase.Reset(cli))
 	_ = testcase.UninstallBookInfo(cli)
 	retryTimes := 5
 	var err error
@@ -280,7 +284,6 @@ func Reset(cli runner.Client) {
 		if err = testcase.InstallBookInfo(timeoutCtx, cli); err != nil {
 			log.Infof("install bookinfo error, error: %v, retrying...", err)
 			_ = testcase.UninstallBookInfo(cli)
-			_ = testcase.Reset(cli)
 			continue
 		}
 		break
@@ -450,7 +453,6 @@ func Install(cli runner.Client) {
 	for i := 0; i < retryTimes; i++ {
 		if err = testcase.InstallBookInfoDifferentType(cli); err != nil {
 			log.Info(err)
-			_ = testcase.Reset(cli)
 			continue
 		}
 		break
@@ -462,34 +464,34 @@ func Install(cli runner.Client) {
 
 // Prepare will install a nhctl client, create a k8s cluster if necessary
 func Prepare() (cancelFunc func(), namespaceResult, kubeconfigResult string) {
-	if util.NeedsToInitK8sOnTke() {
-		t, err := tke.CreateK8s()
-		if err != nil {
-			log.Info(err)
-			if t != nil {
-				t.Delete()
-			}
-			panic(err)
-		}
-		cancelFunc = func() {
-			LogsForArchive()
-			if errs := recover(); errs != nil {
-				log.Infof("ignores timeout archive panic %v", errs)
-			}
+	t := cluster.NewNothing()
+	kubeconfig, err := t.Create()
+	if err != nil {
+		log.Info(err)
+		if t != nil {
 			t.Delete()
 		}
-		defer func() {
-			if errs := recover(); errs != nil {
-				LogsForArchive()
-				t.Delete()
-				panic(errs)
-			}
-		}()
+		panic(err)
 	}
-	go util.TimeoutChecker(1*time.Hour, cancelFunc)
+	cancelFunc = func() {
+		LogsForArchive()
+		if errs := recover(); errs != nil {
+			log.Infof("ignores timeout archive panic %v", errs)
+		}
+		t.Delete()
+	}
+	defer func() {
+		if errs := recover(); errs != nil {
+			LogsForArchive()
+			t.Delete()
+			panic(errs)
+		}
+	}()
+
+	go util.TimeoutChecker(30*time.Minute, cancelFunc)
+
 	_, currentVersion := testcase.GetVersion()
 	util.Retry("Prepare", []func() error{func() error { return testcase.InstallNhctl(currentVersion) }})
-	kubeconfig := util.GetKubeconfig()
 	namespace := "test"
 	tempCli := runner.NewNhctl(namespace, kubeconfig, "Prepare")
 	clientgoutils.Must(testcase.NhctlVersion(tempCli))
@@ -506,39 +508,11 @@ func Prepare() (cancelFunc func(), namespaceResult, kubeconfigResult string) {
 		}
 	}
 
-	kubeconfigResult, err := testcase.GetKubeconfig(webAddr, namespace, kubeconfig)
+	kubeconfigResult, err = testcase.GetKubeconfig(webAddr, namespace, kubeconfig)
 	clientgoutils.Must(err)
 	namespaceResult, err = clientgoutils.GetNamespaceFromKubeConfig(kubeconfigResult)
 	clientgoutils.Must(err)
 	return
-}
-
-func RemoveSyncthingPid(cli runner.Client) {
-	module := "ratings"
-	funcs := []func() error{
-		func() error {
-			if err := testcase.DevStartDeployment(cli, module); err != nil {
-				_ = testcase.DevEndDeployment(cli, module)
-				return err
-			}
-			return nil
-		},
-		func() error { return testcase.SyncCheck(cli, module) },
-		func() error { return testcase.SyncStatus(cli, module) },
-		func() error { return testcase.RemoveSyncthingPidFile(cli, module) },
-		func() error { return testcase.DevEndDeployment(cli, module) },
-		func() error {
-			if err := testcase.DevStartDeployment(cli, module); err != nil {
-				_ = testcase.DevEndDeployment(cli, module)
-				return err
-			}
-			return nil
-		},
-		func() error { return testcase.SyncCheck(cli, module) },
-		func() error { return testcase.SyncStatus(cli, module) },
-		func() error { return testcase.DevEndDeployment(cli, module) },
-	}
-	util.Retry("remove syncthing pid file", funcs)
 }
 
 func KillSyncthingProcess(cli runner.Client) {
@@ -563,16 +537,27 @@ func KillSyncthingProcess(cli runner.Client) {
 }
 
 func Get(cli runner.Client) {
+	appName := "bookinfo-test"
+	// kubectl annotate --overwrite deployments productpage dev.nocalhost/application-name=bookinfo111
+	_, _, _ = cli.GetKubectl().RunWithRollingOut(context.Background(),
+		"annotate",
+		"deployments/productpage",
+		fmt.Sprintf("%s=%s", _const.NocalhostApplicationName, appName),
+		"--overwrite")
+	// wait for informer to parse app from annotation
+	<-time.Tick(time.Second * 10)
 	cases := []struct {
 		resource string
 		appName  string
 		keywords []string
 	}{
-		{resource: "deployments", appName: "bookinfo", keywords: []string{"details", "productpage", "ratings", "reviews"}},
+		{resource: "deployments", appName: "bookinfo", keywords: []string{"details", "ratings", "reviews"}},
 		{resource: "jobs", appName: "bookinfo", keywords: []string{"print-num-01"}},
-		{resource: "service", appName: "bookinfo", keywords: []string{"details", "productpage", "ratings", "reviews"}},
-		{resource: "pods", appName: "", keywords: []string{"details", "productpage", "ratings", "reviews"}},
+		{resource: "service", appName: "bookinfo", keywords: []string{"details", "ratings", "reviews"}},
+		{resource: "pods", appName: "", keywords: []string{"details", "ratings", "reviews"}},
+		{resource: "app", appName: "", keywords: []string{"bookinfo", appName}},
 	}
+
 	funcs := []func() error{
 		func() error {
 			for _, item := range cases {

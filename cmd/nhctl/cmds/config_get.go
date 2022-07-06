@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/dev_dir"
 	"nocalhost/internal/nhctl/fp"
@@ -72,7 +73,7 @@ func init() {
 		"k8s deployment which your developing service exists",
 	)
 	configGetCmd.Flags().StringVarP(
-		&serviceType, "controller-type", "t", "",
+		&common.ServiceType, "controller-type", "t", "deployment",
 		"kind of k8s controller,such as deployment,statefulSet",
 	)
 	configGetCmd.Flags().BoolVar(
@@ -98,8 +99,9 @@ var configGetCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		commonFlags.AppName = args[0]
-		if err := initAppMutate(commonFlags.AppName); err != nil {
-			log.Logf("init app:%s on namespace: %s, error: %v", commonFlags.AppName, nameSpace, err)
+		nocalhostApp, err := common.InitAppMutate(commonFlags.AppName)
+		if err != nil {
+			log.Logf("init app:%s on namespace: %s, error: %v", commonFlags.AppName, common.NameSpace, err)
 			return
 		}
 		// get application config
@@ -124,7 +126,8 @@ var configGetCmd = &cobra.Command{
 			fmt.Println(string(bys))
 
 		} else {
-			checkIfSvcExist(commonFlags.SvcName, serviceType)
+			nocalhostSvc, err := nocalhostApp.InitAndCheckIfSvcExist(commonFlags.SvcName, common.ServiceType)
+			must(err)
 
 			_ = nocalhostSvc.LoadConfigFromHub()
 			// need to load latest config
@@ -150,6 +153,7 @@ var configGetCmd = &cobra.Command{
 
 				pack := dev_dir.NewSvcPack(
 					nocalhostSvc.NameSpace,
+					nocalhostSvc.AppMeta.NamespaceId,
 					nocalhostSvc.AppName,
 					nocalhostSvc.Type,
 					nocalhostSvc.Name,

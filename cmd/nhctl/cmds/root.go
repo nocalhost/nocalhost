@@ -12,11 +12,13 @@ import (
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
-	"nocalhost/internal/nhctl/app"
+	"nocalhost/cmd/nhctl/cmds/common"
+	"nocalhost/cmd/nhctl/cmds/install"
+	"nocalhost/internal/nhctl/common/base"
 	_const "nocalhost/internal/nhctl/const"
-	"nocalhost/internal/nhctl/controller"
 	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/nocalhost_path"
+	"nocalhost/internal/nhctl/vpn/util"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	"os"
@@ -26,23 +28,15 @@ import (
 )
 
 var (
-	nameSpace string
-	debug     bool
+	debug bool
 
 	// pre check the nocalhost commands permissions
-	authCheck    bool
-	kubeConfig   string // the path to the kubeconfig file
-	nocalhostApp *app.Application
-	nocalhostSvc *controller.Controller
+	authCheck bool
 )
-
-type ConfigFile struct {
-	NhEsUrl string `json:"nh_es_url" yaml:"nh_es_url"`
-}
 
 func init() {
 	rootCmd.PersistentFlags().StringVarP(
-		&nameSpace, "namespace", "n", "",
+		&common.NameSpace, "namespace", "n", "",
 		"kubernetes namespace",
 	)
 	rootCmd.PersistentFlags().BoolVar(
@@ -55,9 +49,11 @@ func init() {
 			" represent having enough permissions to call the command",
 	)
 	rootCmd.PersistentFlags().StringVar(
-		&kubeConfig, "kubeconfig", "",
+		&common.KubeConfig, "kubeconfig", "",
 		"the path of the kubeconfig file",
 	)
+
+	rootCmd.AddCommand(install.UninstallCmd)
 
 }
 
@@ -85,7 +81,7 @@ var rootCmd = &cobra.Command{
 		var esUrl string
 		bys, err := ioutil.ReadFile(filepath.Join(nocalhost_path.GetNhctlHomeDir(), "config"))
 		if err == nil && len(bys) > 0 {
-			configFile := ConfigFile{}
+			configFile := base.ConfigFile{}
 			err = yaml.Unmarshal(bys, &configFile)
 			if err == nil && configFile.NhEsUrl != "" {
 				esUrl = configFile.NhEsUrl
@@ -97,22 +93,19 @@ var rootCmd = &cobra.Command{
 		if esUrl != "" {
 			log.InitEs(esUrl)
 		}
-
-		err = nocalhost.Init()
-		if err != nil {
-			log.FatalE(err, "Fail to init nhctl")
+		if !util.IsAdmin() {
+			err = nocalhost.Init()
+			if err != nil {
+				log.FatalE(err, "Fail to init nhctl")
+			}
 		}
-		serviceType = strings.ToLower(serviceType)
+		common.ServiceType = strings.ToLower(common.ServiceType)
 
 		if authCheck {
-
-			must(Prepare())
-			client, err := clientgoutils.NewClientGoUtils(kubeConfig, nameSpace)
-			must(err)
-
-			must(clientgoutils.DoCheck(client, nameSpace, cmd))
-
-			fmt.Printf("yes")
+			must(common.Prepare())
+			if clientgoutils.AuthCheck(common.NameSpace, common.KubeConfig, cmd) {
+				fmt.Printf("yes")
+			}
 			os.Exit(0)
 			return
 		}

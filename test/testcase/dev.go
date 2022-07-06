@@ -92,7 +92,7 @@ func DevStartT(cli runner.Client, moduleName string, moduleType string, modeType
 }
 
 func Sync(cli runner.Client, moduleName string) error {
-	return SyncT(cli, moduleName, "")
+	return SyncT(cli, moduleName, "deployment")
 }
 
 func SyncT(cli runner.Client, moduleName string, moduleType string) error {

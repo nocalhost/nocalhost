@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package applications
 
@@ -68,7 +68,7 @@ func Create(c *gin.Context) {
 		api.SendResponse(c, &errno.Errno{Code: 40110, Message: errs[0]}, nil)
 		return
 	}
-	existApplication, _ := service.Svc.ApplicationSvc().GetByName(c, applicationContext.ApplicationName)
+	existApplication, _ := service.Svc.ApplicationSvc.GetByName(c, applicationContext.ApplicationName)
 	if existApplication.ID != 0 {
 		api.SendResponse(c, errno.ErrApplicationNameExist, nil)
 		return
@@ -87,7 +87,7 @@ func Create(c *gin.Context) {
 	}
 
 	userId, _ := c.Get("userId")
-	a, err := service.Svc.ApplicationSvc().Create(c, req.Context, *req.Status, *req.Public, userId.(uint64))
+	a, err := service.Svc.ApplicationSvc.Create(c, req.Context, *req.Status, *req.Public, userId.(uint64))
 	if err != nil {
 		log.Warnf("create Application err: %v", err)
 		api.SendResponse(c, errno.ErrApplicationCreate, nil)

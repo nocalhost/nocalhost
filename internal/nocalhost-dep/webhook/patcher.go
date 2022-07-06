@@ -14,6 +14,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/sets"
+	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/profile"
 	"strconv"
 	"strings"
@@ -24,6 +26,18 @@ type Patcher struct {
 }
 
 func (p *Patcher) patchInitContainer(objectInitContainer []corev1.Container, initContainers []corev1.Container) {
+	// remove duplicate init container
+	set := sets.NewString()
+	for _, container := range objectInitContainer {
+		set.Insert(container.Name)
+	}
+	for i := 0; i < len(initContainers); i++ {
+		if set.Has(initContainers[i].Name) {
+			initContainers = initContainers[:i+copy(initContainers[i:], initContainers[i+1:])]
+			i--
+		}
+	}
+
 	if initContainers != nil && len(initContainers) > 0 {
 		p.patch = append(
 			p.patch, addInitContainer(
@@ -218,7 +232,7 @@ func nocalhostDepConfigmapCustom(
 		initContainer := corev1.Container{
 			Name:            "nocalhost-dependency-waiting-job",
 			Image:           waitImages,
-			ImagePullPolicy: corev1.PullPolicy("Always"),
+			ImagePullPolicy: _const.DefaultImagePullPolicy,
 			Command:         cmd,
 		}
 		initContainers = append(initContainers, initContainer)
@@ -350,7 +364,7 @@ func nocalhostDepConfigmap(
 				initContainer := corev1.Container{
 					Name:            "nocalhost-dependency-waiting-job",
 					Image:           waitImages,
-					ImagePullPolicy: corev1.PullPolicy("Always"),
+					ImagePullPolicy: _const.DefaultImagePullPolicy,
 					Command:         cmd,
 				}
 				initContainers = append(initContainers, initContainer)

@@ -93,7 +93,7 @@ func ListPermitted(c *gin.Context) {
 func GetDetail(c *gin.Context) {
 	applicationId := cast.ToUint64(c.Param("id"))
 	// userId, _ := c.Get("userId")
-	result, err := service.Svc.ApplicationSvc().Get(c, applicationId)
+	result, err := service.Svc.ApplicationSvc.Get(c, applicationId)
 	if err != nil {
 		log.Warnf("get Application err: %v", err)
 		api.SendResponse(c, errno.ErrApplicationGet, nil)
@@ -125,7 +125,7 @@ func GetSpaceDetail(c *gin.Context) {
 		ClusterId:     clusterId,
 		ApplicationId: applicationId,
 	}
-	result, err := service.Svc.ClusterUser().GetList(c, models)
+	result, err := service.Svc.ClusterUserSvc.GetList(c, models)
 	if err != nil {
 		api.SendResponse(c, nil, make([]interface{}, 0))
 		return
@@ -144,7 +144,7 @@ func GetSpaceDetail(c *gin.Context) {
 // @Router /v1/plugin/dev_space [get]
 func PluginGet(c *gin.Context) {
 	userId, _ := c.Get("userId")
-	result, err := service.Svc.ApplicationSvc().PluginGetList(c, userId.(uint64))
+	result, err := service.Svc.ApplicationSvc.PluginGetList(c, userId.(uint64))
 	if err != nil {
 		log.Warnf("get Application err: %v", err)
 		api.SendResponse(c, errno.ErrApplicationGet, nil)
@@ -177,14 +177,19 @@ func GetNocalhostConfigTemplate(c *gin.Context) {
 
 // list owner only list the application user created
 func listOwner(c *gin.Context, userId *uint64) ([]*model.ApplicationModel, error) {
-	result, err := service.Svc.ApplicationSvc().GetList(c, userId)
+	result, err := service.Svc.ApplicationSvc.GetList(c, userId)
 	if err != nil {
 		log.Warnf("get Application err: %v", err)
 		return nil, err
 	}
 
+	currentUser, _ := ginbase.LoginUser(c)
+	var userName = ""
+	if cache, err := service.Svc.UserSvc.GetCache(currentUser); err == nil {
+		userName = cache.Name
+	}
 	for _, applicationModel := range result {
-		currentUser, _ := ginbase.LoginUser(c)
+		applicationModel.FillUserName(userName)
 		applicationModel.FillEditable(ginbase.IsAdmin(c), currentUser)
 		var applicationContext ApplicationJsonContext
 		err := json.Unmarshal([]byte(applicationModel.Context), &applicationContext)
@@ -201,7 +206,7 @@ func listOwner(c *gin.Context, userId *uint64) ([]*model.ApplicationModel, error
 // list permitted is list all application user has
 func listPermitted(c *gin.Context, userId uint64) ([]*model.ApplicationModel, error) {
 	// permitted
-	applicationUsers, err := service.Svc.ApplicationUser().ListByUserId(c, userId)
+	applicationUsers, err := service.Svc.ApplicationUserSvc.ListByUserId(c, userId)
 	if err != nil {
 		log.Warnf("get application_user err: %v", err)
 		return nil, err
@@ -214,11 +219,13 @@ func listPermitted(c *gin.Context, userId uint64) ([]*model.ApplicationModel, er
 
 	// userId, _ := c.Get("userId")
 	isadmin := ginbase.IsAdmin(c)
-	lists, err := service.Svc.ApplicationSvc().GetList(c, nil)
+	lists, err := service.Svc.ApplicationSvc.GetList(c, nil)
 	if err != nil {
 		log.Warnf("get Application err: %v", err)
 		return nil, err
 	}
+
+	currentUser, _ := ginbase.LoginUser(c)
 
 	var result []*model.ApplicationModel
 	for _, app := range lists {
@@ -242,7 +249,14 @@ func listPermitted(c *gin.Context, userId uint64) ([]*model.ApplicationModel, er
 			continue
 		}
 		applicationType := getApplicationType(applicationContext.ApplicationSource, applicationContext.ApplicationInstallType)
-		currentUser, _ := ginbase.LoginUser(c)
+
+		var userName = ""
+		if cache, err := service.Svc.UserSvc.GetCache(app.UserId); err == nil {
+			userName = cache.Name
+		}
+
+		app.FillUserName(userName)
+
 		app.FillEditable(ginbase.IsAdmin(c), currentUser)
 		app.FillApplicationType(applicationType)
 		result = append(result, app)

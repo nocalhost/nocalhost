@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"k8s.io/api/batch/v1beta1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/watch"
@@ -18,6 +19,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/pkg/errors"
@@ -38,6 +40,9 @@ import (
 	batchV1 "k8s.io/client-go/kubernetes/typed/batch/v1"
 	batchV1beta1 "k8s.io/client-go/kubernetes/typed/batch/v1beta1"
 	coreV1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/azure"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
@@ -47,6 +52,7 @@ import (
 type ClientGoUtils struct {
 	kubeConfigFilePath      string
 	restConfig              *restclient.Config
+	restMapper              meta.RESTMapper
 	ClientSet               *kubernetes.Clientset
 	dynamicClient           dynamic.Interface //
 	ClientConfig            clientcmd.ClientConfig
@@ -55,6 +61,9 @@ type ClientGoUtils struct {
 	ctx                     context.Context
 	labels                  map[string]string
 	fieldSelector           string
+
+	gvrCache     map[string]schema.GroupVersionResource
+	gvrCacheLock sync.Mutex
 }
 
 type PortForwardAPodRequest struct {
@@ -107,13 +116,17 @@ func NewClientGoUtils(kubeConfigPath string, namespace string) (*ClientGoUtils, 
 	}
 
 	// set default rateLimiter to 100, in case of throttling request
-	client.restConfig.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(100, 200)
+	client.restConfig.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(1000, 2000)
 
 	if client.ClientSet, err = kubernetes.NewForConfig(client.restConfig); err != nil {
 		return nil, errors.Wrap(err, "")
 	}
 
 	if client.dynamicClient, err = dynamic.NewForConfig(client.restConfig); err != nil {
+		return nil, errors.Wrap(err, "")
+	}
+
+	if client.restMapper, err = client.NewFactory().ToRESTMapper(); err != nil {
 		return nil, errors.Wrap(err, "")
 	}
 
@@ -153,6 +166,10 @@ func (c *ClientGoUtils) NameSpace(namespace string) *ClientGoUtils {
 	return c
 }
 
+func (c *ClientGoUtils) GetNameSpace() string {
+	return c.namespace
+}
+
 // Context Set ClientGoUtils's Context
 func (c *ClientGoUtils) Context(ctx context.Context) *ClientGoUtils {
 	c.ctx = ctx
@@ -160,13 +177,24 @@ func (c *ClientGoUtils) Context(ctx context.Context) *ClientGoUtils {
 }
 
 func (c *ClientGoUtils) Labels(labels map[string]string) *ClientGoUtils {
-	c.labels = labels
-	return c
+	cc := c.GetCopy()
+	cc.labels = labels
+	return cc
+}
+
+func (c *ClientGoUtils) GetCopy() *ClientGoUtils {
+	cc := *c
+	cc.labels = map[string]string{}
+	for s, s2 := range c.labels {
+		cc.labels[s] = s2
+	}
+	return &cc
 }
 
 func (c *ClientGoUtils) FieldSelector(f string) *ClientGoUtils {
-	c.fieldSelector = f
-	return c
+	cc := c.GetCopy()
+	cc.fieldSelector = f
+	return cc
 }
 
 func (c *ClientGoUtils) IncludeDeletedResources(i bool) *ClientGoUtils {
@@ -315,19 +343,23 @@ func (c *ClientGoUtils) CheckDeploymentReady(name string) (bool, error) {
 	return false, nil
 }
 
-// Notice: This may not list pods whose deployment is already deleted
 func (c *ClientGoUtils) ListPodsOfDeployment(deployName string) ([]corev1.Pod, error) {
 	podClient := c.GetPodClient()
 
 	podList, err := podClient.List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		return nil, errors.Wrap(err, "")
+		return nil, errors.WithStack(err)
 	}
 
 	result := make([]corev1.Pod, 0)
 
 OuterLoop:
 	for _, pod := range podList.Items {
+		if !c.includeDeletedResources {
+			if pod.DeletionTimestamp != nil {
+				continue
+			}
+		}
 		for _, ref := range pod.OwnerReferences {
 			if ref.Kind != "ReplicaSet" {
 				continue
@@ -413,14 +445,14 @@ func waitForJob(obj runtime.Object, name string) (bool, error) {
 
 	for _, c := range o.Status.Conditions {
 		if c.Type == batchv1.JobComplete && c.Status == "True" {
-			fmt.Printf("Job %s completed\n", name)
+			log.Infof("Job %s completed", name)
 			return true, nil
 		} else if c.Type == batchv1.JobFailed && c.Status == "True" {
-			fmt.Printf("Job %s failed\n", name)
+			log.Infof("Job %s failed", name)
 			return true, errors.Errorf("job failed: %s", c.Reason)
 		}
 	}
-	fmt.Printf("Job %s running\n", name)
+	log.Infof("Job %s running", name)
 
 	return false, nil
 }
@@ -537,5 +569,15 @@ out:
 		}
 	}
 	log.Infof("delete pod: %s successfully", podName)
+	return nil
+}
+
+// GetControllerOf returns a pointer to the controllerRef if controllee has a controller
+func GetControllerOfNoCopy(refs []metav1.OwnerReference) *metav1.OwnerReference {
+	for i := range refs {
+		if refs[i].Controller != nil && *refs[i].Controller {
+			return &refs[i]
+		}
+	}
 	return nil
 }

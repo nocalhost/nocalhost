@@ -8,6 +8,7 @@ package cmds
 import (
 	"fmt"
 	"github.com/spf13/cobra"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
@@ -42,7 +43,7 @@ var serverUpgradeCmd = &cobra.Command{
 		}
 
 		// Find nocalhost server
-		client, err := clientgoutils.NewClientGoUtils(kubeConfig, nameSpace)
+		client, err := clientgoutils.NewClientGoUtils(common.KubeConfig, common.NameSpace)
 		must(err)
 
 		// nocalhost-api

@@ -13,38 +13,23 @@ import (
 	"nocalhost/internal/nocalhost-api/repository/cluster"
 )
 
-type ClusterService interface {
-	Create(
-		ctx context.Context, name, kubeconfig, storageClass, server, clusterInfo string, userId uint64,
-	) (model.ClusterModel, error)
-	Get(ctx context.Context, id uint64) (model.ClusterModel, error)
-	Delete(ctx context.Context, clusterId uint64) error
-	GetAny(ctx context.Context, where map[string]interface{}) ([]*model.ClusterModel, error)
-	Update(ctx context.Context, update map[string]interface{}, clusterId uint64) (*model.ClusterModel, error)
-	GetList(ctx context.Context) ([]*model.ClusterList, error)
-
-	GetCache(id uint64) (model.ClusterModel, error)
-	Close()
-	DeleteByCreator(ctx context.Context, id uint64) error
+type Cluster struct {
+	clusterRepo *cluster.ClusterBaseRepo
 }
 
-type clusterService struct {
-	clusterRepo cluster.ClusterRepo
-}
-
-func NewClusterService() ClusterService {
+func NewClusterService() *Cluster {
 	db := model.GetDB()
-	return &clusterService{
+	return &Cluster{
 		clusterRepo: cluster.NewClusterRepo(db),
 	}
 }
 
-func (srv *clusterService) Evict(id uint64) {
+func (srv *Cluster) Evict(id uint64) {
 	c := cache.Module(cache.CLUSTER)
 	_, _ = c.Delete(id)
 }
 
-func (srv *clusterService) GetCache(id uint64) (model.ClusterModel, error) {
+func (srv *Cluster) GetCache(id uint64) (model.ClusterModel, error) {
 	c := cache.Module(cache.CLUSTER)
 	value, err := c.Value(id)
 	if err == nil {
@@ -61,32 +46,31 @@ func (srv *clusterService) GetCache(id uint64) (model.ClusterModel, error) {
 	return result, nil
 }
 
-func (srv *clusterService) Update(
+func (srv *Cluster) Update(
 	ctx context.Context, update map[string]interface{}, clusterId uint64,
 ) (*model.ClusterModel, error) {
 	defer srv.Evict(clusterId)
 	return srv.clusterRepo.Update(ctx, update, clusterId)
 }
 
-func (srv *clusterService) Delete(ctx context.Context, clusterId uint64) error {
+func (srv *Cluster) Delete(ctx context.Context, clusterId uint64) error {
 	defer srv.Evict(clusterId)
 	return srv.clusterRepo.Delete(ctx, clusterId)
 }
 
-func (srv *clusterService) GetAny(ctx context.Context, where map[string]interface{}) ([]*model.ClusterModel, error) {
+func (srv *Cluster) GetAny(ctx context.Context, where map[string]interface{}) ([]*model.ClusterModel, error) {
 	return srv.clusterRepo.GetAny(ctx, where)
 }
 
-func (srv *clusterService) Create(
-	ctx context.Context, name, kubeconfig, storageClass, server, clusterInfo string, userId uint64,
-) (model.ClusterModel, error) {
+func (srv *Cluster) Create(ctx context.Context, name, kubeconfig, storageClass, server, extraApiServer, clusterInfo string, userId uint64) (model.ClusterModel, error) {
 	c := model.ClusterModel{
-		Name:         name,
-		UserId:       userId,
-		Server:       server,
-		KubeConfig:   kubeconfig,
-		Info:         clusterInfo,
-		StorageClass: storageClass,
+		Name:           name,
+		UserId:         userId,
+		Server:         server,
+		KubeConfig:     kubeconfig,
+		Info:           clusterInfo,
+		StorageClass:   storageClass,
+		ExtraApiServer: extraApiServer,
 	}
 	result, err := srv.clusterRepo.Create(ctx, c)
 	if err != nil {
@@ -96,12 +80,12 @@ func (srv *clusterService) Create(
 	return result, nil
 }
 
-func (srv *clusterService) GetList(ctx context.Context) ([]*model.ClusterList, error) {
+func (srv *Cluster) GetList(ctx context.Context) ([]*model.ClusterList, error) {
 	result, _ := srv.clusterRepo.GetList(ctx)
 	return result, nil
 }
 
-func (srv *clusterService) Get(ctx context.Context, id uint64) (model.ClusterModel, error) {
+func (srv *Cluster) Get(ctx context.Context, id uint64) (model.ClusterModel, error) {
 	result, err := srv.clusterRepo.Get(ctx, id)
 	if err != nil {
 		return result, errors.Wrapf(err, "get cluster")
@@ -109,10 +93,10 @@ func (srv *clusterService) Get(ctx context.Context, id uint64) (model.ClusterMod
 	return result, nil
 }
 
-func (srv *clusterService) Close() {
+func (srv *Cluster) Close() {
 	srv.clusterRepo.Close()
 }
 
-func (srv *clusterService) DeleteByCreator(ctx context.Context, userid uint64) error {
+func (srv *Cluster) DeleteByCreator(ctx context.Context, userid uint64) error {
 	return srv.clusterRepo.DeleteByCreator(ctx, userid)
 }

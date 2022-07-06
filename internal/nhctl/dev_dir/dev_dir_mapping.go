@@ -81,10 +81,23 @@ func (svcPack *SvcPack) GetAssociatePath() DevPath {
 	var path DevPath
 	if err := Get(
 		func(dirMapping *DevDirMapping, pathToPack map[DevPath][]*SvcPack) error {
-			if _, ok := dirMapping.PackToPath[svcPack.Key()]; ok {
-				path = dirMapping.PackToPath[svcPack.Key()]
+
+			// first try to get from full key
+
+			if p, ok := dirMapping.PackToPath[svcPack.Key()]; ok {
+				path = p
+				return nil
+			} else if p, ok := dirMapping.PackToPath[svcPack.KeyWithoutContainer()]; ok {
+				path = p
+				return nil
+			}
+
+			// them remove the nid and try again
+
+			if p, ok := dirMapping.PackToPath[svcPack.Key().WithoutNid()]; ok {
+				path = p
 			} else {
-				path = dirMapping.PackToPath[svcPack.KeyWithoutContainer()]
+				path = dirMapping.PackToPath[svcPack.KeyWithoutContainer().WithoutNid()]
 			}
 			return nil
 		},
@@ -109,9 +122,16 @@ func (svcPack *SvcPack) GetKubeConfigBytesAndServer() (string, string) {
 			if _, ok := dirMapping.PackToPath[svcPack.Key()]; ok {
 				kubeconfigContent = dirMapping.PackToKubeConfigBytes[svcPack.Key()]
 				server = dirMapping.PackToKubeConfigServer[svcPack.Key()]
-			} else {
+			} else if _, ok := dirMapping.PackToPath[svcPack.Key()]; ok {
 				kubeconfigContent = dirMapping.PackToKubeConfigBytes[svcPack.KeyWithoutContainer()]
 				server = dirMapping.PackToKubeConfigServer[svcPack.KeyWithoutContainer()]
+			} else if _, ok := dirMapping.PackToPath[svcPack.Key().WithoutNid()]; ok {
+				kubeconfigContent = dirMapping.PackToKubeConfigBytes[svcPack.Key().WithoutNid()]
+				server = dirMapping.PackToKubeConfigServer[svcPack.Key().WithoutNid()]
+			} else {
+				keys := svcPack.KeyWithoutContainer().WithoutNid()
+				kubeconfigContent = dirMapping.PackToKubeConfigBytes[keys]
+				server = dirMapping.PackToKubeConfigServer[svcPack.KeyWithoutContainer().WithoutNid()]
 			}
 			return nil
 		},
@@ -131,6 +151,9 @@ func (svcPack *SvcPack) UnAssociatePath() {
 		func(dirMapping *DevDirMapping, pathToPack map[DevPath][]*SvcPack) error {
 			delete(dirMapping.PackToPath, svcPack.Key())
 			delete(dirMapping.PackToPath, svcPack.KeyWithoutContainer())
+
+			delete(dirMapping.PackToPath, svcPack.Key().WithoutNid())
+			delete(dirMapping.PackToPath, svcPack.KeyWithoutContainer().WithoutNid())
 			return nil
 		},
 	); err != nil {
@@ -297,6 +320,9 @@ func (svcPack *SvcPack) valid() bool {
 
 func getDefaultPack(path DevPath) (*SvcPack, error) {
 	packs := getAllPacks(path)
+	if packs == nil {
+		return nil, NO_DEFAULT_PACK
+	}
 	defaultSvcPackKey := packs.DefaultSvcPackKey
 
 	if pack, ok := packs.Packs[defaultSvcPackKey]; ok {

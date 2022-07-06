@@ -9,11 +9,11 @@ import (
 	"context"
 	"fmt"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	common2 "nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/appmeta"
 	"nocalhost/internal/nhctl/common"
 	"nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/controller"
-	"nocalhost/internal/nhctl/profile"
 	"nocalhost/internal/nhctl/utils"
 	"time"
 
@@ -28,10 +28,6 @@ var installFlags = &app_flags.InstallFlags{}
 
 func init() {
 
-	installCmd.Flags().StringVarP(
-		&nameSpace, "namespace", "n", "",
-		"kubernetes namespace",
-	)
 	installCmd.Flags().StringVarP(
 		&installFlags.GitUrl, "git-url", "u", "",
 		"resources git url",
@@ -115,7 +111,7 @@ var installCmd = &cobra.Command{
 			applicationName = args[0]
 		)
 
-		must(Prepare())
+		must(common2.Prepare())
 
 		if applicationName == _const.DefaultNocalhostApplication {
 			log.Error(_const.DefaultNocalhostApplicationOperateErr)
@@ -141,7 +137,7 @@ var installCmd = &cobra.Command{
 		}
 
 		log.Info("Installing application...")
-		nocalhostApp, err = common.InstallApplication(installFlags, applicationName, kubeConfig, nameSpace)
+		nocalhostApp, err := common.InstallApplication(installFlags, applicationName, common2.KubeConfig, common2.NameSpace)
 		must(err)
 		log.Infof("Application %s installed", applicationName)
 
@@ -149,9 +145,8 @@ var installCmd = &cobra.Command{
 
 		// Start port forward
 		for _, svcProfile := range configV2.ServiceConfigs {
-			//nhSvc := initService(svcProfile.Name, svcProfile.Type)
-			checkIfSvcExist(svcProfile.Name, svcProfile.Type)
-			nhSvc := nocalhostSvc
+			nhSvc, err := nocalhostApp.InitAndCheckIfSvcExist(svcProfile.Name, svcProfile.Type)
+			must(err)
 			for _, cc := range svcProfile.ContainerConfigs {
 				if cc.Install == nil || len(cc.Install.PortForward) == 0 {
 					continue
@@ -160,16 +155,11 @@ var installCmd = &cobra.Command{
 				svcType := svcProfile.Type
 				log.Infof("Starting port-forward for %s %s", svcType, svcProfile.Name)
 				ctx, _ := context.WithTimeout(context.Background(), 5*time.Minute)
-				podController := nhSvc.BuildPodController()
-				if podController == nil {
-					log.WarnE(errors.New("Pod controller is nil"), "")
-					continue
-				}
 
 				var i int
 				for i = 0; i < 60; i++ {
 					<-time.After(time.Second)
-					podName, err = controller.GetDefaultPodName(ctx, podController)
+					podName, err = controller.GetDefaultPodName(ctx, nhSvc)
 					if err != nil {
 						log.WarnE(err, "")
 						continue
@@ -191,7 +181,7 @@ var installCmd = &cobra.Command{
 				}
 
 				for _, pf := range cc.Install.PortForward {
-					lPort, rPort, err := profile.GetPortForwardForString(pf)
+					lPort, rPort, err := utils.GetPortForwardForString(pf)
 					if err != nil {
 						log.WarnE(err, "")
 						continue

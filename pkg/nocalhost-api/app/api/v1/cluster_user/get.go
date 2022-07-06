@@ -40,7 +40,7 @@ func GetFirst(c *gin.Context) {
 		ApplicationId: applicationId,
 		UserId:        userId.(uint64),
 	}
-	result, err := service.Svc.ClusterUser().GetFirst(c, cu)
+	result, err := service.Svc.ClusterUserSvc.GetFirst(c, cu)
 	if err != nil {
 		api.SendResponse(c, nil, nil)
 		return
@@ -63,7 +63,7 @@ func GetList(c *gin.Context) {
 	cu := model.ClusterUserModel{
 		ApplicationId: applicationId,
 	}
-	result, err := service.Svc.ClusterUser().GetList(c, cu)
+	result, err := service.Svc.ClusterUserSvc.GetList(c, cu)
 	if err != nil {
 		api.SendResponse(c, nil, nil)
 		return
@@ -100,7 +100,7 @@ func ListAll(c *gin.Context) {
 		cu.UserId = user
 	}
 
-	result, err := service.Svc.ClusterUser().GetList(c, cu)
+	result, err := service.Svc.ClusterUserSvc.GetList(c, cu)
 	if err != nil {
 		api.SendResponse(c, nil, nil)
 		return
@@ -111,13 +111,13 @@ func ListAll(c *gin.Context) {
 // list user's dev space distinct by user id
 func ListByUserId(c *gin.Context) {
 	userId := cast.ToUint64(c.Param("id"))
-	result, err := service.Svc.ClusterUser().ListByUser(c, userId)
+	result, err := service.Svc.ClusterUserSvc.ListByUser(c, userId)
 	if err != nil {
 		api.SendResponse(c, errno.ErrClusterUserNotFound, nil)
 		return
 	}
 
-	list, err := service.Svc.ClusterSvc().GetList(context.TODO())
+	list, err := service.Svc.ClusterSvc.GetList(context.TODO())
 	if err != nil {
 		api.SendResponse(c, errno.ErrClusterNotFound, nil)
 		return
@@ -160,7 +160,7 @@ func GetDevSpaceDetail(c *gin.Context) {
 		ApplicationId: applicationId,
 		ID:            spaceId,
 	}
-	result, err := service.Svc.ClusterUser().GetFirst(c, cu)
+	result, err := service.Svc.ClusterUserSvc.GetFirst(c, cu)
 	if err != nil {
 		api.SendResponse(c, nil, nil)
 		return
@@ -189,7 +189,7 @@ func GetJoinClusterAndAppAndUser(c *gin.Context) {
 		condition.UserId = userId
 	}
 
-	result, err := service.Svc.ClusterUser().GetJoinClusterAndAppAndUser(c, condition)
+	result, err := service.Svc.ClusterUserSvc.GetJoinClusterAndAppAndUser(c, condition)
 	if err != nil {
 		api.SendResponse(c, nil, nil)
 		return
@@ -224,7 +224,7 @@ func GetJoinClusterAndAppAndUserDetail(c *gin.Context) {
 		api.SendResponse(c, errno.ErrPermissionDenied, nil)
 	}
 
-	result, err := service.Svc.ClusterUser().GetJoinClusterAndAppAndUserDetail(c, condition)
+	result, err := service.Svc.ClusterUserSvc.GetJoinClusterAndAppAndUserDetail(c, condition)
 	if err != nil {
 		api.SendResponse(c, nil, nil)
 		return
@@ -233,7 +233,7 @@ func GetJoinClusterAndAppAndUserDetail(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	_, errn := HasHighPermissionToSomeDevSpace(c, result.ID)
+	_, errn := HasPrivilegeToSomeDevSpace(c, result.ID)
 	var noPermissionToViewOtherKubeconfig = false
 	if errn != nil {
 		if errn != errno.ErrPermissionDenied {
@@ -266,7 +266,7 @@ func GetJoinClusterAndAppAndUserDetail(c *gin.Context) {
 			queryUser = user
 		}
 
-		userRecord, err := service.Svc.UserSvc().GetUserByID(c, queryUser)
+		userRecord, err := service.Svc.UserSvc.GetUserByID(c, queryUser)
 		if err != nil {
 			return
 		}
@@ -275,7 +275,7 @@ func GetJoinClusterAndAppAndUserDetail(c *gin.Context) {
 	}()
 
 	go func() {
-		clusterRecord, err := service.Svc.ClusterSvc().Get(c, result.ClusterId)
+		clusterRecord, err := service.Svc.ClusterSvc.Get(c, result.ClusterId)
 		if err != nil {
 			return
 		}
@@ -324,7 +324,7 @@ func GetAppsInfo(c *gin.Context) {
 	condition := model.ClusterUserModel{
 		ID: devSpaceId,
 	}
-	devspace, err := service.Svc.ClusterUser().GetFirst(c, condition)
+	devspace, err := service.Svc.ClusterUserSvc.GetFirst(c, condition)
 	if err != nil || devspace == nil {
 		log.Errorf("Dev space has not found")
 		api.SendResponse(c, errno.ErrClusterUserNotFound, nil)
@@ -338,7 +338,7 @@ func GetAppsInfo(c *gin.Context) {
 		baseCondition := model.ClusterUserModel{
 			ID: devspace.BaseDevSpaceId,
 		}
-		basespace, err = service.Svc.ClusterUser().GetFirst(c, baseCondition)
+		basespace, err = service.Svc.ClusterUserSvc.GetFirst(c, baseCondition)
 		if err != nil || basespace == nil {
 			log.Errorf("Base space has not found")
 			api.SendResponse(c, errno.ErrClusterUserNotFound, nil)
@@ -347,7 +347,7 @@ func GetAppsInfo(c *gin.Context) {
 	}
 
 	// Build goclient with administrator kubeconfig
-	clusterData, err := service.Svc.ClusterSvc().Get(c, devspace.ClusterId)
+	clusterData, err := service.Svc.ClusterSvc.Get(c, devspace.ClusterId)
 	if err != nil {
 		log.Errorf("Getting cluster information failed, cluster id = [ %v ] ", devspace.ClusterId)
 		api.SendResponse(c, errno.ErrPermissionCluster, nil)

@@ -8,6 +8,7 @@ package cmds
 import (
 	"github.com/spf13/cobra"
 	"io/ioutil"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_server/command"
 	"nocalhost/internal/nhctl/utils"
@@ -28,11 +29,11 @@ var kubeconfigAddCmd = &cobra.Command{
 		if err != nil {
 			log.FatalE(err, "")
 		}
-		if err := Prepare(); err != nil {
+		if err := common.Prepare(); err != nil {
 			return
 		}
-		if bytes, err := ioutil.ReadFile(kubeConfig); err == nil {
-			if err = daemonClient.SendKubeconfigOperationCommand(bytes, nameSpace, command.OperationAdd); err != nil {
+		if bytes, err := ioutil.ReadFile(common.KubeConfig); err == nil {
+			if err = daemonClient.SendKubeconfigOperationCommand(bytes, common.NameSpace, command.OperationAdd); err != nil {
 				log.Info(err)
 			}
 		}

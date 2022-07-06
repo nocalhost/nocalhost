@@ -116,7 +116,7 @@ func secretBackup(cli runner.Client) error {
 	if err != nil {
 		return err
 	}
-	secret.Data = map[string][]byte{}
+	delete(secret.Data, appmeta.SecretDevMetaKey)
 	secret.Data["backup"] = str
 	_, err = cli.GetClientset().CoreV1().Secrets(cli.GetNhctl().Namespace).
 		Update(context.TODO(), secret, v1.UpdateOptions{})

@@ -32,7 +32,7 @@ func (p *SyncthingHttpClient) getSyncthingStatus() *SyncthingStatus {
 
 	connections, err := p.SystemConnections()
 	if err != nil || !connections {
-		return disconnectedTemplate
+		return disconnectedTemplateGen(p.guiHost)
 	}
 
 	status, err := p.FolderStatus()
@@ -41,6 +41,7 @@ func (p *SyncthingHttpClient) getSyncthingStatus() *SyncthingStatus {
 			Status: Error,
 			Msg:    "Disconnected",
 			Tips:   fmt.Sprintf("%v", err),
+			Gui:    p.guiHost,
 		}
 	}
 
@@ -49,6 +50,7 @@ func (p *SyncthingHttpClient) getSyncthingStatus() *SyncthingStatus {
 			Status: Error,
 			Msg:    "Error",
 			Tips:   fmt.Sprintf("%v", err),
+			Gui:    p.guiHost,
 		}
 	}
 
@@ -59,6 +61,7 @@ func (p *SyncthingHttpClient) getSyncthingStatus() *SyncthingStatus {
 			Msg:       "Error",
 			Tips:      fmt.Sprintf("%v", err),
 			OutOfSync: status.OutOfSync(),
+			Gui:       p.guiHost,
 		}
 	}
 
@@ -69,6 +72,7 @@ func (p *SyncthingHttpClient) getSyncthingStatus() *SyncthingStatus {
 			Msg:       status.OutOfSyncLog(),
 			Tips:      status.OutOfSyncTips(),
 			OutOfSync: status.OutOfSync(),
+			Gui:       p.guiHost,
 		}
 	}
 
@@ -79,6 +83,7 @@ func (p *SyncthingHttpClient) getSyncthingStatus() *SyncthingStatus {
 			Msg:       completion.UploadPct(),
 			Tips:      status.StateChangedLog(),
 			OutOfSync: status.OutOfSync(),
+			Gui:       p.guiHost,
 		}
 	}
 
@@ -89,6 +94,7 @@ func (p *SyncthingHttpClient) getSyncthingStatus() *SyncthingStatus {
 			Msg:       status.StateChangedLog(),
 			Tips:      status.IdleTips(),
 			OutOfSync: status.OutOfSync(),
+			Gui:       p.guiHost,
 		}
 	}
 
@@ -97,6 +103,7 @@ func (p *SyncthingHttpClient) getSyncthingStatus() *SyncthingStatus {
 		Status:    Scanning,
 		Msg:       "Scanning local changed...",
 		OutOfSync: status.OutOfSync(),
+		Gui:       p.guiHost,
 	}
 }
 
@@ -106,6 +113,7 @@ type SyncthingStatus struct {
 	Msg       string     `json:"msg"`
 	Tips      string     `json:"tips,omitempty"`
 	OutOfSync string     `json:"outOfSync,omitempty"`
+	Gui       string     `json:"gui,omitempty"`
 }
 
 type StatusEnum string
@@ -161,8 +169,11 @@ var NotSyncthingProcessFound = &SyncthingStatus{
 	Tips:   Identifier + "No syncthing process found, please restart it.",
 }
 
-var disconnectedTemplate = &SyncthingStatus{
-	Status: Disconnected,
-	Msg:    "Disconnected from sidecar",
-	Tips:   Identifier + "Please check your network connection and ensure the port-forward from sidecar is valid.",
+func disconnectedTemplateGen(guiHost string) *SyncthingStatus {
+	return &SyncthingStatus{
+		Status: Disconnected,
+		Msg:    "Disconnected from sidecar",
+		Tips:   Identifier + "Please check your network connection and ensure the port-forward from sidecar is valid.",
+		Gui:    guiHost,
+	}
 }

@@ -8,7 +8,6 @@ package cluster_user
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
-
 	"nocalhost/internal/nocalhost-api/service/cooperator/cluster_scope"
 	"nocalhost/internal/nocalhost-api/service/cooperator/ns_scope"
 	"nocalhost/pkg/nocalhost-api/app/api"
@@ -25,7 +24,7 @@ func Share(c *gin.Context) {
 		return
 	}
 
-	cu, errn := HasModifyPermissionToSomeDevSpace(c, *params.ClusterUserId)
+	cu, errn := LoginUserHasModifyPermissionToSomeDevSpace(c, *params.ClusterUserId)
 	if errn != nil {
 		api.SendResponse(c, errn, nil)
 		return
@@ -75,7 +74,7 @@ func UnShare(c *gin.Context) {
 		return
 	}
 
-	cu, errn := HasModifyPermissionToSomeDevSpace(c, *params.ClusterUserId)
+	cu, errn := LoginUserHasModifyPermissionToSomeDevSpace(c, *params.ClusterUserId)
 	if errn != nil {
 		api.SendResponse(c, errn, nil)
 		return

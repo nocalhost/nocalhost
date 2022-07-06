@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package application_user
 
@@ -11,28 +11,17 @@ import (
 	"nocalhost/internal/nocalhost-api/model"
 )
 
-type ApplicationUserRepo interface {
-	GetByApplicationIdAndUserId(applicationId uint64, userId uint64) (
-		*model.ApplicationUserModel, error,
-	)
-	ListByApplicationIdFromRepo(applicationId uint64) ([]*model.ApplicationUserModel, error)
-	ListByUserIdFromRepo(userId uint64) ([]*model.ApplicationUserModel, error)
-	BatchDeleteFromRepo(applicationId uint64, userIds []uint64) error
-	BatchInsertIntoRepo(applicationId uint64, userIds []uint64) error
-	Close()
-}
-
-type applicationUserRepo struct {
+type ApplicationUserRepoBase struct {
 	db *gorm.DB
 }
 
-func NewApplicationUserRepo(db *gorm.DB) ApplicationUserRepo {
-	return &applicationUserRepo{
+func NewApplicationUserRepo(db *gorm.DB) *ApplicationUserRepoBase {
+	return &ApplicationUserRepoBase{
 		db: db,
 	}
 }
 
-func (repo *applicationUserRepo) BatchDeleteFromRepo(applicationId uint64, userIds []uint64) error {
+func (repo *ApplicationUserRepoBase) BatchDeleteFromRepo(applicationId uint64, userIds []uint64) error {
 	if len(userIds) == 0 {
 		return errors.New("Can not batch delete applications_users with empty userIds ")
 	}
@@ -45,7 +34,7 @@ func (repo *applicationUserRepo) BatchDeleteFromRepo(applicationId uint64, userI
 	return nil
 }
 
-func (repo *applicationUserRepo) BatchInsertIntoRepo(applicationId uint64, userIds []uint64) error {
+func (repo *ApplicationUserRepoBase) BatchInsertIntoRepo(applicationId uint64, userIds []uint64) error {
 	if len(userIds) == 0 {
 		return errors.New("Can not batch insert applications_users with empty userIds ")
 	}
@@ -62,7 +51,7 @@ func (repo *applicationUserRepo) BatchInsertIntoRepo(applicationId uint64, userI
 	return nil
 }
 
-func (repo *applicationUserRepo) ListByApplicationIdFromRepo(
+func (repo *ApplicationUserRepoBase) ListByApplicationIdFromRepo(
 	applicationId uint64,
 ) ([]*model.ApplicationUserModel, error) {
 	var result []*model.ApplicationUserModel
@@ -73,7 +62,7 @@ func (repo *applicationUserRepo) ListByApplicationIdFromRepo(
 	return result, nil
 }
 
-func (repo *applicationUserRepo) ListByUserIdFromRepo(userId uint64) (
+func (repo *ApplicationUserRepoBase) ListByUserIdFromRepo(userId uint64) (
 	[]*model.ApplicationUserModel, error,
 ) {
 	var result []*model.ApplicationUserModel
@@ -84,7 +73,7 @@ func (repo *applicationUserRepo) ListByUserIdFromRepo(userId uint64) (
 	return result, nil
 }
 
-func (repo *applicationUserRepo) GetByApplicationIdAndUserId(
+func (repo *ApplicationUserRepoBase) GetByApplicationIdAndUserId(
 	applicationId uint64, userId uint64,
 ) (*model.ApplicationUserModel, error) {
 	var result = model.ApplicationUserModel{}
@@ -99,6 +88,6 @@ func (repo *applicationUserRepo) GetByApplicationIdAndUserId(
 }
 
 // Close close db
-func (repo *applicationUserRepo) Close() {
+func (repo *ApplicationUserRepoBase) Close() {
 	repo.db.Close()
 }

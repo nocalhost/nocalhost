@@ -6,23 +6,37 @@
 package cmds
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/spf13/cobra"
+	"golang.org/x/text/encoding/unicode"
+	"golang.org/x/text/transform"
+	"io/ioutil"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"nocalhost/cmd/nhctl/cmds/common"
+	"nocalhost/internal/nhctl/fp"
 	"nocalhost/pkg/nhctl/clientgoutils"
+	"nocalhost/pkg/nhctl/k8sutils"
 	"nocalhost/pkg/nhctl/log"
+	"os"
 )
 
 var (
 	contextSpecified []string
+	interactive      bool
 )
 
 func init() {
 	kubeconfigCmd.AddCommand(kubeconfigCheckCmd)
-	kubeconfigCheckCmd.Flags().StringArrayVarP(&contextSpecified,
+	kubeconfigCheckCmd.Flags().StringArrayVarP(
+		&contextSpecified,
 		"context", "c", []string{},
 		"By default, the current context is used. If there is no cluster scope permission, check the 'namespace' is specified",
+	)
+	kubeconfigCheckCmd.Flags().BoolVarP(
+		&interactive,
+		"interactive", "i", false, "return readable interactive result",
 	)
 }
 
@@ -39,37 +53,70 @@ var kubeconfigCheckCmd = &cobra.Command{
 			contextSpecified = append(contextSpecified, "")
 		}
 
+		if common.KubeConfig == "-" { // from sdtin
+
+			// TODO: Consider adding a flag to force to UTF16, apparently some
+			// Windows tools don't write the BOM
+			utf16bom := unicode.BOMOverride(unicode.UTF8.NewDecoder())
+			reader := transform.NewReader(os.Stdin, utf16bom)
+
+			content, err := ioutil.ReadAll(reader)
+			must(err)
+
+			common.KubeConfig = k8sutils.GetOrGenKubeConfigPath(string(content))
+
+			defer fp.NewFilePath(common.KubeConfig).Remove()
+		}
+
+		checkInfos := make([]CheckInfo, 0)
+
 		notEmpty := false
 		warnMsg := "Your KubeConfig may illegal, please try to fix it by following the tips below: <br>"
 		for _, context := range contextSpecified {
+			checkInfo := CheckKubeconfig(common.KubeConfig, context)
+			checkInfos = append(checkInfos, checkInfo)
 
-			if tips := CheckKubeconfig(kubeConfig, context); tips != "" {
+			if checkInfo.Status == FAIL {
 				notEmpty = true
-				warnMsg += fmt.Sprintf("%s <br>", tips)
+				warnMsg += fmt.Sprintf("%s <br>", checkInfo.Tips)
 			}
 		}
 
-		if notEmpty {
-			log.PWarn(warnMsg)
+		if interactive {
+			marshal, _ := json.Marshal(checkInfos)
+			fmt.Println(string(marshal))
+		} else {
+			if notEmpty {
+				log.PWarn(warnMsg)
+			}
 		}
 	},
 }
 
-func CheckKubeconfig(kubeconfigParams string, contextParam string) string {
+// # CheckKubeconfig return two strings
+// first is the complate guide
+// second is a simple msg
+func CheckKubeconfig(kubeconfigParams string, contextParam string) CheckInfo {
+	unexpectedErrFmt := "Please check if your cluster or kubeconfig is valid, Error: %v"
+	invalidNamespaceFmt := "Please check current namespace is valid, or make sure" +
+		" you have the correct permissions to access this namespace, Error: %v"
+
 	utils, err := clientgoutils.NewClientGoUtils(kubeconfigParams, "")
 	if err != nil {
-		return err.Error()
-
+		return CheckInfo{
+			FAIL, fmt.Sprintf(unexpectedErrFmt, err.Error()),
+		}
 	}
 
 	config, err := utils.NewFactory().ToRawKubeConfigLoader().RawConfig()
 	if err != nil {
-		return err.Error()
-
+		return CheckInfo{
+			FAIL, fmt.Sprintf(unexpectedErrFmt, err.Error()),
+		}
 	}
 
 	if len(config.Contexts) == 0 {
-		return "Please make sure your kubeconfig contains one context at least "
+		return CheckInfo{FAIL, "Please make sure your kubeconfig contains at least one context"}
 	}
 
 	if contextParam == "" {
@@ -82,33 +129,82 @@ func CheckKubeconfig(kubeconfigParams string, contextParam string) string {
 			set.Insert(validContext)
 		}
 
-		return fmt.Sprintf(
+		msg := fmt.Sprintf(
 			"Invalid context '%s',"+
 				" you should choose a correct one from below %v",
 			contextParam, set.UnsortedList(),
 		)
-
+		return CheckInfo{
+			FAIL, msg,
+		}
 	} else {
-		if ctx.Namespace == "" {
+		specifiedNs := ctx.Namespace != ""
+		_ = common.Prepare()
 
-			err := clientgoutils.DoAuthCheck(
-				utils, "", &clientgoutils.AuthChecker{
-					Verb:        []string{"list", "get", "watch"},
-					ResourceArg: "namespaces",
-				},
+		kubeCOnfigContent := fp.NewFilePath(common.KubeConfig).ReadFile()
+
+		checkChanForClusterScope := make(chan error, 0)
+		checkChanForNsScope := make(chan error, 0)
+
+		go func() {
+			checkChanForClusterScope <- clientgoutils.CheckForResource(
+				kubeCOnfigContent, "", []string{"list", "get", "watch"}, false, "namespaces",
 			)
+		}()
 
-			if errors.Is(err, clientgoutils.PermissionDenied) {
+		go func() {
+			checkChanForNsScope <- clientgoutils.CheckForResource(
+				kubeCOnfigContent, ctx.Namespace, []string{"list"}, false, "pod",
+			)
+		}()
 
-				return fmt.Sprintf(
-					"Context '%s' can not asscess the cluster scope resources, so you should specify a namespace by using "+
-						"'kubectl config set-context %s --namespace=${your_namespace} --kubeconfig=${your_kubeconfig}', or you can add"+
-						" a namespace to this context manually. ",
-					contextParam, contextParam,
-				)
+		select {
+		case errNs := <-checkChanForNsScope:
+			{
+				if errNs != nil {
+					return CheckInfo{FAIL, fmt.Sprintf(invalidNamespaceFmt, errNs.Error())}
+				}
+				return CheckInfo{SUCCESS, ""}
+			}
+
+		case errCl := <-checkChanForClusterScope:
+			{
+				if errCl != nil {
+					if errors.Is(errCl, clientgoutils.PermissionDenied) {
+						msg := fmt.Sprintf(
+							"Context '%s' can not asscess the cluster scope resources, so you should specify a namespace by using "+
+								"'kubectl config set-context %s --namespace=${your_namespace} --kubeconfig=${your_kubeconfig}', or you can add"+
+								" a namespace to this context manually. ",
+							contextParam, contextParam,
+						)
+
+						if specifiedNs {
+							if err := <-checkChanForNsScope; err != nil {
+								return CheckInfo{FAIL, fmt.Sprintf(invalidNamespaceFmt, err.Error())}
+							}
+							return CheckInfo{SUCCESS, ""}
+						}
+						return CheckInfo{FAIL, msg}
+					}
+					return CheckInfo{FAIL, fmt.Sprintf(unexpectedErrFmt, errCl.Error())}
+				}
+
+				// Success with cluster scope
+				return CheckInfo{SUCCESS, "Current context can list with cluster-scope resources"}
 			}
 		}
 	}
-
-	return ""
 }
+
+
+var (
+	SUCCESS CheckInfoStatus = "SUCCESS"
+	FAIL    CheckInfoStatus = "FAIL"
+)
+
+type CheckInfo struct {
+	Status CheckInfoStatus `json:"status" yaml:"status"`
+	Tips   string          `json:"tips" yaml:"tips"`
+}
+
+type CheckInfoStatus string

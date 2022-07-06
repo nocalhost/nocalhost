@@ -8,8 +8,10 @@ package cmds
 import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/app"
-	"nocalhost/internal/nhctl/profile"
+	"nocalhost/internal/nhctl/daemon_client"
+	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 )
 
@@ -17,7 +19,7 @@ var portForwardOptions = &app.PortForwardOptions{}
 
 func init() {
 	portForwardStartCmd.Flags().StringVarP(
-		&deployment, "deployment", "d", "", "k8s deployment which you want to forward to",
+		&common.WorkloadName, "deployment", "d", "", "k8s deployment which you want to forward to",
 	)
 	portForwardStartCmd.Flags().StringSliceVarP(
 		&portForwardOptions.DevPort, "dev-port", "p", []string{},
@@ -38,7 +40,7 @@ func init() {
 		"which container of pod to run command",
 	)
 	portForwardStartCmd.Flags().StringVarP(
-		&serviceType, "type", "t", "deployment",
+		&common.ServiceType, "type", "t", "deployment",
 		"specify service type",
 	)
 	portForwardStartCmd.Flags().StringVarP(
@@ -65,12 +67,13 @@ var portForwardStartCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 
 		applicationName := args[0]
-		initAppAndCheckIfSvcExist(applicationName, deployment, serviceType)
+		nocalhostApp, nocalhostSvc, err := common.InitAppAndCheckIfSvcExist(applicationName, common.WorkloadName, common.ServiceType)
+		must(err)
 
 		log.Info("Starting port-forwarding")
 
 		// find deployment pods
-		podName, err := nocalhostSvc.BuildPodController().GetNocalhostDevContainerPod()
+		podName, err := nocalhostSvc.GetDevModePodName()
 		if err != nil {
 			// use serviceType get pods name
 			// can not find devContainer, means need port-forward normal service, get pods from command flags
@@ -79,7 +82,7 @@ var portForwardStartCmd = &cobra.Command{
 
 		var localPorts, remotePorts []int
 		for _, port := range portForwardOptions.DevPort {
-			localPort, remotePort, err := profile.GetPortForwardForString(port)
+			localPort, remotePort, err := utils.GetPortForwardForString(port)
 			if err != nil {
 				log.WarnE(err, "")
 				continue
@@ -94,6 +97,12 @@ var portForwardStartCmd = &cobra.Command{
 			} else {
 				must(nocalhostSvc.PortForward(podName, localPort, remotePorts[index], ""))
 			}
+		}
+		// notify daemon to invalid cache before return
+		if client, err := daemon_client.GetDaemonClient(false); err == nil {
+			_ = client.SendFlushDirMappingCacheCommand(
+				nocalhostApp.NameSpace, nocalhostApp.GetAppMeta().NamespaceId, applicationName,
+			)
 		}
 	},
 }

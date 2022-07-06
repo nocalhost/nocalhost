@@ -39,6 +39,7 @@ var (
 	ErrDeleteUser                 = &Errno{Code: 20117, Message: "Failed to delete user"}
 	ErrUserLoginWebNotAllow       = &Errno{Code: 20118, Message: "Normal users are not allowed login web interface"}
 	RefreshTokenInvalidOrNotMatch = &Errno{Code: 20119, Message: "Refresh token is invalid or token not matched"}
+	LDAPBindFail                  = &Errno{Code: 20111, Message: "Fail to login into LDAP"}
 
 	// cluster errors for cluster module request
 	ErrClusterCreate      = &Errno{Code: 30100, Message: "Failed to add cluster, please try again"}
@@ -74,6 +75,7 @@ var (
 	ErrClusterGenNamespace = &Errno{Code: 30115, Message: "Failed to gen namespace"}
 	ErrUserIdRequired      = &Errno{Code: 50116, Message: "User id parameter required"}
 	ErrUserIdFormat        = &Errno{Code: 50117, Message: "User id must be an unsigned integer greater than zero"}
+	ErrUserImport          = &Errno{Code: 50118, Message: "User import failed"}
 
 	// application errors for application module request
 	ErrApplicationCreate        = &Errno{Code: 40100, Message: "Failed to add app, please try again"}
@@ -164,6 +166,8 @@ var (
 		Code:    50126,
 		Message: "The space name already exists, please change the space name",
 	}
+	ErrDeleteServiceAccount = &Errno{Code: 50127, Message: "Delete sa failed."}
+	ErrNsImportFail         = &Errno{Code: 50128, Message: "Namespace import failed"}
 
 	// cluster-user errors for mesh space
 	ErrMeshClusterUserNotFound          = &Errno{Code: 50200, Message: "Base dev space has not found"}
@@ -177,6 +181,7 @@ var (
 	ErrValidateMeshInfo                 = &Errno{Code: 50208, Message: "Incorrect mesh space parameter"}
 	ErrMeshInfoRequired                 = &Errno{Code: 50209, Message: "Mesh space parameter required"}
 	ErrBaseSpaceReSet                   = &Errno{Code: 50210, Message: "Base space can't be reset"}
+	ErrProtectedSpaceReSet              = &Errno{Code: 50211, Message: "Protected space can't be reset or delete"}
 	ErrAsBothBaseSpaceAndMeshSpace      = &Errno{
 		Code:    50211,
 		Message: "Cannot be set as both base space and mesh space",
@@ -218,5 +223,18 @@ var (
 	}
 	ErrRoleBindingDelete = &Errno{
 		Code: 70007, Message: "Failed to remove role binding, please check your cluster and try again",
+	}
+
+	ErrFailToSaveLDAPSettings = &Errno{
+		Code: 110001, Message: "Failed to saving config, please check the type in and try again",
+	}
+	ErrFailToGetLDAPSettings = &Errno{
+		Code: 110002, Message: "Failed to getting config, please try again",
+	}
+	ErrFailLDAPBind = &Errno{
+		Code: 110003, Message: "Ldap binding fail, please check your bindDN and password and try again",
+	}
+	ErrFailToSearchLDAP = &Errno{
+		Code: 110004, Message: "Failed to search Ldap, please check your Ldap configurations and try again",
 	}
 )

@@ -168,7 +168,7 @@ func yaml_parser_update_buffer(parser *yaml_parser_t, length int) bool {
 		}
 		first = false
 
-		// Decode the raw buffer.
+		// ReAssignmentBySecret the raw buffer.
 	inner:
 		for parser.raw_buffer_pos != len(parser.raw_buffer) {
 			var value rune
@@ -176,10 +176,10 @@ func yaml_parser_update_buffer(parser *yaml_parser_t, length int) bool {
 
 			raw_unread := len(parser.raw_buffer) - parser.raw_buffer_pos
 
-			// Decode the next character.
+			// ReAssignmentBySecret the next character.
 			switch parser.encoding {
 			case yaml_UTF8_ENCODING:
-				// Decode a UTF-8 character.  Check RFC 3629
+				// ReAssignmentBySecret a UTF-8 character.  Check RFC 3629
 				// (http://www.ietf.org/rfc/rfc3629.txt) for more details.
 				//
 				// The following table (taken from the RFC) is used for
@@ -225,7 +225,7 @@ func yaml_parser_update_buffer(parser *yaml_parser_t, length int) bool {
 					break inner
 				}
 
-				// Decode the leading octet.
+				// ReAssignmentBySecret the leading octet.
 				switch {
 				case octet&0x80 == 0x00:
 					value = rune(octet & 0x7F)
@@ -250,7 +250,7 @@ func yaml_parser_update_buffer(parser *yaml_parser_t, length int) bool {
 							parser.offset+k, int(octet))
 					}
 
-					// Decode the octet.
+					// ReAssignmentBySecret the octet.
 					value = (value << 6) + rune(octet&0x3F)
 				}
 

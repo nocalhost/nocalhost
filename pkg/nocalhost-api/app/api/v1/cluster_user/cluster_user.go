@@ -31,6 +31,7 @@ type ClusterUserCreateRequest struct {
 	BaseDevSpaceId     uint64                    `json:"base_dev_space_id"`
 	MeshDevInfo        *setupcluster.MeshDevInfo `json:"mesh_dev_info"`
 	IsBaseSpace        bool                      `json:"is_base_space"`
+	Protected          bool                      `json:"protected"`
 }
 
 func (cu *ClusterUserCreateRequest) Validate() (bool, error) {
@@ -62,7 +63,7 @@ func (cu *ClusterUserCreateRequest) Validate() (bool, error) {
 
 	// Validate Istio CRD
 	if cu.IsBaseSpace {
-		cluster, err := service.Svc.ClusterSvc().Get(context.TODO(), cast.ToUint64(cu.ClusterId))
+		cluster, err := service.Svc.ClusterSvc.Get(context.TODO(), cast.ToUint64(cu.ClusterId))
 		if err != nil {
 			return false, errno.ErrClusterNotFound
 		}

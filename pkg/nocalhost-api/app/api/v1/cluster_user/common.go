@@ -1,6 +1,12 @@
+/*
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* This source code is licensed under the Apache License Version 2.0.
+ */
+
 package cluster_user
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"nocalhost/internal/nocalhost-api/model"
@@ -12,29 +18,34 @@ import (
 	"nocalhost/pkg/nocalhost-api/pkg/setupcluster"
 )
 
-// HasModifyPermissionToSomeDevSpace
+// LoginUserHasModifyPermissionToSomeDevSpace
 // those role can modify the devSpace:
 // - is the cooperator of ns
 // - is nocalhost admin
 // - is owner
 // - is devSpace's cluster owner
-func HasModifyPermissionToSomeDevSpace(c *gin.Context, devSpaceId uint64) (*model.ClusterUserModel, error) {
-	devSpace, err := service.Svc.ClusterUser().GetCache(devSpaceId)
-	if err != nil {
-		return nil, errno.ErrClusterUserNotFound
-	}
-
-	cluster, err := service.Svc.ClusterSvc().GetCache(devSpace.ClusterId)
-	if err != nil {
-		return nil, errno.ErrClusterKubeErr
-	}
+func LoginUserHasModifyPermissionToSomeDevSpace(c *gin.Context, devSpaceId uint64) (*model.ClusterUserModel, error) {
 
 	loginUser, err := ginbase.LoginUser(c)
 	if err != nil {
 		return nil, errno.ErrPermissionDenied
 	}
 
-	nss := ns_scope.AllCoopNs(devSpace.ClusterId, loginUser)
+	return HasModifyPermissionToSomeDevSpace(loginUser, devSpaceId)
+}
+
+func HasModifyPermissionToSomeDevSpace(userId, devSpaceId uint64) (*model.ClusterUserModel, error) {
+	devSpace, err := service.Svc.ClusterUserSvc.GetCache(devSpaceId)
+	if err != nil {
+		return nil, errno.ErrClusterUserNotFound
+	}
+
+	cluster, err := service.Svc.ClusterSvc.GetCache(devSpace.ClusterId)
+	if err != nil {
+		return nil, errno.ErrClusterNotFound
+	}
+
+	nss := ns_scope.AllCoopNs(devSpace.ClusterId, userId)
 
 	for _, s := range nss {
 		if devSpace.Namespace == s {
@@ -42,25 +53,30 @@ func HasModifyPermissionToSomeDevSpace(c *gin.Context, devSpaceId uint64) (*mode
 		}
 	}
 
-	if ginbase.IsAdmin(c) || cluster.UserId == loginUser || devSpace.UserId == loginUser {
+	usr, err := service.Svc.UserSvc.GetUserByID(context.TODO(), userId)
+	if err != nil {
+		return nil, err
+	}
+	if (usr.IsAdmin != nil && *usr.IsAdmin == 1) || cluster.UserId == userId || devSpace.UserId == userId {
 		return &devSpace, nil
 	}
+
 	return nil, errno.ErrPermissionDenied
 }
 
-// HasHighPermissionToSomeDevSpace
-// High Permission include
+// HasPrivilegeToSomeDevSpace
+// Include
 // - update resource limit
 // - delete devspace
-func HasHighPermissionToSomeDevSpace(c *gin.Context, devSpaceId uint64) (*model.ClusterUserModel, error) {
-	devSpace, err := service.Svc.ClusterUser().GetCache(devSpaceId)
+func HasPrivilegeToSomeDevSpace(c *gin.Context, devSpaceId uint64) (*model.ClusterUserModel, error) {
+	devSpace, err := service.Svc.ClusterUserSvc.GetCache(devSpaceId)
 	if err != nil {
 		return nil, errno.ErrClusterUserNotFound
 	}
 
-	cluster, err := service.Svc.ClusterSvc().GetCache(devSpace.ClusterId)
+	cluster, err := service.Svc.ClusterSvc.GetCache(devSpace.ClusterId)
 	if err != nil {
-		return nil, errno.ErrClusterKubeErr
+		return nil, errno.ErrClusterNotFound
 	}
 
 	loginUser, err := ginbase.LoginUser(c)
@@ -87,13 +103,13 @@ func IsShareUsersOk(cooperators, viewers []uint64, clusterUser *model.ClusterUse
 }
 
 func deleteShareSpaces(c *gin.Context, baseSpaceId uint64) {
-	shareSpaces, err := service.Svc.ClusterUser().GetList(c, model.ClusterUserModel{BaseDevSpaceId: baseSpaceId})
+	shareSpaces, err := service.Svc.ClusterUserSvc.GetList(c, model.ClusterUserModel{BaseDevSpaceId: baseSpaceId})
 	if err != nil {
 		// can not find share space, do nothing
 		return
 	}
 	for _, space := range shareSpaces {
-		clusterData, err := service.Svc.ClusterSvc().GetCache(space.ClusterId)
+		clusterData, err := service.Svc.ClusterSvc.GetCache(space.ClusterId)
 		if err != nil {
 			continue
 		}
@@ -111,7 +127,7 @@ func deleteShareSpaces(c *gin.Context, baseSpaceId uint64) {
 }
 
 func reCreateShareSpaces(c *gin.Context, user, baseSpaceId uint64) {
-	shareSpaces, err := service.Svc.ClusterUser().GetList(c, model.ClusterUserModel{BaseDevSpaceId: baseSpaceId})
+	shareSpaces, err := service.Svc.ClusterUserSvc.GetList(c, model.ClusterUserModel{BaseDevSpaceId: baseSpaceId})
 	if err != nil {
 		// can not find share space, do nothing
 		return
@@ -139,7 +155,7 @@ func reCreateShareSpaces(c *gin.Context, user, baseSpaceId uint64) {
 			MeshDevInfo:        meshDevInfo,
 		}
 
-		cluster, err := service.Svc.ClusterSvc().GetCache(clusterUser.ClusterId)
+		cluster, err := service.Svc.ClusterSvc.GetCache(clusterUser.ClusterId)
 		if err != nil {
 			log.Error(err)
 			return

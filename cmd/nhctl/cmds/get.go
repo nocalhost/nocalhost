@@ -13,12 +13,12 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	runtimejson "k8s.io/apimachinery/pkg/runtime/serializer/json"
+	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_handler/item"
 	"nocalhost/internal/nhctl/model"
 	"nocalhost/internal/nhctl/utils"
+	k8sutil "nocalhost/pkg/nhctl/k8sutils"
 	"nocalhost/pkg/nhctl/log"
 	"os"
 	"path/filepath"
@@ -76,27 +76,30 @@ nhctl get service serviceName [-n namespace] --kubeconfig=kubeconfigfile
 		}
 		if appName != "" {
 			go func() {
-				if err := initAppMutate(appName); err != nil {
-					log.Logf("error while init app: %s on namespace: %s, error: %v", appName, nameSpace, err)
+				if _, err := common.InitAppMutate(appName); err != nil {
+					log.Logf("error while init app: %s on namespace: %s, error: %v", appName, common.NameSpace, err)
 				}
 			}()
 		}
-		if kubeConfig == "" {
-			kubeConfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
+		if common.KubeConfig == "" {
+			common.KubeConfig = filepath.Join(utils.GetHomePath(), ".kube", "config")
 		}
-		if abs, err := filepath.Abs(kubeConfig); err == nil {
-			kubeConfig = abs
+		if abs, err := filepath.Abs(common.KubeConfig); err == nil {
+			common.KubeConfig = abs
 		}
-		if _, err := ioutil.ReadFile(kubeConfig); err != nil {
+		if _, err := ioutil.ReadFile(common.KubeConfig); err != nil {
 			log.FatalE(err, "")
 		}
 		cli, err := daemon_client.GetDaemonClient(utils.IsSudoUser())
 		if err != nil {
 			log.FatalE(err, "")
 		}
-		data, err := cli.SendGetResourceInfoCommand(kubeConfig, nameSpace, appName, resourceType, resourceName, label)
+		data, err := cli.SendGetResourceInfoCommand(
+			common.KubeConfig, common.NameSpace, appName, resourceType, resourceName, label, false,
+		)
 		if err != nil {
-			log.FatalE(err, "")
+			log.Error(err)
+			return
 		}
 		if data == nil {
 			return
@@ -110,7 +113,8 @@ nhctl get service serviceName [-n namespace] --kubeconfig=kubeconfigfile
 		default:
 			bytes, err := json.Marshal(data)
 			if err != nil {
-				log.Fatal(err)
+				log.Error(err)
+				return
 			}
 			switch resourceType {
 			case "all":
@@ -182,9 +186,9 @@ func printResult(results []item.Result) {
 		for _, app := range r.Application {
 			for _, group := range app.Groups {
 				for _, list := range group.List {
-					for _, item := range list.List {
-						_, name, err2 := getNamespaceAndName(item.Metadata)
-						if err2 == nil {
+					for _, omItem := range list.List {
+						_, name, err := k8sutil.GetNamespaceAndNameFromObjectMeta(omItem.Metadata)
+						if err == nil {
 							needsToComplete = false
 							row := []string{r.Namespace, app.Name, group.GroupName, list.Name + "/" + name}
 							rows = append(rows, row)
@@ -203,7 +207,7 @@ func printResult(results []item.Result) {
 func printItem(items []item.Item) {
 	var rows [][]string
 	for _, i := range items {
-		if namespace, name, err2 := getNamespaceAndName(i.Metadata); err2 == nil {
+		if namespace, name, err2 := k8sutil.GetNamespaceAndNameFromObjectMeta(i.Metadata); err2 == nil {
 			rows = append(rows, []string{namespace, name})
 		}
 	}
@@ -213,27 +217,9 @@ func printItem(items []item.Item) {
 func printMeta(metas []*model.Namespace) {
 	var rows [][]string
 	for _, e := range metas {
-		for _, info := range e.Application {
-			rows = append(rows, []string{e.Namespace, info.Name, info.Type})
+		for _, appInfo := range e.Application {
+			rows = append(rows, []string{e.Namespace, appInfo.Name, appInfo.Type})
 		}
 	}
 	write([]string{"namespace", "name", "type"}, rows)
-}
-
-func getNamespaceAndName(obj interface{}) (namespace, name string, errs error) {
-	var caseSensitiveJsonIterator = runtimejson.CaseSensitiveJSONIterator()
-	marshal, errs := caseSensitiveJsonIterator.Marshal(obj)
-	if errs != nil {
-		return
-	}
-	v := &metadataOnlyObject{}
-	if errs = caseSensitiveJsonIterator.Unmarshal(marshal, v); errs != nil {
-		return
-	}
-	return v.Namespace, v.Name, nil
-}
-
-type metadataOnlyObject struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
 }

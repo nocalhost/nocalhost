@@ -20,7 +20,6 @@ import (
 	"nocalhost/internal/nhctl/nocalhost"
 	nocalhostDb "nocalhost/internal/nhctl/nocalhost/db"
 	"nocalhost/internal/nhctl/profile"
-	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"nocalhost/pkg/nhctl/log"
 	customyaml3 "nocalhost/pkg/nhctl/utils/custom_yaml_v3"
@@ -60,7 +59,7 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 		return nil, errors.New(fmt.Sprintf("Application %s - namespace %s is installing", name, namespace))
 	}
 
-	if err = appMeta.Initial(); err != nil {
+	if err = appMeta.Initial(true); err != nil {
 		if k8serrors.IsAlreadyExists(err) {
 			log.Logf("Application %s in %s has been installed", app.Name, app.NameSpace)
 		}
@@ -69,15 +68,12 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 	app.appMeta = appMeta
 	appMeta.ApplicationType = appmeta.AppType(flags.AppType)
 
-	//if err = appMeta.GenerateNidINE(); err != nil {
-	//	return nil, err
-	//}
-
 	if err = app.initDir(); err != nil {
 		return nil, err
 	}
 
 	app.ResourceTmpDir, _ = ioutil.TempDir("", "")
+	app.shouldClean = true
 	if err = os.MkdirAll(app.ResourceTmpDir, DefaultNewFilePermission); err != nil {
 		return nil, errors.New("Fail to create tmp dir for install")
 	}
@@ -94,23 +90,9 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 		if err = downloadResourcesFromGit(flags.GitUrl, flags.GitRef, app.ResourceTmpDir); err != nil {
 			return nil, err
 		}
-	} else if flags.LocalPath != "" { // local path of application, copy to nocalhost resource
-
-		if err = utils.CopyDir(
-			filepath.Join(flags.LocalPath, ".nocalhost"),
-			filepath.Join(app.ResourceTmpDir, ".nocalhost"),
-		); err != nil {
-			return nil, err
-		}
-
-		for _, needToCopy := range flags.ResourcePath {
-			if err = utils.CopyDir(
-				filepath.Join(flags.LocalPath, needToCopy),
-				filepath.Join(app.ResourceTmpDir, needToCopy),
-			); err != nil {
-				return nil, err
-			}
-		}
+	} else if flags.LocalPath != "" {
+		app.ResourceTmpDir = flags.LocalPath
+		app.shouldClean = false
 	}
 
 	// load nocalhost config from dir
@@ -142,7 +124,6 @@ func BuildApplication(name string, flags *app_flags.InstallFlags, kubeconfig str
 
 	app.Identifier = appProfileV2.Identifier
 	app.AppType = appProfileV2.AppType
-
 	return app, nocalhost.UpdateProfileV2(app.NameSpace, app.Name, app.appMeta.NamespaceId, appProfileV2)
 }
 

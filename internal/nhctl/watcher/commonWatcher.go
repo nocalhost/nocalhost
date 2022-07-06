@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package watcher
 
@@ -38,32 +38,31 @@ func NewController(watcher Watcher, lw cache.ListerWatcher, objType rt.Object) *
 	// whenever the cache is updated, the secret key is added to the workqueue.
 	// Note that when we finally process the item from the workqueue, we might see a newer version
 	// of the Secret than the version which was responsible for triggering the update.
-	indexer, informer := cache.NewIndexerInformer(
-		lw, objType, 0, cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
-				key, err := cache.MetaNamespaceKeyFunc(obj)
-				if err == nil {
-					queue.Add(key)
-				}
-			},
-			UpdateFunc: func(old interface{}, new interface{}) {
-				key, err := cache.MetaNamespaceKeyFunc(new)
-				if err == nil {
-					queue.Add(key)
-				}
-			},
-			DeleteFunc: func(obj interface{}) {
-				// IndexerInformer uses a delta queue, therefore for deletes we have to use this
-				// key function.
-				key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
-				if err == nil {
-					queue.Add(key)
-				}
-			},
-		}, cache.Indexers{},
-	)
+	informer := cache.NewSharedIndexInformer(lw, objType, 0, cache.Indexers{})
+	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			key, err := cache.MetaNamespaceKeyFunc(obj)
+			if err == nil {
+				queue.Add(key)
+			}
+		},
+		UpdateFunc: func(old interface{}, new interface{}) {
+			key, err := cache.MetaNamespaceKeyFunc(new)
+			if err == nil {
+				queue.Add(key)
+			}
+		},
+		DeleteFunc: func(obj interface{}) {
+			// IndexerInformer uses a delta queue, therefore for deletes we have to use this
+			// key function.
+			key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
+			if err == nil {
+				queue.Add(key)
+			}
+		},
+	})
 
-	return newController(queue, indexer, informer, watcher)
+	return newController(queue, informer.GetIndexer(), informer, watcher)
 }
 
 func newController(
@@ -134,7 +133,7 @@ func (c *Controller) handleErr(err error, key interface{}) {
 	c.queue.Forget(key)
 	// Report to an external entity that, even after several retries, we could not successfully process this key
 	runtime.HandleError(err)
-	log.Errorf("Dropping resolving %q %s out of the queue: %v", key, err)
+	log.Errorf("Dropping resolving %q %s out of the queue: %v", c.queue.NumRequeues(key), key, err)
 }
 
 // Run begins watching and syncing.
@@ -158,7 +157,7 @@ func (c *Controller) Run(threadiness int, stopCh chan struct{}) {
 	}
 
 	<-stopCh
-	log.Info("Stop Watcher %s...", c.watcher.WatcherInfo())
+	log.Infof("Stop Watcher %s...", c.watcher.WatcherInfo())
 }
 
 func (c *Controller) runWorker() {

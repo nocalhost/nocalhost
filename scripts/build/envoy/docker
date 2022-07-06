@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -eu -o pipefail
+
+DOCKERFILE="deployments/nocalhost-envoy/Dockerfile"
+TARGET="nocalhost-envoy"
+
+docker build -t nocalhost-docker.pkg.coding.net/nocalhost/public/${TARGET}:v1 -f ${DOCKERFILE} deployments/nocalhost-envoy

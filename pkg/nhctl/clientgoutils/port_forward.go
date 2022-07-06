@@ -28,11 +28,19 @@ type PortForwardFlags struct {
 	ReadyChannel  chan struct{}
 }
 
-type clientgoPortForwarder struct {
+type ClientgoPortForwarder struct {
 	genericclioptions.IOStreams
+	pw *PortForwarder
 }
 
-func (f *clientgoPortForwarder) ForwardPorts(method string, url *url.URL, opts portforward.PortForwardOptions) error {
+func (f ClientgoPortForwarder) GetPorts() ([]ForwardedPort, error) {
+	if f.pw != nil {
+		return f.pw.GetPorts()
+	}
+	return nil, errors.New("port is nil")
+}
+
+func (f *ClientgoPortForwarder) ForwardPorts(method string, url *url.URL, opts portforward.PortForwardOptions) error {
 	transport, upgrader, err := spdy.RoundTripperFor(opts.Config)
 	if err != nil {
 		return err
@@ -42,43 +50,28 @@ func (f *clientgoPortForwarder) ForwardPorts(method string, url *url.URL, opts p
 	if err != nil {
 		return err
 	}
+	f.pw = fw
 	return fw.ForwardPorts()
 }
 
 func (c *ClientGoUtils) ForwardPortForwardByPod(pod string, localPort, remotePort int, readyChan, stopChan chan struct{}, g genericclioptions.IOStreams) error {
-	return c.PortForward(&PortForwardFlags{
-		ResourcesName: fmt.Sprintf("pod/%s", pod),
-		ForwardPort:   fmt.Sprintf("%d:%d", localPort, remotePort),
-		ReadyChannel:  readyChan,
-		Streams:       g,
-		StopChannel:   stopChan,
+	client, err := c.NewFactory().RESTClient()
+	if err != nil {
+		return err
+	}
+	req := client.Post().
+		Resource("pods").
+		Namespace(c.namespace).
+		Name(pod).
+		SubResource("portforward")
+	forwarder := &ClientgoPortForwarder{IOStreams: g}
+	return forwarder.ForwardPorts("POST", req.URL(), portforward.PortForwardOptions{
+		Config:       c.restConfig,
+		Address:      []string{"0.0.0.0"},
+		Ports:        []string{fmt.Sprintf("%d:%d", localPort, remotePort)},
+		StopChannel:  stopChan,
+		ReadyChannel: readyChan,
 	})
-}
-
-func (c *ClientGoUtils) PortForward(af *PortForwardFlags) error {
-
-	var err error
-	o := &portforward.PortForwardOptions{
-		PortForwarder: &clientgoPortForwarder{
-			IOStreams: af.Streams,
-		},
-	}
-	f := c.NewFactory()
-	pfCmd := portforward.NewCmdPortForward(f, af.Streams)
-	if err = o.Complete(f, pfCmd, []string{af.ResourcesName, af.ForwardPort}); err != nil {
-		return errors.Wrap(err, "")
-	}
-	if af.StopChannel != nil {
-		o.StopChannel = af.StopChannel
-	}
-	if af.ReadyChannel != nil {
-		o.ReadyChannel = af.ReadyChannel
-	}
-	o.Address = []string{"0.0.0.0"}
-	if err = o.Validate(); err != nil {
-		return errors.Wrap(err, "")
-	}
-	return errors.Wrap(o.RunPortForward(), "")
 }
 
 func (c *ClientGoUtils) Forward(pod string, localPort, remotePort int, readyChan, stopChan chan struct{}, g genericclioptions.IOStreams) error {

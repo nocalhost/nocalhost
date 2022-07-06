@@ -14,47 +14,16 @@ import (
 	"nocalhost/internal/nocalhost-api/repository/cluster_user"
 )
 
-type ClusterUserService interface {
-	Create(
-		ctx context.Context, clusterId, userId, memory, cpu uint64, kubeConfig, devNameSpace, spaceName string,
-		spaceResourceLimit string, isBaseName bool,
-	) (model.ClusterUserModel, error)
-	CreateClusterAdminSpace(ctx context.Context, clusterId, userId uint64, spaceName string) (
-		model.ClusterUserModel, error,
-	)
-	Delete(ctx context.Context, id uint64) error
-	BatchDelete(ctx context.Context, ids []uint64) error
-	GetFirst(ctx context.Context, models model.ClusterUserModel) (*model.ClusterUserModel, error)
-	GetList(ctx context.Context, models model.ClusterUserModel) ([]*model.ClusterUserModel, error)
-	GetJoinCluster(ctx context.Context, condition model.ClusterUserJoinCluster) ([]*model.ClusterUserJoinCluster, error)
-	Update(ctx context.Context, models *model.ClusterUserModel) (*model.ClusterUserModel, error)
-	UpdateKubeConfig(ctx context.Context, models *model.ClusterUserModel) (*model.ClusterUserModel, error)
-	GetJoinClusterAndAppAndUser(
-		ctx context.Context, condition model.ClusterUserJoinClusterAndAppAndUser,
-	) ([]*model.ClusterUserJoinClusterAndAppAndUser, error)
-	GetJoinClusterAndAppAndUserDetail(
-		ctx context.Context, condition model.ClusterUserJoinClusterAndAppAndUser,
-	) (*model.ClusterUserJoinClusterAndAppAndUser, error)
-	ListByUser(ctx context.Context, userId uint64) ([]*model.ClusterUserPluginModel, error)
-	Close()
-
-	// v2
-	ListV2(models model.ClusterUserModel) ([]*model.ClusterUserV2, error)
-	GetCache(id uint64) (model.ClusterUserModel, error)
-	GetCacheByClusterAndNameSpace(clusterId uint64, namespace string) (model.ClusterUserModel, error)
-	//GetAllCache() []model.ClusterUserModel
+type ClusterUser struct {
+	clusterUserRepo *cluster_user.ClusterUserRepoBase
 }
 
-type clusterUserService struct {
-	clusterUserRepo cluster_user.ClusterUserRepo
-}
-
-func NewClusterUserService() ClusterUserService {
+func NewClusterUserService() *ClusterUser {
 	db := model.GetDB()
-	return &clusterUserService{clusterUserRepo: cluster_user.NewApplicationClusterRepo(db)}
+	return &ClusterUser{clusterUserRepo: cluster_user.NewApplicationClusterRepo(db)}
 }
 
-func (srv *clusterUserService) Evict(id uint64) {
+func (srv *ClusterUser) Evict(id uint64) {
 	c := cache.Module(cache.CLUSTER_USER)
 	value, err := c.Value(id)
 	if err == nil {
@@ -65,7 +34,7 @@ func (srv *clusterUserService) Evict(id uint64) {
 	_, _ = c.Delete("*")
 }
 
-func (srv *clusterUserService) GetAllCache() []model.ClusterUserModel {
+func (srv *ClusterUser) GetAllCache() []model.ClusterUserModel {
 	c := cache.Module(cache.CLUSTER_USER)
 	value, err := c.Value("*")
 
@@ -92,7 +61,7 @@ func (srv *clusterUserService) GetAllCache() []model.ClusterUserModel {
 	return resultList
 }
 
-func (srv *clusterUserService) GetCache(id uint64) (
+func (srv *ClusterUser) GetCache(id uint64) (
 	model.ClusterUserModel, error,
 ) {
 	c := cache.Module(cache.CLUSTER_USER)
@@ -114,7 +83,7 @@ func (srv *clusterUserService) GetCache(id uint64) (
 	return *result, nil
 }
 
-func (srv *clusterUserService) GetCacheByClusterAndNameSpace(clusterId uint64, namespace string) (
+func (srv *ClusterUser) GetCacheByClusterAndNameSpace(clusterId uint64, namespace string) (
 	model.ClusterUserModel, error,
 ) {
 	c := cache.Module(cache.CLUSTER_USER)
@@ -140,7 +109,7 @@ func keyForClusterAndNameSpace(clusterId uint64, namespace string) string {
 	return fmt.Sprintf("A:%v-%v", clusterId, namespace)
 }
 
-func (srv *clusterUserService) ListV2(models model.ClusterUserModel) (
+func (srv *ClusterUser) ListV2(models model.ClusterUserModel) (
 	[]*model.ClusterUserV2, error,
 ) {
 
@@ -168,19 +137,19 @@ func (srv *clusterUserService) ListV2(models model.ClusterUserModel) (
 	return result, nil
 }
 
-func (srv *clusterUserService) UpdateKubeConfig(
+func (srv *ClusterUser) UpdateKubeConfig(
 	ctx context.Context, models *model.ClusterUserModel,
 ) (*model.ClusterUserModel, error) {
 	return srv.clusterUserRepo.UpdateKubeConfig(models)
 }
 
-func (srv *clusterUserService) GetJoinCluster(
+func (srv *ClusterUser) GetJoinCluster(
 	ctx context.Context, condition model.ClusterUserJoinCluster,
 ) ([]*model.ClusterUserJoinCluster, error) {
 	return srv.clusterUserRepo.GetJoinCluster(condition)
 }
 
-func (srv *clusterUserService) BatchDelete(ctx context.Context, ids []uint64) error {
+func (srv *ClusterUser) BatchDelete(ctx context.Context, ids []uint64) error {
 	defer func() {
 		for _, id := range ids {
 			srv.Evict(id)
@@ -189,12 +158,12 @@ func (srv *clusterUserService) BatchDelete(ctx context.Context, ids []uint64) er
 	return srv.clusterUserRepo.BatchDelete(ids)
 }
 
-func (srv *clusterUserService) Delete(ctx context.Context, id uint64) error {
+func (srv *ClusterUser) Delete(ctx context.Context, id uint64) error {
 	defer srv.Evict(id)
 	return srv.clusterUserRepo.Delete(id)
 }
 
-func (srv *clusterUserService) Update(ctx context.Context, models *model.ClusterUserModel) (
+func (srv *ClusterUser) Update(ctx context.Context, models *model.ClusterUserModel) (
 	*model.ClusterUserModel, error,
 ) {
 	result, err := srv.clusterUserRepo.Update(models)
@@ -206,7 +175,7 @@ func (srv *clusterUserService) Update(ctx context.Context, models *model.Cluster
 	return models, nil
 }
 
-func (srv *clusterUserService) GetList(ctx context.Context, models model.ClusterUserModel) (
+func (srv *ClusterUser) GetList(ctx context.Context, models model.ClusterUserModel) (
 	[]*model.ClusterUserModel, error,
 ) {
 
@@ -217,7 +186,7 @@ func (srv *clusterUserService) GetList(ctx context.Context, models model.Cluster
 	return result, nil
 }
 
-func (srv *clusterUserService) GetFirst(ctx context.Context, models model.ClusterUserModel) (
+func (srv *ClusterUser) GetFirst(ctx context.Context, models model.ClusterUserModel) (
 	*model.ClusterUserModel, error,
 ) {
 	result, err := srv.clusterUserRepo.GetFirst(models)
@@ -227,9 +196,9 @@ func (srv *clusterUserService) GetFirst(ctx context.Context, models model.Cluste
 	return result, nil
 }
 
-func (srv *clusterUserService) Create(
+func (srv *ClusterUser) Create(
 	ctx context.Context, clusterId, userId, memory, cpu uint64, kubeConfig, devNameSpace, spaceName string,
-	spaceResourceLimit string, isBaseName bool,
+	spaceResourceLimit string, isBaseName bool, protected bool,
 ) (model.ClusterUserModel, error) {
 	c := model.ClusterUserModel{
 
@@ -242,6 +211,7 @@ func (srv *clusterUserService) Create(
 		SpaceName:          spaceName,
 		SpaceResourceLimit: spaceResourceLimit,
 		IsBaseSpace:        isBaseName,
+		Protected:          protected,
 	}
 	result, err := srv.clusterUserRepo.Create(c)
 	if err != nil {
@@ -251,7 +221,7 @@ func (srv *clusterUserService) Create(
 	return result, nil
 }
 
-func (srv *clusterUserService) CreateClusterAdminSpace(
+func (srv *ClusterUser) CreateClusterAdminSpace(
 	ctx context.Context, clusterId, userId uint64, spaceName string,
 ) (model.ClusterUserModel, error) {
 	trueFlag := uint64(1)
@@ -271,22 +241,22 @@ func (srv *clusterUserService) CreateClusterAdminSpace(
 	return result, nil
 }
 
-func (srv *clusterUserService) GetJoinClusterAndAppAndUser(
+func (srv *ClusterUser) GetJoinClusterAndAppAndUser(
 	ctx context.Context, condition model.ClusterUserJoinClusterAndAppAndUser,
 ) ([]*model.ClusterUserJoinClusterAndAppAndUser, error) {
 	return srv.clusterUserRepo.GetJoinClusterAndAppAndUser(condition)
 }
 
-func (srv *clusterUserService) GetJoinClusterAndAppAndUserDetail(
+func (srv *ClusterUser) GetJoinClusterAndAppAndUserDetail(
 	ctx context.Context, condition model.ClusterUserJoinClusterAndAppAndUser,
 ) (*model.ClusterUserJoinClusterAndAppAndUser, error) {
 	return srv.clusterUserRepo.GetJoinClusterAndAppAndUserDetail(condition)
 }
 
-func (srv *clusterUserService) ListByUser(ctx context.Context, userId uint64) ([]*model.ClusterUserPluginModel, error) {
+func (srv *ClusterUser) ListByUser(ctx context.Context, userId uint64) ([]*model.ClusterUserPluginModel, error) {
 	return srv.clusterUserRepo.ListByUser(userId)
 }
 
-func (srv *clusterUserService) Close() {
+func (srv *ClusterUser) Close() {
 	srv.clusterUserRepo.Close()
 }

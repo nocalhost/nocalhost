@@ -14,14 +14,23 @@ import (
 	"golang.org/x/text/transform"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
-	"nocalhost/internal/nhctl/controller"
+	"nocalhost/cmd/nhctl/cmds/common"
+	"nocalhost/internal/nhctl/common/base"
+	"nocalhost/internal/nhctl/config_validate"
 	"nocalhost/internal/nhctl/fp"
+	"nocalhost/internal/nhctl/nocalhost"
 	"nocalhost/internal/nhctl/profile"
 	"os"
 	"strings"
 
 	"nocalhost/pkg/nhctl/log"
 )
+
+type CommonFlags struct {
+	SvcName   string
+	AppName   string
+	AppConfig bool
+}
 
 type ConfigEditFlags struct {
 	CommonFlags
@@ -31,6 +40,7 @@ type ConfigEditFlags struct {
 }
 
 var configEditFlags = ConfigEditFlags{}
+var commonFlags = CommonFlags{}
 
 func init() {
 	configEditCmd.Flags().StringVarP(
@@ -38,7 +48,7 @@ func init() {
 		"k8s deployment which your developing service exists",
 	)
 	configEditCmd.Flags().StringVarP(
-		&serviceType, "controller-type", "t", "deployment",
+		&common.ServiceType, "controller-type", "t", "deployment",
 		"kind of k8s controller,such as deployment,statefulSet",
 	)
 	configEditCmd.Flags().StringVarP(
@@ -66,7 +76,8 @@ var configEditCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		configEditFlags.AppName = args[0]
 
-		initApp(configEditFlags.AppName)
+		nocalhostApp, err := common.InitApp(configEditFlags.AppName)
+		must(err)
 
 		if len(configEditFlags.Content) == 0 && len(configEditFlags.file) == 0 {
 			log.Fatal("one of --content or --filename is required")
@@ -115,24 +126,24 @@ var configEditCmd = &cobra.Command{
 		}
 
 		svcConfig := &profile.ServiceConfigV2{}
-		checkIfSvcExist(configEditFlags.SvcName, serviceType)
+		nocalhostSvc, err := nocalhostApp.InitAndCheckIfSvcExist(configEditFlags.SvcName, common.ServiceType)
+		must(err)
 
 		if err := unmashaler(svcConfig); err != nil {
 			log.Fatal(err)
 		}
 
 		containers, _ := nocalhostSvc.GetOriginalContainers()
-		nocalhostApp.PrepareForConfigurationValidate(containers)
-		if err := svcConfig.Validate(); err != nil {
+		config_validate.PrepareForConfigurationValidate(nocalhostApp.GetClient(), containers)
+		if err := config_validate.Validate(svcConfig); err != nil {
 			log.Fatal(err)
 		}
 
 		ot := svcConfig.Type
 		svcConfig.Type = strings.ToLower(svcConfig.Type)
-		if !controller.CheckIfControllerTypeSupport(svcConfig.Type) {
+		if !nocalhost.CheckIfResourceTypeIsSupported(base.SvcType(svcConfig.Type)) {
 			must(errors.New(fmt.Sprintf("Service Type %s is unsupported", ot)))
 		}
 		must(nocalhostSvc.UpdateConfig(*svcConfig))
-		//must(nocalhostSvc.SaveConfigToProfile(svcConfig))
 	},
 }

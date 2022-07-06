@@ -12,6 +12,7 @@ import (
 	"nocalhost/test/runner"
 	"nocalhost/test/suite"
 	"nocalhost/test/testcase"
+	"nocalhost/test/util"
 	"os"
 	"path/filepath"
 	"sync"
@@ -19,18 +20,16 @@ import (
 )
 
 func main() {
-	//_ = os.Setenv("LocalTest", "true")
 	_ = os.Setenv(_const.EnableFullLogEnvKey, "true")
-
 	start := time.Now()
-
 	var t *suite.T
 
 	if _, ok := os.LookupEnv("LocalTest"); ok {
 		// For local test
+		_ = os.Setenv(util.CommitId, "test")
 		t = suite.NewT("nocalhost", filepath.Join(utils.GetHomePath(), ".kube", "config"), nil)
-		_ = os.Setenv("commit_id", "test")
 	} else {
+		//_ = os.Setenv(util.CommitId, "test")
 		cancelFunc, ns, kubeconfig := suite.Prepare()
 		t = suite.NewT(ns, kubeconfig, cancelFunc)
 	}
@@ -63,13 +62,13 @@ func main() {
 		t.Run("Deployment Duplicate", suite.DeploymentDuplicate)
 	})
 
-	DoRun(false, &wg, func() {
-		t.Run("Deployment Duplicate and Duplicate", testcase.DeploymentDuplicateAndDuplicate)
-	})
-
-	DoRun(false, &wg, func() {
-		t.Run("Deployment Replace and Duplicate", testcase.DeploymentReplaceAndDuplicate)
-	})
+	//DoRun(false, &wg, func() {
+	//	t.Run("Deployment Duplicate and Duplicate", testcase.DeploymentDuplicateAndDuplicate)
+	//})
+	//
+	//DoRun(false, &wg, func() {
+	//	t.Run("Deployment Replace and Duplicate", testcase.DeploymentReplaceAndDuplicate)
+	//})
 
 	DoRun(false, &wg, func() {
 		t.Run("Application", suite.Upgrade)
@@ -83,20 +82,16 @@ func main() {
 		t.Run("StatefulSet", suite.StatefulSet)
 	})
 
-	DoRun(false, &wg, func() {
-		t.Run("StatefulSet Duplicate and Duplicate", testcase.StatefulsetDuplicateAndDuplicate)
-	})
-
-	DoRun(false, &wg, func() {
-		t.Run("StatefulSet Replicate and Duplicate", testcase.StatefulsetReplaceAndDuplicate)
-	})
+	//DoRun(false, &wg, func() {
+	//	t.Run("StatefulSet Duplicate and Duplicate", testcase.StatefulsetDuplicateAndDuplicate)
+	//})
+	//
+	//DoRun(false, &wg, func() {
+	//	t.Run("StatefulSet Replicate and Duplicate", testcase.StatefulsetReplaceAndDuplicate)
+	//})
 
 	DoRun(false, &wg, func() {
 		t.Run("StatefulSet Duplicate", suite.StatefulSetDuplicate)
-	})
-
-	DoRun(false, &wg, func() {
-		t.Run("RemoveSyncthingPidFile", suite.RemoveSyncthingPid)
 	})
 
 	DoRun(false, &wg, func() {

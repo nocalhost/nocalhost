@@ -30,4 +30,20 @@ type Resource struct {
 type Item struct {
 	Metadata    interface{}           `json:"info,omitempty" yaml:"info"`
 	Description *profile.SvcProfileV2 `json:"description,omitempty" yaml:"description"`
+	VPN         *VPNInfo              `json:"vpn,omitempty" yaml:"vpn"`
+}
+
+type VPNInfo struct {
+	Mode        string `json:"mode" yaml:"mode"`
+	Status      string `json:"status" yaml:"status"`
+	BelongsToMe bool   `json:"belongsToMe" yaml:"belongsToMe"`
+	IP          string `json:"ip" yaml:"ip"`
+}
+
+func IfTure(predicate bool, trueValue, falseValue string) string {
+	if predicate {
+		return trueValue
+	} else {
+		return falseValue
+	}
 }
