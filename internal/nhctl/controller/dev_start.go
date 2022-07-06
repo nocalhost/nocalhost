@@ -611,8 +611,8 @@ func (c *Controller) genContainersAndVolumes(podSpec *corev1.PodSpec,
 	devContainer.WorkingDir = workDir
 
 	// set image pull policy
-	sideCarContainer.ImagePullPolicy = _const.DefaultSidecarImagePullPolicy
-	devContainer.ImagePullPolicy = _const.DefaultSidecarImagePullPolicy
+	sideCarContainer.ImagePullPolicy = _const.DefaultImagePullPolicy
+	devContainer.ImagePullPolicy = _const.DefaultImagePullPolicy
 
 	// add env
 	devEnv := c.GetDevContainerEnv(containerName)
