@@ -650,7 +650,8 @@ func (c *Controller) genContainersAndVolumes(podSpec *corev1.PodSpec,
 		devImage = c.GetDevImage(containerName) // Default : replace the first container
 	}
 
-	sideCarContainer := generateSideCarContainer(c.GetDevSidecarImage(containerName), workDir, c.sidecarContainerSSHUsed(c.GetDevSidecarLanguage(containerName), devImage))
+	sideCarContainer := generateSideCarContainer(c.GetDevSidecarImage(containerName), workDir,
+		c.sidecarContainerSSHUsed(c.GetDevSidecarLanguage(containerName), devImage))
 
 	devContainer.Image = devImage
 	devContainer.Name = c.GetDevContainerName(containerName)
@@ -658,8 +659,9 @@ func (c *Controller) genContainersAndVolumes(podSpec *corev1.PodSpec,
 	devContainer.WorkingDir = workDir
 
 	// set image pull policy
-	sideCarContainer.ImagePullPolicy = _const.DefaultImagePullPolicy
-	devContainer.ImagePullPolicy = _const.DefaultImagePullPolicy
+	pullPolicy := c.GetImagePullPolicy(containerName)
+	sideCarContainer.ImagePullPolicy = pullPolicy
+	devContainer.ImagePullPolicy = pullPolicy
 
 	// add env
 	devEnv := c.GetDevContainerEnv(containerName)
