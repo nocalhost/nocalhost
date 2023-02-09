@@ -235,7 +235,14 @@ func (c *Controller) RollbackFromAnnotation(reset bool) error {
 		}
 	}
 
-	return c.Client.ApplyResourceInfo(originalWorkload[0], nil)
+	info, err := c.Client.GetResourceInfo(c.Type.String(), c.Name)
+	if err != nil {
+		return err
+	}
+
+	return clientgoutils.PatchDiff(info, originalWorkload[0])
+
+	//return c.Client.ApplyResourceInfo(originalWorkload[0], nil)
 }
 
 // GetUnstructuredMapByPath Path must be like: /spec/template
