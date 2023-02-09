@@ -27,7 +27,7 @@ func CreateApplicationLevelDBWithProfile(ns, app, nid, profileKey string, profil
 }
 
 func GetOrCreatePortForwardLevelDBFunc(readOnly bool, fun func(*dbutils.LevelDBUtils)) error {
-	path := filepath.Join(nocalhost_path.GetNhctlHomeDir(), nocalhost_path.DefaultNhctlPortForward)
+	path := filepath.Join(nocalhost_path.NhctlHome, nocalhost_path.DefaultNhctlPortForward)
 	_ = dbutils.CreateLevelDB(path, true)
 	db, err := dbutils.OpenLevelDB(path, readOnly)
 	if err != nil {
@@ -41,10 +41,4 @@ func GetOrCreatePortForwardLevelDBFunc(readOnly bool, fun func(*dbutils.LevelDBU
 
 	fun(db)
 	return nil
-}
-
-func GetOrCreatePortForwardLevelDB(readOnly bool) (*dbutils.LevelDBUtils, error) {
-	path := filepath.Join(nocalhost_path.GetNhctlHomeDir(), nocalhost_path.DefaultNhctlPortForward)
-	_ = dbutils.CreateLevelDB(path, true)
-	return dbutils.OpenLevelDB(path, readOnly)
 }

@@ -11,43 +11,32 @@ import (
 )
 
 const (
-	DefaultApplicationDbDir          = "db"
-	DefaultNhctlHomeDirName          = ".nh/nhctl"
-	DefaultNocalhostHubDirName       = "nocalhost-hub"
-	DefaultNhctlNameSpaceDirName     = "ns"
-	DefaultNhctlDevDirMappingDir     = "devmode/db"
-	DefaultNhctlTestDevDirMappingDir = "testdevmode/db"
-	DefaultNhctlKubeconfigDir        = "kubeconfig"
-	DefaultNhctlPortForward          = "portforward"
+	DefaultApplicationDbDir   = "db"
+	DefaultNhctlHomeDirName   = ".nh/nhctl"
+	DefaultNhctlKubeconfigDir = "kubeconfig"
+	DefaultNhctlPortForward   = "portforward"
 )
 
-func GetNhctlHomeDir() string {
-	return filepath.Join(utils.GetHomePath(), DefaultNhctlHomeDirName)
-}
-
-// .nh/nhctl/ns
-func GetNhctlNameSpaceBaseDir() string {
-	return filepath.Join(GetNhctlHomeDir(), DefaultNhctlNameSpaceDirName)
-}
-
-func GetNocalhostDevDirMapping() string {
-	return filepath.Join(GetNhctlHomeDir(), DefaultNhctlDevDirMappingDir)
-}
-
-func GetTestNocalhostDevDirMapping() string {
-	return filepath.Join(GetNhctlHomeDir(), DefaultNhctlTestDevDirMappingDir)
-}
+var (
+	NhctlHome              = filepath.Join(utils.GetHomePath(), DefaultNhctlHomeDirName) // ~/.nh/nhctl
+	NhctlNsDir             = filepath.Join(NhctlHome, "ns")                              // ~/.nh/nhctl/ns
+	NhctlDevDirMapping     = filepath.Join(NhctlHome, "devmode/db")                      //  ~/.nh/nhctl/devmode/db
+	NhctlTestDevDirMapping = filepath.Join(NhctlHome, "testdevmode/db")
+	NhctlHubDir            = filepath.Join(NhctlHome, "nocalhost-hub")
+	NhctlIncubatorHubDir   = filepath.Join(NhctlHubDir, "incubator")
+	NhctlStableHubDir      = filepath.Join(NhctlHubDir, "stable")
+)
 
 func GetNidDir(namespace, nid string) string {
-	return filepath.Join(GetNhctlNameSpaceBaseDir(), namespace, nid)
+	return filepath.Join(NhctlNsDir, namespace, nid)
 }
 
 func GetAppDirUnderNs(appName, namespace, nid string) string {
-	return filepath.Join(GetNhctlNameSpaceBaseDir(), namespace, nid, appName)
+	return filepath.Join(NhctlNsDir, namespace, nid, appName)
 }
 
 func GetAppDirUnderNsWithoutNid(appName string, namespace string) string {
-	return filepath.Join(GetNhctlNameSpaceBaseDir(), namespace, appName)
+	return filepath.Join(NhctlNsDir, namespace, appName)
 }
 
 func GetAppDbDir(ns, app, nid string) string {
@@ -57,22 +46,6 @@ func GetAppDbDir(ns, app, nid string) string {
 	return filepath.Join(GetAppDirUnderNsWithoutNid(app, ns), DefaultApplicationDbDir)
 }
 
-func GetAppDbDirWithoutNid(ns, app string) string {
-	return filepath.Join(GetAppDirUnderNsWithoutNid(app, ns), DefaultApplicationDbDir)
-}
-
 func GetNhctlKubeconfigDir(name string) string {
-	return filepath.Join(GetNhctlHomeDir(), DefaultNhctlKubeconfigDir, name)
-}
-
-func GetNocalhostHubDir() string {
-	return filepath.Join(GetNhctlHomeDir(), DefaultNocalhostHubDirName)
-}
-
-func GetNocalhostIncubatorHubDir() string {
-	return filepath.Join(GetNocalhostHubDir(), "incubator")
-}
-
-func GetNocalhostStableHubDir() string {
-	return filepath.Join(GetNocalhostHubDir(), "stable")
+	return filepath.Join(NhctlHome, DefaultNhctlKubeconfigDir, name)
 }

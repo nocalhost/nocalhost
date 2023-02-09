@@ -59,7 +59,7 @@ func init() {
 		{Group: "", Version: "v1", Kind: "Pod"},
 	}
 
-	bys, err := ioutil.ReadFile(filepath.Join(nocalhost_path.GetNhctlHomeDir(), "config"))
+	bys, err := ioutil.ReadFile(filepath.Join(nocalhost_path.NhctlHome, "config"))
 	if err == nil && len(bys) > 0 {
 		configFile := base.ConfigFile{}
 		if err = yaml.Unmarshal(bys, &configFile); err != nil {

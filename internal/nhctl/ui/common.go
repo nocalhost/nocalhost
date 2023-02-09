@@ -24,7 +24,7 @@ var (
 	focusBorderColor      = tcell.ColorNavy
 	backgroundColor       = tcell.Color(4294967528)
 	textViewColor         = tcell.Color(4294967480)
-	cliProfileDir         = filepath.Join(nocalhost_path.GetNhctlHomeDir(), "cli")
+	cliProfileDir         = filepath.Join(nocalhost_path.NhctlHome, "cli")
 	cliProfileName        = filepath.Join(cliProfileDir, ".nocalhost_cli")
 )
 

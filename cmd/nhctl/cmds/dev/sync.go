@@ -63,7 +63,7 @@ func (d *DevStartOps) StartSyncthing(podName string, resume bool, stop bool, syn
 	// Start a pf for syncthing
 	must(d.NocalhostSvc.PortForward(podName, svcProfile.RemoteSyncthingPort, svcProfile.RemoteSyncthingPort, "SYNC"))
 
-	str := strings.ReplaceAll(d.NocalhostSvc.GetSyncDir(), nocalhost_path.GetNhctlHomeDir(), "")
+	str := strings.ReplaceAll(d.NocalhostSvc.GetSyncDir(), nocalhost_path.NhctlHome, "")
 
 	utils2.KillSyncthingProcess(str)
 
