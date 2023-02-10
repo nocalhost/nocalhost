@@ -9,12 +9,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/olivere/elastic/v7"
-	"github.com/pkg/errors"
 	"net"
 	"os"
 	"runtime"
 	"time"
+
+	"github.com/olivere/elastic/v7"
+	"github.com/pkg/errors"
 )
 
 type esLog struct {
@@ -160,7 +161,7 @@ func InitEs(host string) {
 		FlushInterval(10 * time.Second).
 		Do(ctx)
 	if err != nil {
-		fmt.Println("proccessor created failed", err.Error())
+		fmt.Println("processor created failed", err.Error())
 	}
 }
 
