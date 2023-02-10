@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package middleware
 
@@ -50,7 +50,7 @@ func Logging() gin.HandlerFunc {
 		// Restore the io.ReadCloser to its original state
 		c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 
-		// The basic informations.
+		// The basic information.
 		method := c.Request.Method
 		ip := c.ClientIP()
 

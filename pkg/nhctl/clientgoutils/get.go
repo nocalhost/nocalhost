@@ -7,6 +7,7 @@ package clientgoutils
 
 import (
 	"fmt"
+
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
@@ -35,7 +36,7 @@ func (c *ClientGoUtils) GetResourceInfo(resourceType string, resourceName string
 	}
 
 	if len(infos) > 1 {
-		return nil, errors.New(fmt.Sprintf("ResouceInfo is not 1(but %d)?", len(infos)))
+		return nil, errors.New(fmt.Sprintf("ResourceInfo is not 1(but %d)?", len(infos)))
 	}
 	return infos[0], nil
 }
