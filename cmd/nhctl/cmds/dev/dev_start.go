@@ -8,9 +8,13 @@ package dev
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+
 	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/coloredoutput"
@@ -26,8 +30,6 @@ import (
 	"nocalhost/internal/nhctl/utils"
 	"nocalhost/pkg/nhctl/log"
 	utils2 "nocalhost/pkg/nhctl/utils"
-	"strconv"
-	"strings"
 )
 
 var (
@@ -121,10 +123,8 @@ func (d *DevStartOps) StartDevMode(applicationName string) error {
 		return errors.New(fmt.Sprintf("Unsupported DevModeType %s", dt))
 	}
 
-	if len(d.LocalSyncDir) > 1 {
-		log.Fatal("Can not define multi 'local-sync(-s)'")
-	} else if len(d.LocalSyncDir) == 0 {
-		log.Fatal("'local-sync(-s)' must be specified")
+	if len(d.LocalSyncDir) != 1 {
+		log.Fatal("'local-sync(-s)' must be specified one item")
 	}
 
 	nocalhostApp, nocalhostSvc, err := common.InitAppAndCheckIfSvcExist(applicationName, common.WorkloadName, common.ServiceType)
@@ -247,25 +247,9 @@ func (d *DevStartOps) loadLocalOrCmConfigIfValid() {
 		d.Container,
 	)
 
-	switch len(d.LocalSyncDir) {
-	case 0:
-		associatePath := svcPack.GetAssociatePath()
-		if associatePath == "" {
-			must(errors.New("'local-sync(-s)' should specify while svc is not associate with local dir"))
-		}
-		d.LocalSyncDir = append(d.LocalSyncDir, string(associatePath))
+	must(dev_dir.DevPath(d.LocalSyncDir[0]).Associate(svcPack, common.KubeConfig, true))
+	_ = d.NocalhostApp.ReloadSvcCfg(common.WorkloadName, base.SvcType(common.ServiceType), false, false)
 
-		must(associatePath.Associate(svcPack, common.KubeConfig, true))
-
-		_ = d.NocalhostApp.ReloadSvcCfg(common.WorkloadName, base.SvcType(common.ServiceType), false, false)
-	case 1:
-
-		must(dev_dir.DevPath(d.LocalSyncDir[0]).Associate(svcPack, common.KubeConfig, true))
-
-		_ = d.NocalhostApp.ReloadSvcCfg(common.WorkloadName, base.SvcType(common.ServiceType), false, false)
-	default:
-		log.Fatal(errors.New("Can not define multi 'local-sync(-s)'"))
-	}
 }
 
 // we should clean previous Syncthing
