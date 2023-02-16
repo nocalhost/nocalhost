@@ -10,6 +10,8 @@ import (
 	"nocalhost/internal/nhctl/fp"
 	"nocalhost/pkg/nhctl/clientgoutils"
 	"strings"
+
+	corev1 "k8s.io/api/core/v1"
 )
 
 //type AppType string
@@ -60,6 +62,7 @@ type ContainerInstallConfig struct {
 type ContainerDevConfig struct {
 	GitUrl                string                 `json:"gitUrl" yaml:"gitUrl"`
 	Image                 string                 `json:"image" yaml:"image"`
+	ImagePullPolicy       corev1.PullPolicy      `json:"imagePullPolicy,omitempty" yaml:"imagePullPolicy,omitempty"`
 	Shell                 string                 `json:"shell" yaml:"shell"`
 	WorkDir               string                 `json:"workDir" yaml:"workDir"`
 	StorageClass          string                 `validate:"StorageClass" json:"storageClass" yaml:"storageClass"`

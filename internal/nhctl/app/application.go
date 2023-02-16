@@ -107,11 +107,7 @@ func newApplication(name string, ns string, kubeconfig string, meta *appmeta.App
 		return nil, errors.New(fmt.Sprintf("%s-%s state is UNKNOWN", app.NameSpace, app.Name))
 	}
 
-	if app.appMeta.IsInstalling() {
-		return nil, errors.Wrap(ErrInstalling, fmt.Sprintf("%s-%s state is installing", app.NameSpace, app.Name))
-	}
-
-	if !app.appMeta.IsInstalled() {
+	if app.appMeta.IsNotInstall() {
 		return nil, errors.Wrap(ErrNotFound, fmt.Sprintf("%s-%s not found", app.NameSpace, app.Name))
 	}
 

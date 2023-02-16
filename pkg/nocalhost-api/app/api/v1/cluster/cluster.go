@@ -8,9 +8,10 @@ package cluster
 import "time"
 
 type CreateClusterRequest struct {
-	Name         string `json:"name" binding:"required"`
-	KubeConfig   string `json:"kubeconfig" binding:"required" example:"base64encode(value)"`
-	StorageClass string `json:"storage_class"`
+	Name           string `json:"name" binding:"required"`
+	KubeConfig     string `json:"kubeconfig" binding:"required" example:"base64encode(value)"`
+	StorageClass   string `json:"storage_class"`
+	ExtraApiServer string `json:"extra_api_server" binding:"omitempty,url"`
 }
 
 type KubeConfig struct {

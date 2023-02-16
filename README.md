@@ -1,4 +1,7 @@
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/5381/badge)](https://bestpractices.coreinfrastructure.org/projects/5381)
+<!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
+[![All Contributors](https://img.shields.io/badge/all_contributors-3-orange.svg?style=flat-square)](#contributors-)
+<!-- ALL-CONTRIBUTORS-BADGE:END -->
 ![api-docker](https://github.com/nocalhost/nocalhost/workflows/api-docker/badge.svg?branch=main)
 ![nhctl](https://github.com/nocalhost/nocalhost/workflows/nhctl/badge.svg?branch=main)
 [![Go Report Card](https://goreportcard.com/badge/github.com/nocalhost/nocalhost)](https://goreportcard.com/report/github.com/nocalhost/nocalhost)
@@ -53,6 +56,7 @@ Full documentation is available on the [Nocalhost](https://nocalhost.dev/)
 
 ## Community
 
+* Meeting: [Google Doc](https://docs.google.com/document/d/19xrULkXK51tO0yupZnHXccC2EpJUlPI4y1eCI2HnjBM)
 * Slack(English): [CNCF Slack](https://slack.cncf.io/) #nocalhost channel
 * WeChat(Chinese): Scan the QR Code to add CODING assistance with note "Nocalhost", assistance will add you into our WeChat group
 
@@ -80,6 +84,40 @@ Nocalhost adopts [CNCF Code of Conduct](https://github.com/cncf/foundation/blob/
 
 Nocalhost is [Apache 2.0 licensed](./LICENSE)
 
+
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fnocalhost%2Fnocalhost.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fnocalhost%2Fnocalhost?ref=badge_large)
+
 ## Roadmap
 
 See [ROADMAP](./ROADMAP.md)
+
+## Contributors ✨
+
+Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/docs/en/emoji-key)):
+
+<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
+<!-- prettier-ignore-start -->
+<!-- markdownlint-disable -->
+<table>
+  <tr>
+    <td align="center"><a href="https://github.com/anurnomeru"><img src="https://avatars.githubusercontent.com/u/24870621?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Anur</b></sub></a><br /><a href="#maintenance-anurnomeru" title="Maintenance">🚧</a></td>
+    <td align="center"><a href="https://www.smallq.cn"><img src="https://avatars.githubusercontent.com/u/39754275?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Qi Zhang</b></sub></a><br /><a href="#blog-zzzhangqi" title="Blogposts">📝</a></td>
+    <td align="center"><a href="https://github.com/mouuii"><img src="https://avatars.githubusercontent.com/u/49775493?v=4?s=100" width="100px;" alt=""/><br /><sub><b>mouuii</b></sub></a><br /><a href="#plugin-mouuii" title="Plugin/utility libraries">🔌</a> <a href="#ideas-mouuii" title="Ideas, Planning, & Feedback">🤔</a></td>
+  </tr>
+</table>
+
+<!-- markdownlint-restore -->
+<!-- prettier-ignore-end -->
+
+<!-- ALL-CONTRIBUTORS-LIST:END -->
+
+This project follows the [all-contributors](https://github.com/all-contributors/all-contributors) specification. Contributions of any kind welcome!
+
+## Sponsors
+
+<table>
+  <tr>
+    <td align="center"><a href="https://he3.app"><img src="https://cdn.heighliner.cloud/img/logo.png" height="100px" width="100px;" alt=""/><br /><sub><b>He3.App</b></sub></a><br /></td>
+    <td align="center"><a href="https://coding.net/"><img src="https://help-assets.codehub.cn/enterprise/guanwang/coding-logo.svg" height="100px"  width="100px;" alt=""/><br /><sub><b>CODING</b></sub></a><br /></td>
+  </tr>
+</table>

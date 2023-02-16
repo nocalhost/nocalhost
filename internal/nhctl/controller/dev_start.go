@@ -7,11 +7,12 @@ package controller
 
 import (
 	"fmt"
+	_const "nocalhost/internal/nhctl/const"
+	"strconv"
+
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"nocalhost/internal/nhctl/const"
-	"strconv"
 
 	//"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/nocalhost"
@@ -74,6 +75,21 @@ func (c *Controller) GetDevContainerName(container string) string {
 	}
 
 	return _const.NocalhostDefaultDevContainerName
+}
+
+func (c *Controller) GetDevSidecarLanguage(container string) string {
+	// Find service env
+	serviceConfig := c.Config()
+	for _, v := range serviceConfig.ContainerConfigs {
+		if v.Name == container || container == "" {
+			// Env has a higher priority than envFrom
+			if v.Dev != nil && v.Dev.DebugConfig != nil {
+				return v.Dev.DebugConfig.Language
+			}
+		}
+	}
+
+	return ""
 }
 
 func (c *Controller) GetSyncThingSecretName() string {
@@ -364,9 +380,13 @@ func (c *Controller) createPvcForPersistentVolumeDir(
 	return nil, errors.New("Failed to create pvc for " + persistentVolume.Path)
 }
 
-func generateSideCarContainer(sidecarImage, workDir string) corev1.Container {
+func generateSideCarContainer(sidecarImage, workDir string, sshUsed bool) corev1.Container {
 	if sidecarImage == "" {
-		sidecarImage = _const.DefaultSideCarImage
+		if sshUsed {
+			sidecarImage = _const.SSHSideCarImage
+		} else {
+			sidecarImage = _const.DefaultSideCarImage
+		}
 	}
 
 	sideCarContainer := corev1.Container{
@@ -377,11 +397,22 @@ func generateSideCarContainer(sidecarImage, workDir string) corev1.Container {
 
 	// over write syncthing command
 	sideCarContainer.Command = []string{"/bin/sh", "-c"}
-	sideCarContainer.Args = []string{
-		"rc-service sshd restart && unset STGUIADDRESS && cp " + secret_config.DefaultSyncthingSecretHome +
-			"/* " + secret_config.DefaultSyncthingHome +
-			"/ && /bin/entrypoint.sh && /bin/syncthing -home /var/syncthing",
+	if sshUsed {
+		var rootUID int64 = 0
+		sideCarContainer.SecurityContext = &corev1.SecurityContext{RunAsUser: &rootUID}
+		sideCarContainer.Args = []string{
+			"rc-service sshd restart && unset STGUIADDRESS && cp " + secret_config.DefaultSyncthingSecretHome +
+				"/* " + secret_config.DefaultSyncthingHome +
+				"/ && /bin/entrypoint.sh && /bin/syncthing -home /var/syncthing",
+		}
+	} else {
+		sideCarContainer.Args = []string{
+			"unset STGUIADDRESS && cp " + secret_config.DefaultSyncthingSecretHome +
+				"/* " + secret_config.DefaultSyncthingHome +
+				"/ && /bin/entrypoint.sh && /bin/syncthing -home /var/syncthing",
+		}
 	}
+
 	return sideCarContainer
 }
 
@@ -560,6 +591,22 @@ func containerStatusForDevPod(pod *corev1.Pod, consumeFun func(status string, er
 	return true
 }
 
+func (c *Controller) sidecarContainerSSHUsed(DevLanguage string, DevImage string) bool {
+	if DevLanguage != "" {
+		if DevLanguage == "php" {
+			return true
+		} else {
+			return false
+		}
+	} else {
+		if strings.Contains(DevImage, "php") {
+			return true
+		} else {
+			return false
+		}
+	}
+}
+
 func (c *Controller) genContainersAndVolumes(podSpec *corev1.PodSpec,
 	containerName, devImage, storageClass string, duplicateDevMode bool) (*corev1.Container,
 	*corev1.Container, []corev1.Volume, error) {
@@ -603,7 +650,8 @@ func (c *Controller) genContainersAndVolumes(podSpec *corev1.PodSpec,
 		devImage = c.GetDevImage(containerName) // Default : replace the first container
 	}
 
-	sideCarContainer := generateSideCarContainer(c.GetDevSidecarImage(containerName), workDir)
+	sideCarContainer := generateSideCarContainer(c.GetDevSidecarImage(containerName), workDir,
+		c.sidecarContainerSSHUsed(c.GetDevSidecarLanguage(containerName), devImage))
 
 	devContainer.Image = devImage
 	devContainer.Name = c.GetDevContainerName(containerName)
@@ -611,8 +659,9 @@ func (c *Controller) genContainersAndVolumes(podSpec *corev1.PodSpec,
 	devContainer.WorkingDir = workDir
 
 	// set image pull policy
-	sideCarContainer.ImagePullPolicy = _const.DefaultImagePullPolicy
-	devContainer.ImagePullPolicy = _const.DefaultImagePullPolicy
+	pullPolicy := c.GetImagePullPolicy(containerName)
+	sideCarContainer.ImagePullPolicy = pullPolicy
+	devContainer.ImagePullPolicy = pullPolicy
 
 	// add env
 	devEnv := c.GetDevContainerEnv(containerName)

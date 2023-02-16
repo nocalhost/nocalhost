@@ -9,6 +9,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	_const "nocalhost/internal/nhctl/const"
+	"nocalhost/internal/nhctl/model"
+	"nocalhost/pkg/nhctl/clientgoutils"
+	"nocalhost/pkg/nhctl/log"
+	"strconv"
+	"strings"
+
 	"github.com/pkg/errors"
 	"github.com/tidwall/sjson"
 	appsv1 "k8s.io/api/apps/v1"
@@ -20,12 +27,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
-	_const "nocalhost/internal/nhctl/const"
-	"nocalhost/internal/nhctl/model"
-	"nocalhost/pkg/nhctl/clientgoutils"
-	"nocalhost/pkg/nhctl/log"
-	"strconv"
-	"strings"
 )
 
 const (
@@ -307,7 +308,8 @@ func AddEnvoySidecarForMesh(spec *v1.PodTemplateSpec) (exist bool) {
 				Name:  "NOCALHOST_PORT",
 				Value: strings.Join(port.List(), ","),
 			}},
-		ImagePullPolicy: _const.DefaultImagePullPolicy,
+		// TODO: get image pull policy from config
+		ImagePullPolicy: v1.PullIfNotPresent,
 		SecurityContext: &v1.SecurityContext{
 			Privileged: &t,
 		},
@@ -403,7 +405,8 @@ func createMeshManagerIfNotExist(ctx context.Context, clientset kubernetes.Inter
 								},
 							},
 						}},
-						ImagePullPolicy: _const.DefaultImagePullPolicy,
+						// TODO: get image pull policy from config
+						ImagePullPolicy: v1.PullIfNotPresent,
 					}},
 					ServiceAccountName: MeshManager,
 				},
