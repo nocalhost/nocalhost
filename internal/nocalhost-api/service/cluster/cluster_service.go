@@ -62,16 +62,15 @@ func (srv *Cluster) GetAny(ctx context.Context, where map[string]interface{}) ([
 	return srv.clusterRepo.GetAny(ctx, where)
 }
 
-func (srv *Cluster) Create(
-	ctx context.Context, name, kubeconfig, storageClass, server, clusterInfo string, userId uint64,
-) (model.ClusterModel, error) {
+func (srv *Cluster) Create(ctx context.Context, name, kubeconfig, storageClass, server, extraApiServer, clusterInfo string, userId uint64) (model.ClusterModel, error) {
 	c := model.ClusterModel{
-		Name:         name,
-		UserId:       userId,
-		Server:       server,
-		KubeConfig:   kubeconfig,
-		Info:         clusterInfo,
-		StorageClass: storageClass,
+		Name:           name,
+		UserId:         userId,
+		Server:         server,
+		KubeConfig:     kubeconfig,
+		Info:           clusterInfo,
+		StorageClass:   storageClass,
+		ExtraApiServer: extraApiServer,
 	}
 	result, err := srv.clusterRepo.Create(ctx, c)
 	if err != nil {

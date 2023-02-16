@@ -9,14 +9,14 @@ api:
     repository: nocalhost-docker.pkg.coding.net/nocalhost/public/nocalhost-api
     pullPolicy: Always
     # Overrides the image tag whose default is the chart appVersion.
-    tag: "v0.5.6"
+    tag: "v0.6.18"
 
 web:
   image:
     repository: nocalhost-docker.pkg.coding.net/nocalhost/public/nocalhost-web
     pullPolicy: Always
     # Overrides the image tag whose default is the chart appVersion.
-    tag: "v0.5.6"
+    tag: "v0.6.18"
 
 imagePullSecrets: []
 
@@ -32,7 +32,7 @@ securityContext: {}
 #  runAsUser: 1000
 
 service:
-  type: LoadBalancer
+  type: ClusterIP
   port: 80
 
 resources:
@@ -80,3 +80,31 @@ mariadb:
     extraVolumeMounts:
     - name: nocalhost-api-sql-config-volume
       mountPath: /docker-entrypoint-initdb.d/
+
+ingress:
+  enabled: false
+
+  # For Kubernetes >= 1.18 you should specify the ingress-controller via the field ingressClassName
+  # See https://kubernetes.io/blog/2020/04/02/improvements-to-the-ingress-api-in-kubernetes-1.18/#specifying-the-class-of-an-ingress
+  # ingressClassName: nginx
+
+  annotations: {}
+
+  labels: {}
+
+  ## Hosts must be provided if Ingress is enabled.
+  ##
+  hosts: []
+    # - nocalhost.domain.com
+
+  ## For Kubernetes >= 1.18 you should specify the pathType (determines how Ingress paths should be matched)
+  ## See https://kubernetes.io/blog/2020/04/02/improvements-to-the-ingress-api-in-kubernetes-1.18/#better-path-matching-with-path-types
+  # pathType: ImplementationSpecific
+
+  ## TLS configuration
+  ## Secret must be manually created in the namespace
+  ##
+  tls: []
+  # - secretName: nocalhost-tls
+  #   hosts:
+  #   - nocalhost.example.com

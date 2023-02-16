@@ -9,13 +9,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	log "github.com/sirupsen/logrus"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/kubernetes"
-	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"net"
 	_const "nocalhost/internal/nhctl/const"
 	"nocalhost/internal/nhctl/vpn/pkg/handler"
@@ -23,6 +16,14 @@ import (
 	"nocalhost/internal/nhctl/vpn/util"
 	"strings"
 	"time"
+
+	log "github.com/sirupsen/logrus"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/kubernetes"
+	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 )
 
 func createOutboundRouterPodIfNecessary(
@@ -49,7 +50,8 @@ func createOutboundRouterPodIfNecessary(
 	for _, ipNet := range podCIDR {
 		args = append(args, fmt.Sprintf("iptables -t nat -A POSTROUTING -s %s -o eth0 -j MASQUERADE", ipNet.String()))
 	}
-	args = append(args, fmt.Sprintf("nhctl vpn serve -L tcp://:10800 -L tun://:8421?net=%s --debug=true", serverIP.String()))
+	args = append(args,
+		fmt.Sprintf("nhctl vpn serve -L tcp://:10800 -L tun://:8421?net=%s --debug=true", serverIP.String()))
 
 	t := true
 	zero := int64(0)
@@ -89,7 +91,8 @@ func createOutboundRouterPodIfNecessary(
 							v1.ResourceMemory: resource.MustParse("512Mi"),
 						},
 					},
-					ImagePullPolicy: _const.DefaultImagePullPolicy,
+					// TODO: get image pull policy from config
+					ImagePullPolicy: v1.PullIfNotPresent,
 				},
 			},
 			PriorityClassName: "system-cluster-critical",

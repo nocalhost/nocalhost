@@ -1,8 +1,8 @@
+# cloud.google.com/go v0.81.0
+cloud.google.com/go/compute/metadata
 # github.com/360EntSecGroup-Skylar/excelize v1.4.1
 ## explicit
 github.com/360EntSecGroup-Skylar/excelize
-# cloud.google.com/go v0.81.0
-cloud.google.com/go/compute/metadata
 # github.com/Azure/go-ansiterm v0.0.0-20210608223527-2377c96fe795
 github.com/Azure/go-ansiterm
 github.com/Azure/go-ansiterm/winterm
@@ -66,7 +66,7 @@ github.com/cncf/xds/go/udpa/annotations
 github.com/cncf/xds/go/xds/annotations/v3
 github.com/cncf/xds/go/xds/core/v3
 github.com/cncf/xds/go/xds/type/matcher/v3
-# github.com/containerd/containerd v1.5.8
+# github.com/containerd/containerd v1.5.10
 ## explicit
 github.com/containerd/containerd/errdefs
 # github.com/davecgh/go-spew v1.1.1
@@ -364,7 +364,7 @@ github.com/mattn/go-runewidth
 github.com/mattn/psutil
 # github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369
 github.com/matttproud/golang_protobuf_extensions/pbutil
-# github.com/miekg/dns v1.0.14
+# github.com/miekg/dns v1.1.25
 ## explicit
 github.com/miekg/dns
 # github.com/milosgajdos/tenus v0.0.3
@@ -404,7 +404,6 @@ github.com/olivere/elastic/v7/uritemplates
 # github.com/opencontainers/go-digest v1.0.0
 github.com/opencontainers/go-digest
 # github.com/opencontainers/image-spec v1.0.2
-## explicit
 github.com/opencontainers/image-spec/specs-go
 github.com/opencontainers/image-spec/specs-go/v1
 # github.com/pelletier/go-toml v1.9.3

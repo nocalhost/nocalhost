@@ -417,8 +417,7 @@ func (c *GoClient) DeleteServiceAccount(name, namespace string) error {
 	return nil
 }
 
-// create serviceAccount for namespace(Authorization cluster for developer)
-// default name is nocalhost
+// CreateServiceAccount for namespace(Authorization cluster for developer)
 func (c *GoClient) CreateServiceAccount(name, namespace string) (bool, error) {
 	if name == "" {
 		name = global.NocalhostDevServiceAccountName
@@ -431,6 +430,24 @@ func (c *GoClient) CreateServiceAccount(name, namespace string) (bool, error) {
 		ObjectMeta: metav1.ObjectMeta{Name: name, Labels: m},
 	}
 	_, err := c.client.CoreV1().ServiceAccounts(namespace).Create(context.TODO(), arg, metav1.CreateOptions{})
+	if err != nil {
+		return false, err
+	}
+
+	// https://github.com/nocalhost/nocalhost/issues/1327
+	// create secret for service account
+	secretName := name + global.NocalhostSaTokenSuffix
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   secretName,
+			Labels: m,
+			Annotations: map[string]string{
+				corev1.ServiceAccountNameKey: name,
+			},
+		},
+		Type: corev1.SecretTypeServiceAccountToken,
+	}
+	_, err = c.CreateSecret(namespace, secret)
 	if err != nil {
 		return false, err
 	}

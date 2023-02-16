@@ -35,6 +35,9 @@ func buildListener(name string, port uint32) *listener.Listener {
 				TypedConfig: util.MessageToAny(&router.Router{}),
 			},
 		}},
+		UpgradeConfigs: []*hcm.HttpConnectionManager_UpgradeConfig{{
+			UpgradeType: "websocket",
+		}},
 		RouteSpecifier: &hcm.HttpConnectionManager_Rds{
 			Rds: &hcm.Rds{
 				ConfigSource: &core.ConfigSource{

@@ -9,16 +9,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"nocalhost/internal/nhctl/profile"
+	"strconv"
+	"strings"
+
 	"github.com/ghodss/yaml"
 	"github.com/golang/glog"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
-	_const "nocalhost/internal/nhctl/const"
-	"nocalhost/internal/nhctl/profile"
-	"strconv"
-	"strings"
 )
 
 type Patcher struct {
@@ -232,7 +232,7 @@ func nocalhostDepConfigmapCustom(
 		initContainer := corev1.Container{
 			Name:            "nocalhost-dependency-waiting-job",
 			Image:           waitImages,
-			ImagePullPolicy: _const.DefaultImagePullPolicy,
+			ImagePullPolicy: corev1.PullIfNotPresent,
 			Command:         cmd,
 		}
 		initContainers = append(initContainers, initContainer)
@@ -364,7 +364,7 @@ func nocalhostDepConfigmap(
 				initContainer := corev1.Container{
 					Name:            "nocalhost-dependency-waiting-job",
 					Image:           waitImages,
-					ImagePullPolicy: _const.DefaultImagePullPolicy,
+					ImagePullPolicy: corev1.PullIfNotPresent,
 					Command:         cmd,
 				}
 				initContainers = append(initContainers, initContainer)

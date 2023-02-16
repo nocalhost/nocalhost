@@ -1,0 +1,76 @@
+{{- if .Values.ingress.enabled -}}
+  {{- $pathType := .Values.ingress.pathType | default "ImplementationSpecific" -}}
+  {{- $serviceName := include "nocalhost.ingress.name" . -}}
+  {{- $servicePort := .Values.service.port -}}
+  {{- $paths := .Values.ingress.paths | default (list "/") -}}
+  {{- $apiIsStable := eq (include "nocalhost.ingress.isStable" .) "true" -}}
+  {{- $ingressSupportsPathType := eq (include "nocalhost.ingress.supportsPathType" .) "true" -}}
+apiVersion: {{ include "nocalhost.ingress.apiVersion" . }}
+kind: Ingress
+metadata:
+{{- if .Values.ingress.annotations }}
+  annotations:
+{{ toYaml .Values.ingress.annotations | indent 4 }}
+{{- end }}
+  name: {{ $serviceName }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ template "nocalhost-api.name" . }}-prometheus
+{{ include "nocalhost-api.labels" . | indent 4 }}
+{{- if .Values.ingress.labels }}
+{{ toYaml .Values.ingress.labels | indent 4 }}
+{{- end }}
+spec:
+  {{- if $apiIsStable }}
+  {{- if .Values.ingress.ingressClassName }}
+  ingressClassName: {{ .Values.ingress.ingressClassName }}
+  {{- end }}
+  {{- end }}
+  rules:
+  {{- if .Values.ingress.hosts }}
+  {{- range $host := .Values.ingress.hosts }}
+    - host: {{ tpl $host $ }}
+      http:
+        paths:
+  {{- range $p := $paths }}
+          - path: {{ tpl $p $ }}
+            {{- if and $pathType $ingressSupportsPathType }}
+            pathType: {{ $pathType }}
+            {{- end }}
+            backend:
+              {{- if $apiIsStable }}
+              service:
+                name: {{ $serviceName }}
+                port:
+                  number: {{ $servicePort }}
+              {{- else }}
+              serviceName: {{ $serviceName }}
+              servicePort: {{ $servicePort }}
+    {{- end }}
+    {{- end -}}
+  {{- end -}}
+  {{- else }}
+    - http:
+        paths:
+  {{- range $p := $paths }}
+          - path: {{ tpl $p $ }}
+            {{- if and $pathType $ingressSupportsPathType }}
+            pathType: {{ $pathType }}
+            {{- end }}
+            backend:
+              {{- if $apiIsStable }}
+              service:
+                name: {{ $serviceName }}
+                port:
+                  number: {{ $servicePort }}
+              {{- else }}
+              serviceName: {{ $serviceName }}
+              servicePort: {{ $servicePort }}
+  {{- end }}
+  {{- end -}}
+  {{- end -}}
+  {{- if .Values.ingress.tls }}
+  tls:
+{{ tpl (toYaml .Values.ingress.tls | indent 4) . }}
+  {{- end -}}
+{{- end -}}

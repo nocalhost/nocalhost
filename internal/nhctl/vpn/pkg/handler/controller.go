@@ -7,11 +7,12 @@ package handler
 
 import (
 	"encoding/json"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	_const "nocalhost/internal/nhctl/const"
 	"strconv"
 	"strings"
+
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 type PodRouteConfig struct {
@@ -75,7 +76,8 @@ func AddContainer(spec *v1.PodSpec, c *PodRouteConfig) {
 				v1.ResourceMemory: resource.MustParse("256Mi"),
 			},
 		},
-		ImagePullPolicy: _const.DefaultImagePullPolicy,
+		// TODO: get image pull policy from config
+		ImagePullPolicy: v1.PullIfNotPresent,
 	})
 	if len(spec.PriorityClassName) == 0 {
 		spec.PriorityClassName = "system-cluster-critical"

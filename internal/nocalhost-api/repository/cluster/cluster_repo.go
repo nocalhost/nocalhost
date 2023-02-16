@@ -70,7 +70,7 @@ func (repo *ClusterBaseRepo) GetAny(ctx context.Context, where map[string]interf
 func (repo *ClusterBaseRepo) GetList(ctx context.Context) ([]*model.ClusterList, error) {
 	var result []*model.ClusterList
 	repo.db.Raw(
-		"select c.id,c.kubeconfig,c.name,c.server,c.storage_class,c.info,c.user_id,c.created_at,count" +
+		"select c.id,c.kubeconfig,c.name,c.server,c.extra_api_server,c.storage_class,c.info,c.user_id,c.created_at,count" +
 			"(distinct cu.id) as users_count from clusters as c left join clusters_users as cu on c.id=cu.cluster_id" +
 			" where c.deleted_at is null and cu.deleted_at is null group by c.id",
 	).

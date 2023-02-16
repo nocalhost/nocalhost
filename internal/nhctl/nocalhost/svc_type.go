@@ -7,14 +7,15 @@ package nocalhost
 
 import (
 	"fmt"
-	"github.com/pkg/errors"
-	"gopkg.in/yaml.v3"
 	"io/ioutil"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"nocalhost/internal/nhctl/common/base"
 	"nocalhost/internal/nhctl/nocalhost_path"
 	"nocalhost/pkg/nhctl/log"
 	"path/filepath"
+
+	"github.com/pkg/errors"
+	"gopkg.in/yaml.v3"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 var supportedSvcType map[base.SvcType]base.DevModeAction
@@ -33,8 +34,14 @@ func init() {
 	supportedSvcType = make(map[base.SvcType]base.DevModeAction, 0)
 	supportedSvcType[base.Deployment] = DefaultDevModeAction
 	supportedSvcType["deployments.v1.apps"] = DefaultDevModeAction
+	supportedSvcType["deployments.v1beta1.apps"] = DefaultDevModeAction
+	supportedSvcType["deployments.v1beta2.apps"] = DefaultDevModeAction
+	supportedSvcType["deployments.v1beta1.extensions"] = DefaultDevModeAction
 	supportedSvcType[base.StatefulSet] = DefaultDevModeAction
 	supportedSvcType["statefulsets.v1.apps"] = DefaultDevModeAction
+	supportedSvcType["statefulsets.v1beta1.apps"] = DefaultDevModeAction
+	supportedSvcType["statefulsets.v1beta2.apps"] = DefaultDevModeAction
+	supportedSvcType["statefulsets.v1beta1.extensions"] = DefaultDevModeAction
 	supportedSvcType[base.DaemonSet] = DaemonSetDevModeAction
 	supportedSvcType[base.Job] = JobDevModeAction
 	supportedSvcType[base.CronJob] = CronJobDevModeAction
