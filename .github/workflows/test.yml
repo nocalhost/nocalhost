@@ -87,7 +87,7 @@ jobs:
           echo "RELEASE_VERSION=${TAG}" >> $GITHUB_ENV
         shell: bash
       - name: Kubectl tool installer
-        uses: Azure/setup-kubectl@v1
+        uses: Azure/setup-kubectl@v3
       - name: Helm tool installer
         uses: Azure/setup-helm@v1
       - uses: zhangjian10/nocalhost-server-cli@latest
