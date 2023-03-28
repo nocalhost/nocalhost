@@ -364,7 +364,7 @@ func (c *Controller) PatchDevModeManifest(ctx context.Context, ops *model.DevSta
 			jsonPatches, jsonPatch{
 				Op:    "replace",
 				Path:  specPath,
-				Value: c.getDevContainerAnnotations(ops.Container, map[string]string{}),
+				Value: c.getDevContainerAnnotations(ops.Container, podTemplate.GetAnnotations()),
 			},
 		)
 		bys, _ = json.Marshal(jsonPatches)
