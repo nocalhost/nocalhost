@@ -189,7 +189,9 @@ func (asw *applicationSecretWatcher) Prepare() error {
 	}
 
 	for _, v := range list.Items {
-		if err := asw.join(&v); err != nil {
+		// https://medium.com/swlh/use-pointer-of-for-range-loop-variable-in-go-3d3481f7ffc9
+		x := v
+		if err = asw.join(&x); err != nil {
 			return err
 		}
 	}
