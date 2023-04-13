@@ -69,7 +69,6 @@ Full documentation is available on the [Nocalhost](https://nocalhost.dev/)
 | :video_camera: &nbsp; Nocalhost Youtube  | [https://www.youtube.com/channel/UC2QC6HvFG8zOtFRvvMzcAUw](https://www.youtube.com/channel/UC2QC6HvFG8zOtFRvvMzcAUw) |
 
 ## 
-s
 
 Check our [Changelogs](https://github.com/nocalhost/nocalhost/releases)
 
