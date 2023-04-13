@@ -7,6 +7,8 @@ package controller
 
 import (
 	"nocalhost/internal/nhctl/profile"
+
+	corev1 "k8s.io/api/core/v1"
 )
 
 // GetConfig The result will not be nil
@@ -70,4 +72,12 @@ func (c *Controller) GetPersistentVolumeDirs(container string) []*profile.Persis
 		return devConfig.PersistentVolumeDirs
 	}
 	return nil
+}
+
+func (c *Controller) GetImagePullPolicy(container string) corev1.PullPolicy {
+	devConfig := c.config.GetContainerDevConfigOrDefault(container)
+	if devConfig != nil && devConfig.Image != "" {
+		return devConfig.ImagePullPolicy
+	}
+	return corev1.PullIfNotPresent
 }

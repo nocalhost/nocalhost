@@ -32,7 +32,6 @@ const (
 	AppManagedByLabel           = "app.kubernetes.io/managed-by"
 	AppManagedByNocalhost       = "nocalhost"
 	DefaultNocalhostSideCarName = "nocalhost-sidecar"
-	DefaultImagePullPolicy      = "IfNotPresent"
 
 	PersistentVolumeDirLabel = "nocalhost.dev/dir"
 	ServiceLabel             = "nocalhost.dev/service"
