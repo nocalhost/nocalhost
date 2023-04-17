@@ -6,12 +6,13 @@
 package cmds
 
 import (
-	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
 	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/cmd/nhctl/cmds/dev"
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/model"
+
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
 )
 
 var fileSyncOps = &app.FileSyncOptions{}
@@ -63,13 +64,15 @@ var fileSyncCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		applicationName := args[0]
 
-		nocalhostApp, nocalhostSvc, err := common.InitAppAndCheckIfSvcExist(applicationName, common.WorkloadName, common.ServiceType)
+		nocalhostApp, nocalhostSvc, err := common.InitAppAndCheckIfSvcExist(applicationName, common.WorkloadName,
+			common.ServiceType)
 		must(err)
 
 		d := dev.DevStartOps{DevStartOptions: &model.DevStartOptions{}, NocalhostApp: nocalhostApp, NocalhostSvc: nocalhostSvc}
 		d.StartSyncthing(
 			"", fileSyncOps.Resume, fileSyncOps.Stop,
-			&fileSyncOps.SyncDouble, fileSyncOps.Override,
+			// we do not read syncDouble from params now
+			nil, fileSyncOps.Override,
 		)
 	},
 }

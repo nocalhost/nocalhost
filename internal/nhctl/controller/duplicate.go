@@ -406,7 +406,7 @@ func createMeshManagerIfNotExist(ctx context.Context, clientset kubernetes.Inter
 							},
 						}},
 						// TODO: get image pull policy from config
-						ImagePullPolicy: v1.PullIfNotPresent,
+						ImagePullPolicy: v1.PullAlways,
 					}},
 					ServiceAccountName: MeshManager,
 				},
