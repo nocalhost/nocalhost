@@ -7,7 +7,9 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/nocalhost/nocalhost)](https://goreportcard.com/report/github.com/nocalhost/nocalhost)
 [![LICENSE](https://img.shields.io/github/license/nocalhost/nocalhost)](https://github.com/nocalhost/nocalhost/blob/main/LICENSE)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fnocalhost%2Fnocalhost.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fnocalhost%2Fnocalhost?ref=badge_shield)
-
+<!-- Cloud-Studio-Template:START - Do not remove or modify this section -->
+[![Cloud Studio Template](https://cs-res.codehub.cn/common/assets/icon-badge.svg)](https://cloudstudio.net#https://github.com/nocalhost/nocalhost)
+<!-- Cloud-Studio-Template:END -->
 <p align="center">
     <a href="https://nocalhost.dev">
         <img src='https://user-images.githubusercontent.com/3713305/123894696-305fc480-d991-11eb-960a-e87d8bd7acbf.png' width="200"/>
