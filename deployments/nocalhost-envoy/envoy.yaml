@@ -55,3 +55,4 @@ static_resources:
     type: ORIGINAL_DST
     lb_policy: CLUSTER_PROVIDED
     name: PassthroughCluster
+    http2_protocol_options: {}
