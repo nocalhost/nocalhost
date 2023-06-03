@@ -76,7 +76,7 @@ require (
 	golang.org/x/mod v0.4.2
 	golang.org/x/net v0.0.0-20211215060638-4ddde0e984e9
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e
+	golang.org/x/sys v0.1.0
 	golang.org/x/text v0.3.8-0.20211105212822-18b340fc7af2
 	golang.zx2c4.com/wireguard v0.0.0-20210927201915-bb745b2ea326
 	golang.zx2c4.com/wireguard/windows v0.4.10
