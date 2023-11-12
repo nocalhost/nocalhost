@@ -55,7 +55,7 @@ func (saw *ServiceAccountWatcher) Delete(key string) error {
 }
 
 func (saw *ServiceAccountWatcher) WatcherInfo() string {
-	return fmt.Sprintf("'ServiceAccount'")
+	return "'ServiceAccount'"
 }
 
 func (saw *ServiceAccountWatcher) join(sa *corev1.ServiceAccount) error {

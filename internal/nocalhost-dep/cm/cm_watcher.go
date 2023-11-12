@@ -85,7 +85,7 @@ func (cmw *CmWatcher) Delete(key string) error {
 }
 
 func (cmw *CmWatcher) WatcherInfo() string {
-	return fmt.Sprintf("'Cm'")
+	return "'Cm'"
 }
 
 func (cmw *CmWatcher) join(app string, cm *corev1.ConfigMap) error {

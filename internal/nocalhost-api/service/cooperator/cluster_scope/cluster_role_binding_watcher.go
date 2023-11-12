@@ -85,7 +85,7 @@ func (crbw *clusterRoleBindingWatcher) Delete(key string) error {
 }
 
 func (crbw *clusterRoleBindingWatcher) WatcherInfo() string {
-	return fmt.Sprintf("'ClusterRoleBinding'")
+	return "'ClusterRoleBinding'"
 }
 
 // nocalhost rbac cluster role binding naming rules is

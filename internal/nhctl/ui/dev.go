@@ -404,7 +404,7 @@ func (t *TviewApplication) buildWorkloadList(appMeta *appmeta.ApplicationMeta, n
 							}
 						}
 						if len(runningPod) == 0 {
-							t.showErr(errors.New(fmt.Sprintf("Pod num is 0 ?")), nil)
+							t.showErr(errors.New("Pod num is 0 ?"), nil)
 							return
 						}
 
