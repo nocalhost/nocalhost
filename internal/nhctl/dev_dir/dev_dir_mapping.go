@@ -44,7 +44,7 @@ func FlushCache() {
 			return nil
 		},
 	); err != nil {
-		log.ErrorE(err, fmt.Sprintf("Fail to flush dir-svc cache"))
+		log.ErrorE(err, "Fail to flush dir-svc cache")
 	}
 }
 
