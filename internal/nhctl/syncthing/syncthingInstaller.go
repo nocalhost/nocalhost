@@ -200,6 +200,7 @@ func CopyFile(from, to string) error {
 	if err != nil {
 		return err
 	}
+	defer fromFile.Close()
 	toFile, err := os.OpenFile(to, os.O_RDWR|os.O_CREATE, 0700)
 	if err != nil {
 		return err
