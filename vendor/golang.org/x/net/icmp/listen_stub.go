@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !aix && !darwin && !dragonfly && !freebsd && !linux && !netbsd && !openbsd && !solaris && !windows
-// +build !aix,!darwin,!dragonfly,!freebsd,!linux,!netbsd,!openbsd,!solaris,!windows
 
 package icmp
 
@@ -16,6 +15,7 @@ package icmp
 // Currently only Darwin and Linux support this.
 //
 // Examples:
+//
 //	ListenPacket("udp4", "192.168.0.1")
 //	ListenPacket("udp4", "0.0.0.0")
 //	ListenPacket("udp6", "fe80::1%en0")
@@ -25,6 +25,7 @@ package icmp
 // followed by a colon and an ICMP protocol number or name.
 //
 // Examples:
+//
 //	ListenPacket("ip4:icmp", "192.168.0.1")
 //	ListenPacket("ip4:1", "0.0.0.0")
 //	ListenPacket("ip6:ipv6-icmp", "fe80::1%en0")
