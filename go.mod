@@ -81,7 +81,7 @@ require (
 	golang.zx2c4.com/wireguard v0.0.0-20210927201915-bb745b2ea326
 	golang.zx2c4.com/wireguard/windows v0.4.10
 	google.golang.org/grpc v1.40.0
-	google.golang.org/protobuf v1.27.1
+	google.golang.org/protobuf v1.33.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 	istio.io/api v0.0.0-20210809175348-eff556fb5d8a
