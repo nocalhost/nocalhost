@@ -26,12 +26,11 @@ import (
 	endpoint "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
 	listener "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	route "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
-	hcm "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	auth "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
 	runtime "github.com/envoyproxy/go-control-plane/envoy/service/runtime/v3"
 	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
 	"github.com/envoyproxy/go-control-plane/pkg/resource/v3"
-	"github.com/envoyproxy/go-control-plane/pkg/wellknown"
+	ratelimit "github.com/envoyproxy/go-control-plane/ratelimit/config/ratelimit/v3"
 )
 
 // GetResponseType returns the enumeration for a valid xDS type URL.
@@ -45,6 +44,8 @@ func GetResponseType(typeURL resource.Type) types.ResponseType {
 		return types.Route
 	case resource.ScopedRouteType:
 		return types.ScopedRoute
+	case resource.VirtualHostType:
+		return types.VirtualHost
 	case resource.ListenerType:
 		return types.Listener
 	case resource.SecretType:
@@ -53,6 +54,8 @@ func GetResponseType(typeURL resource.Type) types.ResponseType {
 		return types.Runtime
 	case resource.ExtensionConfigType:
 		return types.ExtensionConfig
+	case resource.RateLimitConfigType:
+		return types.RateLimitConfig
 	}
 	return types.UnknownType
 }
@@ -68,6 +71,8 @@ func GetResponseTypeURL(responseType types.ResponseType) (string, error) {
 		return resource.RouteType, nil
 	case types.ScopedRoute:
 		return resource.ScopedRouteType, nil
+	case types.VirtualHost:
+		return resource.VirtualHostType, nil
 	case types.Listener:
 		return resource.ListenerType, nil
 	case types.Secret:
@@ -76,9 +81,11 @@ func GetResponseTypeURL(responseType types.ResponseType) (string, error) {
 		return resource.RuntimeType, nil
 	case types.ExtensionConfig:
 		return resource.ExtensionConfigType, nil
+	case types.RateLimitConfig:
+		return resource.RateLimitConfigType, nil
+	default:
+		return "", fmt.Errorf("couldn't map response type %v to known resource type", responseType)
 	}
-
-	return "", fmt.Errorf("couldn't map response type to known resource type")
 }
 
 // GetResourceName returns the resource name for a valid xDS response type.
@@ -92,6 +99,8 @@ func GetResourceName(res types.Resource) string {
 		return v.GetName()
 	case *route.ScopedRouteConfiguration:
 		return v.GetName()
+	case *route.VirtualHost:
+		return v.GetName()
 	case *listener.Listener:
 		return v.GetName()
 	case *auth.Secret:
@@ -100,9 +109,22 @@ func GetResourceName(res types.Resource) string {
 		return v.GetName()
 	case *core.TypedExtensionConfig:
 		return v.GetName()
+	case *ratelimit.RateLimitConfig:
+		return v.GetName()
+	case types.ResourceWithName:
+		return v.GetName()
 	default:
 		return ""
 	}
+}
+
+// GetResourceName returns the resource names for a list of valid xDS response types.
+func GetResourceNames(resources []types.Resource) []string {
+	out := make([]string, len(resources))
+	for i, r := range resources {
+		out[i] = GetResourceName(r)
+	}
+	return out
 }
 
 // MarshalResource converts the Resource to MarshaledResource.
@@ -197,43 +219,28 @@ func getClusterReferences(src *cluster.Cluster, out map[resource.Type]map[string
 
 // HTTP listeners will either reference ScopedRoutes or Routes.
 func getListenerReferences(src *listener.Listener, out map[resource.Type]map[string]bool) {
-	scopedRoutes := map[string]bool{}
 	routes := map[string]bool{}
 
-	// extract route configuration names from HTTP connection manager
+	// Extract route configuration names from HTTP connection manager.
 	for _, chain := range src.FilterChains {
 		for _, filter := range chain.Filters {
-			if filter.Name != wellknown.HTTPConnectionManager {
-				continue
-			}
-
 			config := resource.GetHTTPConnectionManager(filter)
 			if config == nil {
 				continue
 			}
 
-			routeSpecifier := config.RouteSpecifier
-			switch r := routeSpecifier.(type) {
-			case *hcm.HttpConnectionManager_Rds:
-				if r != nil && r.Rds != nil {
-					routes[r.Rds.RouteConfigName] = true
-				}
+			// If we are using RDS, add the referenced the route name.
+			if name := config.GetRds().GetRouteConfigName(); name != "" {
+				routes[name] = true
+			}
 
-			case *hcm.HttpConnectionManager_ScopedRoutes:
-				if r != nil && r.ScopedRoutes != nil {
-					scopedRoutes[r.ScopedRoutes.Name] = true
-				}
+			// If the scoped route mapping is embedded, add the referenced route resource names.
+			for _, s := range config.GetScopedRoutes().GetScopedRouteConfigurationsList().GetScopedRouteConfigurations() {
+				routes[s.RouteConfigurationName] = true
 			}
 		}
 	}
 
-	if len(scopedRoutes) > 0 {
-		if _, ok := out[resource.ScopedRouteType]; !ok {
-			out[resource.ScopedRouteType] = map[string]bool{}
-		}
-
-		mapMerge(out[resource.ScopedRouteType], scopedRoutes)
-	}
 	if len(routes) > 0 {
 		if _, ok := out[resource.RouteType]; !ok {
 			out[resource.RouteType] = map[string]bool{}
