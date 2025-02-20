@@ -9,8 +9,6 @@ import (
 	"go/ast"
 	"reflect"
 	"sort"
-
-	"golang.org/x/tools/internal/typeparams"
 )
 
 // An ApplyFunc is invoked by Apply for each node n, even if n is nil,
@@ -41,7 +39,6 @@ type ApplyFunc func(*Cursor) bool
 // Children are traversed in the order in which they appear in the
 // respective node's struct definition. A package's files are
 // traversed in the filenames' alphabetical order.
-//
 func Apply(root ast.Node, pre, post ApplyFunc) (result ast.Node) {
 	parent := &struct{ ast.Node }{root}
 	defer func() {
@@ -65,8 +62,8 @@ var abort = new(int) // singleton, to signal termination of Apply
 // c.Parent(), and f is the field identifier with name c.Name(),
 // the following invariants hold:
 //
-//   p.f            == c.Node()  if c.Index() <  0
-//   p.f[c.Index()] == c.Node()  if c.Index() >= 0
+//	p.f            == c.Node()  if c.Index() <  0
+//	p.f[c.Index()] == c.Node()  if c.Index() >= 0
 //
 // The methods Replace, Delete, InsertBefore, and InsertAfter
 // can be used to change the AST without disrupting Apply.
@@ -253,6 +250,10 @@ func (a *application) apply(parent ast.Node, name string, iter *iterator, n ast.
 		a.apply(n, "X", nil, n.X)
 		a.apply(n, "Index", nil, n.Index)
 
+	case *ast.IndexListExpr:
+		a.apply(n, "X", nil, n.X)
+		a.applyList(n, "Indices")
+
 	case *ast.SliceExpr:
 		a.apply(n, "X", nil, n.X)
 		a.apply(n, "Low", nil, n.Low)
@@ -290,6 +291,9 @@ func (a *application) apply(parent ast.Node, name string, iter *iterator, n ast.
 		a.apply(n, "Fields", nil, n.Fields)
 
 	case *ast.FuncType:
+		if tparams := n.TypeParams; tparams != nil {
+			a.apply(n, "TypeParams", nil, tparams)
+		}
 		a.apply(n, "Params", nil, n.Params)
 		a.apply(n, "Results", nil, n.Results)
 
@@ -402,6 +406,9 @@ func (a *application) apply(parent ast.Node, name string, iter *iterator, n ast.
 	case *ast.TypeSpec:
 		a.apply(n, "Doc", nil, n.Doc)
 		a.apply(n, "Name", nil, n.Name)
+		if tparams := n.TypeParams; tparams != nil {
+			a.apply(n, "TypeParams", nil, tparams)
+		}
 		a.apply(n, "Type", nil, n.Type)
 		a.apply(n, "Comment", nil, n.Comment)
 
@@ -439,13 +446,7 @@ func (a *application) apply(parent ast.Node, name string, iter *iterator, n ast.
 		}
 
 	default:
-		if ix := typeparams.GetIndexExprData(n); ix != nil {
-			a.apply(n, "X", nil, ix.X)
-			// *ast.IndexExpr was handled above, so n must be an *ast.MultiIndexExpr.
-			a.applyList(n, "Indices")
-		} else {
-			panic(fmt.Sprintf("Apply: unexpected node type %T", n))
-		}
+		panic(fmt.Sprintf("Apply: unexpected node type %T", n))
 	}
 
 	if a.post != nil && !a.post(&a.cursor) {
