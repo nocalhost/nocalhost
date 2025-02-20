@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package clientgoutils
 
@@ -112,7 +112,8 @@ func (c *ClientGoUtils) renderManifestAndThen(
 	if kustomize == "" {
 		reader = NewManifestResourceReader(files)
 	} else {
-		reader = NewKustomizeResourceReader(kustomize)
+		return errors.New("kustomize is not supported")
+		// reader = NewKustomizeResourceReader(kustomize)
 	}
 
 	loadResource, err := reader.LoadResource()

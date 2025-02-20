@@ -10,7 +10,7 @@ import (
 	"crypto/md5"
 	"encoding/gob"
 	"fmt"
-	"github.com/qiniu/api.v7/storage"
+	"github.com/qiniu/go-sdk/v7/storage"
 	"github.com/spf13/viper"
 	"io"
 	"k8s.io/apimachinery/pkg/util/validation"

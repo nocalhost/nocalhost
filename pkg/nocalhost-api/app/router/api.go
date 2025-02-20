@@ -20,8 +20,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 
+	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger" //nolint: goimports
-	"github.com/swaggo/gin-swagger/swaggerFiles"
 
 	"nocalhost/pkg/nocalhost-api/app/api"
 	"nocalhost/pkg/nocalhost-api/app/api/v1/user"
