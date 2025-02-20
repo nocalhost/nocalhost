@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package clientgoutils
 
@@ -13,11 +13,11 @@ import (
 	"io"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/yaml"
-	"k8s.io/cli-runtime/pkg/kustomize"
+	// "k8s.io/cli-runtime/pkg/kustomize"
 	"k8s.io/cli-runtime/pkg/resource"
 	"os"
 	"path/filepath"
-	"sigs.k8s.io/kustomize/pkg/fs"
+	// "sigs.k8s.io/kustomize/pkg/fs"
 	"strings"
 )
 
@@ -66,14 +66,15 @@ type kustomizeResourceReader struct {
 }
 
 func (lrv *kustomizeResourceReader) LoadResource() (*Resource, error) {
-	fSys := fs.MakeRealFS()
-	var out bytes.Buffer
-	err := kustomize.RunKustomizeBuild(&out, fSys, lrv.path)
-	if err != nil {
-		return &Resource{}, err
-	}
-
-	return NewResourceFromStr(string(out.Bytes())), nil
+	//fSys := fs.MakeRealFS()
+	//var out bytes.Buffer
+	//err := kustomize.RunKustomizeBuild(&out, fSys, lrv.path)
+	//if err != nil {
+	//	return &Resource{}, err
+	//}
+	//
+	//return NewResourceFromStr(string(out.Bytes())), nil
+	return nil, fmt.Errorf("not implemented")
 }
 
 // == local file visitor -- Manifest
