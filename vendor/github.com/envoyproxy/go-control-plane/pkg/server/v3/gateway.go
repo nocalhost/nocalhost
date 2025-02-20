@@ -15,8 +15,9 @@
 package server
 
 import (
+	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"path"
 
@@ -63,7 +64,7 @@ func (h *HTTPGateway) ServeHTTP(req *http.Request) ([]byte, int, error) {
 		return nil, http.StatusBadRequest, fmt.Errorf("empty body")
 	}
 
-	body, err := ioutil.ReadAll(req.Body)
+	body, err := io.ReadAll(req.Body)
 	if err != nil {
 		return nil, http.StatusBadRequest, fmt.Errorf("cannot read body")
 	}
@@ -81,7 +82,8 @@ func (h *HTTPGateway) ServeHTTP(req *http.Request) ([]byte, int, error) {
 	if err != nil {
 		// SkipFetchErrors will return a 304 which will signify to the envoy client that
 		// it is already at the latest version; all other errors will 500 with a message.
-		if _, ok := err.(*types.SkipFetchError); ok {
+		var skip *types.SkipFetchError
+		if ok := errors.As(err, &skip); ok {
 			return nil, http.StatusNotModified, nil
 		}
 		return nil, http.StatusInternalServerError, fmt.Errorf("fetch error: " + err.Error())

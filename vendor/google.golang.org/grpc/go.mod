@@ -1,18 +1,28 @@
 module google.golang.org/grpc
 
-go 1.11
+go 1.17
 
 require (
-	github.com/cespare/xxhash v1.1.0
-	github.com/cncf/udpa/go v0.0.0-20201120205902-5459f2c99403
-	github.com/envoyproxy/go-control-plane v0.9.9-0.20210512163311-63b5d3c536b0
-	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
-	github.com/golang/protobuf v1.4.3
-	github.com/google/go-cmp v0.5.0
-	github.com/google/uuid v1.1.2
-	golang.org/x/net v0.0.0-20200822124328-c89045814202
-	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
-	golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd
-	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013
-	google.golang.org/protobuf v1.25.0
+	github.com/cespare/xxhash/v2 v2.2.0
+	github.com/cncf/udpa/go v0.0.0-20220112060539-c52dc94e7fbe
+	github.com/cncf/xds/go v0.0.0-20230607035331-e9ce68804cb4
+	github.com/envoyproxy/go-control-plane v0.11.1-0.20230524094728-9239064ad72f
+	github.com/golang/glog v1.1.0
+	github.com/golang/protobuf v1.5.3
+	github.com/google/go-cmp v0.5.9
+	github.com/google/uuid v1.3.0
+	golang.org/x/net v0.9.0
+	golang.org/x/oauth2 v0.7.0
+	golang.org/x/sys v0.7.0
+	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1
+	google.golang.org/protobuf v1.30.0
+)
+
+require (
+	cloud.google.com/go/compute v1.19.1 // indirect
+	cloud.google.com/go/compute/metadata v0.2.3 // indirect
+	github.com/census-instrumentation/opencensus-proto v0.4.1 // indirect
+	github.com/envoyproxy/protoc-gen-validate v0.10.1 // indirect
+	golang.org/x/text v0.9.0 // indirect
+	google.golang.org/appengine v1.6.7 // indirect
 )
