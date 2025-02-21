@@ -7,19 +7,28 @@ package clientgoutils
 
 import (
 	"bytes"
-	"github.com/pkg/errors"
 	"io"
+	"os"
+
+	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
+	"k8s.io/client-go/openapi3"
+	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/cmd/apply"
+	cmddelete "k8s.io/kubectl/pkg/cmd/delete"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/kubectl/pkg/util/prune"
+
 	"nocalhost/internal/nhctl/const"
-	//"k8s.io/kubectl/pkg/util"
 	"nocalhost/pkg/nhctl/log"
-	"os"
 )
 
 func StandardNocalhostMetas(releaseName, releaseNamespace string) *ApplyFlags {
@@ -93,7 +102,7 @@ func (c *ClientGoUtils) ApplyResourceInfo(info *resource.Info, af *ApplyFlags) e
 		cmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
 		return &runtimeObjectPrinter{Operation: operation, Name: info.Name}, nil
 	}
-	o.IOStreams = genericclioptions.IOStreams{
+	o.IOStreams = genericiooptions.IOStreams{
 		In: os.Stdin, Out: os.Stdout, ErrOut: os.Stdout,
 	} // don't print log to stderr
 	return o.Run()
@@ -101,54 +110,106 @@ func (c *ClientGoUtils) ApplyResourceInfo(info *resource.Info, af *ApplyFlags) e
 
 func (c *ClientGoUtils) generateCompletedApplyOption(af *ApplyFlags) (*apply.ApplyOptions, error) {
 	var err error
-	ioStreams := genericclioptions.IOStreams{
+	ioStreams := genericiooptions.IOStreams{
 		In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr,
 	} // don't print log to stderr
-	o := apply.NewApplyOptions(ioStreams)
-	o.DeleteFlags.FileNameFlags.Filenames = &[]string{""}
-	o.OpenAPIPatch = true
 
 	f := c.NewFactory()
-	// From o.Complete
-	o.ServerSideApply = false
-	o.ForceConflicts = false
-	o.DryRunStrategy = cmdutil.DryRunNone
-	o.DynamicClient, err = f.DynamicClient()
+	recordFlags := genericclioptions.NewRecordFlags()
+	deleteFlags := cmddelete.NewDeleteFlags("The files that contain the configurations to apply.")
+	deleteFlags.FileNameFlags.Filenames = &[]string{""}
+	printFlags := genericclioptions.NewPrintFlags("created").WithTypeSetter(scheme.Scheme)
+
+	// form flags.ToOptions()
+
+	dryRunStrategy := cmdutil.DryRunNone
+
+	dynamicClient, err := f.DynamicClient()
 	if err != nil {
 		return nil, err
 	}
-	discoveryClient, err := f.ToDiscoveryClient()
+
+	// allow for a success message operation to be specified at print time
+	toPrinter := func(operation string) (printers.ResourcePrinter, error) {
+		printFlags.NamePrintFlags.Operation = operation
+		cmdutil.PrintFlagsWithDryRunStrategy(printFlags, dryRunStrategy)
+		return printFlags.ToPrinter()
+	}
+
+	recorder, err := recordFlags.ToRecorder()
 	if err != nil {
 		return nil, err
 	}
-	o.DryRunVerifier = resource.NewDryRunVerifier(o.DynamicClient, discoveryClient)
-	o.FieldManager = apply.FieldManagerClientSideApply
-	o.DeleteOptions, err = o.DeleteFlags.ToOptions(o.DynamicClient, o.IOStreams)
+
+	deleteOptions, err := deleteFlags.ToOptions(dynamicClient, ioStreams)
 	if err != nil {
 		return nil, err
 	}
-	err = o.DeleteOptions.FilenameOptions.RequireFilenameOrKustomize()
+
+	err = deleteOptions.FilenameOptions.RequireFilenameOrKustomize()
 	if err != nil {
 		return nil, err
 	}
-	o.OpenAPISchema, _ = f.OpenAPISchema()
-	o.Validator, err = f.Validator(true)
+
+	var openAPIV3Root openapi3.Root
+	if !cmdutil.OpenAPIV3Patch.IsDisabled() {
+		openAPIV3Client, err := f.OpenAPIV3Client()
+		if err == nil {
+			openAPIV3Root = openapi3.NewRoot(openAPIV3Client)
+		} else {
+			klog.V(4).Infof("warning: OpenAPI V3 Patch is enabled but is unable to be loaded. Will fall back to OpenAPI V2")
+		}
+	}
+
+	validationDirective := metav1.FieldValidationStrict
+	validator, err := f.Validator(validationDirective)
 	if err != nil {
 		return nil, err
 	}
-	o.Builder = f.NewBuilder()
-	o.Mapper, err = f.ToRESTMapper()
+	builder := f.NewBuilder()
+	mapper, err := f.ToRESTMapper()
 	if err != nil {
 		return nil, err
 	}
-	o.Namespace, o.EnforceNamespace, err = f.ToRawKubeConfigLoader().Namespace()
+
+	namespace, enforceNamespace, err := f.ToRawKubeConfigLoader().Namespace()
 	if err != nil {
 		return nil, err
 	}
-	o.ToPrinter = func(operation string) (printers.ResourcePrinter, error) {
-		o.PrintFlags.NamePrintFlags.Operation = operation
-		cmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, o.DryRunStrategy)
-		return o.PrintFlags.ToPrinter()
+
+	o := &apply.ApplyOptions{
+
+		PrintFlags: printFlags,
+
+		DeleteOptions:   deleteOptions,
+		ToPrinter:       toPrinter,
+		ServerSideApply: false,
+		ForceConflicts:  false,
+		FieldManager:    apply.FieldManagerClientSideApply,
+		Selector:        "",
+		DryRunStrategy:  dryRunStrategy,
+		Prune:           false,
+		PruneResources:  []prune.Resource{},
+		All:             false,
+		Overwrite:       true,
+		OpenAPIPatch:    true,
+		Subresource:     "",
+
+		Recorder:            recorder,
+		Namespace:           namespace,
+		EnforceNamespace:    enforceNamespace,
+		Validator:           validator,
+		ValidationDirective: validationDirective,
+		Builder:             builder,
+		Mapper:              mapper,
+		DynamicClient:       dynamicClient,
+		OpenAPIGetter:       f,
+		OpenAPIV3Root:       openAPIV3Root,
+
+		IOStreams: ioStreams,
+
+		VisitedUids:       sets.New[types.UID](),
+		VisitedNamespaces: sets.New[string](),
 	}
 
 	// injection for the objects before apply
@@ -180,7 +241,7 @@ func (c *ClientGoUtils) GetResourceInfoFromReader(reader io.Reader, continueOnEr
 
 	f := c.NewFactory()
 	builder := f.NewBuilder()
-	validate, err := f.Validator(true)
+	validate, err := f.Validator(metav1.FieldValidationStrict)
 	if err != nil {
 		if continueOnError {
 			log.Warnf("Build validator err: %v", err.Error())

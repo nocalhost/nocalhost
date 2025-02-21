@@ -1,4 +1,4 @@
-module github.com/nocalhost
+module nocalhost
 
 go 1.23.0
 
