@@ -37,7 +37,7 @@ var flagAdded bool
 func InitLogOptions() {
 	//stdIn, stdOut, stderr := dockerterm.StdStreams()
 	LogOptions = logs.NewLogsOptions(
-		*clientgoutils.IoStreams, false)
+		*clientgoutils.IoStreams)
 	if !flagAdded {
 		flagAdded = true
 		LogOptions.AddFlags(CmdLogs)

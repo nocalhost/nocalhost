@@ -244,7 +244,7 @@ func (h *resourceHandler) toKey() string {
 	return util.GenerateKey(h.kubeconfigBytes, h.namespace)
 }
 
-func (h *resourceHandler) OnAdd(obj interface{}) {
+func (h *resourceHandler) OnAdd(obj interface{}, isInInitialList bool) {
 	h.statusInfoLock.Lock()
 	defer h.statusInfoLock.Unlock()
 

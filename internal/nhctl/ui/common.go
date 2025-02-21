@@ -6,8 +6,8 @@
 package ui
 
 import (
+	"github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
-	"github.com/gdamore/tcell/v2"
 	"go.uber.org/zap/zapcore"
 	"nocalhost/internal/nhctl/coloredoutput"
 	"nocalhost/internal/nhctl/nocalhost_path"

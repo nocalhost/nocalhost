@@ -8,8 +8,8 @@ package ui
 import (
 	"context"
 	"fmt"
+	"github.com/derailed/tcell/v2"
 	"github.com/derailed/tview"
-	"github.com/gdamore/tcell/v2"
 	"io/ioutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"nocalhost/cmd/nhctl/cmds/install"
