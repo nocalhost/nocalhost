@@ -16,6 +16,7 @@ import (
 	"golang.org/x/sys/windows"
 	"golang.zx2c4.com/wireguard/windows/tunnel/winipcfg"
 	"net"
+	"net/netip"
 	"os"
 	"os/exec"
 	"strconv"
@@ -29,7 +30,14 @@ func SetupDNS(config *miekgdns.ClientConfig) error {
 		return err
 	}
 	luid := winipcfg.LUID(parseUint)
-	err = luid.SetDNS(windows.AF_INET, []net.IP{net.ParseIP(config.Servers[0])}, config.Search)
+
+	ip := net.ParseIP(config.Servers[0])
+	addr, ok := netip.AddrFromSlice(ip)
+	if !ok {
+		return fmt.Errorf("invalid IP address: %s", config.Servers[0])
+	}
+
+	err = luid.SetDNS(windows.AF_INET, []netip.Addr{addr}, config.Search)
 	_ = exec.CommandContext(context.Background(), "ipconfig", "/flushdns").Run()
 	if err != nil {
 		log.Warningln(err)
@@ -39,7 +47,6 @@ func SetupDNS(config *miekgdns.ClientConfig) error {
 	_ = addNicSuffixSearchList(config.Search)
 	return nil
 }
-
 func CancelDNS() {
 	getenv := os.Getenv("luid")
 	parseUint, err := strconv.ParseUint(getenv, 10, 64)

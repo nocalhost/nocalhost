@@ -12,6 +12,7 @@ import (
 	wireguardtun "golang.zx2c4.com/wireguard/tun"
 	"golang.zx2c4.com/wireguard/windows/tunnel/winipcfg"
 	"net"
+	"net/netip"
 	"os"
 	"time"
 )
@@ -32,7 +33,13 @@ func createTun(cfg Config) (net.Conn, *net.Interface, error) {
 	_ = os.Setenv("luid", fmt.Sprintf("%d", tunDevice.(*wireguardtun.NativeTun).LUID()))
 
 	luid := winipcfg.LUID(tunDevice.(*wireguardtun.NativeTun).LUID())
-	if err = luid.AddIPAddress(net.IPNet{IP: ip, Mask: ipNet.Mask}); err != nil {
+	ipAddr, err := netip.ParseAddr(ip.String())
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to parse IP address: %w", err)
+	}
+	ones, _ := ipNet.Mask.Size()
+	prefix := netip.PrefixFrom(ipAddr, ones)
+	if err = luid.AddIPAddress(prefix); err != nil {
 		return nil, nil, err
 	}
 
@@ -51,12 +58,25 @@ func addTunRoutes(ifName winipcfg.LUID, gw string, routes ...IPRoute) error {
 		if route.Dest == nil {
 			continue
 		}
-		if gw != "" {
-			route.Gateway = net.ParseIP(gw)
-		} else {
-			route.Gateway = net.IPv4(0, 0, 0, 0)
+
+		destIP, err := netip.ParseAddr(route.Dest.IP.String())
+		if err != nil {
+			return fmt.Errorf("failed to parse destination IP: %w", err)
 		}
-		if err := ifName.AddRoute(*route.Dest, route.Gateway, 0); err != nil {
+		ones, _ := route.Dest.Mask.Size()
+		destPrefix := netip.PrefixFrom(destIP, ones)
+
+		var gwAddr netip.Addr
+		if gw != "" {
+			gwAddr, err = netip.ParseAddr(gw)
+			if err != nil {
+				return fmt.Errorf("failed to parse gateway IP: %w", err)
+			}
+		} else {
+			gwAddr = netip.IPv4Unspecified()
+		}
+
+		if err := ifName.AddRoute(destPrefix, gwAddr, 0); err != nil {
 			return err
 		}
 	}
@@ -69,21 +89,23 @@ type winTunConn struct {
 }
 
 func (c *winTunConn) Close() error {
-	err := c.ifce.Close()
-	if name, err := c.ifce.Name(); err == nil {
-		if wt, err := wireguardtun.WintunPool.OpenAdapter(name); err == nil {
-			_, err = wt.Delete(true)
-		}
+	if nativeTun, ok := c.ifce.(*wireguardtun.NativeTun); ok {
+		nativeTun.Close()
 	}
-	return err
+	return c.ifce.Close()
 }
 
 func (c *winTunConn) Read(b []byte) (n int, err error) {
-	return c.ifce.Read(b, 0)
+	sizes := make([]int, 1)
+	n, err = c.ifce.Read([][]byte{b}, sizes, 0)
+	if err != nil {
+		return 0, err
+	}
+	return sizes[0], nil
 }
 
 func (c *winTunConn) Write(b []byte) (n int, err error) {
-	return c.ifce.Write(b, 0)
+	return c.ifce.Write([][]byte{b}, 0)
 }
 
 func (c *winTunConn) LocalAddr() net.Addr {
