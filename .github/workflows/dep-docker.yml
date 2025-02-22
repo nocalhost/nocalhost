@@ -17,21 +17,26 @@ jobs:
       - name: Build dep-docker
         run: make dep-docker
 
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Push to Github packages
         if: ${{ github.ref == 'refs/heads/main'}}
         env:
-          GITHUB_IMAGE_NAME: docker.pkg.github.com/${{ github.repository }}/nocalhost-dep
+          GITHUB_IMAGE_NAME: ghcr.io/nocalhost/nocalhost/nocalhost-dep
         run: |
-          echo ${{ secrets.GPR_PASS }} | docker login docker.pkg.github.com -u ${{ secrets.GPR_USER }} --password-stdin
           docker tag nocalhost-dep:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:${GITHUB_SHA}
           docker push ${GITHUB_IMAGE_NAME}:${GITHUB_SHA}
 
       - name: Push latest to Github packages
         if: ${{ github.ref == 'refs/heads/main'}}
         env:
-          GITHUB_IMAGE_NAME: docker.pkg.github.com/${{ github.repository }}/nocalhost-dep
+          GITHUB_IMAGE_NAME: ghcr.io/nocalhost/nocalhost/nocalhost-dep
         run: |
-          echo ${{ secrets.GPR_PASS }} | docker login docker.pkg.github.com -u ${{ secrets.GPR_USER }} --password-stdin
           docker tag nocalhost-dep:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:latest
           docker push ${GITHUB_IMAGE_NAME}:latest
 

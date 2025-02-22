@@ -265,11 +265,17 @@ jobs:
           SERVICE_INITIAL: true
         run: make api-docker
 
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Push to Github packages
         env:
-          GITHUB_IMAGE_NAME: docker.pkg.github.com/${{ github.repository }}/nocalhost-api
+          GITHUB_IMAGE_NAME: ghcr.io/nocalhost/nocalhost/nocalhost-api
         run: |
-          echo ${{ secrets.GPR_PASS }} | docker login docker.pkg.github.com -u ${{ secrets.GPR_USER }} --password-stdin
           docker tag nocalhost-api:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:${GITHUB_SHA}
           docker tag nocalhost-api:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:latest
           docker tag nocalhost-api:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
@@ -294,9 +300,8 @@ jobs:
 
       - name: Push to Github packages
         env:
-          GITHUB_IMAGE_NAME: docker.pkg.github.com/${{ github.repository }}/nocalhost-dep
+          GITHUB_IMAGE_NAME: ghcr.io/nocalhost/nocalhost/nocalhost-dep
         run: |
-          echo ${{ secrets.GPR_PASS }} | docker login docker.pkg.github.com -u ${{ secrets.GPR_USER }} --password-stdin
           docker tag nocalhost-dep:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:${GITHUB_SHA}
           docker tag nocalhost-dep:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:latest
           docker tag nocalhost-dep:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
@@ -323,9 +328,8 @@ jobs:
 
       - name: Push to Github packages
         env:
-          GITHUB_IMAGE_NAME: docker.pkg.github.com/${{ github.repository }}/dep-installer-job
+          GITHUB_IMAGE_NAME: ghcr.io/nocalhost/nocalhost/dep-installer-job
         run: |
-          echo ${{ secrets.GPR_PASS }} | docker login docker.pkg.github.com -u ${{ secrets.GPR_USER }} --password-stdin
           docker tag dep-installer-job:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:${GITHUB_SHA}
           docker tag dep-installer-job:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:latest
           docker tag dep-installer-job:${GITHUB_SHA} ${GITHUB_IMAGE_NAME}:${{ env.RELEASE_VERSION }}
