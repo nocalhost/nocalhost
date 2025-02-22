@@ -100,7 +100,7 @@ func (d *DevStartOps) StartSyncthing(podName string, resume bool, stop bool, syn
 	utils.ShouldI(err, "Failed to new syncthing")
 
 	// try install syncthing
-	var downloadVersion = daemon_common.Version
+	var downloadVersion = "v0.6.29"
 
 	// for debug only
 	if d.SyncthingVersion != "" {

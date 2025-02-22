@@ -71,11 +71,15 @@ jobs:
           windows-latest,
         ]
     steps:
-      - uses: actions/checkout@master
-        timeout-minutes: 10
-      - uses: actions/setup-go@v2
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v4
+
+      - name: Set up Go 1.23
+        uses: actions/setup-go@v5
         with:
-          go-version: '1.16.7'
+          go-version: 1.23.6
+
+
       - run: go version
       - name: git tag
         timeout-minutes: 10
