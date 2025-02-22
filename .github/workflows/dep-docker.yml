@@ -18,6 +18,7 @@ jobs:
         run: make dep-docker
 
       - name: Push to Github packages
+        if: ${{ github.ref == 'refs/heads/main'}}
         env:
           GITHUB_IMAGE_NAME: docker.pkg.github.com/${{ github.repository }}/nocalhost-dep
         run: |

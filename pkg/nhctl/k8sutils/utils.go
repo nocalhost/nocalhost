@@ -7,10 +7,10 @@ package k8sutils
 
 import (
 	"context"
+	jsoniter "github.com/json-iterator/go"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	runtimejson "k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
@@ -109,8 +109,28 @@ func GetOrGenKubeConfigPath(kubeconfigContent string) string {
 	}
 }
 
+// fork from k8s.io/apimachinery/pkg/runtime/serializer/json/json.go v0.21.0-alpha.1.0.20210121071119-460d10991a52
+type customNumberExtension struct {
+	jsoniter.DummyExtension
+}
+
+// CaseSensitiveJSONIterator returns a jsoniterator API that's configured to be
+// case-sensitive when unmarshalling, and otherwise compatible with
+// the encoding/json standard library.
+func CaseSensitiveJSONIterator() jsoniter.API {
+	config := jsoniter.Config{
+		EscapeHTML:             true,
+		SortMapKeys:            true,
+		ValidateJsonRawMessage: true,
+		CaseSensitive:          true,
+	}.Froze()
+	// Force jsoniter to decode number to interface{} via int64/float64, if possible.
+	config.RegisterExtension(&customNumberExtension{})
+	return config
+}
+
 func GetObjectMetaData(obj interface{}) *metadataOnlyObject {
-	var caseSensitiveJsonIterator = runtimejson.CaseSensitiveJSONIterator()
+	var caseSensitiveJsonIterator = CaseSensitiveJSONIterator()
 	marshal, errs := caseSensitiveJsonIterator.Marshal(obj)
 	if errs != nil {
 		return nil

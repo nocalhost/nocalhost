@@ -1,7 +1,7 @@
 /*
 * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 * This source code is licensed under the Apache License Version 2.0.
-*/
+ */
 
 package clientgoutils
 
@@ -32,7 +32,7 @@ func (c *ClientGoUtils) CreatePVC(
 		Spec: v1.PersistentVolumeClaimSpec{
 			AccessModes: []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
 			Selector:    nil,
-			Resources: v1.ResourceRequirements{
+			Resources: v1.VolumeResourceRequirements{
 				Requests: map[v1.ResourceName]resource.Quantity{v1.ResourceStorage: q},
 			},
 			StorageClassName: storageClassName,

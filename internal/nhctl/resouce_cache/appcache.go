@@ -115,7 +115,7 @@ func (r *ResourceEventHandlerFuncs) handleAddOrUpdate() {
 	}
 }
 
-func (r *ResourceEventHandlerFuncs) OnAdd(interface{}) {
+func (r *ResourceEventHandlerFuncs) OnAdd(interface{}, bool) {
 	r.timeUp(r.handleAddOrUpdate)
 }
 

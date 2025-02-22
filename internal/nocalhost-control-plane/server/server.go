@@ -8,16 +8,17 @@ package server
 import (
 	"context"
 	"fmt"
-	"github.com/envoyproxy/go-control-plane/envoy/service/cluster/v3"
-	"github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
-	"github.com/envoyproxy/go-control-plane/envoy/service/endpoint/v3"
-	"github.com/envoyproxy/go-control-plane/envoy/service/listener/v3"
-	"github.com/envoyproxy/go-control-plane/envoy/service/route/v3"
-	"github.com/envoyproxy/go-control-plane/envoy/service/runtime/v3"
-	"github.com/envoyproxy/go-control-plane/envoy/service/secret/v3"
 	"log"
 	"net"
 	"time"
+
+	clusterservice "github.com/envoyproxy/go-control-plane/envoy/service/cluster/v3"
+	discoverygrpc "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
+	endpointservice "github.com/envoyproxy/go-control-plane/envoy/service/endpoint/v3"
+	listenerservice "github.com/envoyproxy/go-control-plane/envoy/service/listener/v3"
+	routeservice "github.com/envoyproxy/go-control-plane/envoy/service/route/v3"
+	runtimeservice "github.com/envoyproxy/go-control-plane/envoy/service/runtime/v3"
+	secretservice "github.com/envoyproxy/go-control-plane/envoy/service/secret/v3"
 
 	"github.com/envoyproxy/go-control-plane/pkg/server/v3"
 	"google.golang.org/grpc"
@@ -72,12 +73,12 @@ func RunManagementServer(ctx context.Context, srv server.Server, port uint) {
 // RegisterServer registers with v3 services.
 func RegisterServer(grpcServer *grpc.Server, server server.Server) {
 	// register services
-	envoy_service_discovery_v3.RegisterAggregatedDiscoveryServiceServer(grpcServer, server)
-	envoy_service_endpoint_v3.RegisterEndpointDiscoveryServiceServer(grpcServer, server)
-	envoy_service_cluster_v3.RegisterClusterDiscoveryServiceServer(grpcServer, server)
-	envoy_service_route_v3.RegisterRouteDiscoveryServiceServer(grpcServer, server)
-	envoy_service_route_v3.RegisterScopedRoutesDiscoveryServiceServer(grpcServer, server)
-	envoy_service_listener_v3.RegisterListenerDiscoveryServiceServer(grpcServer, server)
-	envoy_service_secret_v3.RegisterSecretDiscoveryServiceServer(grpcServer, server)
-	envoy_service_runtime_v3.RegisterRuntimeDiscoveryServiceServer(grpcServer, server)
+	discoverygrpc.RegisterAggregatedDiscoveryServiceServer(grpcServer, server)
+	endpointservice.RegisterEndpointDiscoveryServiceServer(grpcServer, server)
+	clusterservice.RegisterClusterDiscoveryServiceServer(grpcServer, server)
+	routeservice.RegisterRouteDiscoveryServiceServer(grpcServer, server)
+	routeservice.RegisterScopedRoutesDiscoveryServiceServer(grpcServer, server)
+	listenerservice.RegisterListenerDiscoveryServiceServer(grpcServer, server)
+	secretservice.RegisterSecretDiscoveryServiceServer(grpcServer, server)
+	runtimeservice.RegisterRuntimeDiscoveryServiceServer(grpcServer, server)
 }
