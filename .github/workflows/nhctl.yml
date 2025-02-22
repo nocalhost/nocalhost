@@ -10,7 +10,7 @@ on:
 jobs:
 
   build-nhctl-windows-linux:
-    name: Build nhctl
+    name: Build windows linux nhctl
     runs-on: ubuntu-latest
     steps:
 
@@ -66,8 +66,8 @@ jobs:
           curl -T ${LINUX_ARM64_BINARY} -u ${{ secrets.CODING_ARTIFACTS_USER }}:${{ secrets.CODING_ARTIFACTS_PASS }} "https://nocalhost-generic.pkg.coding.net/nocalhost/nhctl/${LINUX_ARM64_BINARY}?version=dev" --retry 5
 
   build-nhctl-macos:
-    name: Build nhctl
-    runs-on: macos-11
+    name: Build macos nhctl
+    runs-on: macos-latest
     steps:
 
       - name: Check out code into the Go module directory
