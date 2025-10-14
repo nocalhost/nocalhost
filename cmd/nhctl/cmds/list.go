@@ -8,7 +8,6 @@ package cmds
 import (
 	"encoding/json"
 	"fmt"
-	"gopkg.in/yaml.v3"
 	common2 "nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/app_flags"
 	"nocalhost/internal/nhctl/appmeta"
@@ -22,6 +21,8 @@ import (
 
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
+
 	"nocalhost/internal/nhctl/app"
 	"nocalhost/internal/nhctl/nocalhost"
 )
@@ -75,10 +76,16 @@ func ListApplicationSvc(napp *app.Application) {
 		data = append(data, rols)
 	}
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"NAME", "DEVELOPING", "SYNCING", "DEV-PORT-FORWARDED", "SYNC-PATH", "LOCAL-SYNCTHING-GUI"})
+	table.Options(
+		tablewriter.WithHeader([]string{"NAME", "DEVELOPING", "SYNCING", "DEV-PORT-FORWARDED", "SYNC-PATH", "LOCAL-SYNCTHING-GUI"}),
+	)
 
 	for _, v := range data {
-		table.Append(v)
+		row := make([]interface{}, len(v))
+		for i, s := range v {
+			row[i] = s
+		}
+		table.Append(row...)
 	}
 	table.Render() // Send output
 }

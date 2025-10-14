@@ -6,6 +6,8 @@
 package resource
 
 import (
+	"time"
+
 	cluster "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	endpoint "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
@@ -21,13 +23,13 @@ import (
 	v32 "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
 	"github.com/envoyproxy/go-control-plane/pkg/resource/v3"
 	"github.com/envoyproxy/go-control-plane/pkg/wellknown"
-	"github.com/golang/protobuf/ptypes/wrappers"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
+
 	"nocalhost/internal/nocalhost-control-plane/common"
 	"nocalhost/internal/nocalhost-control-plane/pkg/util"
-	"time"
 )
 
 func buildListener(name string, port uint32) *listener.Listener {
@@ -111,10 +113,8 @@ func buildListener(name string, port uint32) *listener.Listener {
 	}
 
 	return &listener.Listener{
-		Name: name,
-		BindToPort: &wrappers.BoolValue{
-			Value: false,
-		},
+		Name:       name,
+		BindToPort: wrapperspb.Bool(false),
 		Address: &core.Address{
 			Address: &core.Address_SocketAddress{
 				SocketAddress: &core.SocketAddress{

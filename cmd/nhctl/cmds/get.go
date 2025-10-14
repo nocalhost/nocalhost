@@ -8,11 +8,16 @@ package cmds
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"reflect"
+
 	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
-	"io/ioutil"
+
 	"nocalhost/cmd/nhctl/cmds/common"
 	"nocalhost/internal/nhctl/daemon_client"
 	"nocalhost/internal/nhctl/daemon_handler/item"
@@ -20,9 +25,6 @@ import (
 	"nocalhost/internal/nhctl/utils"
 	k8sutil "nocalhost/pkg/nhctl/k8sutils"
 	"nocalhost/pkg/nhctl/log"
-	"os"
-	"path/filepath"
-	"reflect"
 )
 
 var outputType string
@@ -169,13 +171,10 @@ func out(f func(interface{}) ([]byte, error), data interface{}) {
 
 func write(headers []string, rows [][]string) {
 	writer := tablewriter.NewWriter(os.Stdout)
-	writer.SetBorder(false)
-	writer.SetColumnSeparator("")
-	writer.SetRowSeparator("")
-	writer.SetCenterSeparator("")
-	writer.SetHeaderLine(false)
-	writer.SetHeader(headers)
-	writer.AppendBulk(rows)
+	writer.Options(
+		tablewriter.WithHeader(headers),
+	)
+	writer.Bulk(rows)
 	writer.Render()
 }
 
