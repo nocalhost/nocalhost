@@ -438,7 +438,7 @@ func (c *Controller) waitDevPodToBeReady() {
 
 	var currentPod atomic.Value
 
-	readyChan := make(chan struct{}, 0)
+	readyChan := make(chan struct{}, 1)
 	stopChan := make(chan struct{}, 0)
 	defer close(stopChan)
 
@@ -513,6 +513,27 @@ func (c *Controller) waitDevPodToBeReady() {
 			nil,
 		)
 	}
+
+	// Polling fallback: in case informer watcher misses events on Windows or specific K8s envs,
+	// actively poll pod status every 5s as a safety net.
+	go func() {
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-stopChan:
+				return
+			case <-ticker.C:
+				if _, err := c.CheckDevModePodIsRunning(); err == nil {
+					select {
+					case readyChan <- struct{}{}:
+					default:
+					}
+					return
+				}
+			}
+		}
+	}()
 
 	select {
 	case _, _ = <-stopChan:
